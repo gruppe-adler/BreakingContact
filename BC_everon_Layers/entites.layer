@@ -1,0 +1,61 @@
+Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
+ components {
+  SCR_MapDescriptorComponent "{52A8810B142E666C}" {
+   DisplayName "RadioTruck"
+   VisibleOnMap 0
+   MainType Target
+   UnitType Vehicle
+   Scale 100
+  }
+  SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {
+   m_fVehicleDestroyDamage 11360.7
+  }
+ }
+ coords 6637.923 154.962 6491.463
+ angleX 4.503
+ angleY -110.054
+ angleZ -0.692
+ EOnInit ""\
+ "		GetGame().GetCallqueue().CallLater(checkMarker, 2000, true); "\
+ "	}"\
+ "		"\
+ "	void checkMarker() { "\
+ "			"\
+ "		IEntity m_radioTruckWest = GetGame().GetWorld().FindEntityByName(\"radioTruckWest\");"\
+ "	"\
+ "		if (m_radioTruckWest) {"\
+ "			"\
+ "			Print(\"truck found\");		"\
+ "			"\
+ "			VehicleWheeledSimulation_SA controller;"\
+ "			controller = VehicleWheeledSimulation_SA.Cast(m_radioTruckWest.FindComponent(VehicleWheeledSimulation_SA));"\
+ "			if (controller)"\
+ "			{"\
+ "					Print(\"controller found\");"\
+ "					SCR_MapDescriptorComponent m_truckMarker = SCR_MapDescriptorComponent.Cast(m_radioTruckWest.FindComponent(SCR_MapDescriptorComponent));"\
+ "					"\
+ "					if ((controller.EngineIsOn()) && m_truckMarker) {"\
+ "					"\
+ "						m_truckMarker.Item().SetVisible(false);"\
+ "						// SCR_HintManagerComponent.GetInstance().ShowCustomHint( \"MARKER OFF\");"\
+ "						Print(\"marker off\");"\
+ "					}else if (!(controller.EngineIsOn()) && m_truckMarker) {"\
+ "						m_truckMarker.Item().SetVisible(true);"\
+ "					// SCR_HintManagerComponent.GetInstance().ShowCustomHint( \"MARKER ON\");"\
+ "					Print(\"marker on\");"\
+ "						}"\
+ "			}	"\
+ "		}	"\
+ "	"
+}
+Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignRadioTruckEast.et" {
+ components {
+  GRAD_BC_RadioTruckComponent "{5E98B86CA88972B3}" {
+  }
+  SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {
+   m_fVehicleDestroyDamage 11360.7
+  }
+ }
+ coords 6622.457 156.094 6487.198
+ angleY -110.017
+}

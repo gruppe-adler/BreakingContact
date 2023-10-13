@@ -5,11 +5,14 @@ class GRAD_BC_RadioTruckComponentClass : ScriptComponentClass
 
 class GRAD_BC_RadioTruckComponent : ScriptComponent
 {
-	[Attribute(defvalue: "2000", uiwidget: UIWidgets.EditBox, desc: "Update Interval for checking EngineOn() and show/hide marker", params: "", category: "Breaking Contact - Radio Truck")];
-	protected int m_iMarkerUpdateInterval;
+	[Attribute(defvalue: "1000", uiwidget: UIWidgets.EditBox, desc: "Update Interval", params: "", category: "Breaking Contact - Radio Truck")];
+	protected int m_iRadioTransmissionUpdateInterval;
 	
-	//[RplProp()]
+	[RplProp()]
 	protected ERadioTransmissionState m_eRadioTransmissionState;
+
+	[RplProp()]	
+	protected int m_iRadioTransmissionDuration;
 	
 	private Vehicle m_radioTruck;
 	
@@ -30,25 +33,61 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		
 		m_RplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
 		
-		PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
-		PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
-		PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
-		
-		//GetGame().GetCallqueue().CallLater(SetRadioTruckMarkerVisibility, m_iMarkerUpdateInterval, true); 
+		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
+		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
+		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
 		
 		// Initially set radio transmission state to off and disable the map marker
-		//SetRadioTransmissionState(ERadioTransmissionState.OFF);
-		GetGame().GetCallqueue().CallLater(SetRadioTransmissionState, 5000, false, ERadioTransmissionState.OFF); 
+		//SetRadioTransmissionState(m_eRadioTransmissionState);
+		GetGame().GetCallqueue().CallLater(SetRadioTransmissionState, 5000, false, m_eRadioTransmissionState);
+		
+		if(m_RplComponent.IsMaster())
+			GetGame().GetCallqueue().CallLater(UpdateRadioTransmissionDuration, m_iRadioTransmissionUpdateInterval, true);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	int GetRadioTransmissionDuration()
+	{
+		//RpcAsk_Authority_SyncVariables();
+		
+		return m_iRadioTransmissionDuration;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	void SyncVariables()
+	{
+		Rpc(RpcAsk_Authority_SyncVariables);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Authority_SyncVariables()
+	{
+		//Print("BC Debug - RpcAsk_Authority_SyncRadioTransmissionDuration()", LogLevel.NORMAL);
+		
+		Replication.BumpMe();
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void UpdateRadioTransmissionDuration()
+	{
+		// this function runs on server-side only
+		
+		//Print("BC Debug - UpdateRadioTransmissionDuration()", LogLevel.NORMAL);
+		
+		if (GetRadioTransmissionState() == ERadioTransmissionState.TRANSMITTING)
+		{
+			m_iRadioTransmissionDuration += m_iRadioTransmissionUpdateInterval;
+			PrintFormat("m_iRadioTransmissionDuration: %1", m_iRadioTransmissionDuration);
+		}
+	}
 	
 	//------------------------------------------------------------------------------------------------
 	protected void SetRadioTruckMarkerVisibility(bool enableMarkerVisibility)
 	{
-		// this function seems to run server-side only
+		// this function runs on server-side only
 		
 		//Print("BC Debug - CheckMarker()", LogLevel.NORMAL);
-		
 		
 		if (!m_radioTruck)
 		{

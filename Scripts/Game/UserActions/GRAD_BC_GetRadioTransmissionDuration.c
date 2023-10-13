@@ -1,8 +1,11 @@
-class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
+class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 {
 	// This scripted user action if triggered runs on all clients and server
+	// But in code execution is filtered on performing user und server
 	
 	private GRAD_BC_RadioTruckComponent m_radioTruckComponent;
+	
+	private RplComponent m_RplComponent;
 
 	// comment from discord:
 	// if HasLocalEffectOnly returns true, it will be executing only on the client where the action has been trigerred 
@@ -28,35 +31,13 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBeShownScript(IEntity user)
 	{
-		return CanBePerformedScript(user);
+		return true;
 	}
 
 	//------------------------------------------------------------------------------------------------
 	override bool CanBePerformedScript(IEntity user)
 	{
-		return true;
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
-	{
-		//Print("BC Debug - PerformAction() ToggleRadioTransmission", LogLevel.NORMAL);
-
-		if (!m_radioTruckComponent)
-		{
-			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
-			return;
-		}
 		
-		if(m_radioTruckComponent.GetRadioTransmissionState() == ERadioTransmissionState.TRANSMITTING)
-			m_radioTruckComponent.SetRadioTransmissionState(ERadioTransmissionState.INTERRUPTED);
-		else
-			m_radioTruckComponent.SetRadioTransmissionState(ERadioTransmissionState.TRANSMITTING);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	override bool GetActionNameScript(out string outName)
-	{
 		if (!m_radioTruckComponent)
 		{
 			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
@@ -65,17 +46,42 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		
 		if (m_radioTruckComponent.GetRadioTransmissionState() == ERadioTransmissionState.TRANSMITTING)
 		{
-			outName = "Stop Radio Transmission";
+			return true;
 		} else
 		{
-			outName = "Start Radio Transmission";
+			return false;
 		}
-		return true;
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
+	{
+		//Print("BC Debug - PerformAction() GetRadioTransmissionDuration", LogLevel.NORMAL);
+		
+		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(pUserEntity);
+		
+		if (!m_radioTruckComponent)
+		{
+			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
+			return;
+		}
+		
+		if(m_RplComponent.IsMaster())
+			m_radioTruckComponent.SyncVariables();
 
+		if (playerId == GetGame().GetPlayerController().GetPlayerId())
+		{
+			string message = string.Format("Radio Transmission Duration: %1s", m_radioTruckComponent.GetRadioTransmissionDuration() / 1000);
+		
+			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
+		}
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
 		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(pOwnerEntity.FindComponent(GRAD_BC_RadioTruckComponent));
+		
+		m_RplComponent = RplComponent.Cast(pOwnerEntity.FindComponent(RplComponent));
 	}
 }

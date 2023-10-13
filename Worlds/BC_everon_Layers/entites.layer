@@ -16,7 +16,7 @@ Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignR
  angleY -110.054
  angleZ -0.692
  EOnInit ""\
- "		GetGame().GetCallqueue().CallLater(checkMarker, 2000, true); "\
+ "		//GetGame().GetCallqueue().CallLater(checkMarker, 2000, true); "\
  "	}"\
  "		"\
  "	void checkMarker() { "\
@@ -50,12 +50,36 @@ Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignR
 }
 Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignRadioTruckEast.et" {
  components {
-  GRAD_BC_RadioTruckComponent "{5E98B86CA88972B3}" {
+  GRAD_BC_RadioTruckComponent "{5E98DAC7348F6107}" {
   }
   SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {
    m_fVehicleDestroyDamage 11360.7
   }
+  ActionsManagerComponent "{C97BE5489221AE18}" {
+   ActionContexts {
+    UserActionContext "{5E9907873BA6AF8B}" {
+     ContextName "backdoor"
+     Position PointInfo "{5E990787404942CC}" {
+      Offset 0.4889 1.6008 -3.7977
+     }
+    }
+   }
+   additionalActions {
+    GRAD_BC_ToggleRadioTransmission "{5E9907858609BB93}" {
+     ParentContextList {
+      "backdoor"
+     }
+     UIInfo UIInfo "{5E9907858EF4A0A6}" {
+      Name "Toggle Radio Transmission"
+     }
+     Duration 3
+    }
+   }
+  }
+  RplComponent "{517AACDFA78F5EE7}" {
+   "Rpl State Override" None
+  }
  }
- coords 6622.457 156.094 6487.198
- angleY -110.017
+ coords 6620.376 156.198 6486.851
+ angleY -111.448
 }

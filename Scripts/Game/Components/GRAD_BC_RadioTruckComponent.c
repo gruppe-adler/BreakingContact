@@ -21,6 +21,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	
 	private RplComponent m_RplComponent;
 	
+	private GRAD_BC_TransmissionPointComponent m_nearestTransmissionPoint;
+	
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -44,6 +46,84 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if(m_RplComponent.IsMaster())
 			GetGame().GetCallqueue().CallLater(UpdateRadioTransmissionDuration, m_iRadioTransmissionUpdateInterval, true);
 	}
+	
+	
+	
+	//------------------------------------------------------------------------------------------------
+	protected bool spawnTransmissionPoint(vector center, int radius)
+	{		
+		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, GetOwner().GetOrigin(), radius, radius);
+		
+		if (!spawnEmpty)
+			return false;
+		
+		EntitySpawnParams params = new EntitySpawnParams();
+        params.Transform[3] = center;
+		
+        Resource r = Resource.Load("{5B8922E61D8DF345}Prefabs/Props/Military/Antennas/Antenna_R161_01.et");
+        IEntity ce = GetGame().SpawnEntityPrefab(r, GetGame().GetWorld(), params);
+		
+		return true;
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	protected IEntity getNearestTransmissionPoint(vector center)
+	{
+		// searches for nearest transmission object, identified by GRAD_BC_TransmissionPointComponent inside
+	  	array<IEntity> m_nearestTransmissions = new array<IEntity>;
+	  	GetGame().GetWorld().QueryEntitiesBySphere(center, 3000, findFirstTransmissionObject, filterTransmissionObjects);
+		if (m_nearestTransmissions.Count() > 0)
+			return m_nearestTransmissions[0];
+		
+		return null;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// filters for GRAD_BC_TransmissionPointComponent
+	protected bool filterTransmissionObjects(IEntity ent) 
+	{
+	  return (ent.FindComponent(GRAD_BC_TransmissionPointComponent));
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// stops filter at first successful hit
+	protected bool findFirstTransmissionObject(IEntity ent)
+    {	
+		m_nearestTransmissionPoint = GRAD_BC_TransmissionPointComponent.Cast(ent.FindComponent(GRAD_BC_TransmissionPointComponent));
+        if (!m_nearestTransmissionPoint)
+            return true; //Continue search
+
+        return false; //Stop search
+    }
+	
+	
+	
+	/*
+	
+	 //Check if garage is nearby
+        GetGame().GetWorld().QueryEntitiesBySphere(GetOwner().GetOrigin(), m_fGarageSearchRadius, FindFirstGarage, FilterGarage);
+        return (m_GarageManager);
+     }
+
+    //------------------------------------------------------------------------------------------------
+    bool FilterGarage(IEntity ent)
+    {
+        return (ent.FindComponent(EL_GarageManagerComponent));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    bool FindFirstGarage(IEntity ent)
+    {
+        m_GarageManager = EL_GarageManagerComponent.Cast(ent.FindComponent(EL_GarageManagerComponent));
+        if (!m_GarageManager)
+            return true; //Continue search
+
+        return false; //Stop search
+    }
+	
+	*/
+	
 
 	//------------------------------------------------------------------------------------------------
 	int GetRadioTransmissionDuration()

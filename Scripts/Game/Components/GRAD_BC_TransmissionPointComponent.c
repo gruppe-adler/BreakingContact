@@ -79,31 +79,15 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	protected void SetRadioTruckMarkerVisibility(bool enableMarkerVisibility)
+	protected void SetTransmissionPointMarkerVisibility(bool enableMarkerVisibility)
 	{
 		// this function runs on server-side only
-		
-		//Print("BC Debug - CheckMarker()", LogLevel.NORMAL);
-		
-		if (!m_radioTruck)
-		{
-			Print("BC Debug - m_radioTruck is null", LogLevel.ERROR);
-			return;
-		}
-			
-		if (!m_VehicleWheeledSimulationComponent)
-		{
-			Print("BC Debug - m_VehicleWheeledSimulationComponent is null", LogLevel.ERROR);
-			return;
-		}
 		
 		if (!m_mapDescriptorComponent)
 		{
 			Print("BC Debug - m_mapDescriptorComponent is null", LogLevel.ERROR);
 			return;
 		}
-	
-		// m_VehicleWheeledSimulationComponent.EngineIsOn()
 		
 		if (enableMarkerVisibility)
 		{

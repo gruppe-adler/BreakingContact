@@ -148,7 +148,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		bool teleportSuccessful = false;
 		
-		GRAD_OnTheFlyManager otfManager = GRAD_OnTheFlyManager.GetInstance();
+		GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.GetInstance();
 		
 		vector newWorldPos;
 		

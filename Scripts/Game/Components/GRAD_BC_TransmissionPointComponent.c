@@ -20,9 +20,10 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected ETransmissionState m_eTransmissionState;
 
 	[RplProp()]
-	protected int m_iTransmissionDuration;
-
-	static int m_iTransmissionUpdateTickSize = 1;
+	protected int m_iTransmissionProgress;
+	
+	static int m_iTransmissionDuration = 120; // todo make param, 120s for debug
+	static int m_iTransmissionUpdateTickSize = 1/m_iTransmissionDuration;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
 	private IEntity m_transmissionPoint;
@@ -58,7 +59,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		//RpcAsk_Authority_SyncVariables();
 
-		return m_iTransmissionDuration;
+		return m_iTransmissionProgress;
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -132,11 +133,33 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 
 		if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
 		{
-			m_iTransmissionDuration += m_iTransmissionUpdateTickSize;
-			PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
+			m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+			float currentProgress = m_iTransmissionProgress/m_iTransmissionDuration;
+			currentProgress = Math.Floor(currentProgress);
+			
+			PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
 						
-			if (m_mapDescriptorComponent)
-				m_mapDescriptorComponent.Item().SetDisplayName(m_iTransmissionDuration.ToString());
+			if (m_mapDescriptorComponent) {
+				MapItem item;
+				item = m_mapDescriptorComponent.Item();	
+				MapDescriptorProps props = item.GetProps();
+				
+				string progressString = string.Format("%1 %", currentProgress.ToString());
+				
+				item.SetDisplayName(progressString);
+				props.SetDetail(96);
+			
+				Color textColor = Color(0, 0, 0, 1);
+				Color outlineColor = Color(1, 1, 1, 1);
+			
+				props.SetOutlineColor(outlineColor);
+				props.SetTextColor(textColor);
+				props.SetTextBold();
+				props.SetGroupScale(5);
+				props.SetTextSize( 20.0, 10.0, 20.0 );
+			
+				item.SetProps(props);
+			}
 		}
 	}
 

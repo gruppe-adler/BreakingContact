@@ -78,7 +78,7 @@ Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignR
      UIInfo UIInfo "{5E9907858EF4A0A6}" {
       Name "Toggle Radio Transmission"
      }
-     Duration 3
+     Duration 1
     }
     GRAD_BC_GetRadioTransmissionDuration "{5E9AC93578855082}" {
      ParentContextList {

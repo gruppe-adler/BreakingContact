@@ -8,7 +8,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.EditBox, desc: "Update Interval", params: "", category: "Breaking Contact - Radio Truck")];
 	protected int m_iRadioTransmissionUpdateInterval;
 	
-
+	static float m_iMaxTransmissionDistance = 1000.0;
+	
 	private bool m_bIsTransmitting;
 	
 	private Vehicle m_radioTruck;
@@ -79,14 +80,17 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			
 			// if transmission points exist, find out which one is the nearest
 			if (transmissionPoints.Count() > 0) {
-				float distanceMax;
+				float distanceMaxTemp;
+				
 				IEntity selectedPoint = transmissionPoints[0];
 				
 				foreach( IEntity TPCAntenna: transmissionPoints)
 				{
 					float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
-					if (distance > distanceMax) {
-						distanceMax = distance;
+					
+					// check if distance is in reach of radiotruck
+					if (distance < m_iMaxTransmissionDistance) {
+						distanceMaxTemp = distance;	
 						selectedPoint = TPCAntenna;
 					}
 				}
@@ -95,11 +99,41 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			// if no transmission point exists, create one
 			IEntity TPCAntenna = BCM.spawnTransmissionPoint(center, 10);
 			Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
+			
+			AddTransmissionMarker(TPCAntenna, m_iMaxTransmissionDistance);
+			
 			return TPCAntenna;	
 		}
 		
 		return null;
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	void AddTransmissionMarker(IEntity TPCAntenna, float radius)
+	{
+		
+		vector center = TPCAntenna.GetOrigin();
+		
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		
+		foreach (int playerId : playerIds)
+		{
+
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+			
+			if (!playerController)
+				return;
+		
+			playerController.AddCircleMarker(
+				center[0] - radius, 
+				center[2] + radius, 
+				center[0] + radius, 
+				center[2] + radius
+			);
+		}
+	}
+	
 	
 	bool GetTransmissionState() {
 		return m_bIsTransmitting;

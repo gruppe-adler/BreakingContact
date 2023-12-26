@@ -1,4 +1,4 @@
-enum ERadioTransmissionState
+enum ETransmissionState
 {
 	OFF,
 	TRANSMITTING,
@@ -17,34 +17,63 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected int m_TransmissionPointMinDistance;
 
 	[RplProp()]
-	protected ERadioTransmissionState m_eRadioTransmissionState;
+	protected ETransmissionState m_eTransmissionState;
 
 	[RplProp()]	
-	protected int m_iRadioTransmissionDuration;
-
+	protected int m_iTransmissionDuration;
+	
+	static int m_iTransmissionUpdateTickSize = 1;
+	
+	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
+	private IEntity m_transmissionPoint;
+	
+	private RplComponent m_RplComponent;
+	
 	//------------------------------------------------------------------------------------------------
-	int GetRadioTransmissionDuration()
+	override void OnPostInit(IEntity owner)
+	{
+		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
+		
+		m_transmissionPoint = IEntity.Cast(GetOwner());
+		
+		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_transmissionPoint.FindComponent(SCR_MapDescriptorComponent));
+		
+		m_RplComponent = RplComponent.Cast(m_transmissionPoint.FindComponent(RplComponent));
+		
+		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
+		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
+		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
+		
+		// Initially set transmission state to off and disable the map marker
+		//SetTransmissionState(m_eTransmissionState);
+		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
+		
+		if(m_RplComponent.IsMaster())
+			GetGame().GetCallqueue().CallLater(UpdateTransmissionDuration, 1000, true);
+	}
+	//------------------------------------------------------------------------------------------------
+	int GetTransmissionDuration()
 	{
 		//RpcAsk_Authority_SyncVariables();
 		
-		return m_iRadioTransmissionDuration;
+		return m_iTransmissionDuration;
 	}
 
 	//------------------------------------------------------------------------------------------------
-	ERadioTransmissionState GetRadioTransmissionState()
+	ETransmissionState GetTransmissionState()
 	{
-		return m_eRadioTransmissionState;
+		return m_eTransmissionState;
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void SetRadioTransmissionState(ERadioTransmissionState radioTransmissionState)
+	void SetTransmissionState(ETransmissionState transmissionState)
 	{
-		m_eRadioTransmissionState = radioTransmissionState;
+		m_eTransmissionState = transmissionState;
 		
-		if (m_eRadioTransmissionState == ERadioTransmissionState.TRANSMITTING)
-			SetRadioTruckMarkerVisibility(true);
+		if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
+			SetTransmissionPointMarkerVisibility(true);
 		else
-			SetRadioTruckMarkerVisibility(false);
+			SetTransmissionPointMarkerVisibility(false);
 	}
 
 
@@ -59,22 +88,22 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	protected void RpcAsk_Authority_SyncVariables()
 	{
-		//Print("BC Debug - RpcAsk_Authority_SyncRadioTransmissionDuration()", LogLevel.NORMAL);
+		//Print("BC Debug - RpcAsk_Authority_SyncTransmissionDuration()", LogLevel.NORMAL);
 		
 		Replication.BumpMe();
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	protected void UpdateRadioTransmissionDuration()
+	protected void UpdateTransmissionDuration()
 	{
 		// this function runs on server-side only
 		
-		//Print("BC Debug - UpdateRadioTransmissionDuration()", LogLevel.NORMAL);
+		//Print("BC Debug - UpdateTransmissionDuration()", LogLevel.NORMAL);
 		
-		if (GetRadioTransmissionState() == ERadioTransmissionState.TRANSMITTING)
+		if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
 		{
-			m_iRadioTransmissionDuration += m_iRadioTransmissionUpdateInterval;
-			PrintFormat("m_iRadioTransmissionDuration: %1", m_iRadioTransmissionDuration);
+			m_iTransmissionDuration += m_iTransmissionUpdateTickSize;
+			PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
 		}
 	}
 	

@@ -9,6 +9,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected int m_iRadioTransmissionUpdateInterval;
 	
 
+	private bool m_bIsTransmitting;
 	
 	private Vehicle m_radioTruck;
 	
@@ -35,12 +36,21 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
 		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
 		
-		// Initially set radio transmission state to off and disable the map marker
-		//SetRadioTransmissionState(m_eRadioTransmissionState);
-		GetGame().GetCallqueue().CallLater(SetRadioTransmissionState, 5000, false, m_eRadioTransmissionState);
-		
 		if(m_RplComponent.IsMaster())
-			GetGame().GetCallqueue().CallLater(UpdateRadioTransmissionDuration, m_iRadioTransmissionUpdateInterval, true);
+			GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void mainLoop()
+	{
+		if (m_bIsTransmitting)
+        {
+			Print(string.Format("Breaking Contact RTC - Transmitting..."), LogLevel.NORMAL);
+			// todo
+		}
+
+        Print(string.Format("Breaking Contact RTC -  Main Loop Tick"), LogLevel.NORMAL);
 	}
 	
 	
@@ -55,8 +65,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (nearestTransmissions.Count() > 0) {
 				return nearestTransmissions[0];
 		} else {
-			IEntity BCM = GetGame().FindEntity("GRAD_BC_BreakingContactManager");
-			IEntity transmissionPoint = BCM.spawnTransmissionPoint(center);
+			GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BC_BreakingContactManager").FindComponent(GRAD_BreakingContactManager));
+			IEntity transmissionPoint = BCM.spawnTransmissionPoint(center, 10);
 			return transmissionPoint;
 		}
 	}
@@ -79,6 +89,37 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
         return false; //Stop search
     }
 	
+	bool GetTransmissionState() {
+		return m_bIsTransmitting;
+	}
+	
+	void SetTransmissionState(bool setTo) {
+		m_bIsTransmitting = setTo;
+	}
+	
+	int GetTransmissionDuration() {
+		int duration;
+				
+		// todo get nearest transmission, get duration of that
+		
+		return duration;
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void SyncVariables()
+	{
+		Rpc(RpcAsk_Authority_SyncVariables);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Authority_SyncVariables()
+	{
+		//Print("BC Debug - RpcAsk_Authority_SyncTransmissionDuration()", LogLevel.NORMAL);
+		
+		Replication.BumpMe();
+	}
 	
 	
 	/*

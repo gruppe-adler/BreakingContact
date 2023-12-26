@@ -43,6 +43,14 @@ class GRAD_BreakingContactManager : GenericEntity
 	protected int m_iBreakingContactPhase;
 
     protected ref array<IEntity> m_transmissionPoints = {};
+	
+	protected static GRAD_BreakingContactManager s_Instance;
+	
+	//------------------------------------------------------------------------------------------------
+	static GRAD_BreakingContactManager GetInstance()
+	{
+		return s_Instance;
+	}
     
 
     //------------------------------------------------------------------------------------------------
@@ -192,7 +200,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
 	//------------------------------------------------------------------------------------------------
-	protected IEntity spawnTransmissionPoint(vector center, int radius)
+	IEntity spawnTransmissionPoint(vector center, int radius)
 	{		
 		vector newCenter = findSpawnPoint(center, radius);
 		

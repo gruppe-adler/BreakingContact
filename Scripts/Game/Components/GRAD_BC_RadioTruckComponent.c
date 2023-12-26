@@ -50,12 +50,16 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected IEntity getNearestTransmissionPoint(vector center)
 	{
 		// searches for nearest transmission object, identified by GRAD_BC_TransmissionPointComponent inside
-	  	array<IEntity> m_nearestTransmissions = new array<IEntity>;
+	  	array<IEntity> nearestTransmissions = new array<IEntity>;
 	  	GetGame().GetWorld().QueryEntitiesBySphere(center, 3000, findFirstTransmissionObject, filterTransmissionObjects);
-		if (m_nearestTransmissions.Count() > 0)
-			return m_nearestTransmissions[0];
+		if (nearestTransmissions.Count() > 0) {
+				return nearestTransmissions[0];
+		} else {
+			IEntity RadioTruckComponent = GetGame().FindEntity("GRAD_BC_RadioTruckComponent");
+			RadioTruckComponent.spawnTransmissionPoint(center);
+		}
 		
-		return null;
+		return center;
 	}
 	
 	//------------------------------------------------------------------------------------------------

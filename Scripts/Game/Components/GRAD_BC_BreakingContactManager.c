@@ -32,6 +32,9 @@ class GRAD_BreakingContactManager : GenericEntity
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
+	protected bool m_debug;
+	
+	protected string m_sWinnerSide;
 
     protected vector m_vOpforSpawnPos;
     protected vector m_vBluforSpawnPos;
@@ -39,7 +42,7 @@ class GRAD_BreakingContactManager : GenericEntity
     [RplProp()]
 	protected int m_iBreakingContactPhase;
 
-    protected array<TransmissionPointComponent> m_transmissionPoints = {};
+    protected ref array<IEntity> m_transmissionPoints = {};
     
 
     //------------------------------------------------------------------------------------------------
@@ -50,7 +53,7 @@ class GRAD_BreakingContactManager : GenericEntity
 			return;
 		
 		// check win conditions every second
-        GetGame().GetCallqueue().CallLater(mainLoop, m_iCheckInterval, true);
+        GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
     }
 
 
@@ -58,6 +61,37 @@ class GRAD_BreakingContactManager : GenericEntity
 	bool factionEliminated(string factionName)
 	{
 		return (GetAlivePlayersOfSide(factionName) == 0);
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	int GetAlivePlayersOfSide(string factionName)
+	{
+		array<int> alivePlayersOfSide = {};
+		
+		array<int> allPlayers = {};
+		GetGame().GetPlayerManager().GetPlayers(allPlayers);
+		foreach(int playerId : allPlayers)
+		{
+			// null check bc of null pointer crash
+			PlayerController pc = GetGame().GetPlayerManager().GetPlayerController(playerId);
+			if (!pc) continue;
+			
+			// Game Master is also a player but perhaps with no controlled entity
+			IEntity controlled = pc.GetControlledEntity();
+			if (!controlled) continue;
+			
+			// null check bc of null pointer crash
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(controlled);
+			if (!ch) continue;
+			
+			CharacterControllerComponent ccc = ch.GetCharacterController();
+			if (factionName != ch.GetFactionKey() || ccc.IsDead()) continue;
+			
+			alivePlayersOfSide.Insert(playerId);
+		}
+		
+		return alivePlayersOfSide.Count();
 	}
 
 
@@ -81,7 +115,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	void CheckWinConditions(int phase)
+	void CheckWinConditions()
 	{
 		// in debug mode we want to test alone without ending the game
 		bool bluforEliminated = factionEliminated("US") && !m_debug;
@@ -90,20 +124,20 @@ class GRAD_BreakingContactManager : GenericEntity
 		
 		if (bluforEliminated) {
 			isOver = true;
-			m_winnerSide = "opfor";
+			m_sWinnerSide = "opfor";
 			Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
 		}
 		
 		if (opforEliminated || m_bluforCaptured) {
 			isOver = true;
-			m_winnerSide = "blufor";
+			m_sWinnerSide = "blufor";
 			Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
 		}
 		
 		// needs to be on last position as would risk to be overwritten
 		if (bluforEliminated && opforEliminated) {
 			isOver = true;
-			m_winnerSide = "draw";
+			m_sWinnerSide = "draw";
 			Print(string.Format("Breaking Contact - Both sides eliminated"), LogLevel.NORMAL);
 		}
 		
@@ -118,14 +152,14 @@ class GRAD_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
     protected bool GameModeStarted()
     {
-        m_iBreakingContactPhase == EBreakingContactPhase.GAME
+        return (m_iBreakingContactPhase == EBreakingContactPhase.GAME);
     }
 
 
     //------------------------------------------------------------------------------------------------
     protected bool GameModeOver()
     {
-        m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER
+        return (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER);
     }
 
 
@@ -158,7 +192,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
 	//------------------------------------------------------------------------------------------------
-	protected bool spawnTransmissionPoint(vector center, int radius)
+	protected IEntity spawnTransmissionPoint(vector center, int radius)
 	{		
 		vector newCenter = findSpawnPoint(center, radius);
 		
@@ -171,7 +205,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
         addTransmissionPoint(transmissionPoint); // add to array
 		
-		return true;
+		return transmissionPoint;
 	}
 
 
@@ -184,14 +218,14 @@ class GRAD_BreakingContactManager : GenericEntity
             Math.Randomize(-1);
             int randomDistanceX = Math.RandomInt( radius, radius );
             int randomDistanceY = Math.RandomInt( radius, radius );
-            center[0] += randomDistanceX;
-            center[2] += randomDistanceY;
-            
-            center = MapPosToWorldPos(center[0], center[2]); // add surfaceY on that position
-            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, center, 2, 2);
+			
+			vector worldPos = {center[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(center[0] + randomDistanceX, center[2] + randomDistanceY), center[2] + randomDistanceY};
+          
+            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
 
             if (spawnEmpty) {
                 foundSpawnPoint = true;
+				center = worldPos;
             }
             Sleep(50);
         }
@@ -279,7 +313,8 @@ class GRAD_BreakingContactManager : GenericEntity
 
     //------------------------------------------------------------------------------------------------
     vector findBluforPosition(vector opforSpawnPos) {
-
+		vector bluforSpawnPos = "0 0 0"; // todo
+		return bluforSpawnPos;
     }
 
 
@@ -303,6 +338,24 @@ class GRAD_BreakingContactManager : GenericEntity
 		
 			playerController.ShowHint(message, title, duration, isSilent);
 		}
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void NotifyPlayerWrongRole(int playerId, string neededRole)
+	{
+
+		string title = "On The Fly";
+		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
+		int duration = m_iNotificationDuration;
+		bool isSilent = false;
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+		
+		if (!playerController)
+			return;
+	
+		playerController.ShowHint(message, title, duration, isSilent);
 	}
 
 
@@ -333,7 +386,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	void TeleportFactionToMapPos(Faction faction, string factionName, vector worldPos[3], bool isdebug)
+	void TeleportFactionToMapPos(Faction faction, string factionName, vector worldPos, bool isdebug)
 	{
 		if (factionName == "USSR" || isdebug)
 		{	
@@ -362,8 +415,8 @@ class GRAD_BreakingContactManager : GenericEntity
 			
 			if (playerFaction == faction)
 			{
-				Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), mapPos), LogLevel.NORMAL);
-				playerController.TeleportPlayerToMapPos(playerId, mapPos);
+				Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), worldPos), LogLevel.NORMAL);
+				playerController.TeleportPlayerToMapPos(playerId, worldPos);
 			}
 		} 
 	}

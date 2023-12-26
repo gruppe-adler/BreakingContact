@@ -55,11 +55,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (nearestTransmissions.Count() > 0) {
 				return nearestTransmissions[0];
 		} else {
-			IEntity RadioTruckComponent = GetGame().FindEntity("GRAD_BC_RadioTruckComponent");
-			RadioTruckComponent.spawnTransmissionPoint(center);
+			IEntity BCM = GetGame().FindEntity("GRAD_BC_BreakingContactManager");
+			IEntity transmissionPoint = BCM.spawnTransmissionPoint(center);
+			return transmissionPoint;
 		}
-		
-		return center;
 	}
 	
 	//------------------------------------------------------------------------------------------------

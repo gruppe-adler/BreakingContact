@@ -213,6 +213,8 @@ class GRAD_BreakingContactManager : GenericEntity
 
         addTransmissionPoint(transmissionPoint); // add to array
 		
+		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, params), LogLevel.NORMAL);
+		
 		return transmissionPoint;
 	}
 
@@ -221,21 +223,28 @@ class GRAD_BreakingContactManager : GenericEntity
     protected vector findSpawnPoint(vector center, int radius)
     {
         bool foundSpawnPoint;
+		int loopCount;
 
         while (!foundSpawnPoint) {
             Math.Randomize(-1);
-            int randomDistanceX = Math.RandomInt( radius, radius );
-            int randomDistanceY = Math.RandomInt( radius, radius );
+            int randomDistanceX = Math.RandomInt( -radius, radius );
+            int randomDistanceY = Math.RandomInt( -radius, radius );
 			
 			vector worldPos = {center[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(center[0] + randomDistanceX, center[2] + randomDistanceY), center[2] + randomDistanceY};
-          
             bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
 
+			loopCount = loopCount + 1;	
+			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3 .", loopCount, worldPos, spawnEmpty), LogLevel.NORMAL);
+			
             if (spawnEmpty) {
                 foundSpawnPoint = true;
 				center = worldPos;
+				
+				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
             }
-            Sleep(50);
+			
+			if (loopCount > 100)
+				return center;
         }
 
         return center;
@@ -246,6 +255,13 @@ class GRAD_BreakingContactManager : GenericEntity
 	protected void addTransmissionPoint(IEntity transmissionPoint)
 	{
         m_transmissionPoints.Insert(transmissionPoint);		
+    }
+	
+	
+	//------------------------------------------------------------------------------------------------
+	array<IEntity> GetTransmissionPoints()
+	{
+        return m_transmissionPoints;		
     }
 
 

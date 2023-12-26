@@ -19,45 +19,45 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	[RplProp()]
 	protected ETransmissionState m_eTransmissionState;
 
-	[RplProp()]	
+	[RplProp()]
 	protected int m_iTransmissionDuration;
-	
+
 	static int m_iTransmissionUpdateTickSize = 1;
-	
+
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
 	private IEntity m_transmissionPoint;
-	
+
 	private RplComponent m_RplComponent;
-	
+
 	protected bool m_bTransmissionActive;
-	
+
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
-		
+
 		m_transmissionPoint = IEntity.Cast(GetOwner());
-		
+
 		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_transmissionPoint.FindComponent(SCR_MapDescriptorComponent));
-		
+
 		m_RplComponent = RplComponent.Cast(m_transmissionPoint.FindComponent(RplComponent));
-		
+
 		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
 		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
 		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
-		
+
 		// Initially set transmission state to off and disable the map marker
 		//SetTransmissionState(m_eTransmissionState);
 		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
-		
-		if(m_RplComponent.IsMaster())
-			GetGame().GetCallqueue().CallLater(UpdateTransmissionDuration, 1000, true);
+
+		if (m_RplComponent.IsMaster())
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true);
 	}
 	//------------------------------------------------------------------------------------------------
 	int GetTransmissionDuration()
 	{
 		//RpcAsk_Authority_SyncVariables();
-		
+
 		return m_iTransmissionDuration;
 	}
 
@@ -66,24 +66,24 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		return m_eTransmissionState;
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void SetTransmissionState(ETransmissionState transmissionState)
 	{
 		m_eTransmissionState = transmissionState;
-		
+
 		if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
 			SetTransmissionPointMarkerVisibility(true);
 		else
 			SetTransmissionPointMarkerVisibility(false);
 	}
-	
-	//---
+
+	//------------------------------------------------------------------------------------------------
 	void SetTransmissionActive(bool setState) {
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
-			
-			if (m_bTransmissionActive && 
+
+			if (m_bTransmissionActive &&
 				(
 					GetTransmissionState() == ETransmissionState.OFF ||
 					GetTransmissionState() == ETransmissionState.INTERRUPTED
@@ -91,70 +91,71 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			) {
 				SetTransmissionState(ETransmissionState.TRANSMITTING);
 			};
-			
-			if (!m_bTransmissionActive && 
+
+			if (!m_bTransmissionActive &&
 				(
 					GetTransmissionState() == ETransmissionState.TRANSMITTING
 				)
 			) {
 				SetTransmissionState(ETransmissionState.INTERRUPTED);
-				
+
 			};
 			PrintFormat("TPC - SetTransmissionActive : %1", GetTransmissionState());
-			
+
 		}
 	}
 
 
-	
+
 	//------------------------------------------------------------------------------------------------
 	void SyncVariables()
 	{
 		Rpc(RpcAsk_Authority_SyncVariables);
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	protected void RpcAsk_Authority_SyncVariables()
 	{
 		//Print("BC Debug - RpcAsk_Authority_SyncTransmissionDuration()", LogLevel.NORMAL);
-		
+
 		Replication.BumpMe();
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
-	protected void UpdateTransmissionDuration()
+	protected void MainLoop()
 	{
 		// this function runs on server-side only
-		
-		//Print("BC Debug - UpdateTransmissionDuration()", LogLevel.NORMAL);
-		
+
 		if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
 		{
 			m_iTransmissionDuration += m_iTransmissionUpdateTickSize;
 			PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
+						
+			if (m_mapDescriptorComponent)
+				m_mapDescriptorComponent.Item().SetDisplayName(m_iTransmissionDuration.ToString());
 		}
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	protected void SetTransmissionPointMarkerVisibility(bool enableMarkerVisibility)
 	{
 		// this function runs on server-side only
-		
+
 		if (!m_mapDescriptorComponent)
 		{
 			Print("BC Debug - m_mapDescriptorComponent is null", LogLevel.ERROR);
 			return;
 		}
-		
-		if (enableMarkerVisibility)
+
+		if (enableMarkerVisibility && !(m_mapDescriptorComponent.Item().IsVisible()))
 		{
 			m_mapDescriptorComponent.Item().SetVisible(true);
 			//Rpc(RpcAsk_Authority_SetMarkerVisibility, true);
 			//SCR_HintManagerComponent.GetInstance().ShowCustomHint("MARKER ON");
 			Print("BC Debug - marker on", LogLevel.NORMAL);
 		}
-		else
+		else if (!enableMarkerVisibility && (m_mapDescriptorComponent.Item().IsVisible()))
 		{
 			m_mapDescriptorComponent.Item().SetVisible(false);
 			//Rpc(RpcAsk_Authority_SetMarkerVisibility, false);

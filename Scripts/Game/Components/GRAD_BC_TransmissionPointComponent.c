@@ -29,6 +29,8 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	
 	private RplComponent m_RplComponent;
 	
+	protected bool m_bTransmissionActive;
+	
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -74,6 +76,33 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			SetTransmissionPointMarkerVisibility(true);
 		else
 			SetTransmissionPointMarkerVisibility(false);
+	}
+	
+	//---
+	void SetTransmissionActive(bool setState) {
+		if (m_bTransmissionActive != setState) {
+			m_bTransmissionActive = setState;
+			
+			if (m_bTransmissionActive && 
+				(
+					GetTransmissionState() == ETransmissionState.OFF ||
+					GetTransmissionState() == ETransmissionState.INTERRUPTED
+				)
+			) {
+				SetTransmissionState(ETransmissionState.TRANSMITTING);
+			};
+			
+			if (!m_bTransmissionActive && 
+				(
+					GetTransmissionState() == ETransmissionState.TRANSMITTING
+				)
+			) {
+				SetTransmissionState(ETransmissionState.INTERRUPTED);
+				
+			};
+			PrintFormat("TPC - SetTransmissionActive : %1", GetTransmissionState());
+			
+		}
 	}
 
 

@@ -40,7 +40,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
-		//Print("BC Debug - PerformAction() ToggleRadioTransmission", LogLevel.NORMAL);
+		Print("BC Debug - PerformAction() ToggleRadioTransmission", LogLevel.NORMAL);
 
 		if (!m_radioTruckComponent)
 		{
@@ -48,10 +48,10 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			return;
 		}
 		
-		if(m_radioTruckComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING)
-			m_radioTruckComponent.SetTransmissionState(ETransmissionState.INTERRUPTED);
+		if(m_radioTruckComponent.GetTransmissionState())
+			m_radioTruckComponent.SetTransmissionActive(false);
 		else
-			m_radioTruckComponent.SetTransmissionState(ETransmissionState.TRANSMITTING);
+			m_radioTruckComponent.SetTransmissionActive(true);
 	}
 	
 	//------------------------------------------------------------------------------------------------

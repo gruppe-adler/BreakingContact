@@ -82,20 +82,20 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				float distanceMax;
 				IEntity selectedPoint = transmissionPoints[0];
 				
-				foreach( IEntity transmissionPoint: transmissionPoints)
+				foreach( IEntity TPCAntenna: transmissionPoints)
 				{
-					float distance = vector.Distance(transmissionPoint.GetOrigin(), center);
+					float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
 					if (distance > distanceMax) {
 						distanceMax = distance;
-						selectedPoint = transmissionPoint;
+						selectedPoint = TPCAntenna;
 					}
 				}
 				return selectedPoint;		
 			}
 			// if no transmission point exists, create one
-			IEntity transmissionPoint = BCM.spawnTransmissionPoint(center, 10);
-			Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", transmissionPoint), LogLevel.NORMAL);
-			return transmissionPoint;	
+			IEntity TPCAntenna = BCM.spawnTransmissionPoint(center, 10);
+			Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
+			return TPCAntenna;	
 		}
 		
 		return null;
@@ -107,6 +107,23 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	
 	void SetTransmissionActive(bool setTo) {
 		m_bIsTransmitting = setTo;
+		
+		// disable transmissions for every transmission point
+		if (!m_bIsTransmitting) {
+			GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
+			if (BCM) {
+				array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
+			
+				foreach( IEntity TPCAntenna: transmissionPoints)
+				{
+					GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(TPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));	
+					if (TPC) {
+						TPC.SetTransmissionState(false);
+						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", TPCAntenna), LogLevel.NORMAL);
+					}
+				}
+			}
+		}
 	}
 	
 	int GetTransmissionDuration() {

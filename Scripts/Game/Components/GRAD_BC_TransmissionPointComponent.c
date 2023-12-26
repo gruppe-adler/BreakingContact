@@ -70,13 +70,16 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SetTransmissionState(ETransmissionState transmissionState)
 	{
-		m_eTransmissionState = transmissionState;
-
-		if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
-			SetTransmissionPointMarkerVisibility(true);
-		else
-			SetTransmissionPointMarkerVisibility(false);
+		if (m_eTransmissionState != transmissionState) {
+			m_eTransmissionState = transmissionState;
+			
+			if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
+				SetTransmissionPointMarkerVisibility(true);
+			else
+				SetTransmissionPointMarkerVisibility(false);
+			}
 	}
+			
 
 	//------------------------------------------------------------------------------------------------
 	void SetTransmissionActive(bool setState) {

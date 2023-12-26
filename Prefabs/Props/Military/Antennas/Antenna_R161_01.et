@@ -1,7 +1,7 @@
 GenericEntity : "{1F7ADBBE0511A900}Prefabs/Props/Military/Antennas/Antenna_R161_Base.et" {
  ID "528E62BBD0E2C513"
  components {
-  GRAD_BC_TransmissionPointComponent "{5E9F471ADCFEB37E}" {
+  GRAD_BC_TransmissionPointComponent "{5F35240A7FBBA46F}" {
   }
  }
 }

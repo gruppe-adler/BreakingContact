@@ -20,10 +20,10 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected ETransmissionState m_eTransmissionState;
 
 	[RplProp()]
-	protected int m_iTransmissionProgress;
+	protected float m_iTransmissionProgress;
 	
-	static int m_iTransmissionDuration = 120; // todo make param, 120s for debug
-	static int m_iTransmissionUpdateTickSize = 1/m_iTransmissionDuration;
+	static float m_iTransmissionDuration = 120.0; // todo make param, 120s for debug
+	static float m_iTransmissionUpdateTickSize = 1.0/m_iTransmissionDuration;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
 	private IEntity m_transmissionPoint;
@@ -134,9 +134,10 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
 		{
 			m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
-			float currentProgress = m_iTransmissionProgress/m_iTransmissionDuration;
-			currentProgress = Math.Floor(currentProgress);
+			float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
 			
+			PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
+			PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
 			PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
 						
 			if (m_mapDescriptorComponent) {
@@ -144,21 +145,17 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				item = m_mapDescriptorComponent.Item();	
 				MapDescriptorProps props = item.GetProps();
 				
-				string progressString = string.Format("%1 %", currentProgress.ToString());
+				string progressString = string.Format("Antenna: %1 %", currentProgress);
 				
-				item.SetDisplayName(progressString);
-				props.SetDetail(96);
-			
-				Color textColor = Color(0, 0, 0, 1);
-				Color outlineColor = Color(1, 1, 1, 1);
-			
-				props.SetOutlineColor(outlineColor);
-				props.SetTextColor(textColor);
-				props.SetTextBold();
-				props.SetGroupScale(5);
-				props.SetTextSize( 20.0, 10.0, 20.0 );
-			
+				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetOutlineColor(Color.Black);
+				props.SetTextColor(Color.Black);
+				props.SetTextSize( 30.0, 30.0, 30.0 );
+				props.SetIconSize(3, 3, 3);
+				props.Activate(true);
 				item.SetProps(props);
+			
+				item.SetDisplayName(progressString);
 			}
 		}
 	}

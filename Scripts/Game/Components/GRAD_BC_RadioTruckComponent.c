@@ -98,45 +98,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			return transmissionPoint;	
 		}
 		
-		return null;		
-		
-		// searches for nearest transmission object, identified by GRAD_BC_TransmissionPointComponent inside
-	  	/*
-		array<IEntity> nearestTransmissions = new array<IEntity>;
-	  	GetGame().GetWorld().QueryEntitiesBySphere(center, 3000, findFirstTransmissionObject, filterTransmissionObjects);
-		if (nearestTransmissions.Count() > 0) {
-			
-			Print(string.Format("Breaking Contact RTC -  get nearest Transmission Point"), LogLevel.NORMAL);
-			return nearestTransmissions[0];
-		} else {
-			GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
-			IEntity transmissionPoint = BCM.spawnTransmissionPoint(center, 10);
-			
-			Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint"), LogLevel.NORMAL);
-			
-			return transmissionPoint;
-			
-		}
-		*/
+		return null;
 	}
-	
-	//------------------------------------------------------------------------------------------------
-	// filters for GRAD_BC_TransmissionPointComponent
-	protected bool filterTransmissionObjects(IEntity ent) 
-	{
-	  return (ent.FindComponent(GRAD_BC_TransmissionPointComponent));
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// stops filter at first successful hit
-	protected bool findFirstTransmissionObject(IEntity ent)
-    {	
-		m_nearestTransmissionPoint = GRAD_BC_TransmissionPointComponent.Cast(ent.FindComponent(GRAD_BC_TransmissionPointComponent));
-        if (!m_nearestTransmissionPoint)
-            return true; //Continue search
-
-        return false; //Stop search
-    }
 	
 	bool GetTransmissionState() {
 		return m_bIsTransmitting;

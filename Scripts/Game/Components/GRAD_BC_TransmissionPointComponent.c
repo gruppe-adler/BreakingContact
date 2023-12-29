@@ -3,6 +3,7 @@ enum ETransmissionState
 	OFF,
 	TRANSMITTING,
 	INTERRUPTED,
+	DISABLED,
 	DONE
 }
 
@@ -149,19 +150,39 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				string progressString = string.Format("Antenna: %1 \%", currentProgress); // % needs to be escaped
 			
 				item.SetDisplayName(progressString);
+				props.SetIconVisible(true);
+				props.SetBackgroundColor(Color.Red);
+				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+				props.SetImageDef("{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds");
 				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
 				props.SetOutlineColor(Color.Black);
-				props.SetTextColor(Color.Red);
+				props.SetTextColor(Color.White);
+				props.SetTextSize( 60.0, 30.0, 60.0 );
+				props.SetIconSize(32, 0.3, 0.3);
+				props.Activate(true);
+				item.SetProps(props);
+			} else if (GetTransmissionState() == ETransmissionState.DISABLED) {
+				props.SetIconVisible(true);
+				props.SetBackgroundColor(Color.Black);
+				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
+				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetOutlineColor(Color.Black);
+				props.SetTextColor(Color.GRAY);
 				props.SetTextSize( 30.0, 30.0, 30.0 );
-				props.SetIconSize(3, 3, 3);
+				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
 			} else {
+				props.SetIconVisible(true);
+				props.SetTextColor(Color.GRAY);
+				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
 				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
 				props.SetOutlineColor(Color.Black);
 				props.SetTextColor(Color.Black);
 				props.SetTextSize( 30.0, 30.0, 30.0 );
-				props.SetIconSize(3, 3, 3);
+				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
 			}

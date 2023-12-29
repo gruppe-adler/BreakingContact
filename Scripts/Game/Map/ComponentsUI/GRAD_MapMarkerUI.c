@@ -87,6 +87,22 @@ class GRAD_MapMarkerUI
 		}
 	}
 	
+	protected void OnMapZoom(float x, float y)
+	{
+		foreach (MapCircle circle: m_aCircles)
+		{
+			circle.UpdateCircle();
+		}
+	}
+	
+	protected void OnMapZoomEnd(float x, float y)
+	{
+		foreach (MapCircle circle: m_aCircles)
+		{
+			circle.UpdateCircle();
+		}
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	void OnMapOpen(MapConfiguration config)
 	{

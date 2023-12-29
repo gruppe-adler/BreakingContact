@@ -73,16 +73,18 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 					string progressString = string.Format("Radio Truck active");
 
 					item.SetDisplayName(progressString);
-				
+					props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+					props.SetImageDef("{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds");
+					props.SetIconVisible(true);
 					props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 					props.SetOutlineColor(Color.Black);
 					props.SetTextColor(Color.Red);
 					props.SetTextSize(30.0, 30.0, 30.0);
-					props.SetIconSize(3, 3, 3);
+					props.SetIconSize(30, 30, 30);
 					props.Activate(true);
 					item.SetProps(props);
 				} else {
-			
+					props.SetIconVisible(true);
 					props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 					props.SetOutlineColor(Color.Black);
 					props.SetTextColor(Color.FromRGBA(0, 0, 0, 0));

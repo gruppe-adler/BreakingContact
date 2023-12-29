@@ -130,23 +130,33 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected void MainLoop()
 	{
 		// this function runs on server-side only
-
-		if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
-		{
-			m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
-			float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
-			
-			PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
-			PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
-			PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
+		
 						
-			if (m_mapDescriptorComponent) {
-				MapItem item;
-				item = m_mapDescriptorComponent.Item();	
-				MapDescriptorProps props = item.GetProps();
+		if (m_mapDescriptorComponent) {
+			MapItem item;
+			item = m_mapDescriptorComponent.Item();	
+			MapDescriptorProps props = item.GetProps();
+
+			if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
+			{
+				m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+				float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
+			
+				PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
+				PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
+				PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
 				
-				string progressString = string.Format("Antenna: %1 %", currentProgress);
-				
+				string progressString = string.Format("Antenna: %1 \%", currentProgress); // % needs to be escaped
+			
+				item.SetDisplayName(progressString);
+				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetOutlineColor(Color.Black);
+				props.SetTextColor(Color.Red);
+				props.SetTextSize( 30.0, 30.0, 30.0 );
+				props.SetIconSize(3, 3, 3);
+				props.Activate(true);
+				item.SetProps(props);
+			} else {
 				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
 				props.SetOutlineColor(Color.Black);
 				props.SetTextColor(Color.Black);
@@ -154,9 +164,8 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				props.SetIconSize(3, 3, 3);
 				props.Activate(true);
 				item.SetProps(props);
-			
-				item.SetDisplayName(progressString);
 			}
+			
 		}
 	}
 

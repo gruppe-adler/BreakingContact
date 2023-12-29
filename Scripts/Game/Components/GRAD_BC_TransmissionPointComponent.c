@@ -32,6 +32,11 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	private RplComponent m_RplComponent;
 
 	protected bool m_bTransmissionActive;
+	
+	void YourComponent(IEntity owner)
+	{
+	    SetEventMask(owner, EntityEvent.FRAME);
+	}
 
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
@@ -167,19 +172,17 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
 				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
-				props.SetOutlineColor(Color.Black);
-				props.SetTextColor(Color.GRAY);
+				props.SetTextColor(Color.White);
 				props.SetTextSize( 30.0, 30.0, 30.0 );
 				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
 			} else {
 				props.SetIconVisible(true);
-				props.SetTextColor(Color.GRAY);
+				props.SetTextColor(Color.Gray75);
 				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
 				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
-				props.SetOutlineColor(Color.Black);
 				props.SetTextColor(Color.Black);
 				props.SetTextSize( 30.0, 30.0, 30.0 );
 				props.SetIconSize(32, 0.3, 0.3);

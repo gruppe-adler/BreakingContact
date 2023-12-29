@@ -183,9 +183,16 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	void SetTransmissionActive(bool setTo) {
 		m_bIsTransmitting = setTo;
+		
+		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
 		// disable transmissions for every transmission point
 		if (!m_bIsTransmitting) {
+			if (VDMC) {
+				VDMC.SetEngineFunctional(true);
+				Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
+			}
+			
 			GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
 			if (BCM) {
 				array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
@@ -198,6 +205,11 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", TPCAntenna), LogLevel.NORMAL);
 					}
 				}
+			}
+		} else {
+			if (VDMC) {
+				VDMC.SetEngineFunctional(false);
+				Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
 			}
 		}
 	}

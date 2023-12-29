@@ -56,6 +56,8 @@ Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignR
   }
   SCR_MapDescriptorComponent "{52A8810B2B1FC362}" {
    DisplayName "Radio Truck"
+   MapItemDescriptor 1
+   MainType "Icon (generic)"
    Scale 1
   }
   SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {

@@ -5,19 +5,18 @@ FrameWidgetClass {
    Name "Image0"
    Slot FrameWidgetSlot "{5F3E9E3E957EF622}" {
     Anchor 0.5 0.5 0.5 0.5
-    PositionX -550
-    OffsetLeft -550
-    PositionY -392
-    OffsetTop -392
-    SizeX 100
-    OffsetRight 450
-    SizeY 30
-    OffsetBottom 362
-    SizeToContent 1
+    PositionX -360
+    OffsetLeft -360
+    PositionY -240
+    OffsetTop -240
+    SizeX 720
+    OffsetRight -360
+    SizeY 480
+    OffsetBottom -240
    }
+   Pivot 0.5 0.5
    Texture "{9C097333003725E8}UI/Logo/BC_logo.edds"
    Size 1100 717
-   "Mask Mode" "Include Below"
   }
  }
 }

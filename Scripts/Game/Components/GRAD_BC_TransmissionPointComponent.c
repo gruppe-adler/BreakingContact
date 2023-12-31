@@ -22,9 +22,9 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 
 	[RplProp()]
 	protected float m_iTransmissionProgress;
-	
+
 	static float m_iTransmissionDuration = 120.0; // todo make param, 120s for debug
-	static float m_iTransmissionUpdateTickSize = 1.0/m_iTransmissionDuration;
+	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
 	private IEntity m_transmissionPoint;
@@ -32,10 +32,10 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	private RplComponent m_RplComponent;
 
 	protected bool m_bTransmissionActive;
-	
+
 	void YourComponent(IEntity owner)
 	{
-	    SetEventMask(owner, EntityEvent.FRAME);
+		SetEventMask(owner, EntityEvent.FRAME);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -79,14 +79,54 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		if (m_eTransmissionState != transmissionState) {
 			m_eTransmissionState = transmissionState;
-			
+
 			if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
 				SetTransmissionPointMarkerVisibility(true);
 			else
 				SetTransmissionPointMarkerVisibility(false);
+		}
+			/*
+			int playerId = GetGame().GetDataCollector().GetPlayerData(GetGame().GetPlayerController().GetPlayerId());
+			if (playerId) {
+				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+			*/
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController) return;
+		GRAD_BC_Transmission info = GRAD_BC_Transmission.Cast(playerController.FindComponent(GRAD_BC_Transmission));
+		if (!info) {
+			PrintFormat("TPC - No Info Panel found");
+			return;
+		}
+
+		switch (m_eTransmissionState)
+			{
+				case ETransmissionState.TRANSMITTING: {
+						info.TransmissionStarted();
+					break;
+				}
+
+				case ETransmissionState.INTERRUPTED: {
+						info.TransmissionInterrupted();
+					break;
+				}
+
+				case ETransmissionState.DISABLED: {
+					info.TransmissionInterrupted();
+					break;
+				}
+
+				case ETransmissionState.DONE: {
+					info.TransmissionDone();
+					break;
+				}
+
+				default: {
+					break;
+				}
 			}
+
 	}
-			
+
 
 	//------------------------------------------------------------------------------------------------
 	void SetTransmissionActive(bool setState) {
@@ -136,33 +176,33 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected void MainLoop()
 	{
 		// this function runs on server-side only
-		
-						
+
+
 		if (m_mapDescriptorComponent) {
 			MapItem item;
-			item = m_mapDescriptorComponent.Item();	
+			item = m_mapDescriptorComponent.Item();
 			MapDescriptorProps props = item.GetProps();
 
 			if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
 			{
 				m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
 				float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
-			
+
 				PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
 				PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
 				PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
-				
+
 				string progressString = string.Format("Antenna: %1 \%", currentProgress); // % needs to be escaped
-			
+
 				item.SetDisplayName(progressString);
 				props.SetIconVisible(true);
 				props.SetBackgroundColor(Color.Red);
 				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 				props.SetImageDef("{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds");
-				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 				props.SetOutlineColor(Color.Black);
 				props.SetTextColor(Color.White);
-				props.SetTextSize( 60.0, 30.0, 60.0 );
+				props.SetTextSize(60.0, 30.0, 60.0);
 				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
@@ -171,9 +211,9 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				props.SetBackgroundColor(Color.Black);
 				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
-				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 				props.SetTextColor(Color.White);
-				props.SetTextSize( 30.0, 30.0, 30.0 );
+				props.SetTextSize(30.0, 30.0, 30.0);
 				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
@@ -182,14 +222,14 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				props.SetTextColor(Color.Gray75);
 				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
-				props.SetFrontColor(Color.FromRGBA(0,0,0,0));
+				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 				props.SetTextColor(Color.Black);
-				props.SetTextSize( 30.0, 30.0, 30.0 );
+				props.SetTextSize(30.0, 30.0, 30.0);
 				props.SetIconSize(32, 0.3, 0.3);
 				props.Activate(true);
 				item.SetProps(props);
 			}
-			
+
 		}
 	}
 

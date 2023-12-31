@@ -3,8 +3,11 @@ SCR_PlayerController {
  components {
   SCR_HUDManagerComponent "{2FDC275D9EBCDB8B}" {
    InfoDisplays {
-    GRAD_BC_Logo "{5F3EC508F4AE0BD3}" {
-     m_LayoutPath "{9A969E139E27E0F5}UI/Layouts/Logo/GRAD_BC_Logo.layout"
+    GRAD_BC_Logo "{5F3EC92AC9E424F8}" {
+     m_LayoutPath "{9A969E139E27E0F5}UI/Layouts/HUD/GRAD_BC_Logo/GRAD_BC_Logo.layout"
+    }
+    GRAD_BC_Transmission "{5F3EC93024E76EF5}" {
+     m_LayoutPath "{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout"
     }
    }
   }

@@ -43,7 +43,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
 
-		m_transmissionPoint = IEntity.Cast(GetOwner());
+		m_transmissionPoint = owner;
 
 		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_transmissionPoint.FindComponent(SCR_MapDescriptorComponent));
 
@@ -75,7 +75,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void SetTransmissionState(ETransmissionState transmissionState)
+	private void SetTransmissionState(ETransmissionState transmissionState)
 	{
 		if (m_eTransmissionState != transmissionState) {
 			m_eTransmissionState = transmissionState;
@@ -84,7 +84,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				SetTransmissionPointMarkerVisibility(true);
 			else
 				SetTransmissionPointMarkerVisibility(false);
-		}
+		
 			/*
 			int playerId = GetGame().GetDataCollector().GetPlayerData(GetGame().GetPlayerController().GetPlayerId());
 			if (playerId) {
@@ -132,7 +132,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 					break;
 				}
 			}
-
+		}
 	}
 
 
@@ -150,13 +150,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				SetTransmissionState(ETransmissionState.TRANSMITTING);
 			};
 
-			if (!m_bTransmissionActive &&
+			if (!setState &&
 				(
 					GetTransmissionState() == ETransmissionState.TRANSMITTING
 				)
 			) {
 				SetTransmissionState(ETransmissionState.INTERRUPTED);
-
 			};
 			PrintFormat("TPC - SetTransmissionActive : %1", GetTransmissionState());
 

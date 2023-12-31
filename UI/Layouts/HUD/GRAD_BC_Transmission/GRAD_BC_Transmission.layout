@@ -16,6 +16,7 @@ FrameWidgetClass {
    }
    Texture "{B8C70A7749D318C2}UI/Transmission/us_established.edds"
    Size 1024 1024
+   "Blend Mode" Additive
   }
  }
 }

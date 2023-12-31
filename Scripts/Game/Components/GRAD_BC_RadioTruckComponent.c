@@ -64,7 +64,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 					GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(TPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
 					if (TPC) {
-						TPC.SetTransmissionState(true);
+						TPC.SetTransmissionActive(true);
 						Print(string.Format("Breaking Contact RTC - TPCAntenna: %1 - Component: %2", TPCAntenna, TPC), LogLevel.NORMAL);
 					} else {
 						Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionPointComponent found"), LogLevel.NORMAL);
@@ -201,7 +201,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				{
 					GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(TPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
 					if (TPC) {
-						TPC.SetTransmissionState(false);
+						TPC.SetTransmissionActive(false);
 						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", TPCAntenna), LogLevel.NORMAL);
 					}
 				}

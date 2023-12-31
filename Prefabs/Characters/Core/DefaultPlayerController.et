@@ -1,0 +1,12 @@
+SCR_PlayerController {
+ ID "1A9BA6BEFA06E3B1"
+ components {
+  SCR_HUDManagerComponent "{2FDC275D9EBCDB8B}" {
+   InfoDisplays {
+    GRAD_BC_Logo "{5F3EC508F4AE0BD3}" {
+     m_LayoutPath "{9A969E139E27E0F5}UI/Layouts/Logo/GRAD_BC_Logo.layout"
+    }
+   }
+  }
+ }
+}

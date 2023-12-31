@@ -2,7 +2,7 @@ FrameWidgetClass {
  Name "rootFrame"
  {
   ImageWidgetClass "{5F3EC93A2A026C31}" {
-   Name "Image0"
+   Name "GRAD_BC_Transmission_Widget"
    Slot FrameWidgetSlot "{5F3EC93A2A026B8A}" {
     Anchor 1 0 1 0
     PositionX -302

@@ -4,23 +4,29 @@ class GRAD_BC_Logo: SCR_InfoDisplay
 	private ImageWidget m_logo;
 	private bool m_isDisplayed;
 	
-	override event void OnStartDraw(IEntity owner)
-	{
-		super.OnStartDraw(owner);
-
-		if (!m_logo) m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo"));
+	override event void OnInit(IEntity owner) {
+		if (!m_logo) m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget"));
 		if (!m_isDisplayed && m_logo) {
-			m_logo.SetVisible(false);
+			m_logo.SetOpacity(0);
+		} else if (m_isDisplayed) {
+			m_logo.SetOpacity(1);
 		} else if (m_logo) {
-			m_logo.SetVisible(true);
+			m_logo.SetOpacity(0);
 		};
 	}
 	
-	void setVisible(bool visible) {
-		if (visible) {
-			m_isDisplayed = true;
+	override event void OnStartDraw(IEntity owner)
+	{
+		super.OnStartDraw(owner);		
+	}
+	
+	void SetVisible(bool visible) {
+		if (m_logo) {
+			float opacity;
+			if (visible) { opacity = 1.0 };
+			m_logo.SetOpacity(opacity);
 		} else {
-			m_isDisplayed = false;
-		};
+			PrintFormat("GRAD_BC_Logo: m_logo not found");
+		}
 	}
 }

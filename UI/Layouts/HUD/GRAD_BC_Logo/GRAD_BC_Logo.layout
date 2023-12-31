@@ -2,7 +2,7 @@ FrameWidgetClass {
  Name "rootFrame"
  {
   ImageWidgetClass "{5F3E9E3E957EF7C0}" {
-   Name "Image0"
+   Name "GRAD_BC_Logo_Widget"
    Slot FrameWidgetSlot "{5F3E9E3E957EF622}" {
     Anchor 0.5 0.5 0.5 0.5
     PositionX -360

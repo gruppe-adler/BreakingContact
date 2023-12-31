@@ -92,7 +92,15 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			*/
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController) return;
-		GRAD_BC_Transmission info = GRAD_BC_Transmission.Cast(playerController.FindComponent(GRAD_BC_Transmission));
+		SCR_HUDManagerComponent hudmanager = SCR_HUDManagerComponent.Cast(playerController.FindComponent(SCR_HUDManagerComponent));
+		
+		if (!hudmanager) {
+			PrintFormat("TPC - No hudmanager found");
+			return;
+		}
+		
+		GRAD_BC_Transmission info = GRAD_BC_Transmission.Cast(hudmanager.FindInfoDisplay(GRAD_BC_Transmission));
+		
 		if (!info) {
 			PrintFormat("TPC - No Info Panel found");
 			return;

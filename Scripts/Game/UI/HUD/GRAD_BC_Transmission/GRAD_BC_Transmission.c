@@ -11,22 +11,30 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 	protected e_currentDisplay	m_currentDisplayCached;
 	protected e_currentDisplay	m_currentDisplay;
 	
-	override event void OnStartDraw(IEntity owner)
-	{
-		super.OnStartDraw(owner);
-
-		if (!m_infoImage) m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission"));
+	override event void OnInit(IEntity owner) {
+		super.OnInit(owner);
+		
+		if (!m_infoImage) m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget"));
 		if (!m_isDisplayed && m_infoImage) {
 			m_infoImage.SetVisible(false);
-		} else if (m_infoImage) {
+		} else if (m_infoImage && m_isDisplayed) {
 			m_infoImage.SetVisible(true);
-		} else {
-			// m_infoImage.SetVisible(false);
+		} else if (m_infoImage){
+			m_infoImage.SetVisible(false);
 		};
 	}
 	
+	override event void OnStartDraw(IEntity owner)
+	{
+		super.OnStartDraw(owner);
+	}
+	
 	void TransmissionStarted() {
-		m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_established.edds");
+		if (m_infoImage) {
+			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			return;
+		}
+		m_infoImage.LoadImageTexture(0,"{92B573238A373130}UI/Transmission/us_established.edds");
 		SetVisible(true);
 		m_currentDisplayCached = e_currentDisplay.STARTED;
 		m_currentDisplay = e_currentDisplay.STARTED;
@@ -34,7 +42,11 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 	}
 	
 	void TransmissionInterrupted() {
-		m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_cutoff.edds");
+		if (m_infoImage) {
+			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			return;
+		}
+		m_infoImage.LoadImageTexture(0,"{92B573238A373130}UI/Transmission/us_cutoff.edds");
 		SetVisible(true);
 		m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
 		m_currentDisplay = e_currentDisplay.INTERRUPTED;
@@ -42,7 +54,11 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 	}
 	
 	void TransmissionDone() {
-		m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_done.edds");
+		if (m_infoImage) {
+			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			return;
+		}
+		m_infoImage.LoadImageTexture(0,"{92B573238A373130}UI/Transmission/us_done.edds");
 		SetVisible(true);
 		m_currentDisplayCached = e_currentDisplay.COMPLETED;
 		m_currentDisplay = e_currentDisplay.COMPLETED;
@@ -50,17 +66,23 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 	}
 	
 	void SetVisible(bool visible) {
-		if (visible) {
-			m_isDisplayed = true;
+		if (m_infoImage) {
+			float opacity;
+			if (visible) { opacity = 1.0 };
+			m_infoImage.SetOpacity(opacity);
 		} else {
-			m_isDisplayed = false;
-		};
+			PrintFormat("GRAD_BC_Transmission: m_infoImage not found");
+		}
 	}
 	
 	void SetInvisible(e_currentDisplay currentDisplay) {
 		// only hide if nothing stacked / hides afterwards
 		if (m_currentDisplayCached == currentDisplay) {
-			m_isDisplayed = false;
+			if (m_infoImage) {
+				m_infoImage.SetOpacity(0.0);
+			} else {
+				PrintFormat("GRAD_BC_Transmission: m_infoImage not found");
+			}
 		}
 	}
 }

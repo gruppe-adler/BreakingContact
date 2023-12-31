@@ -289,7 +289,7 @@ class GRAD_BreakingContactManager : GenericEntity
 			Print(string.Format("Breaking Contact - Wrong role for marker. Current Role '%1'", characterRole), LogLevel.NORMAL);
 			NotifyPlayerWrongRole(markerOwnerId, "Breaking Contact Commander");
 			GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(pc.FindComponent(GRAD_BC_Logo));
-			logo.setVisible(true);
+			logo.SetVisible(true);
 			return;
 		}
 		
@@ -304,7 +304,7 @@ class GRAD_BreakingContactManager : GenericEntity
 			case "opfor":
 				OpforMarkerCreated(marker, opforSpawnPos, markerOwnerFaction);
 				GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(pc.FindComponent(GRAD_BC_Logo));
-				logo.setVisible(true);
+				logo.SetVisible(true);
 				break;
 		}
 	}

@@ -4,22 +4,21 @@ enum e_currentDisplay {
 	DONE
 }
 
-class GRAD_BC_Transmission: SCR_InfoDisplay
+class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 {
 	private ImageWidget m_infoImage;
 	private bool m_isDisplayed;
 	protected e_currentDisplay	m_currentDisplayCached;
 	protected e_currentDisplay	m_currentDisplay;
 	
-	override event void OnInit(IEntity owner) {
-		super.OnInit(owner);
+	override event void DisplayInit(IEntity owner) {
+		super.DisplayInit(owner);
 		
 		if (m_wRoot) {
 			if (!m_infoImage) { 
 				m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget")) 
 			};
 		};
-		
 		
 		if (!m_isDisplayed && m_infoImage) {
 			m_infoImage.SetVisible(false);
@@ -30,9 +29,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 		};
 	}
 	
-	override event void OnStartDraw(IEntity owner)
+	override event void DisplayStartDraw(IEntity owner)
 	{
-		super.OnStartDraw(owner);
+		super.DisplayStartDraw(owner);
 		
 		if (m_wRoot) {
 			if (!m_infoImage) { 
@@ -41,6 +40,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 		};
 	}
 	
+	
+	// todo: check MP compatibility, might need to RPC stuff 
 	void TransmissionStarted() {
 		if (!m_infoImage) {
 			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
@@ -51,7 +52,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 		PrintFormat("GRAD_BC_Transmission: m_infoImage set to started");
 		m_currentDisplayCached = e_currentDisplay.STARTED;
 		m_currentDisplay = e_currentDisplay.STARTED;
-		// GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
 	}
 	
 	void TransmissionInterrupted() {
@@ -64,7 +65,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 		PrintFormat("GRAD_BC_Transmission: m_infoImage set to interrupted");
 		m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
 		m_currentDisplay = e_currentDisplay.INTERRUPTED;
-		// GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
 	}
 	
 	void TransmissionDone() {
@@ -77,7 +78,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplay
 		PrintFormat("GRAD_BC_Transmission: m_infoImage set to done");
 		m_currentDisplayCached = e_currentDisplay.DONE;
 		m_currentDisplay = e_currentDisplay.DONE;
-		// GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
 	}
 	
 	void SetVisible(bool visible) {

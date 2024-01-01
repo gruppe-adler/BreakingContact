@@ -7,16 +7,16 @@ FrameWidgetClass {
     Anchor 1 0 1 0
     PositionX -302
     OffsetLeft -302
-    PositionY 48
-    OffsetTop 48
+    PositionY 96
+    OffsetTop 96
     SizeX 256
     OffsetRight 46
     SizeY 256
-    OffsetBottom -304
+    OffsetBottom -352
    }
    Texture "{B8C70A7749D318C2}UI/Transmission/us_established.edds"
    Size 1024 1024
-   "Blend Mode" Additive
+   Range 1
   }
  }
 }

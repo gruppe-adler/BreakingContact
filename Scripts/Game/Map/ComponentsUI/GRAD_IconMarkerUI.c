@@ -21,24 +21,30 @@ class MapIcon
 		if (!mapFrame)
 			return;
 		
-		m_wicon = GetGame().GetWorkspace().CreateWidgets("{4B995CEAA55BBECC}UI/Layouts/Map/MapDrawicon.layout", mapFrame);		
+		m_wicon = GetGame().GetWorkspace().CreateWidgets("{546311C6714BB3BA}UI/Layouts/Map/MapDrawIcon.layout", mapFrame);		
 		m_wiconImage = ImageWidget.Cast(m_wicon.FindAnyWidget("DrawIconImage"));
 		
 		if (m_wiconImage) {
 			if (m_sType != "") {
-				m_wiconImage.LoadImageFromSet(m_iType, "{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds", m_sType);
+				// m_wiconImage.LoadImageFromSet(m_iType, "{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds", m_sType);
+				m_wiconImage.LoadImageTexture (0, "{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds", false, false);
+			} else {
+				Print(string.Format("PANIC - m_wiconImage is empty string"), LogLevel.NORMAL);
 			};
 		};
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void Updateicon()
+	void UpdateIcon()
 	{	
 		if (!m_wicon)	// can happen due to callater used for update
 			return;
 		
-		if (!m_wiconImage)
+		if (!m_wiconImage) {
+			// todo current error
+			Print(string.Format("PANIC - No m_wiconImage found"), LogLevel.NORMAL);
 			return;
+		};
 				
 		int screenX, screenY, endX, endY;
 
@@ -85,7 +91,7 @@ class GRAD_IconMarkerUI
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
-			icon.Updateicon();
+			icon.UpdateIcon();
 		}
 	}
 	
@@ -95,7 +101,7 @@ class GRAD_IconMarkerUI
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
-			GetGame().GetCallqueue().CallLater(icon.Updateicon, 0, false); // needs to be delayed by a frame as it cant always update the size after zoom correctly within the same frame
+			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false); // needs to be delayed by a frame as it cant always update the size after zoom correctly within the same frame
 		}
 	}
 	
@@ -103,7 +109,7 @@ class GRAD_IconMarkerUI
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
-			icon.Updateicon();
+			icon.UpdateIcon();
 		}
 	}
 	
@@ -111,7 +117,7 @@ class GRAD_IconMarkerUI
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
-			icon.Updateicon();
+			icon.UpdateIcon();
 		}
 	}
 	
@@ -124,7 +130,7 @@ class GRAD_IconMarkerUI
 		{
 			int type = icon.m_iType;
 			icon.CreateIcon(m_wDrawingContainer);
-			GetGame().GetCallqueue().CallLater(icon.Updateicon, 0, false);
+			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
 		}
 						
 		m_MapEntity.GetOnMapPan().Insert(OnMapPan);		// pan for scaling

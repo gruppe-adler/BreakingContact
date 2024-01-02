@@ -1,5 +1,5 @@
 FrameWidgetClass {
- Name "rootFrame"
+ Name "DrawIconRoot"
  {
   ImageWidgetClass "{60454C504CE75F99}" {
    Name "DrawIconImage"

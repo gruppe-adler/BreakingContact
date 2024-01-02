@@ -263,12 +263,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			);
 			
 			playerController.AddIconMarker(
-				center[0] - 30,
-				center[2] + 30,
-				center[0] + 30,
-				center[2] + 30,
+				center[0] - radius,
+				center[2] + radius,
+				center[0] + radius,
+				center[2] + radius,
 				0,
-				"radiotruck_active"
+				"transmission_active"
 			);
 		}
 	}

@@ -21,7 +21,8 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		
 		if (!m_logo) { 
 			if (m_wRoot) {
-				m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget")) 
+				m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget"));
+				m_logo.SetOpacity(0.0);
 			};
 		};
 	}
@@ -29,9 +30,12 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 	void SetVisible(bool visible) {
 		if (m_logo) {
 			float opacity;
-			if (visible) { opacity = 1.0;
-				GetGame().GetCallqueue().CallLater(SetVisible,15000,false,false);	
-			} else { opacity = 0.0; };
+			if (visible) { 
+				opacity = 1.0;
+				GetGame().GetCallqueue().CallLater(SetVisible,15000,false,false);	// make go away after 15s
+			} else { 
+				opacity = 0.0; 
+			};
 			m_logo.SetOpacity(opacity);
 		} else {
 			PrintFormat("GRAD_BC_Logo: m_logo not found");

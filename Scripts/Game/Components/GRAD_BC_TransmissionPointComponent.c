@@ -23,7 +23,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	[RplProp()]
 	protected float m_iTransmissionProgress;
 
-	static float m_iTransmissionDuration = 120.0; // todo make param, 120s for debug
+	static float m_iTransmissionDuration = 30.0; // todo make param, 120s for debug
 	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
@@ -193,7 +193,11 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			MapDescriptorProps props = item.GetProps();
 			
 	        float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
-			string progressString = string.Format("Antenna: %1 percent...", currentProgress); // % needs to be escaped
+			string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
+			
+			if (currentProgress >= 100) {
+				SetTransmissionState(ETransmissionState.DONE);
+			};
 
 			switch (currentState)
 			{
@@ -209,7 +213,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 			        props.SetImageDef("transmission_active");
 					props.SetIconVisible(true);
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
 			        props.SetOutlineColor(Color.Black);
 			        props.SetTextColor(Color.Red);
 			        props.SetTextSize(60.0, 30.0, 60.0);
@@ -220,16 +224,16 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				}
 						
 				case ETransmissionState.DISABLED: {
-					progressString = string.Format("Antenna: %1 percent.", currentProgress); // % needs to be escaped
+					progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
 			        props.SetIconVisible(true);
 			        item.SetDisplayName(progressString);
 			        item.SetInfoText("Transmission disabled");
 			        props.SetBackgroundColor(Color.Black);
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 			        props.SetImageDef("transmission_interrupted");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
 			        props.SetTextColor(Color.Black);
-			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetTextSize(60.0, 30.0, 60.0);
 			        props.SetIconSize(32, 0.3, 0.3);
 			        props.Activate(true);
 			        item.SetProps(props);
@@ -237,16 +241,16 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				}
 		
 			    case ETransmissionState.INTERRUPTED: {
-					progressString = string.Format("Antenna: %1 percent.", currentProgress); // % needs to be escaped
+					progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
 			        props.SetIconVisible(true);
 			        item.SetDisplayName(progressString);
 			        item.SetInfoText("Transmission interrupted");
 			        props.SetBackgroundColor(Color.Black);
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 			        props.SetImageDef("transmission_interrupted");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
 			        props.SetTextColor(Color.Black);
-			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetTextSize(60.0, 30.0, 60.0);
 			        props.SetIconSize(32, 0.3, 0.3);
 			        props.Activate(true);
 			        item.SetProps(props);
@@ -261,9 +265,9 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        item.SetDisplayName("100\%");
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
 			        props.SetImageDef("transmission_default");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
 			        props.SetTextColor(Color.Green);
-			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetTextSize(60.0, 30.0, 60.0);
 			        props.SetIconSize(32, 0.3, 0.3);
 			        props.Activate(true);
 			        item.SetProps(props);

@@ -79,11 +79,6 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		if (m_eTransmissionState != transmissionState) {
 			m_eTransmissionState = transmissionState;
-
-			if (m_eTransmissionState == ETransmissionState.TRANSMITTING)
-				SetTransmissionPointMarkerVisibility(true);
-			else
-				SetTransmissionPointMarkerVisibility(false);
 		
 			/*
 			int playerId = GetGame().GetDataCollector().GetPlayerData(GetGame().GetPlayerController().GetPlayerId());
@@ -183,60 +178,98 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	protected void MainLoop()
 	{
 		// this function runs on server-side only
-
-
+	
+		ETransmissionState currentState = GetTransmissionState();
+		
 		if (m_mapDescriptorComponent) {
 			MapItem item;
 			item = m_mapDescriptorComponent.Item();
 			MapDescriptorProps props = item.GetProps();
+			
+	        float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
+			string progressString = string.Format("Antenna: %1 percent...", currentProgress); // % needs to be escaped
 
-			if (GetTransmissionState() == ETransmissionState.TRANSMITTING)
+			switch (currentState)
 			{
-				m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
-				float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
-
-				PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
-				PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
-				PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
-
-				string progressString = string.Format("Antenna: %1 \%", currentProgress); // % needs to be escaped
-
-				item.SetDisplayName(progressString);
-				props.SetIconVisible(true);
-				props.SetBackgroundColor(Color.Red);
-				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-				props.SetImageDef("{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds");
-				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-				props.SetOutlineColor(Color.Black);
-				props.SetTextColor(Color.White);
-				props.SetTextSize(60.0, 30.0, 60.0);
-				props.SetIconSize(32, 0.3, 0.3);
-				props.Activate(true);
-				item.SetProps(props);
-			} else if (GetTransmissionState() == ETransmissionState.DISABLED) {
-				props.SetIconVisible(true);
-				props.SetBackgroundColor(Color.Black);
-				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
-				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-				props.SetTextColor(Color.White);
-				props.SetTextSize(30.0, 30.0, 30.0);
-				props.SetIconSize(32, 0.3, 0.3);
-				props.Activate(true);
-				item.SetProps(props);
-			} else {
-				props.SetIconVisible(true);
-				props.SetTextColor(Color.Gray75);
-				props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-				props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
-				props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-				props.SetTextColor(Color.Black);
-				props.SetTextSize(30.0, 30.0, 30.0);
-				props.SetIconSize(32, 0.3, 0.3);
-				props.Activate(true);
-				item.SetProps(props);
+		   		 case ETransmissionState.TRANSMITTING: {
+			        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+			        PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
+			        PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
+			        PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
+			        item.SetDisplayName(progressString);
+			        item.SetInfoText("Transmitting");
+			        props.SetIconVisible(true);
+			        props.SetBackgroundColor(Color.Red);
+			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+			        props.SetImageDef("{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds");
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetOutlineColor(Color.Black);
+			        props.SetTextColor(Color.Red);
+			        props.SetTextSize(60.0, 30.0, 60.0);
+			        props.SetIconSize(32, 0.3, 0.3);
+			        props.Activate(true);
+			        item.SetProps(props);
+		        	break;
+				}
+						
+				case ETransmissionState.DISABLED: {
+					progressString = string.Format("Antenna: %1 percent.", currentProgress); // % needs to be escaped
+			        props.SetIconVisible(true);
+			        item.SetDisplayName(progressString);
+			        item.SetInfoText("Transmission disabled");
+			        props.SetBackgroundColor(Color.Black);
+			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetTextColor(Color.Black);
+			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetIconSize(32, 0.3, 0.3);
+			        props.Activate(true);
+			        item.SetProps(props);
+					break;
+				}
+		
+			    case ETransmissionState.INTERRUPTED: {
+					progressString = string.Format("Antenna: %1 percent.", currentProgress); // % needs to be escaped
+			        props.SetIconVisible(true);
+			        item.SetDisplayName(progressString);
+			        item.SetInfoText("Transmission interrupted");
+			        props.SetBackgroundColor(Color.Black);
+			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetTextColor(Color.Black);
+			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetIconSize(32, 0.3, 0.3);
+			        props.Activate(true);
+			        item.SetProps(props);
+					break;
+				}
+		        
+		
+		    	case ETransmissionState.DONE: {
+					progressString = "Transmission Done";
+			        props.SetIconVisible(true);
+			        item.SetInfoText("Transmission Done");
+			        item.SetDisplayName("100\%");
+			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
+			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			        props.SetTextColor(Color.Green);
+			        props.SetTextSize(30.0, 30.0, 30.0);
+			        props.SetIconSize(32, 0.3, 0.3);
+			        props.Activate(true);
+			        item.SetProps(props);
+			        break;
+				}
+		
+		   	 	// Add more cases as needed
+		
+		   		 default: {
+		        	// Handle any other state if necessary
+		        	break;
+				}
 			}
-
 		}
 	}
 

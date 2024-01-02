@@ -92,10 +92,31 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 					props.SetIconSize(3, 3, 3);
 					props.Activate(true);
 					item.SetProps(props);
-				}
-
-				
+				}	
+		} else {
+		
+			IEntity activeTPCAntenna = getNearestTransmissionPoint(m_radioTruck.GetOrigin());
+			if (!activeTPCAntenna) {
+				Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
+				return;
+			} else {
 			
+				GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
+				if (BCM) {
+					array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
+	
+					foreach (IEntity singleTPCAntenna : transmissionPoints)
+					{
+						GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(singleTPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
+						if (TPC) {
+							if (singleTPCAntenna != activeTPCAntenna) {
+								TPC.SetTransmissionActive(false);
+								Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
+							};
+						}
+					}
+				}
+			}
 			
 		}
 

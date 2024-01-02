@@ -48,7 +48,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			return;
 		}
 		
-		if(m_radioTruckComponent.GetTransmissionState())
+		if(m_radioTruckComponent.GetTransmissionActive())
 			m_radioTruckComponent.SetTransmissionActive(false);
 		else
 			m_radioTruckComponent.SetTransmissionActive(true);
@@ -63,7 +63,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			return false;
 		}
 		
-		if (m_radioTruckComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING)
+		if (m_radioTruckComponent.GetTransmissionActive())
 		{
 			outName = "Stop Radio Transmission";
 		} else

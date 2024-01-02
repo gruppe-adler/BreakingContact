@@ -10,7 +10,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
-	private bool m_bIsTransmitting;
+	protected bool m_bIsTransmitting;
 
 	private Vehicle m_radioTruck;
 
@@ -55,32 +55,18 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				{
 					Print(string.Format("Breaking Contact RTC - Transmitting..."), LogLevel.NORMAL);
 
-					// todo
-					IEntity TPCAntenna = getNearestTransmissionPoint(m_radioTruck.GetOrigin());
-					if (!TPCAntenna) {
-						Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
-						return;
-					}
-
-					GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(TPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
-					if (TPC) {
-						TPC.SetTransmissionActive(true);
-						Print(string.Format("Breaking Contact RTC - TPCAntenna: %1 - Component: %2", TPCAntenna, TPC), LogLevel.NORMAL);
-					} else {
-						Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionPointComponent found"), LogLevel.NORMAL);
-					}
-
 					string progressString = string.Format("Radio Truck active");
 
 					item.SetDisplayName(progressString);
 					props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-					props.SetImageDef("{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds");
+					item.SetImageDef("{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds");
+			        // props.SetImageDef("{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset");
 					props.SetIconVisible(true);
 					props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 					props.SetOutlineColor(Color.Black);
 					props.SetTextColor(Color.Red);
 					props.SetTextSize(30.0, 30.0, 30.0);
-					props.SetIconSize(30, 30, 30);
+					props.SetIconSize(30.0, 30.0, 30.0);
 					props.Activate(true);
 					item.SetProps(props);
 				} else {
@@ -89,121 +75,23 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 					props.SetOutlineColor(Color.Black);
 					props.SetTextColor(Color.FromRGBA(0, 0, 0, 0));
 					props.SetTextSize(30.0, 30.0, 30.0);
-					props.SetIconSize(3, 3, 3);
+					props.SetIconSize(3.0, 3.0, 3.0);
 					props.Activate(true);
 					item.SetProps(props);
 				}	
-		} else {
-		
-			IEntity activeTPCAntenna = getNearestTransmissionPoint(m_radioTruck.GetOrigin());
-			if (!activeTPCAntenna) {
-				Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
-				return;
-			} else {
-			
-				GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
-				if (BCM) {
-					array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
-	
-					foreach (IEntity singleTPCAntenna : transmissionPoints)
-					{
-						GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(singleTPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
-						if (TPC) {
-							if (singleTPCAntenna != activeTPCAntenna) {
-								TPC.SetTransmissionActive(false);
-								Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
-							};
-						}
-					}
-				}
-			}
-			
 		}
-
 		Print(string.Format("Breaking Contact RTC -  Main Loop Tick"), LogLevel.NORMAL);
 	}
-
-
-
-
-	//------------------------------------------------------------------------------------------------
-	protected IEntity getNearestTransmissionPoint(vector center)
+	
+	bool GetTransmissionActive() 
 	{
-		GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
-		if (BCM) {
-			array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
-			IEntity selectedPoint = null;
-
-			// if transmission points exist, find out which one is the nearest
-			if (transmissionPoints.Count() > 0) {
-				float distanceMaxTemp;
-
-				foreach (IEntity TPCAntenna : transmissionPoints)
-				{
-					float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
-
-					// check if distance is in reach of radiotruck
-					if (distance < m_iMaxTransmissionDistance) {
-						distanceMaxTemp = distance;
-						selectedPoint = TPCAntenna;
-					}
-				}
-				if (!selectedPoint) {
-					selectedPoint = createTransmissionPoint(center, BCM);
-				}
-				return selectedPoint;
-			}
-			selectedPoint = createTransmissionPoint(center, BCM);
-			return selectedPoint;
-		}
-
-		return null;
-	}
-
-
-	//------------------------------------------------------------------------------------------------
-	IEntity createTransmissionPoint(vector center, GRAD_BreakingContactManager BCM) {
-		// if no transmission point exists, create one
-		IEntity TPCAntenna = BCM.spawnTransmissionPoint(center, 10);
-		Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
-
-		AddTransmissionMarker(TPCAntenna, m_iMaxTransmissionDistance);
-		return TPCAntenna;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	void AddTransmissionMarker(IEntity TPCAntenna, float radius)
-	{
-
-		vector center = TPCAntenna.GetOrigin();
-
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-
-		foreach (int playerId : playerIds)
-		{
-
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-
-			if (!playerController)
-				return;
-
-			playerController.AddCircleMarker(
-				center[0] - radius,
-				center[2] + radius,
-				center[0] + radius,
-				center[2] + radius
-			);
-		}
-	}
-
-
-	bool GetTransmissionState() {
 		return m_bIsTransmitting;
 	}
 
 	void SetTransmissionActive(bool setTo) {
 		m_bIsTransmitting = setTo;
+		
+		Print(string.Format("Breaking Contact RTC -  Setting m_bIsTransmitting to %1", m_bIsTransmitting), LogLevel.NORMAL);
 		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
@@ -212,20 +100,6 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			if (VDMC) {
 				VDMC.SetEngineFunctional(true);
 				Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
-			}
-			
-			GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.Cast(GetGame().FindEntity("GRAD_BreakingContactManager"));
-			if (BCM) {
-				array<IEntity> transmissionPoints = BCM.GetTransmissionPoints();
-
-				foreach (IEntity TPCAntenna : transmissionPoints)
-				{
-					GRAD_BC_TransmissionPointComponent TPC = GRAD_BC_TransmissionPointComponent.Cast(TPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
-					if (TPC) {
-						TPC.SetTransmissionActive(false);
-						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", TPCAntenna), LogLevel.NORMAL);
-					}
-				}
 			}
 		} else {
 			if (VDMC) {

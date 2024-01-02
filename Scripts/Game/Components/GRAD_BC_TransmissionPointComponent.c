@@ -73,6 +73,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		return m_eTransmissionState;
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	bool GetTransmissionActive()
+	{
+		return m_bTransmissionActive;
+	}
 
 	//------------------------------------------------------------------------------------------------
 	private void SetTransmissionState(ETransmissionState transmissionState)
@@ -201,7 +207,8 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        props.SetIconVisible(true);
 			        props.SetBackgroundColor(Color.Red);
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds");
+			        props.SetImageDef("transmission_active");
+					props.SetIconVisible(true);
 			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 			        props.SetOutlineColor(Color.Black);
 			        props.SetTextColor(Color.Red);
@@ -219,7 +226,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        item.SetInfoText("Transmission disabled");
 			        props.SetBackgroundColor(Color.Black);
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
+			        props.SetImageDef("transmission_interrupted");
 			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 			        props.SetTextColor(Color.Black);
 			        props.SetTextSize(30.0, 30.0, 30.0);
@@ -236,7 +243,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        item.SetInfoText("Transmission interrupted");
 			        props.SetBackgroundColor(Color.Black);
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_destroyed.edds");
+			        props.SetImageDef("transmission_interrupted");
 			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 			        props.SetTextColor(Color.Black);
 			        props.SetTextSize(30.0, 30.0, 30.0);
@@ -253,7 +260,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			        item.SetInfoText("Transmission Done");
 			        item.SetDisplayName("100\%");
 			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("{97BB746698125B85}UI/Textures/Map/transmission_default.edds");
+			        props.SetImageDef("transmission_default");
 			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
 			        props.SetTextColor(Color.Green);
 			        props.SetTextSize(30.0, 30.0, 30.0);

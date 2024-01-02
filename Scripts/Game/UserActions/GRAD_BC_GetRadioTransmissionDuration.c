@@ -44,7 +44,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 			return false;
 		}
 		
-		if (m_radioTruckComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING)
+		if (m_radioTruckComponent.GetTransmissionActive())
 		{
 			return true;
 		} else

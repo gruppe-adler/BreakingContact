@@ -41,10 +41,14 @@ class GRAD_BreakingContactManager : GenericEntity
 
     [RplProp()]
 	protected int m_iBreakingContactPhase;
+	
+	static float m_iMaxTransmissionDistance = 500.0;
 
     protected ref array<IEntity> m_transmissionPoints = {};
 	
 	protected static GRAD_BreakingContactManager s_Instance;
+	protected IEntity m_radioTruck;
+	protected bool m_bIsTransmittingCache;
 	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BreakingContactManager GetInstance()
@@ -57,11 +61,13 @@ class GRAD_BreakingContactManager : GenericEntity
 	override void EOnInit(IEntity owner)
 	{
 		// execute only on the server
-		if (!Replication.IsServer())
-			return;
+		// if (!Replication.IsServer())
+		//	return;
 		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
+		
+		m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
     }
 
 
@@ -105,7 +111,11 @@ class GRAD_BreakingContactManager : GenericEntity
 
     //------------------------------------------------------------------------------------------------
 	void mainLoop()
+	
 	{
+		// todo move behind game mode started
+		ManageMarkers();
+		
 		if (m_skipWinConditions || !(GameModeStarted()))
         {
 			Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
@@ -118,7 +128,136 @@ class GRAD_BreakingContactManager : GenericEntity
             Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		}
 
-        Print(string.Format("Breaking Contact -  Main Loop Tick"), LogLevel.NORMAL);
+		Print(string.Format("Breaking Contact -  -------------------------------------------------"), LogLevel.NORMAL);
+        Print(string.Format("Breaking Contact -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
+		Print(string.Format("Breaking Contact -  -------------------------------------------------"), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void ManageMarkers() 
+	{
+		Print(string.Format("Breaking Contact BCM -  Manage markers..."), LogLevel.NORMAL);
+		
+		if (!m_radioTruck) {
+			Print(string.Format("Breaking Contact BCM -  No radio truck found"), LogLevel.NORMAL);
+			return;
+		};
+		
+		GRAD_BC_RadioTruckComponent RTC = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		if (!RTC) {
+			Print(string.Format("Breaking Contact BCM -  No radio truck component found"), LogLevel.NORMAL);
+			return;
+		}
+		
+		bool isTransmitting = RTC.GetTransmissionActive();
+		bool stateChanged = (m_bIsTransmittingCache != isTransmitting);
+		m_bIsTransmittingCache = isTransmitting;
+		
+		IEntity nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin());
+		array<IEntity> transmissionPoints = GetTransmissionPoints();
+		
+		if (!nearestTPCAntenna) {
+			Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
+			return;
+		}
+		
+		GRAD_BC_TransmissionPointComponent activeTPC = GRAD_BC_TransmissionPointComponent.Cast(nearestTPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
+		if (activeTPC) {
+			if (stateChanged && isTransmitting) {
+				activeTPC.SetTransmissionActive(true);
+				Print(string.Format("Breaking Contact RTC - activating active TPC: %1 - Component: %2", nearestTPCAntenna, activeTPC), LogLevel.NORMAL);
+				
+				foreach (IEntity singleTPCAntenna : transmissionPoints)
+				{
+					// disable all others
+					if (nearestTPCAntenna != singleTPCAntenna) {
+						GRAD_BC_TransmissionPointComponent singleTPC = GRAD_BC_TransmissionPointComponent.Cast(singleTPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
+						singleTPC.SetTransmissionActive(false);
+						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
+					};
+				};
+				
+			} else if (stateChanged && !isTransmitting) {
+				foreach (IEntity singleTPCAntenna : transmissionPoints)
+				{
+					// disable all
+					GRAD_BC_TransmissionPointComponent singleTPC = GRAD_BC_TransmissionPointComponent.Cast(singleTPCAntenna.FindComponent(GRAD_BC_TransmissionPointComponent));
+					singleTPC.SetTransmissionActive(false);
+					Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
+				};
+			} else {
+				Print(string.Format("Breaking Contact RTC - No state change"), LogLevel.NORMAL);
+			};
+		} else {
+			Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionPointComponent found"), LogLevel.NORMAL);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected IEntity GetNearestTransmissionPoint(vector center)
+	{
+		
+			array<IEntity> transmissionPoints = GetTransmissionPoints();
+			IEntity selectedPoint = null;
+
+			// if transmission points exist, find out which one is the nearest
+			if (transmissionPoints.Count() > 0) {
+				float distanceMaxTemp;
+
+				foreach (IEntity TPCAntenna : transmissionPoints)
+				{
+					float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
+
+					// check if distance is in reach of radiotruck
+					if (distance < m_iMaxTransmissionDistance) {
+						distanceMaxTemp = distance;
+						selectedPoint = TPCAntenna;
+					}
+				}
+				if (!selectedPoint) {
+					selectedPoint = CreateTransmissionPoint(center);
+				}
+				return selectedPoint;
+			}
+			selectedPoint = CreateTransmissionPoint(center);
+			return selectedPoint;
+		}
+
+	
+	//------------------------------------------------------------------------------------------------
+	IEntity CreateTransmissionPoint(vector center) {
+		// if no transmission point exists, create one
+		IEntity TPCAntenna = SpawnTransmissionPoint(center, 10);
+		Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
+
+		AddTransmissionMarker(TPCAntenna, m_iMaxTransmissionDistance);
+		return TPCAntenna;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void AddTransmissionMarker(IEntity TPCAntenna, float radius)
+	{
+
+		vector center = TPCAntenna.GetOrigin();
+
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+
+		foreach (int playerId : playerIds)
+		{
+
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+
+			if (!playerController)
+				return;
+
+			playerController.AddCircleMarker(
+				center[0] - radius,
+				center[2] + radius,
+				center[0] + radius,
+				center[2] + radius
+			);
+		}
 	}
 
 
@@ -200,7 +339,7 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
 	//------------------------------------------------------------------------------------------------
-	IEntity spawnTransmissionPoint(vector center, int radius)
+	IEntity SpawnTransmissionPoint(vector center, int radius)
 	{		
 		vector newCenter = findSpawnPoint(center, radius);
 		

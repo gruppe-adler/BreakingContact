@@ -2,6 +2,7 @@
 modded class SCR_PlayerController : PlayerController
 {
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
+	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
 	
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
@@ -16,6 +17,12 @@ modded class SCR_PlayerController : PlayerController
 		{
 			m_MapMarkerUI = new GRAD_MapMarkerUI();
 			m_MapMarkerUI.Init();
+		}
+		
+		if (!m_IconMarkerUI)
+		{
+			m_IconMarkerUI = new GRAD_IconMarkerUI();
+			m_IconMarkerUI.Init();
 		}
 	}
 	
@@ -92,6 +99,19 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	void AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType)
+	{
+		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, iType, sType);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType)
+	{
+		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, iType, sType);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void ShowHint(string message, string title, int duration, bool isSilent)
 	{
 		Rpc(RpcDo_Owner_ShowHint, message, title, duration, isSilent);
@@ -144,11 +164,11 @@ modded class SCR_PlayerController : PlayerController
 		if (!playerEntity)
 			return;
 		
-		Print(string.Format("OTF - Player with ID %1 has position %2", playerId, playerEntity.GetOrigin()), LogLevel.NORMAL);
+		Print(string.Format("BCM - Player with ID %1 has position %2", playerId, playerEntity.GetOrigin()), LogLevel.NORMAL);
 		
 		bool teleportSuccessful = false;
 		
-		GRAD_BreakingContactManager BCM = GRAD_BreakingContactManager.GetInstance();
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		
 		vector newWorldPos;
 		
@@ -160,6 +180,6 @@ modded class SCR_PlayerController : PlayerController
 			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
 		}
 		
-		Print(string.Format("OTF - Player with ID %1 successfully teleported to position %2", GetPlayerId(), newWorldPos), LogLevel.NORMAL);
+		Print(string.Format("BCM - Player with ID %1 successfully teleported to position %2", GetPlayerId(), newWorldPos), LogLevel.NORMAL);
 	}
 };

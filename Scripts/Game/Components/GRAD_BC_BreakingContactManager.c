@@ -9,13 +9,13 @@ enum EBreakingContactPhase
 }
 
 [EntityEditorProps(category: "Gruppe Adler", description: "Breaking Contact Gamemode Manager")]
-class GRAD_BreakingContactManagerClass : GenericEntityClass
+class GRAD_BC_BreakingContactManagerClass : GenericEntityClass
 {
 }
 
 // This class is server-only code
 
-class GRAD_BreakingContactManager : GenericEntity
+class GRAD_BC_BreakingContactManager : GenericEntity
 {
     [Attribute(defvalue: "3", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
@@ -46,23 +46,26 @@ class GRAD_BreakingContactManager : GenericEntity
 
     protected ref array<IEntity> m_transmissionPoints = {};
 	
-	protected static GRAD_BreakingContactManager s_Instance;
+	protected static GRAD_BC_BreakingContactManager s_Instance;
 	protected IEntity m_radioTruck;
 	protected bool m_bIsTransmittingCache;
 	
 	//------------------------------------------------------------------------------------------------
-	static GRAD_BreakingContactManager GetInstance()
+	static GRAD_BC_BreakingContactManager GetInstance()
 	{
 		return s_Instance;
 	}
-    
-
+	
     //------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
+		super.EOnInit(owner);
+		
+		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);
+		
 		// execute only on the server
-		// if (!Replication.IsServer())
-		//	return;
+		if (!Replication.IsServer())
+			return;
 		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
@@ -110,27 +113,28 @@ class GRAD_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	void mainLoop()
+	protected void mainLoop()
 	
 	{
+
+		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+        Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
+		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+		
 		// todo move behind game mode started
-		ManageMarkers();
+		ManageMarkers();		
 		
 		if (m_skipWinConditions || !(GameModeStarted()))
         {
 			Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
 			return;
-		}
+		};
 		
         // skip win conditions if active
 		if (GameModeStarted() && !(GameModeOver())) {
 			CheckWinConditions();
             Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
-		}
-
-		Print(string.Format("Breaking Contact -  -------------------------------------------------"), LogLevel.NORMAL);
-        Print(string.Format("Breaking Contact -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
-		Print(string.Format("Breaking Contact -  -------------------------------------------------"), LogLevel.NORMAL);
+		};
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -186,7 +190,7 @@ class GRAD_BreakingContactManager : GenericEntity
 					Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
 				};
 			} else {
-				Print(string.Format("Breaking Contact RTC - No state change"), LogLevel.NORMAL);
+			//	Print(string.Format("Breaking Contact RTC - No state change"), LogLevel.NORMAL);
 			};
 		} else {
 			Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionPointComponent found"), LogLevel.NORMAL);
@@ -256,6 +260,15 @@ class GRAD_BreakingContactManager : GenericEntity
 				center[2] + radius,
 				center[0] + radius,
 				center[2] + radius
+			);
+			
+			playerController.AddIconMarker(
+				center[0] - 30,
+				center[2] + 30,
+				center[0] + 30,
+				center[2] + 30,
+				0,
+				"radiotruck_active"
 			);
 		}
 	}

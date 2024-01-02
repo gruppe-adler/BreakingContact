@@ -1,0 +1,22 @@
+FrameWidgetClass {
+ Name "rootFrame"
+ {
+  ImageWidgetClass "{60454C504CE75F99}" {
+   Name "DrawIconImage"
+   Slot FrameWidgetSlot "{60454C504CE75FF2}" {
+    Anchor 0.5 0.5 0.5 0.5
+    PositionX -128
+    OffsetLeft -128
+    PositionY -128
+    OffsetTop -128
+    SizeX 256
+    OffsetRight -128
+    SizeY 256
+    OffsetBottom -128
+   }
+   Texture "{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds"
+   Size 256 256
+   Tiling None
+  }
+ }
+}

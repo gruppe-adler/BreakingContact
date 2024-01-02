@@ -20,3 +20,9 @@ SCR_GameModeEditor GameMode_Editor_Full1 : "{DA3986AF1B5032B7}Prefabs/MP/Modes/E
   }
  }
 }
+GRAD_BC_BreakingContactManager GRAD_BCM {
+ coords 5748.535 -1687.529 8425.173
+ constructor ""\
+ "		SetEventMask(EntityEvent.INIT);"\
+ "	"
+}

@@ -1,6 +1,3 @@
-GRAD_BreakingContactManager GRAD_BreakingContactManager {
- coords 6684.06 153.471 6473.878
-}
 Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
  components {
   SCR_MapDescriptorComponent "{52A8810B142E666C}" {

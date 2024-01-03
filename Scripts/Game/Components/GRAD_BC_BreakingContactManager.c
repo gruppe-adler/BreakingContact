@@ -39,12 +39,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     protected vector m_vOpforSpawnPos;
     protected vector m_vBluforSpawnPos;
 
+
     [RplProp()]
 	protected int m_iBreakingContactPhase;
 	
 	static float m_iMaxTransmissionDistance = 500.0;
 
     protected ref array<IEntity> m_transmissionPoints = {};
+	protected ref array<IEntity> m_iTransmissionsDone = {};
 	
 	protected static GRAD_BC_BreakingContactManager s_Instance;
 	protected IEntity m_radioTruck;
@@ -135,6 +137,18 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			CheckWinConditions();
             Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		};
+	}
+
+	//------------------------------------------------------------------------------------------------
+	void GetTransmissionsDoneCount()
+	{
+		return (m_iTransmissionsDone.Count());
+	} 
+
+	//-
+	void AddTransmissionPointDone(IEntity transmissionPoint) 
+	{
+		m_iTransmissionsDone.Insert(transmissionPoint);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -281,17 +295,31 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		bool bluforEliminated = factionEliminated("US") && !m_debug;
 		bool opforEliminated = factionEliminated("USSR") && !m_debug;
         bool isOver;
+
+		bool finishedAllTransmissions = (GetTransmissionsDoneCount() => m_iTransmissionCount);
 		
 		if (bluforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
 			Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
 		}
+
+		if (finishedAllTransmissions) {
+			isOver = true;
+			m_sWinnerSide = "opfor";
+			Print(string.Format("Breaking Contact - All transmissions done"), LogLevel.NORMAL);
+		}
 		
-		if (opforEliminated || m_bluforCaptured) {
+		if (opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
 			Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
+		}
+
+		if (m_bluforCaptured) {
+			isOver = true;
+			m_sWinnerSide = "blufor";
+			Print(string.Format("Breaking Contact - Blufor captured radio truck"), LogLevel.NORMAL);
 		}
 		
 		// needs to be on last position as would risk to be overwritten

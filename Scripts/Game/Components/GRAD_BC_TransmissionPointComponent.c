@@ -186,6 +186,11 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		// this function runs on server-side only
 	
 		ETransmissionState currentState = GetTransmissionState();
+
+		if (currentState == ETransmissionState.DONE) {
+			Print("TPC - skipping mainloop due to transmission state done", LogLevel.NORMAL);
+			return;
+		}
 		
 		if (m_mapDescriptorComponent) {
 			MapItem item;
@@ -195,8 +200,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	        float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
 			string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
 			
+			// 
 			if (currentProgress >= 100) {
 				SetTransmissionState(ETransmissionState.DONE);
+
+				GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+				BCM.AddTransmissionPointDone(m_transmissionPoint);
 			};
 
 			switch (currentState)

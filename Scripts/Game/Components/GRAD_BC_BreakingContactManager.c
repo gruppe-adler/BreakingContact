@@ -72,9 +72,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
 		
-		m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
+		// Find radio truck east; Init order of entities unknown; therefore it could be missing
+		// I also added the check in main loop.
+		// TODO: @nomisum --> Please decide what fit's your needs
+		GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 5 * 1000, false);
     }
 
+    //------------------------------------------------------------------------------------------------
+	protected void FindRadioTruckEast()
+	{
+		if (!m_radioTruck)
+		{
+			m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
+		}
+	} 
 
     //------------------------------------------------------------------------------------------------
 	bool factionEliminated(string factionName)
@@ -140,12 +151,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void GetTransmissionsDoneCount()
+	int GetTransmissionsDoneCount()
 	{
 		return (m_iTransmissionsDone.Count());
 	} 
 
-	//-
+	//------------------------------------------------------------------------------------------------
 	void AddTransmissionPointDone(IEntity transmissionPoint) 
 	{
 		m_iTransmissionsDone.Insert(transmissionPoint);
@@ -157,8 +168,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		Print(string.Format("Breaking Contact BCM -  Manage markers..."), LogLevel.NORMAL);
 		
 		if (!m_radioTruck) {
-			Print(string.Format("Breaking Contact BCM -  No radio truck found"), LogLevel.NORMAL);
-			return;
+			FindRadioTruckEast();
+			if (!m_radioTruck) {
+				Print(string.Format("Breaking Contact BCM -  No radio truck found"), LogLevel.NORMAL);
+				return;
+			};
 		};
 		
 		GRAD_BC_RadioTruckComponent RTC = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
@@ -268,7 +282,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 			if (!playerController)
 				return;
-
+			
 			playerController.AddCircleMarker(
 				center[0] - radius,
 				center[2] + radius,
@@ -277,10 +291,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			);
 			
 			playerController.AddIconMarker(
-				center[0] - radius,
-				center[2] + radius,
-				center[0] + radius,
-				center[2] + radius,
+				center[0] - (radius / 4),
+				center[2] + (radius / 4),
+				center[0] + (radius / 4),
+				center[2] + (radius / 4),
 				0,
 				"transmission_active"
 			);
@@ -296,7 +310,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		bool opforEliminated = factionEliminated("USSR") && !m_debug;
         bool isOver;
 
-		bool finishedAllTransmissions = (GetTransmissionsDoneCount() => m_iTransmissionCount);
+		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
 		
 		if (bluforEliminated) {
 			isOver = true;
@@ -636,5 +650,22 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         // get surfaceY of position mapPos X(Z)Y
 		vector worldPos = {mapPos[0], GetGame().GetWorld().GetSurfaceY(mapPos[0], mapPos[1]), mapPos[1]};
 		return worldPos;
+	}
+
+    //------------------------------------------------------------------------------------------------	
+	void GRAD_BC_BreakingContactManager(IEntitySource src, IEntity parent)
+	{
+		if (s_Instance)
+		{
+			Print("Breaking Contact - Only one instance of GRAD_BC_BreakingContactManager is allowed in the world!", LogLevel.WARNING);
+			delete this;
+			return;
+		}
+
+		s_Instance = this;
+
+		// rest of the init code
+		
+		SetEventMask(EntityEvent.INIT);
 	}
 }

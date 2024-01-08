@@ -7,24 +7,8 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
-		SCR_MapEntity.GetOnMapOpen().Insert(OnMapOpen);
+		InitMapMarkerUI();
     }
-	
-	//------------------------------------------------------------------------------------------------
-	void OnMapOpen(MapConfiguration config)
-	{
-		if (!m_MapMarkerUI)
-		{
-			m_MapMarkerUI = new GRAD_MapMarkerUI();
-			m_MapMarkerUI.Init();
-		}
-		
-		if (!m_IconMarkerUI)
-		{
-			m_IconMarkerUI = new GRAD_IconMarkerUI();
-			m_IconMarkerUI.Init();
-		}
-	}
 	
 	//------------------------------------------------------------------------------------------------
 	void InsertMarker(SCR_MapMarkerBase marker)
@@ -85,6 +69,23 @@ modded class SCR_PlayerController : PlayerController
 			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
 	}
 
+	
+	//------------------------------------------------------------------------------------------------
+	protected void InitMapMarkerUI()
+	{
+		if (!m_MapMarkerUI)
+		{
+			m_MapMarkerUI = new GRAD_MapMarkerUI();
+			m_MapMarkerUI.Init();
+		}
+		
+		if (!m_IconMarkerUI)
+		{
+			m_IconMarkerUI = new GRAD_IconMarkerUI();
+			m_IconMarkerUI.Init();
+		}
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	void AddCircleMarker(float startX, float startY, float endX, float endY)
 	{

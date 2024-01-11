@@ -52,11 +52,13 @@ class MapIcon
 		};
 				
 		int screenX, screenY, endX, endY;
-		m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
 		
 		if (m_sType != "" && m_textureCache != m_sType) {
 			Print(string.Format("GRAD IconmarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
 			m_wiconImage.LoadImageTexture (0, m_sType, false, false);
+			
+			
+			m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
 			Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
 		};
 

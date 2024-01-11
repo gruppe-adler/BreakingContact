@@ -9,8 +9,8 @@ class MapCircle
 	ImageWidget m_wCircleImage;
 	SCR_MapEntity m_MapEntity;
 	GRAD_MapMarkerUI m_OwnerComponent;
-	string m_textureCache;
-	string m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
+	string m_textureCache = "none";
+	string m_sType;
 	
 	RplId m_refEntity;
 	
@@ -25,6 +25,7 @@ class MapCircle
 		
 		m_wCircle = GetGame().GetWorkspace().CreateWidgets("{4B995CEAA55BBECC}UI/Layouts/Map/MapDrawCircle.layout", mapFrame);
 		m_wCircleImage = ImageWidget.Cast(m_wCircle.FindAnyWidget("DrawCircleImage"));
+		m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -35,11 +36,12 @@ class MapCircle
 				
 		int screenX, screenY, endX, endY;
 		
-		m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
+		Print(string.Format("GRAD CirclemarkerUI: m_sType is %1, m_textureCache is %2", m_sType, m_textureCache), LogLevel.NORMAL);
 		
 		if (m_sType != "" && m_textureCache != m_sType) {
 			Print(string.Format("GRAD CirclemarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
 			m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
+			m_textureCache = m_sType;  // as we have no getter for existing texture WHYEVER :[[
 			Print(string.Format("GRAD CirclemarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
 		};
 

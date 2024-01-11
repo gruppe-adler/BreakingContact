@@ -177,47 +177,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		m_iTransmissionsDone.Insert(transmissionPoint);
 	}
 	
-
-	//---	
-	void SetCircleActive(IEntity entity) 
-	{
-		RplId entityId = Replication.FindId(entity);
-		
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetPlayers(playerIds);
-		
-		foreach (int playerId : playerIds)
-		{
-
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-
-			if (!playerController)
-				return;
-			
-			playerController.SetCircleMarkerActive(entityId);
-		}
-	}
-	
-	//---	
-	void SetCircleInactive(IEntity entity) 
-	{
-		RplId entityId = Replication.FindId(entity);
-		
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetPlayers(playerIds);
-		
-		foreach (int playerId : playerIds)
-		{
-
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-
-			if (!playerController)
-				return;
-			
-			playerController.SetCircleMarkerInactive(entityId);
-		}
-	}
-	
 	//------------------------------------------------------------------------------------------------
 	void ManageMarkers() 
 	{
@@ -253,9 +212,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (activeTPC) {
 			if (stateChanged && isTransmitting) {
 				activeTPC.SetTransmissionActive(true);
-				
-				
-				SetCircleActive(nearestTPCAntenna);
 				
 				Print(string.Format("Breaking Contact RTC - activating active TPC: %1 - Component: %2", nearestTPCAntenna, activeTPC), LogLevel.NORMAL);
 				

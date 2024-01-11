@@ -147,7 +147,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			m_bTransmissionActive = setState;
 			
 			array<int> allPlayers = {};
-			RplId entityId = Replication.FindId(m_transmissionPoint);
+			RplId entityId = Replication.FindId(m_RplComponent);
 			
 			GetGame().GetPlayerManager().GetPlayers(allPlayers);
 			foreach(int playerId : allPlayers)
@@ -160,11 +160,13 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 						"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
 						entityId
 					);
+					playerController.SetCircleMarkerActive(entityId);
 				} else {
 					playerController.SetIconMarker(
 						"{97BB746698125B85}UI/Textures/Map/transmission_default.edds",
 						entityId
 					);
+					playerController.SetCircleMarkerInactive(entityId);
 				}
 				
 			};
@@ -191,7 +193,6 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 
 		}
 	}
-
 
 
 	//------------------------------------------------------------------------------------------------

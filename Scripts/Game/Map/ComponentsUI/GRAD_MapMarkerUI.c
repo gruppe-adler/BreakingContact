@@ -9,6 +9,10 @@ class MapCircle
 	ImageWidget m_wCircleImage;
 	SCR_MapEntity m_MapEntity;
 	GRAD_MapMarkerUI m_OwnerComponent;
+	string m_textureCache;
+	string m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
+	
+	RplId m_refEntity;
 	
 	//------------------------------------------------------------------------------------------------
 	void CreateCircle(notnull Widget rootW)
@@ -30,6 +34,14 @@ class MapCircle
 			return;
 				
 		int screenX, screenY, endX, endY;
+		
+		m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
+		
+		if (m_sType != "" && m_textureCache != m_sType) {
+			Print(string.Format("GRAD CirclemarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
+			m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
+			Print(string.Format("GRAD CirclemarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
+		};
 
 		m_MapEntity.WorldToScreen(m_fStartPointX, m_fStartPointY, screenX, screenY, true);
 		m_MapEntity.WorldToScreen(m_fEndPointX, m_fEndPointY, endX, endY, true);
@@ -66,6 +78,8 @@ class GRAD_MapMarkerUI
 	protected ref array<ref MapCircle> m_aCircles = new array <ref MapCircle>();
 	
 	protected SCR_MapEntity m_MapEntity;
+	
+
 	
 	//------------------------------------------------------------------------------------------------
 	//! SCR_MapEntity event
@@ -133,7 +147,7 @@ class GRAD_MapMarkerUI
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void AddCircle(float startPointX, float startPointY, float endPointX, float endPointY)
+	void AddCircle(float startPointX, float startPointY, float endPointX, float endPointY, RplId entityId)
 	{
 		MapCircle circle = new MapCircle(m_MapEntity, this);
 		
@@ -141,8 +155,34 @@ class GRAD_MapMarkerUI
 		circle.m_fStartPointY = startPointY;
 		circle.m_fEndPointX = endPointX;
 		circle.m_fEndPointY = endPointY;
+		circle.m_refEntity = entityId;
 		
 		m_aCircles.Insert(circle);
+	}
+	
+	
+	//--
+	void SetCircleInactive(RplId entityId)
+	{
+		foreach (MapCircle circle: m_aCircles)
+		{
+			if (circle.m_refEntity == entityId) {
+				circle.m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
+				circle.UpdateCircle();
+			};
+		}
+	}
+	
+	//--
+	void SetCircleActive(RplId entityId)
+	{
+		foreach (MapCircle circle: m_aCircles)
+		{
+			if (circle.m_refEntity == entityId) {
+				circle.m_sType = "{BBDE49CD7C1A52F7}UI/Textures/Map/CircleMarker.edds";
+				circle.UpdateCircle();
+			};
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

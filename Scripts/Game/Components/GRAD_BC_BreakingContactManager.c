@@ -43,6 +43,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     [RplProp()]
 	protected int m_iBreakingContactPhase;
 	
+
 	static float m_iMaxTransmissionDistance = 500.0;
 
     protected ref array<IEntity> m_transmissionPoints = {};
@@ -85,6 +86,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		{
 			m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
 		}
+		
+		array<int> allPlayers = {};
+		RplId entityId = Replication.FindId(m_radioTruck);
+		
+		GetGame().GetPlayerManager().GetPlayers(allPlayers);
+		foreach(int playerId : allPlayers)
+		{
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+			// todo do this on all clients
+			playerController.SetIconMarker(
+				"{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds",
+				entityId
+			);
+		};
 	} 
 
     //------------------------------------------------------------------------------------------------
@@ -162,6 +177,47 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		m_iTransmissionsDone.Insert(transmissionPoint);
 	}
 	
+
+	//---	
+	void SetCircleActive(IEntity entity) 
+	{
+		RplId entityId = Replication.FindId(entity);
+		
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetPlayers(playerIds);
+		
+		foreach (int playerId : playerIds)
+		{
+
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+
+			if (!playerController)
+				return;
+			
+			playerController.SetCircleMarkerActive(entityId);
+		}
+	}
+	
+	//---	
+	void SetCircleInactive(IEntity entity) 
+	{
+		RplId entityId = Replication.FindId(entity);
+		
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetPlayers(playerIds);
+		
+		foreach (int playerId : playerIds)
+		{
+
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+
+			if (!playerController)
+				return;
+			
+			playerController.SetCircleMarkerInactive(entityId);
+		}
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	void ManageMarkers() 
 	{
@@ -185,7 +241,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		bool stateChanged = (m_bIsTransmittingCache != isTransmitting);
 		m_bIsTransmittingCache = isTransmitting;
 		
-		IEntity nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin());
+		IEntity nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), isTransmitting);
 		array<IEntity> transmissionPoints = GetTransmissionPoints();
 		
 		if (!nearestTPCAntenna) {
@@ -197,6 +253,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (activeTPC) {
 			if (stateChanged && isTransmitting) {
 				activeTPC.SetTransmissionActive(true);
+				
+				
+				SetCircleActive(nearestTPCAntenna);
+				
 				Print(string.Format("Breaking Contact RTC - activating active TPC: %1 - Component: %2", nearestTPCAntenna, activeTPC), LogLevel.NORMAL);
 				
 				foreach (IEntity singleTPCAntenna : transmissionPoints)
@@ -226,7 +286,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	protected IEntity GetNearestTransmissionPoint(vector center)
+	protected IEntity GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 		
 			array<IEntity> transmissionPoints = GetTransmissionPoints();
@@ -246,12 +306,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 						selectedPoint = TPCAntenna;
 					}
 				}
-				if (!selectedPoint) {
+				if (!selectedPoint && isTransmitting) {
 					selectedPoint = CreateTransmissionPoint(center);
 				}
 				return selectedPoint;
 			}
-			selectedPoint = CreateTransmissionPoint(center);
+			if (isTransmitting) {
+				selectedPoint = CreateTransmissionPoint(center);
+			}
 			return selectedPoint;
 		}
 
@@ -283,20 +345,27 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			if (!playerController)
 				return;
 			
+			
+			RplId entityId = Replication.FindId(TPCAntenna);
+			
 			playerController.AddCircleMarker(
 				center[0] - radius,
 				center[2] + radius,
 				center[0] + radius,
-				center[2] + radius
+				center[2] + radius,
+				entityId
 			);
 			
+			
+			
 			playerController.AddIconMarker(
-				center[0] - (radius / 4),
-				center[2] + (radius / 4),
-				center[0] + (radius / 4),
-				center[2] + (radius / 4),
+				center[0] - (radius / 12),
+				center[2] + (radius / 12),
+				center[0] + (radius / 12),
+				center[2] + (radius / 12),
 				0,
-				"transmission_active"
+				"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
+				entityId
 			);
 		}
 	}
@@ -404,7 +473,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         // create antenna that serves as component holder for transmission point
         Resource ressource = Resource.Load("{5B8922E61D8DF345}Prefabs/Props/Military/Antennas/Antenna_R161_01.et");
         IEntity transmissionPoint = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
-
+		
+		RemoveChild(transmissionPoint, false); // disable attachment hierarchy to radiotruck (?!)
+		
         addTransmissionPoint(transmissionPoint); // add to array
 		
 		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, params), LogLevel.NORMAL);

@@ -6,11 +6,15 @@ class MapIcon
 	float m_fEndPointX, m_fEndPointY;
 	int m_iType;
 	string m_sType;
+	string m_textureCache;
 	Widget m_wRootW;
 	Widget m_wicon;
 	ImageWidget m_wiconImage;
 	SCR_MapEntity m_MapEntity;
 	GRAD_IconMarkerUI m_OwnerComponent;
+	RplId entityId;
+	
+	IEntity m_eEntity;
 	
 	//------------------------------------------------------------------------------------------------
 	void CreateIcon(notnull Widget rootW)
@@ -27,7 +31,8 @@ class MapIcon
 		if (m_wiconImage) {
 			if (m_sType != "") {
 				// m_wiconImage.LoadImageFromSet(m_iType, "{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds", m_sType);
-				m_wiconImage.LoadImageTexture (0, "{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds", false, false);
+				Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success 1"), LogLevel.NORMAL);
+				m_wiconImage.LoadImageTexture (0, m_sType, false, false);
 			} else {
 				Print(string.Format("PANIC - m_wiconImage is empty string"), LogLevel.NORMAL);
 			};
@@ -47,6 +52,13 @@ class MapIcon
 		};
 				
 		int screenX, screenY, endX, endY;
+		m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
+		
+		if (m_sType != "" && m_textureCache != m_sType) {
+			Print(string.Format("GRAD IconmarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
+			m_wiconImage.LoadImageTexture (0, m_sType, false, false);
+			Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
+		};
 
 		m_MapEntity.WorldToScreen(m_fStartPointX, m_fStartPointY, screenX, screenY, true);
 		m_MapEntity.WorldToScreen(m_fEndPointX, m_fEndPointY, endX, endY, true);
@@ -152,7 +164,7 @@ class GRAD_IconMarkerUI
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void AddIcon(float startPointX, float startPointY, float endPointX, float endPointY, int iType, string sType)
+	void AddIcon(float startPointX, float startPointY, float endPointX, float endPointY, int iType, string sType, RplId entityId)
 	{
 		MapIcon icon = new MapIcon(m_MapEntity, this);
 		
@@ -162,8 +174,23 @@ class GRAD_IconMarkerUI
 		icon.m_fEndPointY = endPointY;
 		icon.m_iType = iType;
 		icon.m_sType = sType;
+		icon.entityId = entityId;
 		
 		m_aicons.Insert(icon);
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void SetIcon(string type, RplId entityId) 
+	{
+		foreach (MapIcon icon: m_aicons)
+		{
+			// only set icon for the right entity
+			if (icon.entityId == entityId) {
+				icon.m_sType = type;
+				icon.UpdateIcon();
+			};
+		}	
 	}
 	
 	//------------------------------------------------------------------------------------------------

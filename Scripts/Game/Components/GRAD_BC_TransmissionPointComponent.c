@@ -57,8 +57,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		//SetTransmissionState(m_eTransmissionState);
 		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
 
-		if (m_RplComponent.IsMaster())
-			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true);
+		if (m_RplComponent.IsMaster()) {
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true);	
+		}
+		
+		// m_transmissionPoint.GetParent().GetParent().RemoveChild(owner, false); // disable attachment hierarchy to radiotruck (?!)
+		
 	}
 	//------------------------------------------------------------------------------------------------
 	int GetTransmissionDuration()
@@ -141,6 +145,31 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	void SetTransmissionActive(bool setState) {
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
+			
+			array<int> allPlayers = {};
+			RplId entityId = Replication.FindId(m_transmissionPoint);
+			
+			GetGame().GetPlayerManager().GetPlayers(allPlayers);
+			foreach(int playerId : allPlayers)
+			{
+				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+					
+				
+				if (m_bTransmissionActive) {
+					playerController.SetIconMarker(
+						"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
+						entityId
+					);
+				} else {
+					playerController.SetIconMarker(
+						"{97BB746698125B85}UI/Textures/Map/transmission_default.edds",
+						entityId
+					);
+				}
+				
+			};
+			
+			
 
 			if (m_bTransmissionActive &&
 				(

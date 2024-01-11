@@ -87,29 +87,68 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void AddCircleMarker(float startX, float startY, float endX, float endY)
+	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId entityID)
 	{
-		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY);
+		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY, entityID);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY)
+	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY, RplId entityID)
 	{
-		m_MapMarkerUI.AddCircle(startX, startY, endX, endY);
+		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, entityID);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType)
+	void SetCircleMarkerActive(RplId entityId)
 	{
-		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, iType, sType);
+		Rpc(RpcDo_Owner_SetCircleMarkerActive, entityId);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType)
+	protected void RpcDo_Owner_SetCircleMarkerActive(RplId entityId)
 	{
-		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, iType, sType);
+		m_MapMarkerUI.SetCircleActive(entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetCircleMarkerInactive(RplId entityId)
+	{
+		Rpc(RpcDo_Owner_SetCircleMarkerInactive, entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_SetCircleMarkerInactive(RplId entityId)
+	{
+		m_MapMarkerUI.SetCircleInactive(entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType, RplId entityId)
+	{
+		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, iType, sType, entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType, RplId entityId)
+	{
+		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, iType, sType, entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetIconMarker(string sType, RplId entityId)
+	{
+		Rpc(RpcDo_Owner_SetIconMarker, sType, entityId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_SetIconMarker(string sType, RplId entityId)
+	{
+		m_IconMarkerUI.SetIcon(sType, entityId);
 	}
 	
 	//------------------------------------------------------------------------------------------------

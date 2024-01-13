@@ -26,7 +26,6 @@ FrameWidgetClass {
     OffsetBottom -1024
     SizeToContent 1
    }
-   Opacity 0.5
    Color 0.947 0.056 0.056 1
    Texture "{BBDE49CD7C1A52F7}UI/Textures/Map/CircleMarker.edds"
    Size 1024 1024

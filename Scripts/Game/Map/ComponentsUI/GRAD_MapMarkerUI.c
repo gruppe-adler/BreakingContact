@@ -9,10 +9,11 @@ class MapCircle
 	ImageWidget m_wCircleImage;
 	SCR_MapEntity m_MapEntity;
 	GRAD_MapMarkerUI m_OwnerComponent;
-	string m_textureCache = "none";
+	string m_textureCache;
 	string m_sType;
+	bool isSpawnMarker;
 	
-	RplId m_refEntity;
+	RplId rplId;
 	
 	//------------------------------------------------------------------------------------------------
 	void CreateCircle(notnull Widget rootW)
@@ -25,11 +26,22 @@ class MapCircle
 		
 		m_wCircle = GetGame().GetWorkspace().CreateWidgets("{4B995CEAA55BBECC}UI/Layouts/Map/MapDrawCircle.layout", mapFrame);
 		m_wCircleImage = ImageWidget.Cast(m_wCircle.FindAnyWidget("DrawCircleImage"));
-		m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
+		
+		if (isSpawnMarker) {
+			m_wCircleImage.LoadImageTexture (0, "{7B0B54A321361079}UI/Textures/Map/circle_spawn.edds", false, false);
+			m_wCircleImage.SetOpacity(1);
+			UpdateCircle(1); // set opacity to 1 for spawn marker
+		};
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void UpdateCircle()
+	void SetType(string type)
+	{
+		m_sType = type;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void UpdateCircle(int opacityState)
 	{	
 		if (!m_wCircle)	// can happen due to callater used for update
 			return;
@@ -38,10 +50,21 @@ class MapCircle
 		
 		Print(string.Format("GRAD CirclemarkerUI: m_sType is %1, m_textureCache is %2", m_sType, m_textureCache), LogLevel.NORMAL);
 		
-		if (m_sType != "" && m_textureCache != m_sType) {
-			Print(string.Format("GRAD CirclemarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
-			m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
-			m_textureCache = m_sType;  // as we have no getter for existing texture WHYEVER :[[
+		if (m_sType != "" && m_textureCache != m_sType && !isSpawnMarker) {
+			
+			bool textureLoaded = m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
+			
+			if (textureLoaded) {
+				m_textureCache = m_sType;  // as we have no getter for existing texture WHYEVER :[[
+			};
+			
+			// crooked workaround as i am too lazy to reimport images
+			if (opacityState == 0) {
+				m_wCircleImage.SetOpacity(0.5);
+			} else if (opacityState == 1) {
+				m_wCircleImage.SetOpacity(1);
+			};
+			
 			Print(string.Format("GRAD CirclemarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
 		};
 
@@ -89,7 +112,7 @@ class GRAD_MapMarkerUI
 	{
 		foreach (MapCircle circle: m_aCircles)
 		{
-			circle.UpdateCircle();
+			circle.UpdateCircle(-1);
 		}
 	}
 	
@@ -99,7 +122,7 @@ class GRAD_MapMarkerUI
 	{
 		foreach (MapCircle circle: m_aCircles)
 		{
-			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 0, false); // needs to be delayed by a frame as it cant always update the size after zoom correctly within the same frame
+			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 0, false, -1); // needs to be delayed by a frame as it cant always update the size after zoom correctly within the same frame
 		}
 	}
 	
@@ -107,7 +130,7 @@ class GRAD_MapMarkerUI
 	{
 		foreach (MapCircle circle: m_aCircles)
 		{
-			circle.UpdateCircle();
+			circle.UpdateCircle(-1);
 		}
 	}
 	
@@ -115,7 +138,7 @@ class GRAD_MapMarkerUI
 	{
 		foreach (MapCircle circle: m_aCircles)
 		{
-			circle.UpdateCircle();
+			circle.UpdateCircle(-1);
 		}
 	}
 	
@@ -127,7 +150,7 @@ class GRAD_MapMarkerUI
 		foreach (MapCircle circle: m_aCircles)
 		{
 			circle.CreateCircle(m_wDrawingContainer);
-			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 0, false);
+			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 0, false, -1);
 		}
 						
 		m_MapEntity.GetOnMapPan().Insert(OnMapPan);		// pan for scaling
@@ -145,11 +168,70 @@ class GRAD_MapMarkerUI
 	void Init()
 	{
 		SCR_MapEntity.GetOnMapOpen().Insert(OnMapOpen);
+		// SCR_MapEntity.GetOnSelectionChanged().Insert(OnMapSelectionChanged);
 		SCR_MapEntity.GetOnMapClose().Insert(OnMapClose);
+		
+		SCR_MapEntity.GetOnSelection().Remove(SendPlayerCoords);
+		SCR_MapEntity.GetOnSelection().Insert(SendPlayerCoords);
+	}
+	
+	void SendPlayerCoords(vector coords) {
+		Print(string.Format("GRAD CirclemarkerUI: Map Selection Changed"), LogLevel.WARNING);
+		
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+
+		if (!mapEntity)
+			return;
+
+		float x, y;
+		mapEntity.ScreenToWorld(coords[0], coords[2], x, y);
+		coords[0] = x;
+		coords[2] = y;
+	
+		vector worldPos = {coords[0], GetGame().GetWorld().GetSurfaceY(coords[0], coords[2]), coords[2]};
+        bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
+
+		if (!spawnEmpty)
+		{
+			SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.ACTION_FAILED);
+			SCR_NotificationsComponent.SendLocal(ENotification.FASTTRAVEL_PLAYER_LOCATION_WRONG);
+			SCR_HintManagerComponent.GetInstance().ShowCustomHint("Position not suitable for spawn, pick another one.", "OOPS", 5, true);
+			return;
+		}
+
+		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
+		CreateOrMoveSpawnMarker(coords);
+	}
+	
+	void CreateOrMoveSpawnMarker(vector coords)
+	{
+		
+		array<int> allPlayers = {};
+		
+		GetGame().GetPlayerManager().GetPlayers(allPlayers);
+		foreach(int playerId : allPlayers)
+		{
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+	
+			if (!playerController)
+					return;
+			
+			Print(string.Format("Breaking Contact CreateOrMoveSpawnMarker"), LogLevel.WARNING);
+			
+			// todo fix hardcoded
+			playerController.AddCircleMarker(
+				coords[0] - 500.0,
+				coords[2] + 500.0,
+				coords[0] + 500.0,
+				coords[2] + 500.0,
+				-1,
+				true
+			);
+		};
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void AddCircle(float startPointX, float startPointY, float endPointX, float endPointY, RplId entityId)
+	void AddCircle(float startPointX, float startPointY, float endPointX, float endPointY, RplId rplId, bool isSpawnMarker)
 	{
 		MapCircle circle = new MapCircle(m_MapEntity, this);
 		
@@ -157,32 +239,35 @@ class GRAD_MapMarkerUI
 		circle.m_fStartPointY = startPointY;
 		circle.m_fEndPointX = endPointX;
 		circle.m_fEndPointY = endPointY;
-		circle.m_refEntity = entityId;
+		circle.rplId = rplId;
+		circle.isSpawnMarker = isSpawnMarker;
 		
 		m_aCircles.Insert(circle);
 	}
 	
 	
 	//--
-	void SetCircleInactive(RplId entityId)
+	void SetCircleInactive(RplId rplId)
 	{
 		foreach (MapCircle circle: m_aCircles)
 		{
-			if (circle.m_refEntity == entityId) {
-				circle.m_sType = "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds";
-				circle.UpdateCircle();
+			if (circle.rplId == rplId) {	
+				circle.SetType("{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds");
+				Print(string.Format("GRAD CirclemarkerUI: SetCircleInactive"), LogLevel.WARNING);
+				circle.UpdateCircle(0);
 			};
 		}
 	}
 	
 	//--
-	void SetCircleActive(RplId entityId)
-	{
+	void SetCircleActive(RplId rplId)
+	{	
 		foreach (MapCircle circle: m_aCircles)
 		{
-			if (circle.m_refEntity == entityId) {
-				circle.m_sType = "{BBDE49CD7C1A52F7}UI/Textures/Map/CircleMarker.edds";
-				circle.UpdateCircle();
+			if (circle.rplId == rplId) {
+				circle.SetType("{BBDE49CD7C1A52F7}UI/Textures/Map/CircleMarker.edds");
+				Print(string.Format("GRAD CirclemarkerUI: SetCircleActive"), LogLevel.WARNING);
+				circle.UpdateCircle(1);
 			};
 		}
 	}

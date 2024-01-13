@@ -233,11 +233,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			// 
 			if (currentProgress >= 100) {
 				SetTransmissionState(ETransmissionState.DONE);
+				currentState = GetTransmissionState(); // update to reflect this change
 
 				GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 				BCM.AddTransmissionPointDone(m_transmissionPoint);
 			};
-
+			 
 			switch (currentState)
 			{
 		   		 case ETransmissionState.TRANSMITTING: {

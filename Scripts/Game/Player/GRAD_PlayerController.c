@@ -4,11 +4,49 @@ modded class SCR_PlayerController : PlayerController
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
 	
+	protected bool m_bChoosingSpawn;
+	
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
 		InitMapMarkerUI();
+		// GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
+		m_bChoosingSpawn = true;
     }
+			
+	bool IsChoosingSpawn() 
+	{
+		Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
+		return m_bChoosingSpawn;
+	}
+	
+	//------
+	void forceOpenCommanderMap() 
+	{
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController)
+			return;
+		
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)
+			return;
+		
+		// GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
+		// string characterRole = characterRoleComponent.GetCharacterRole();
+		
+		/*
+		if (characterRole != "BC Commander")
+		{
+			Print(string.Format("BC - Wrong role for marker. Current Role '%1'", characterRole), LogLevel.NORMAL);
+			return;
+		}
+		*/
+		
+		m_bChoosingSpawn = true;
+		// ToggleMap(true);
+		
+	}
+	
 	
 	//------------------------------------------------------------------------------------------------
 	void InsertMarker(SCR_MapMarkerBase marker)
@@ -87,68 +125,68 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId entityID)
+	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker = false)
 	{
-		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY, entityID);
+		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY, rplId, spawnMarker);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY, RplId entityID)
+	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker)
 	{
-		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, entityID);
+		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, rplId, spawnMarker);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void SetCircleMarkerActive(RplId entityId)
+	void SetCircleMarkerActive(RplId rplId)
 	{
-		Rpc(RpcDo_Owner_SetCircleMarkerActive, entityId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_SetCircleMarkerActive(RplId entityId)
-	{
-		m_MapMarkerUI.SetCircleActive(entityId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void SetCircleMarkerInactive(RplId entityId)
-	{
-		Rpc(RpcDo_Owner_SetCircleMarkerInactive, entityId);
+		Rpc(RpcDo_Owner_SetCircleMarkerActive, rplId);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_SetCircleMarkerInactive(RplId entityId)
+	protected void RpcDo_Owner_SetCircleMarkerActive(RplId rplId)
 	{
-		m_MapMarkerUI.SetCircleInactive(entityId);
+		m_MapMarkerUI.SetCircleActive(rplId);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType, RplId entityId)
+	void SetCircleMarkerInactive(RplId rplId)
 	{
-		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, iType, sType, entityId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, int iType, string sType, RplId entityId)
-	{
-		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, iType, sType, entityId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void SetIconMarker(string sType, RplId entityId)
-	{
-		Rpc(RpcDo_Owner_SetIconMarker, sType, entityId);
+		Rpc(RpcDo_Owner_SetCircleMarkerInactive, rplId);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_SetIconMarker(string sType, RplId entityId)
+	protected void RpcDo_Owner_SetCircleMarkerInactive(RplId rplId)
 	{
-		m_IconMarkerUI.SetIcon(sType, entityId);
+		m_MapMarkerUI.SetCircleInactive(rplId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void AddIconMarker(float startX, float startY, float endX, float endY, string sType, RplId rplId)
+	{
+		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, sType, rplId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, string sType, RplId rplId)
+	{
+		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, sType, rplId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetIconMarker(string sType, RplId rplId)
+	{
+		Rpc(RpcDo_Owner_SetIconMarker, sType, rplId);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_SetIconMarker(string sType, RplId rplId)
+	{
+		m_IconMarkerUI.SetIcon(sType, rplId);
 	}
 	
 	//------------------------------------------------------------------------------------------------

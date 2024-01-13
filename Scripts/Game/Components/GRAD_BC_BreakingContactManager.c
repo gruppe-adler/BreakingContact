@@ -87,8 +87,16 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
 		}
 		
+		InitRadioTruckMarker(m_radioTruck);
+	} 
+	
+	void InitRadioTruckMarker(IEntity entity)
+	{
+		RplId rplId = Replication.FindId(entity.FindComponent(RplComponent));
+		
+		Print(string.Format("Breaking Contact BCM - init icon marker for rplId %1", rplId), LogLevel.NORMAL);
+		
 		array<int> allPlayers = {};
-		RplId entityId = Replication.FindId(m_radioTruck);
 		
 		GetGame().GetPlayerManager().GetPlayers(allPlayers);
 		foreach(int playerId : allPlayers)
@@ -97,10 +105,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			// todo do this on all clients
 			playerController.SetIconMarker(
 				"{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds",
-				entityId
+				rplId
 			);
 		};
-	} 
+	}
 
     //------------------------------------------------------------------------------------------------
 	bool factionEliminated(string factionName)
@@ -279,9 +287,21 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		// if no transmission point exists, create one
 		IEntity TPCAntenna = SpawnTransmissionPoint(center, 10);
 		Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
-
-		AddTransmissionMarker(TPCAntenna, m_iMaxTransmissionDistance);
+	
+		
+		
+		GetGame().GetCallqueue().CallLater(WaitForAntennaRplId, 1000, false, TPCAntenna, 1);
+		
 		return TPCAntenna;
+	}
+	
+	void WaitForAntennaRplId(IEntity entity, int timeToWaitForCheck)
+	{
+		RplId rplId = Replication.FindId(entity.FindComponent(RplComponent));
+		
+		Print(string.Format("Breaking Contact BCM - waited for antenna %1 s, its %2", timeToWaitForCheck, rplId), LogLevel.NORMAL);
+		
+		AddTransmissionMarker(entity, m_iMaxTransmissionDistance);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -289,6 +309,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
 
 		vector center = TPCAntenna.GetOrigin();
+		RplId rplId = Replication.FindId(TPCAntenna.FindComponent(RplComponent));
 
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
@@ -301,16 +322,18 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			if (!playerController)
 				return;
 			
-			
-			RplId entityId = Replication.FindId(TPCAntenna);
+			Print(string.Format("Breaking Contact AddTransmissionMarker - Replication Id of Antenna is %1", rplId), LogLevel.WARNING);
+		
 			
 			playerController.AddCircleMarker(
 				center[0] - radius,
 				center[2] + radius,
 				center[0] + radius,
 				center[2] + radius,
-				entityId
+				rplId
 			);
+			
+			playerController.SetCircleMarkerActive(rplId); // if a new transmission point is created, its active by default
 			
 			
 			
@@ -319,13 +342,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				center[2] + (radius / 12),
 				center[0] + (radius / 12),
 				center[2] + (radius / 12),
-				0,
 				"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
-				entityId
+				rplId
 			);
 		}
 	}
-
 
     //------------------------------------------------------------------------------------------------
 	void CheckWinConditions()
@@ -484,6 +505,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
         return m_transmissionPoints;		
     }
+	
+	//
+	void OnCreateMarker(SCR_MapMarkerBase marker)
+	{
+		Print(string.Format("Breaking Contact - OnCreateMarker"), LogLevel.WARNING);
+	}
 
 
     //------------------------------------------------------------------------------------------------

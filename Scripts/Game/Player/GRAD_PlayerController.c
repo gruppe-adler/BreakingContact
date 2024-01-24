@@ -10,7 +10,7 @@ modded class SCR_PlayerController : PlayerController
 	override void EOnInit(IEntity owner)
 	{
 		InitMapMarkerUI();
-		// GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
+		GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
 		m_bChoosingSpawn = true;
     }
 			
@@ -24,12 +24,21 @@ modded class SCR_PlayerController : PlayerController
 	void forceOpenCommanderMap() 
 	{
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController)
+		// try again
+		if (!playerController) {
+			GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
 			return;
+		}
 		
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (!ch)
+		// try again
+		if (!ch) {
+			GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
 			return;
+		}
+		
+		// InputManager m_InputManager = GetGame().GetInputManager();
+		
 		
 		// GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
 		// string characterRole = characterRoleComponent.GetCharacterRole();
@@ -42,10 +51,20 @@ modded class SCR_PlayerController : PlayerController
 		}
 		*/
 		
+		GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+		Print(string.Format("BC forceOpenCommanderMap"), LogLevel.WARNING);
 		m_bChoosingSpawn = true;
-		// ToggleMap(true);
+		ToggleMap(true);
 		
 	}
+	
+	//------
+	void ConfirmSpawn()
+	{
+		ToggleMap(false);
+		Print(string.Format("BC ConfirmSpawn"), LogLevel.WARNING);
+	}
+
 	
 	
 	//------------------------------------------------------------------------------------------------

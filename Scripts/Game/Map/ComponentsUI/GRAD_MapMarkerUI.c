@@ -211,6 +211,16 @@ class GRAD_MapMarkerUI
 		Print(string.Format("GRAD CirclemarkerUI: Map Selection Changed"), LogLevel.WARNING);
 		
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		
+		if (!playerController)
+			return;
+		
+		if (!playerController.IsChoosingSpawn()) {
+			Print(string.Format("GRAD CirclemarkerUI: IsChoosingSpawn is false"), LogLevel.WARNING);	
+			return;
+		}
 
 		if (!mapEntity)
 			return;

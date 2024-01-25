@@ -429,7 +429,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector spawnPos) {
 		Replication.BumpMe();
 		
-		SetBreakingContactPhase(2);
+		SetBreakingContactPhase(1);
 		TeleportOpfor(spawnPos);
 	}
 	
@@ -445,7 +445,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected void 	RpcAsk_Authority_InitiateBluforSpawn(vector spawnPos) {
 		Replication.BumpMe();
 		
-		SetBreakingContactPhase(3);
+		SetBreakingContactPhase(2);
 		TeleportBlufor(spawnPos);
 	}
 	

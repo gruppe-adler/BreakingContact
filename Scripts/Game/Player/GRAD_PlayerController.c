@@ -99,7 +99,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		if (phase == "GAME") {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			ShowBCLogo();
+			// ShowBCLogo();
 		}
 	
 	}

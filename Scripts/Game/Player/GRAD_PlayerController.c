@@ -10,7 +10,7 @@ modded class SCR_PlayerController : PlayerController
 	override void EOnInit(IEntity owner)
 	{
 		InitMapMarkerUI();
-		GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
+		GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 		m_bChoosingSpawn = true;
     }
 			
@@ -21,21 +21,23 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------
-	void forceOpenCommanderMap() 
+	void ForceOpenMap() 
 	{
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		// try again
 		if (!playerController) {
-			GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
+			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
 		}
 		
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
 		// try again
 		if (!ch) {
-			GetGame().GetCallqueue().CallLater(forceOpenCommanderMap, 5000, false);
+			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
 		}
+		
+		bool isOpfor = ch.GetFactionKey() == "USSR";
 		
 		// InputManager m_InputManager = GetGame().GetInputManager();
 		
@@ -50,26 +52,112 @@ modded class SCR_PlayerController : PlayerController
 			return;
 		}
 		*/
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		string phase = (SCR_Enum.GetEnumName(EBreakingContactPhase, BCM.GetBreakingContactPhase()));
+				
+		if (phase == "OPFOR" && isOpfor) {
+			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
+		}
 		
-		GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-		Print(string.Format("BC forceOpenCommanderMap"), LogLevel.WARNING);
+		if (phase == "BLUFOR" && !isOpfor) {
+			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+			Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
+		}
+		
+		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		m_bChoosingSpawn = true;
 		ToggleMap(true);
 		
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	void PhaseChange(string phase) 
+	{
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController) {
+			return;
+		}
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		
+		bool isOpfor = ch.GetFactionKey() == "USSR";
+		
+		// close map for opfor
+		if (phase == "BLUFOR" && isOpfor) {
+			ToggleMap(false);
+			m_bChoosingSpawn = false;
+			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
+		}
+		
+		// close map for blufor
+		if (phase == "GAME" && !isOpfor) {
+			ToggleMap(false);
+			m_bChoosingSpawn = false;
+			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
+		}
+		
+		if (phase == "GAME") {
+			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
+			ShowBCLogo();
+		}
+	
+	}
+	
+	void ShowBCLogo() {
+		PlayerController playerController = GetGame().GetPlayerController();
+		if (!playerController) {
+			Print(string.Format("GRAD Playercontroller ShowBCLogo - no playercontroller found"), LogLevel.WARNING);
+			return;
+		}
+		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(playerController.FindComponent(GRAD_BC_Logo));
+		if (!logo) {
+			Print(string.Format("GRAD Playercontroller ShowBCLogo - no logo found"), LogLevel.WARNING);
+			return;
+		}
+		logo.SetVisible(true);
+		GetGame().GetCallqueue().CallLater(HideBCLogo, 5000, false);
+	}
+	
+	void HideBCLogo() {
+		PlayerController playerController = GetGame().GetPlayerController();
+		if (!playerController) {
+			Print(string.Format("GRAD Playercontroller HideBCLogo - no playercontroller found"), LogLevel.WARNING);
+			return;
+		}
+		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(playerController.FindComponent(GRAD_BC_Logo));
+		if (!logo) {
+			Print(string.Format("GRAD Playercontroller HideBCLogo - no logo found"), LogLevel.WARNING);
+			return;
+		}
+		logo.SetVisible(false);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
 	{
-		ToggleMap(false);
-		m_bChoosingSpawn = false;
-		
 		RemoveSpawnMarker();
 		Print(string.Format("BC PlayerController ConfirmSpawn"), LogLevel.NORMAL);
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		
 		vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-		BCM.InitiateOpforSpawn(spawnPosition);
+		
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController) {
+			return;
+		}
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		
+		bool isOpfor = ch.GetFactionKey() == "USSR";
+		if (isOpfor) {
+			BCM.InitiateOpforSpawn(spawnPosition);
+		} else {
+			BCM.InitiateBluforSpawn(spawnPosition);
+		}
+		
+		// remove key listener
+		GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 	}
 
 	
@@ -289,12 +377,11 @@ modded class SCR_PlayerController : PlayerController
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		
 		vector newWorldPos;
+		bool spawnEmpty;
 		
-		while (!teleportSuccessful)
+		while (!teleportSuccessful || !spawnEmpty)
 		{
-			spawnPos[0] = spawnPos[0] + Math.RandomFloat(-3, 3);
-			spawnPos[1] = spawnPos[1] + Math.RandomFloat(-3, 3);
-			
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPos, spawnPos, 2, 2);
 			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
 		}
 		

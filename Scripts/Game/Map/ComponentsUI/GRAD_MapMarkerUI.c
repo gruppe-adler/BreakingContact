@@ -114,18 +114,18 @@ class GRAD_MapMarkerUI
 	
 	protected SCR_MapEntity m_MapEntity;
 	
-	protected vector m_vSpawnCoords;
+	protected vector m_vSpawnPos;
 	
 	//----
 	vector GetSpawnCoords() 
 	{
-		return m_vSpawnCoords;
+		return m_vSpawnPos;
 	}
 	
 	//----
-	void SetSpawnCoords(vector spawnCoords) 
+	void SetSpawnPos(vector spawnPos) 
 	{
-		m_vSpawnCoords = spawnCoords;
+		m_vSpawnPos = spawnPos;
 	}
 	
 	
@@ -256,7 +256,7 @@ class GRAD_MapMarkerUI
 
 		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
 		CreateOrMoveSpawnMarker(coords); // sync marker/delete previous marker
-		SetSpawnCoords(coords); // for other fnc to grab
+		SetSpawnPos(worldPos); // for other fnc to grab
 	}
 	
 	void CreateOrMoveSpawnMarker(vector coords)

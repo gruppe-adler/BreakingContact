@@ -1,7 +1,6 @@
-// GAMEMASTER will be automatically skipped in the future
+// no GAMEMASTER phase as everything should be run out of the box self explaining
 enum EBreakingContactPhase
 {
-	GAMEMASTER,
 	OPFOR,
 	BLUFOR,
 	GAME,
@@ -419,19 +418,35 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
 	
-	//-----
-	void InitiateOpforSpawn(vector coords) 
+	//------------------------------------------------------------------------------------------------
+	void InitiateOpforSpawn(vector spawnPos) 
 	{
-		Rpc(RpcAsk_Authority_InitiateOpforSpawn, coords);
+		Rpc(RpcAsk_Authority_InitiateOpforSpawn, spawnPos);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector coords) {
+	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector spawnPos) {
 		Replication.BumpMe();
 		
 		SetBreakingContactPhase(2);
-		TeleportOpfor(coords);
+		TeleportOpfor(spawnPos);
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void InitiateBluforSpawn(vector spawnPos) 
+	{
+		Rpc(RpcAsk_Authority_InitiateBluforSpawn, spawnPos);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void 	RpcAsk_Authority_InitiateBluforSpawn(vector spawnPos) {
+		Replication.BumpMe();
+		
+		SetBreakingContactPhase(3);
+		TeleportBlufor(spawnPos);
 	}
 	
 	
@@ -450,6 +465,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		Replication.BumpMe();
 		
+
 		NotifyAllOnPhaseChange(phase);
 		
 		Print(string.Format("Breaking Contact - Phase '%1' entered (%2)", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
@@ -459,7 +475,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	//------------------------------------------------------------------------------------------------
 	IEntity SpawnTransmissionPoint(vector center, int radius)
 	{		
-		vector newCenter = findSpawnPoint(center, radius);
+		vector newCenter = FindSpawnPoint(center, radius);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = newCenter;
@@ -479,7 +495,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-    protected vector findSpawnPoint(vector center, int radius)
+    protected vector FindSpawnPoint(vector center, int radius)
     {
         bool foundSpawnPoint;
 		int loopCount;
@@ -522,56 +538,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
         return m_transmissionPoints;		
     }
-	
-	//
-	void OnCreateMarker(SCR_MapMarkerBase marker)
-	{
-		Print(string.Format("Breaking Contact - OnCreateMarker"), LogLevel.WARNING);
-	}
-
-
-    //------------------------------------------------------------------------------------------------
-	void OnSynchedMarkerAdded(SCR_MapMarkerBase marker)
-	{
-		if (marker.GetType() != SCR_EMapMarkerType.PLACED_CUSTOM)
-			return; // only custom markers will have marker text that we need
-		
-		string markerText = marker.GetCustomText();
-		Print(string.Format("Breaking Contact - Custom Marker '%1' placed.", markerText), LogLevel.NORMAL);
-		markerText.ToLower();
-		if (!(markerText == "debug" || markerText == "opfor" || markerText == "blufor"))
-			return; // we are only interested in these special markers
-		
-		int markerOwnerId = marker.GetMarkerOwnerID();
-		
-		// only characters with the role 'Breaking Contact Commander' either BLUFOR or OPFOR are allowed to create teleport markers
-		SCR_PlayerController pc = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(markerOwnerId));
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(pc.GetControlledEntity());
-		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
-		string characterRole = characterRoleComponent.GetCharacterRole();
-		if (characterRole != "Breaking Contact Commander")
-		{
-			Print(string.Format("Breaking Contact - Wrong role for marker. Current Role '%1'", characterRole), LogLevel.NORMAL);
-			NotifyPlayerWrongRole(markerOwnerId, "Breaking Contact Commander");
-			GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(pc.FindComponent(GRAD_BC_Logo));
-			logo.SetVisible(true);
-			return;
-		}
-		
-		int markerPos[2];
-		marker.GetWorldPos(markerPos);
-        vector opforSpawnPos = MapPosToWorldPos(markerPos);
-		
-		Faction markerOwnerFaction = SCR_FactionManager.SGetPlayerFaction(markerOwnerId);
-		
-		switch (markerText)
-		{
-			case "opfor":
-				GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(pc.FindComponent(GRAD_BC_Logo));
-				logo.SetVisible(true);
-				break;
-		}
-	}
 
     //------------------------------------------------------------------------------------------------
     void TeleportOpfor(vector opforSpawnPos) {
@@ -610,6 +576,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				return;
 		
 			playerController.ShowHint(message, title, duration, isSilent);
+			playerController.PhaseChange(SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
 		}
 	}
 	
@@ -659,11 +626,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	void TeleportFactionToMapPos(string factionName, vector worldPos, bool isdebug)
+	void TeleportFactionToMapPos(string factionName, vector spawnPos, bool isdebug)
 	{
+		
 		if (factionName == "USSR" || isdebug)
 		{	
-			m_vOpforSpawnPos = worldPos;
+			m_vOpforSpawnPos = spawnPos;
 			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);
 						
 			// enter debug mode
@@ -671,7 +639,25 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				m_debug = true;
 			}
 			
-			m_radioTruck.SetOrigin(worldPos); // teleporting entity
+			//--- Apply transformation to radio truck
+			vector transform[4];
+			m_radioTruck.GetWorldTransform(transform);
+			transform[3] = spawnPos;
+			SCR_TerrainHelper.OrientToTerrain(transform);
+	
+			BaseGameEntity baseGameEntity = BaseGameEntity.Cast(m_radioTruck);
+			if (baseGameEntity)
+				baseGameEntity.Teleport(transform);
+			else
+				m_radioTruck.SetWorldTransform(transform);
+	
+			Physics phys = m_radioTruck.GetPhysics();
+			if (phys)
+			{
+				phys.SetVelocity(vector.Zero);
+				phys.SetAngularVelocity(vector.Zero);
+			}
+			
 		} else {
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
@@ -682,7 +668,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		foreach (int playerId : playerIds)
 		{
 			Faction playerFaction = SCR_FactionManager.SGetPlayerFaction(playerId);
-			string playerFactionName = playerFaction.GetFactionName();
+			string playerFactionName = playerFaction.GetFactionKey();
+			
+			Print(string.Format("BCM - playerFactionName %1 - playerFaction %2", playerFactionName, playerFaction), LogLevel.NORMAL);
 			
 			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
 			
@@ -691,8 +679,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			
 			if (factionName == playerFactionName)
 			{
-				Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), worldPos), LogLevel.NORMAL);
-				playerController.TeleportPlayerToMapPos(playerId, worldPos);
+				Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), spawnPos), LogLevel.NORMAL);
+				playerController.TeleportPlayerToMapPos(playerId, spawnPos);
 			}
 		}
 	}

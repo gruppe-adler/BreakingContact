@@ -370,21 +370,28 @@ modded class SCR_PlayerController : PlayerController
 		if (!playerEntity)
 			return;
 		
-		Print(string.Format("BCM - Player with ID %1 has position %2", playerId, playerEntity.GetOrigin()), LogLevel.NORMAL);
+		Print(string.Format("GRAD PlayerController - Player with ID %1 has position %2", playerId, playerEntity.GetOrigin()), LogLevel.NORMAL);
 		
-		bool teleportSuccessful = false;
-		
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		bool teleportSuccessful;
+		bool spawnEmpty;
+		int spawnSearchLoop;
 		
 		vector newWorldPos;
-		bool spawnEmpty;
 		
-		while (!teleportSuccessful || !spawnEmpty)
+		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
 		{
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPos, spawnPos, 2, 2);
-			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
+			int radius = 3;
+			Math.Randomize(-1);
+            int randomDistanceX = Math.RandomInt( -radius, radius );
+            int randomDistanceY = Math.RandomInt( -radius, radius );
+			
+			vector spawnPosFinal = {spawnPos[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(spawnPos[0] + randomDistanceX, spawnPos[2] + randomDistanceY), spawnPos[2] + randomDistanceY};
+			spawnSearchLoop = spawnSearchLoop + 1;
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, 2, 2);
+			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
+			Print(string.Format("GRAD PlayerController - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
 		}
+		Print(string.Format("GRAD PlayerController - teleport %1", teleportSuccessful), LogLevel.NORMAL);
 		
-		Print(string.Format("BCM - Player with ID %1 successfully teleported to position %2", GetPlayerId(), newWorldPos), LogLevel.NORMAL);
 	}
 };

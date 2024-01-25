@@ -58,11 +58,18 @@ modded class SCR_PlayerController : PlayerController
 		
 	}
 	
-	//------
+	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
 	{
 		ToggleMap(false);
-		Print(string.Format("BC ConfirmSpawn"), LogLevel.WARNING);
+		m_bChoosingSpawn = false;
+		
+		RemoveSpawnMarker();
+		Print(string.Format("BC PlayerController ConfirmSpawn"), LogLevel.NORMAL);
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		
+		vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+		BCM.InitiateOpforSpawn(spawnPosition);
 	}
 
 	
@@ -141,6 +148,20 @@ modded class SCR_PlayerController : PlayerController
 			m_IconMarkerUI = new GRAD_IconMarkerUI();
 			m_IconMarkerUI.Init();
 		}
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	void RemoveSpawnMarker()
+	{
+		Rpc(RpcDo_Owner_RemoveSpawnMarker);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_RemoveSpawnMarker()
+	{
+		m_MapMarkerUI.RemoveSpawnMarker();
 	}
 	
 	//------------------------------------------------------------------------------------------------

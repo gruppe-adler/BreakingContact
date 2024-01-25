@@ -114,7 +114,20 @@ class GRAD_MapMarkerUI
 	
 	protected SCR_MapEntity m_MapEntity;
 	
-
+	protected vector m_vSpawnCoords;
+	
+	//----
+	vector GetSpawnCoords() 
+	{
+		return m_vSpawnCoords;
+	}
+	
+	//----
+	void SetSpawnCoords(vector spawnCoords) 
+	{
+		m_vSpawnCoords = spawnCoords;
+	}
+	
 	
 	//------------------------------------------------------------------------------------------------
 	//! SCR_MapEntity event
@@ -242,7 +255,8 @@ class GRAD_MapMarkerUI
 		}
 
 		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
-		CreateOrMoveSpawnMarker(coords);
+		CreateOrMoveSpawnMarker(coords); // sync marker/delete previous marker
+		SetSpawnCoords(coords); // for other fnc to grab
 	}
 	
 	void CreateOrMoveSpawnMarker(vector coords)
@@ -270,6 +284,16 @@ class GRAD_MapMarkerUI
 				true
 			);
 		};
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void RemoveSpawnMarker() {
+		foreach (MapCircle singleCircle: m_aSpawnCircles)
+		{
+			singleCircle.SetVisibility(false); // make previous circles invisible
+			m_aSpawnCircles.Remove(m_aSpawnCircles.Find(singleCircle));
+			Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.WARNING);
+		}
 	}
 
 	//------------------------------------------------------------------------------------------------

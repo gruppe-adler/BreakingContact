@@ -418,6 +418,23 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 
 
+	
+	//-----
+	void InitiateOpforSpawn(vector coords) 
+	{
+		Rpc(RpcAsk_Authority_InitiateOpforSpawn, coords);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector coords) {
+		Replication.BumpMe();
+		
+		SetBreakingContactPhase(2);
+		TeleportOpfor(coords);
+	}
+	
+	
     //------------------------------------------------------------------------------------------------
 	void SetBreakingContactPhase(int phase)
 	{
@@ -550,40 +567,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		switch (markerText)
 		{
 			case "opfor":
-				OpforMarkerCreated(marker, opforSpawnPos, markerOwnerFaction);
 				GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(pc.FindComponent(GRAD_BC_Logo));
 				logo.SetVisible(true);
 				break;
 		}
 	}
 
-
     //------------------------------------------------------------------------------------------------
-	void OpforMarkerCreated(SCR_MapMarkerBase marker, vector opforSpawnPos, Faction markerOwnerFaction)
-	{
-		// manage opfor marker placement
-		if (m_iBreakingContactPhase != EBreakingContactPhase.OPFOR) {
-			NotifyFactionWrongPhaseForMarker(markerOwnerFaction);
-			return;
-		}
-			
-		if (markerOwnerFaction.GetFactionKey() == "USSR") {	
-            teleportOpfor(opforSpawnPos, markerOwnerFaction);
-            teleportBlufor(opforSpawnPos, markerOwnerFaction);
-		}
-	}
-
-
-    //------------------------------------------------------------------------------------------------
-    void teleportOpfor(vector opforSpawnPos, Faction markerOwnerFaction) {
-        TeleportFactionToMapPos(markerOwnerFaction, markerOwnerFaction.GetFactionKey(), opforSpawnPos, false);
+    void TeleportOpfor(vector opforSpawnPos) {
+        TeleportFactionToMapPos("USSR", opforSpawnPos, false);
     }
 
     //------------------------------------------------------------------------------------------------
-    void teleportBlufor(vector opforSpawnPos, Faction markerOwnerFaction) {
-
-        vector bluforSpawnPos = findBluforPosition(opforSpawnPos);
-        TeleportFactionToMapPos(markerOwnerFaction, markerOwnerFaction.GetFactionKey(), bluforSpawnPos, false);
+    void TeleportBlufor(vector bluforSpawnPos) {
+        TeleportFactionToMapPos("US", bluforSpawnPos, false);
     }
 
 
@@ -662,7 +659,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	void TeleportFactionToMapPos(Faction faction, string factionName, vector worldPos, bool isdebug)
+	void TeleportFactionToMapPos(string factionName, vector worldPos, bool isdebug)
 	{
 		if (factionName == "USSR" || isdebug)
 		{	
@@ -672,7 +669,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			// enter debug mode
 			if (isdebug) {
 				m_debug = true;
-			}			
+			}
+			
+			m_radioTruck.SetOrigin(worldPos); // teleporting entity
 		} else {
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
@@ -683,18 +682,19 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		foreach (int playerId : playerIds)
 		{
 			Faction playerFaction = SCR_FactionManager.SGetPlayerFaction(playerId);
+			string playerFactionName = playerFaction.GetFactionName();
 			
 			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
 			
 			if (!playerController)
 				return;
 			
-			if (playerFaction == faction)
+			if (factionName == playerFactionName)
 			{
 				Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), worldPos), LogLevel.NORMAL);
 				playerController.TeleportPlayerToMapPos(playerId, worldPos);
 			}
-		} 
+		}
 	}
 
 

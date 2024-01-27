@@ -563,8 +563,32 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
 
-		string title = "Breaking Contact";
-		string message = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		string message = "Breaking Contact";
+		
+		switch (SCR_Enum.GetEnumName(EBreakingContactPhase, phase)) {
+			case "OPFOR" :
+			{
+				message = "Opfor has to spawn now.";
+				break;
+			}
+			case "BLUFOR" :
+			{
+				message = "Blufor Commander needs to select spawn now.";
+				break;
+			}
+			case "GAME" :
+			{
+				message = "Blufor spawned, Game begins now.";
+				break;
+			}
+			case "GAMEOVER" :
+			{
+				message = "Game is over.";
+				break;
+			}
+		}
+		
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
 		

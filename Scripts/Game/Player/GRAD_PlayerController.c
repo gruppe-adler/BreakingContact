@@ -39,8 +39,6 @@ modded class SCR_PlayerController : PlayerController
 		
 		bool isOpfor = ch.GetFactionKey() == "USSR";
 		
-		// InputManager m_InputManager = GetGame().GetInputManager();
-		
 		
 		// GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
 		// string characterRole = characterRoleComponent.GetCharacterRole();

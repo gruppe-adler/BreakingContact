@@ -44,7 +44,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 			return false;
 		}
 		
-		if (m_radioTruckComponent.GetRadioTransmissionState() == ERadioTransmissionState.TRANSMITTING)
+		if (m_radioTruckComponent.GetTransmissionActive())
 		{
 			return true;
 		} else
@@ -71,7 +71,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
-			string message = string.Format("Radio Transmission Duration: %1s", m_radioTruckComponent.GetRadioTransmissionDuration() / 1000);
+			string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000);
 		
 			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
 		}

@@ -1,0 +1,22 @@
+FrameWidgetClass {
+ Name "rootFrame"
+ {
+  ImageWidgetClass "{5F3EC93A2A026C31}" {
+   Name "GRAD_BC_Transmission_Widget"
+   Slot FrameWidgetSlot "{5F3EC93A2A026B8A}" {
+    Anchor 1 0 1 0
+    PositionX -302
+    OffsetLeft -302
+    PositionY 96
+    OffsetTop 96
+    SizeX 256
+    OffsetRight 46
+    SizeY 256
+    OffsetBottom -352
+   }
+   Texture "{B8C70A7749D318C2}UI/Transmission/us_established.edds"
+   Size 1024 1024
+   Range 1
+  }
+ }
+}

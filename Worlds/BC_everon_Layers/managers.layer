@@ -1,6 +1,25 @@
 TagManager : "{2FA9E172CAB1857A}Prefabs/MP/Managers/TagManager.et" {
  coords 6622.411 155.034 6498.722
 }
+PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
+ components {
+  PS_GroupCallsignAssigner "{6076FDF4799C6709}" {
+  }
+ }
+ coords 4639.892 27.812 11128.746
+ {
+  SCR_FactionManager {
+   ID "5ED9088735FF2D8B"
+   Factions {
+    SCR_Faction "{56DEAC40D2DBC8B1}" {
+     m_bIsPlayable 1
+    }
+    SCR_Faction "{56DEAC40D3C2E623}" {
+    }
+   }
+  }
+ }
+}
 SCR_GameModeEditor GameMode_Editor_Full1 : "{DA3986AF1B5032B7}Prefabs/MP/Modes/Editor/GameMode_Editor_Full.et" {
  coords 6619.506 155.168 6499.614
  {
@@ -19,4 +38,11 @@ SCR_GameModeEditor GameMode_Editor_Full1 : "{DA3986AF1B5032B7}Prefabs/MP/Modes/E
    coords -22.361 2.42 -27.635
   }
  }
+}
+GRAD_BC_BreakingContactManager GRAD_BCM {
+ components {
+  RplComponent "{6050C2AAC9951B05}" {
+  }
+ }
+ coords 5748.535 -1687.529 8425.173
 }

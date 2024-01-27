@@ -1,0 +1,13 @@
+GenericEntity : "{1F7ADBBE0511A900}Prefabs/Props/Military/Antennas/Antenna_R161_Base.et" {
+ ID "528E62BBD0E2C513"
+ components {
+  GRAD_BC_TransmissionPointComponent "{5F35240A7FBBA46F}" {
+  }
+  SCR_MapDescriptorComponent "{5F353C2D9984F30F}" {
+   DisplayName "Transmission"
+   MainType "Radio/ Tower"
+   Scale 1
+   Faction 1
+  }
+ }
+}

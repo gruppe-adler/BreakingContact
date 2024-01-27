@@ -1,0 +1,200 @@
+$grp SCR_ChimeraCharacter : "{00716F7369F3C5E8}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AR_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49FED4102}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "MG"
+   }
+  }
+  coords 4647.398 27.735 11125.807
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49FED4102}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "MG"
+   }
+  }
+  coords 4658.755 27.807 11124.045
+ }
+}
+$grp SCR_ChimeraCharacter : "{47B0BA658525301A}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4988B9385}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Rifleman"
+   }
+  }
+  coords 4649.551 27.61 11123.693
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4988B9385}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Rifleman"
+   }
+  }
+  coords 4660.907 27.682 11121.933
+ }
+}
+$grp SCR_ChimeraCharacter : "{A5F4D7FEBDB57182}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4AD73F4AF}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Fireteam Leader"
+   }
+  }
+  coords 4642.81 27.8 11121.125
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4AD73F4AF}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Fireteam Leader"
+   }
+  }
+  coords 4654.166 27.873 11119.362
+ }
+}
+SCR_ChimeraCharacter : "{B5AEDC813E4F4A58}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Officer_P.et" {
+ components {
+  PS_GroupCallsignAssigner "{6076FDF487EADB71}" {
+   m_iCompanyCallsign 1
+  }
+  PS_PlayableComponent "{5EFCC1946F475F15}" {
+   m_name "Opfor Commander"
+  }
+ }
+ coords 4639.683 27.826 11130.841
+}
+$grp SCR_ChimeraCharacter : "{BDA13DF416E8D9F6}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AT_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49AA0B0E8}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "AT"
+   }
+  }
+  coords 4646.276 27.737 11123.237
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49AA0B0E8}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "AT"
+   }
+  }
+  coords 4657.632 27.809 11121.477
+ }
+}
+Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignRadioTruckEast.et" {
+ components {
+  GRAD_BC_RadioTruckComponent "{5E98DAC7348F6107}" {
+  }
+  SCR_MapDescriptorComponent "{52A8810B2B1FC362}" {
+   DisplayName "Radio Truck"
+   MapItemDescriptor 1
+   MainType "Icon (generic)"
+   Scale 1
+  }
+  SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {
+   m_fVehicleDestroyDamage 11360.7
+  }
+  ActionsManagerComponent "{C97BE5489221AE18}" {
+   ActionContexts {
+    UserActionContext "{5E9907873BA6AF8B}" {
+     ContextName "backdoor"
+     Position PointInfo "{5E990787404942CC}" {
+      Offset 0.4889 1.6008 -3.7977
+     }
+    }
+   }
+   additionalActions {
+    GRAD_BC_ToggleRadioTransmission "{5E9907858609BB93}" {
+     ParentContextList {
+      "backdoor"
+     }
+     UIInfo UIInfo "{5E9907858EF4A0A6}" {
+      Name "Toggle Radio Transmission"
+     }
+     Duration 1
+    }
+    GRAD_BC_GetRadioTransmissionDuration "{5E9AC93578855082}" {
+     ParentContextList {
+      "backdoor"
+     }
+     UIInfo UIInfo "{5E9AC93481268320}" {
+      Name "Get Radio Transmission Duration"
+     }
+    }
+   }
+  }
+  RplComponent "{517AACDFA78F5EE7}" {
+   "Rpl State Override" None
+  }
+ }
+ coords 4654.366 27.614 11136.553
+ angleX 2.683
+ angleY 0.042
+ angleZ 0.896
+}
+$grp SCR_ChimeraCharacter : "{D1786D7659BC2E7C}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AMG_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49CBBBF5A}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Assistant MG"
+   }
+  }
+  coords 4643.845 27.784 11123.244
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF49CBBBF5A}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Assistant MG"
+   }
+  }
+  coords 4655.201 27.856 11121.482
+ }
+}
+$grp SCR_ChimeraCharacter : "{DD80FA65DDFF68B9}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Medic_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4AF9974D5}" {
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Medic"
+   }
+  }
+  coords 4647.312 27.697 11121.455
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF4AF9974D5}" {
+    m_iSquadCallsign 1
+   }
+   PS_PlayableComponent "{5EFCC1946F475F15}" {
+    m_name "Medic"
+   }
+  }
+  coords 4658.668 27.769 11119.692
+ }
+}

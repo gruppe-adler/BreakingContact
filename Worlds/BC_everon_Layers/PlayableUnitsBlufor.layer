@@ -1,12 +1,11 @@
-SCR_ChimeraCharacter : "{094747C4F8BE9F9F}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P.et" {
- components {
-  GRAD_CharacterRoleComponent "{60770D850FEDA152}" {
-   m_sCharacterRole "Blufor Commander"
-  }
-  PS_GroupCallsignAssigner "{60770D855A34D389}" {
-  }
+SCR_AIGroup : "{1E91FCDB0DA40A55}Prefabs/Groups/BLUFOR/Group_US_SentryTeam_p.et" {
+ coords 4947.691 28.338 11908.401
+ angleX -0.895
+ m_aUnitPrefabSlots {
+  "{DBC177C261C93B9D}Prefabs/Characters/Factions/BLUFOR/US_Army/GRAD_Commander_US_SL_P.et" "{64AD55FF89C97DF9}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P.et"
  }
- coords 4945.349 28.236 11918.924
+ m_bPlayable 1
+ m_bSetPlayable 1
 }
 Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
  components {
@@ -53,4 +52,10 @@ Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignR
  "			}	"\
  "		}	"\
  "	"
+}
+SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
+ coords 4946.342 28.281 11912.011
+ angleX -0.895
+ m_bPlayable 1
+ m_bSetPlayable 1
 }

@@ -8,13 +8,14 @@ PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
  }
  coords 4639.892 27.812 11128.746
  {
-  SCR_FactionManager {
+  SCR_FactionManager "60770DA102841BA2" {
    ID "5ED9088735FF2D8B"
    Factions {
     SCR_Faction "{56DEAC40D2DBC8B1}" {
      m_bIsPlayable 1
     }
     SCR_Faction "{56DEAC40D3C2E623}" {
+     m_bIsPlayable 1
     }
    }
   }
@@ -23,17 +24,6 @@ PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
 SCR_GameModeEditor GameMode_Editor_Full1 : "{DA3986AF1B5032B7}Prefabs/MP/Modes/Editor/GameMode_Editor_Full.et" {
  coords 6619.506 155.168 6499.614
  {
-  SCR_FactionManager "5E98F4F9AF249DDF" {
-   ID "56E685E92F1B7E7A"
-   Factions {
-    SCR_Faction "{56DEAC40D2DBC8B1}" {
-     m_bIsPlayable 1
-    }
-    SCR_Faction "{56DEAC40D3C2E623}" {
-     m_bIsPlayable 1
-    }
-   }
-  }
   SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutManager_USxUSSR.et" {
    coords -22.361 2.42 -27.635
   }

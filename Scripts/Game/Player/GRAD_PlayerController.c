@@ -41,6 +41,10 @@ modded class SCR_PlayerController : PlayerController
 		
 		
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
+		if (!characterRoleComponent)
+			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
+			return;
+		
 		string characterRole = characterRoleComponent.GetCharacterRole();
 	
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();

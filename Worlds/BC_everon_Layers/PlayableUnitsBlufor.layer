@@ -1,0 +1,176 @@
+$grp SCR_ChimeraCharacter : "{094747C4F8BE9F9F}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF29BEAA20D}" {
+   }
+  }
+  coords 4952.555 28.301 11910.788
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF25B574953}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4940.393 28.26 11917.877
+ }
+}
+Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
+ components {
+  SCR_MapDescriptorComponent "{52A8810B142E666C}" {
+   DisplayName "RadioTruck"
+   MainType Target
+   UnitType Vehicle
+   Scale 100
+  }
+  SCR_VehicleDamageManagerComponent "{141326E9FD94FE40}" {
+   m_fVehicleDestroyDamage 11360.7
+  }
+ }
+ coords 4950.227 28.25 11927.814
+ EOnInit ""\
+ "		//GetGame().GetCallqueue().CallLater(checkMarker, 2000, true); "\
+ "	}"\
+ "		"\
+ "	void checkMarker() { "\
+ "			"\
+ "		IEntity m_radioTruckWest = GetGame().GetWorld().FindEntityByName(\"radioTruckWest\");"\
+ "	"\
+ "		if (m_radioTruckWest) {"\
+ "			"\
+ "			Print(\"truck found\");		"\
+ "			"\
+ "			VehicleWheeledSimulation_SA controller;"\
+ "			controller = VehicleWheeledSimulation_SA.Cast(m_radioTruckWest.FindComponent(VehicleWheeledSimulation_SA));"\
+ "			if (controller)"\
+ "			{"\
+ "					Print(\"controller found\");"\
+ "					SCR_MapDescriptorComponent m_truckMarker = SCR_MapDescriptorComponent.Cast(m_radioTruckWest.FindComponent(SCR_MapDescriptorComponent));"\
+ "					"\
+ "					if ((controller.EngineIsOn()) && m_truckMarker) {"\
+ "					"\
+ "						m_truckMarker.Item().SetVisible(false);"\
+ "						// SCR_HintManagerComponent.GetInstance().ShowCustomHint( \"MARKER OFF\");"\
+ "						Print(\"marker off\");"\
+ "					}else if (!(controller.EngineIsOn()) && m_truckMarker) {"\
+ "						m_truckMarker.Item().SetVisible(true);"\
+ "					// SCR_HintManagerComponent.GetInstance().ShowCustomHint( \"MARKER ON\");"\
+ "					Print(\"marker on\");"\
+ "						}"\
+ "			}	"\
+ "		}	"\
+ "	"
+}
+$grp SCR_ChimeraCharacter : "{547BA14003A67C04}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Medic_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF293A5AD31}" {
+   }
+  }
+  coords 4957.354 28.254 11907.898
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF26965F99E}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4945.192 28.214 11914.987
+ }
+}
+$grp SCR_ChimeraCharacter : "{64AD55FF89C97DF9}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2A89164DE}" {
+   }
+  }
+  coords 4954.557 28.313 11908.156
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2544FBBF2}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4942.395 28.273 11915.245
+ }
+}
+$grp SCR_ChimeraCharacter : "{7E44CF4FB58F8FF7}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_AR_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2913E1FA1}" {
+   }
+  }
+  coords 4957.889 28.281 11911.253
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2615C4B27}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4945.727 28.241 11918.342
+ }
+}
+$grp SCR_ChimeraCharacter : "{C262DC827577226C}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_LAT_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2994AADEA}" {
+   }
+  }
+  coords 4953.507 28.312 11907.979
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF287BECB93}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4941.346 28.272 11915.067
+ }
+}
+$grp SCR_ChimeraCharacter : "{CA2EB3A73FABC625}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_AMG_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF2AEBFA315}" {
+   }
+  }
+  coords 4957.466 28.312 11905.536
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF245D38091}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4945.304 28.272 11912.625
+ }
+}
+SCR_ChimeraCharacter : "{DBC177C261C93B9D}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P.et" {
+ components {
+  PS_GroupCallsignAssigner "{6076FDF2823EAC88}" {
+   m_iCompanyCallsign 1
+  }
+  PS_PlayableComponent "{5EFCC1946F475F15}" {
+   m_name "Blufor Commander"
+  }
+ }
+ coords 4925.931 28.242 11926.738
+}
+$grp SCR_ChimeraCharacter : "{EB2904CE98753A6E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_MG_P.et" {
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF29616D3E2}" {
+   }
+  }
+  coords 4953.026 28.344 11905.563
+ }
+ {
+  components {
+   PS_GroupCallsignAssigner "{6076FDF26C2B5E6F}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 4940.864 28.304 11912.651
+ }
+}

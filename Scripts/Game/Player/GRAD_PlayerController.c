@@ -40,28 +40,29 @@ modded class SCR_PlayerController : PlayerController
 		bool isOpfor = ch.GetFactionKey() == "USSR";
 		
 		
-		// GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
-		// string characterRole = characterRoleComponent.GetCharacterRole();
-		
-		/*
-		if (characterRole != "BC Commander")
-		{
-			Print(string.Format("BC - Wrong role for marker. Current Role '%1'", characterRole), LogLevel.NORMAL);
-			return;
-		}
-		*/
+		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
+		string characterRole = characterRoleComponent.GetCharacterRole();
+	
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		string phase = (SCR_Enum.GetEnumName(EBreakingContactPhase, BCM.GetBreakingContactPhase()));
 				
-		if (phase == "OPFOR" && isOpfor) {
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
+		
+		if (characterRole == "Opfor Commander")
+		{
+			if (phase == "OPFOR" && isOpfor) {
+				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+				Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
+			}
 		}
 		
-		if (phase == "BLUFOR" && !isOpfor) {
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
+		if (characterRole == "Blufor Commander")
+		{
+			if (phase == "BLUFOR" && !isOpfor) {
+				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+				Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
+			}
 		}
+		
 		
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		m_bChoosingSpawn = true;

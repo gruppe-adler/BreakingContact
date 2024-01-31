@@ -19,13 +19,8 @@ PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
     }
    }
   }
- }
-}
-SCR_GameModeEditor GameMode_Editor_Full1 : "{DA3986AF1B5032B7}Prefabs/MP/Modes/Editor/GameMode_Editor_Full.et" {
- coords 6619.506 155.168 6499.614
- {
   SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutManager_USxUSSR.et" {
-   coords -22.361 2.42 -27.635
+   coords 1957.253 129.776 -4656.767
   }
  }
 }

@@ -12,6 +12,9 @@ SCR_ChimeraCharacter : "{094747C4F8BE9F9F}Prefabs/Characters/Factions/BLUFOR/US_
     }
    }
   }
+  GRAD_CharacterRoleComponent "{607F6410D892F4C2}" {
+   m_sCharacterRole "Blufor Commander"
+  }
   SCR_InventoryStorageManagerComponent "{520EA1D2DB118DE5}" {
    InitialInventoryItems {
     ItemsInitConfigurationItem "{5F028E5F9414953B}" {

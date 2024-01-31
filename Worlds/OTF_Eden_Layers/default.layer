@@ -21,6 +21,27 @@ Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignR
  components {
   GRAD_BC_RadioTruckComponent "{607F56DCBE5D0FAA}" {
   }
+  ActionsManagerComponent "{C97BE5489221AE18}" {
+   ActionContexts {
+    UserActionContext "{607F5E276CCE2AA5}" {
+     ContextName "RadioTruckAction"
+     Position PointInfo "{607F5E277C2E42FE}" {
+      Offset 0.189 1.4573 -3.7402
+     }
+    }
+   }
+   additionalActions {
+    GRAD_BC_ToggleRadioTransmission "{607F5E2734B80800}" {
+     ParentContextList {
+      "RadioTruckAction"
+     }
+     UIInfo UIInfo "{607F5E27B0BA2438}" {
+      Name "Toggle Radio Transmission"
+     }
+     Duration 1
+    }
+   }
+  }
  }
  coords 4951.219 28.25 11919.486
 }

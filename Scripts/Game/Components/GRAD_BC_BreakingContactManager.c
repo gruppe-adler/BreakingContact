@@ -70,12 +70,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			return;
 		
 		// check win conditions every second
-        GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
+        GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
 		
 		// Find radio truck east; Init order of entities unknown; therefore it could be missing
 		// I also added the check in main loop.
 		// TODO: @nomisum --> Please decide what fit's your needs
-		GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 5 * 1000, false);
+		GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 10 * 1000, false);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -84,16 +84,23 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (!m_radioTruck)
 		{
 			m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
+			
+			if (m_radioTruck) {
+				InitRadioTruckMarker(m_radioTruck);
+			} else {
+				GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 5 * 1000, false);
+			}
 		}
-		
-		InitRadioTruckMarker(m_radioTruck);
 	} 
 	
 	void InitRadioTruckMarker(IEntity entity)
 	{
+		Print(string.Format("Breaking Contact BCM - InitRadioTruckMarker %1", entity), LogLevel.NORMAL);
+		
+		
 		RplId rplId = Replication.FindId(entity.FindComponent(RplComponent));
 		
-		Print(string.Format("Breaking Contact BCM - init icon marker for rplId %1", rplId), LogLevel.NORMAL);
+		Print(string.Format("Breaking Contact BCM - InitRadioTruckMarker for rplId %1", rplId), LogLevel.NORMAL);
 		
 		array<int> allPlayers = {};
 		

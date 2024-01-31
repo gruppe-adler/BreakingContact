@@ -1,0 +1,8 @@
+SCR_ChimeraCharacter {
+ ID "520EC961A090B1EE"
+ components {
+  GRAD_CharacterRoleComponent "{607F64131E3AB5D2}" {
+   m_sCharacterRole "none"
+  }
+ }
+}

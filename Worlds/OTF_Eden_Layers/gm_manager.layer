@@ -1,0 +1,94 @@
+SCR_AIWorld : "{70CCCF16487C927F}Prefabs/AI/SCR_AIWorld_Eden.et" {
+ components {
+  NavmeshWorldComponent "{5584F30E67F617AD}" {
+   NavmeshSettings NavmeshWorld "{50FC63BEBE3973C5}" {
+    NavmeshFilesConfig BaseNavmeshFilesConfig "{5AF8B9A1594F5532}" : "{8BBC73472092902E}Configs/Navmesh/Navmesh_GM_Eden_Soldier.conf" {
+    }
+   }
+  }
+  NavmeshWorldComponent "{5584F30EEFEE1223}" {
+   NavmeshSettings ChimeraNavmeshWorld "{50FC63BEBE3973C5}" {
+    NavmeshFilesConfig BaseNavmeshFilesConfig "{5CF6FEFBD1A09749}" {
+     NavmeshFile "{C35ECF3276824653}worlds/GameMaster/Navmeshes/GM_Eden_vehicles.nmn"
+    }
+   }
+  }
+ }
+ coords 6403.255 158.197 6411.668
+}
+PerceptionManager PerceptionManager1 : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
+ coords 11329.956 192.476 17129.012
+}
+TagManager : "{2FA9E172CAB1857A}Prefabs/MP/Managers/TagManager.et" {
+ coords 6402.955 158.197 6431.696
+}
+PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
+ coords 6628.146 157.608 6465.25
+ m_bMarkersOnlyOnBriefing 0
+ m_bKillRedundantUnits 1
+ m_iFreezeTime 0
+ {
+  SCR_FactionManager "5EF5512A533A11FE" {
+   ID "5ED9088735FF2D8B"
+   Factions {
+    SCR_Faction "{56DEAC40D2DBC8B1}" {
+     m_bIsPlayable 1
+     m_CallsignInfo SCR_FactionCallsignInfo "{5DA0F2A6677ADA9E}" {
+      m_aSquadNames {
+       SCR_CallsignInfo "{5F0ABB0532BCB519}" {
+        m_sCallsign "Greyhound"
+       }
+       SCR_CallsignInfo "{5F0ABB053A909584}" {
+        m_sCallsign "Pitbull"
+       }
+       SCR_CallsignInfo "{5F0ABB0546F93A25}" {
+        m_sCallsign "Shepherd"
+       }
+      }
+      m_sCallsignGroupFormat "%3"
+      m_sCallsignCharacterFormat "%3: %4"
+      m_sCallsignCharacterWithRoleFormat "%3: %4"
+     }
+    }
+    SCR_Faction "{56DEAC40D3C2E623}" {
+     m_bIsPlayable 1
+     m_CallsignInfo SCR_FactionCallsignInfo "{5DA0F2A67DFB8809}" {
+      m_aSquadNames {
+       SCR_CallsignInfo "{5F0ABB06E4F02D36}" {
+        m_sCallsign "Moscow"
+       }
+       SCR_CallsignInfo "{5F0ABB060E6F478E}" {
+        m_sCallsign "Rostov"
+       }
+       SCR_CallsignInfo "{5F0ABB061E6B9DC9}" {
+        m_sCallsign "Sochi"
+       }
+      }
+      m_sCallsignGroupFormat "%3"
+      m_sCallsignCharacterFormat "%3 %4"
+      m_sCallsignCharacterWithRoleFormat "%3 %4"
+     }
+    }
+   }
+  }
+  SCR_EditorSettingsEntity {
+   coords -2020.472 -132.255 4682.869
+   m_bIsUnlimitedEditorLegal 1
+  }
+ }
+}
+GRAD_BC_BreakingContactManager {
+ components {
+  RplComponent "{607F56DC6F6B93EC}" {
+  }
+ }
+ coords 4944.385 28.219 11921.605
+}
+SCR_MapLocator {
+ coords 6403.255 158.197 6411.668
+ m_WorldDirections SCR_MapLocationQuadHint "{5AAA92CD91D1D8F5}" : "{ABA21F381437DFE8}Configs/Map/MapLocatorHints/LocationHintsEveron.conf" {
+ }
+}
+HitRegistrationManager HitRegManager1 : "{0EDA3D48791120DD}Prefabs/MP/HitRegManager.et" {
+ coords 6402.14 158.197 6430.692
+}

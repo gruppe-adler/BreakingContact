@@ -1,0 +1,85 @@
+PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
+ components {
+  PS_GroupCallsignAssigner "{6076FDF4799C6709}" {
+  }
+ }
+ coords 4639.892 27.812 11128.746
+ m_bMarkersOnlyOnBriefing 0
+ m_bKillRedundantUnits 1
+ m_iFreezeTime 0
+ {
+  SCR_FactionManager "60770DA102841BA2" {
+   ID "5ED9088735FF2D8B"
+   Factions {
+    SCR_Faction "{56DEAC40D2DBC8B1}" {
+     m_bIsPlayable 1
+    }
+    SCR_Faction "{56DEAC40D3C2E623}" {
+     m_bIsPlayable 1
+    }
+   }
+  }
+  SCR_EditorSettingsEntity {
+   coords 23.143 -0.204 1.459
+  }
+  SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutManager_USxUSSR.et" {
+   coords 1957.253 129.776 -4656.767
+  }
+ }
+}
+SCR_AIGroup : "{1E91FCDB0DA40A55}Prefabs/Groups/BLUFOR/Group_US_SentryTeam_p.et" {
+ components {
+  PS_GroupCallsignAssigner "{607F4563982168FE}" {
+  }
+ }
+ coords 4947.691 28.338 11908.401
+ angleX -0.895
+ m_aUnitPrefabSlots {
+  "{DBC177C261C93B9D}Prefabs/Characters/Factions/BLUFOR/US_Army/GRAD_Commander_US_SL_P.et" "{64AD55FF89C97DF9}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P.et"
+ }
+ m_bDeleteWhenEmpty 0
+ m_iMaxMembers 2
+ m_bPlayable 1
+ m_sCustomNameSet "Commander Team"
+ m_bSetPlayable 1
+}
+SCR_AIGroup : "{41F0D95175F5D179}Prefabs/Groups/OPFOR/Group_USSR_SentryTeam_p.et" {
+ components {
+  PS_GroupCallsignAssigner "{607F456393C2FFB4}" {
+  }
+ }
+ coords 4663.069 28.819 11135.21
+ m_aUnitPrefabSlots {
+  "{A5F4D7FEBDB57182}Prefabs/Characters/Factions/OPFOR/USSR_Army/GRAD_Commander_USSR_SL_P.et" "{47B0BA658525301A}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P.et"
+ }
+ m_bDeleteWhenEmpty 0
+ m_iMaxMembers 2
+ m_bPlayable 1
+ m_sCustomNameSet "Commander Team"
+ m_bSetPlayable 1
+}
+SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
+ components {
+  PS_GroupCallsignAssigner "{607F45639F17E90A}" {
+  }
+ }
+ coords 4946.342 28.281 11912.011
+ angleX -0.895
+ m_bDeleteWhenEmpty 0
+ m_iMaxMembers 6
+ m_bPlayable 1
+ m_sCustomNameSet "Riflesquad Team"
+ m_bSetPlayable 1
+}
+SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
+ components {
+  PS_GroupCallsignAssigner "{607F4563AE90A374}" {
+  }
+ }
+ coords 4662.979 28.534 11129.585
+ m_bDeleteWhenEmpty 0
+ m_iMaxMembers 6
+ m_bPlayable 1
+ m_sCustomNameSet "Riflesquad Team"
+ m_bSetPlayable 1
+}

@@ -9,6 +9,7 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
+		super.EOnInit(owner);
 		InitMapMarkerUI();
 		GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 		m_bChoosingSpawn = true;

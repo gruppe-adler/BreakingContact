@@ -1,19 +1,3 @@
-SCR_AIGroup : "{1E91FCDB0DA40A55}Prefabs/Groups/BLUFOR/Group_US_SentryTeam_p.et" {
- components {
-  PS_GroupCallsignAssigner "{607F4563982168FE}" {
-  }
- }
- coords 4947.691 28.338 11908.401
- angleX -0.895
- m_aUnitPrefabSlots {
-  "{DBC177C261C93B9D}Prefabs/Characters/Factions/BLUFOR/US_Army/GRAD_Commander_US_SL_P.et" "{64AD55FF89C97DF9}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P.et"
- }
- m_bDeleteWhenEmpty 0
- m_iMaxMembers 2
- m_bPlayable 1
- m_sCustomNameSet "Commander Team"
- m_bSetPlayable 1
-}
 Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
  components {
   SCR_MapDescriptorComponent "{52A8810B142E666C}" {
@@ -59,17 +43,4 @@ Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignR
  "			}	"\
  "		}	"\
  "	"
-}
-SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
- components {
-  PS_GroupCallsignAssigner "{607F45639F17E90A}" {
-  }
- }
- coords 4946.342 28.281 11912.011
- angleX -0.895
- m_bDeleteWhenEmpty 0
- m_iMaxMembers 6
- m_bPlayable 1
- m_sCustomNameSet "Riflesquad Team"
- m_bSetPlayable 1
 }

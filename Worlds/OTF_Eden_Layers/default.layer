@@ -1,0 +1,48 @@
+Vehicle radioTruckWest : "{229D3C08949B42F0}Prefabs/MP/Campaign/Assets/CampaignRadioTruckWest.et" {
+ coords 4663.185 27.664 11137.37
+ angleX 2.681
+ angleY -0.084
+ angleZ -1.792
+}
+PS_MissionDescription : "{3136BE42592F3B1B}PrefabsEditable/MissionDescription/EditableMissionDescription.et" {
+ coords 4843.307 27.676 11948.725
+ m_sTitle "Overview"
+ m_sTextData "- OPFOR spawns barrel via OPFOR map marker"\
+ "- OPFOR buys and builds fortifications"\
+ "- OPFOR finishes OPFOR phase"\
+ "- BLUFOR spawns outside radius via BLUFOR map marker"\
+ "- BLUFOR buys vehicles"\
+ "- The battle begins"
+ m_aVisibleForFactions {
+  "USSR" "US"
+ }
+}
+Vehicle radioTruckEast : "{CA75B7173C19B734}Prefabs/MP/Campaign/Assets/CampaignRadioTruckEast.et" {
+ components {
+  GRAD_BC_RadioTruckComponent "{607F56DCBE5D0FAA}" {
+  }
+ }
+ coords 4951.219 28.25 11919.486
+}
+$grp PS_ManualMarker : "{CD85ADE9E0F54679}PrefabsEditable/Markers/EditableMarker.et" {
+ {
+  coords 4936.267 28.299 11923.688
+  angleY 0
+  m_MarkerColor 1 0 0 1
+  m_fWorldSize 750
+  m_sDescription "OPFOR SPAWN"
+  m_aVisibleForFactions {
+   "USSR" "US"
+  }
+ }
+ {
+  coords 4647.421 27.72 11131.658
+  angleY 0
+  m_MarkerColor 0.002 0 1 1
+  m_fWorldSize 750
+  m_sDescription "BLUFOR SPAWN"
+  m_aVisibleForFactions {
+   "USSR" "US"
+  }
+ }
+}

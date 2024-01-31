@@ -7,6 +7,9 @@ PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
   }
  }
  coords 4639.892 27.812 11128.746
+ m_bMarkersOnlyOnBriefing 0
+ m_bKillRedundantUnits 1
+ m_iFreezeTime 0
  {
   SCR_FactionManager "60770DA102841BA2" {
    ID "5ED9088735FF2D8B"
@@ -19,6 +22,9 @@ PS_GameModeCoop PS_GameMode_Lobby1 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
     }
    }
   }
+  SCR_EditorSettingsEntity {
+   coords 23.143 -0.204 1.459
+  }
   SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutManager_USxUSSR.et" {
    coords 1957.253 129.776 -4656.767
   }
@@ -30,4 +36,7 @@ GRAD_BC_BreakingContactManager GRAD_BCM {
   }
  }
  coords 5748.535 -1687.529 8425.173
+}
+SCR_MapLocator {
+ coords 4664.372 27.611 11133.005
 }

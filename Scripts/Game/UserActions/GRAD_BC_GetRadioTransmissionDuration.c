@@ -66,14 +66,15 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 			return;
 		}
 		
-		if(m_RplComponent.IsMaster())
+		if(m_RplComponent.IsMaster() && m_radioTruckComponent) {
 			m_radioTruckComponent.SyncVariables();
+		}
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
 			if (m_radioTruckComponent) {
-				string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000);
-				SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
+				// string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000); // todo why does this fail?!
+				// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
 			}
 		}
 	}

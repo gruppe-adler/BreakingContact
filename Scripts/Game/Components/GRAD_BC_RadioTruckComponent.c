@@ -98,12 +98,12 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// disable transmissions for every transmission point
 		if (!m_bIsTransmitting) {
 			if (VDMC) {
-				VDMC.SetEngineFunctional(true);
+				// VDMC.SetEngineFunctional(true);
 				Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
 			}
 		} else {
 			if (VDMC) {
-				VDMC.SetEngineFunctional(false);
+				// VDMC.SetEngineFunctional(false); // this seems protected now and was not before :/
 				Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
 			}
 		}

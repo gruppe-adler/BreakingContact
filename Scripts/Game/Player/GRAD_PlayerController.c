@@ -206,7 +206,7 @@ modded class SCR_PlayerController : PlayerController
 		newMarker.SetColorEntry(marker.GetColorEntry());
 		newMarker.SetIconEntry(marker.GetIconEntry());
 		
-		mapMarkerManager.InsertStaticMarker(newMarker);
+		mapMarkerManager.InsertStaticMarker(newMarker, true, true);
 	}
 		
 	//------------------------------------------------------------------------------------------------

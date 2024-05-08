@@ -72,10 +72,13 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
+			//todo for some wonky reason this breaks everything bc it still does not catch null
+			/*
 			if (m_radioTruckComponent) {
-				// string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000); // todo why does this fail?!
-				// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
+				string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000); // todo why does this fail?!
+				SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
 			}
+			*/
 		}
 	}
 	

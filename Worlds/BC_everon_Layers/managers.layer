@@ -1,5 +1,5 @@
-SCR_AIWorld : "{E0A05C76552E7F58}Prefabs/AI/SCR_AIWorld.et" {
- coords 4675.16 27.844 11127.72
+SCR_AIWorld {
+ coords 4681.489 27.875 11136.302
 }
 PerceptionManager PerceptionManager1 : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
  coords 4668.313 27.791 11132.613

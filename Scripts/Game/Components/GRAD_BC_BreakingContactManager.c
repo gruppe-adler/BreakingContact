@@ -672,6 +672,13 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName, vector spawnPos, bool isdebug)
 	{
+		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
+		SCR_PlayerController ExecutingPlayerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(ExecutingPlayerId));
+				
+		if (!ExecutingPlayerController)
+					return;
+			
+		ExecutingPlayerController.ShowHint("Teleporting to destination.", "Teleport initiated", 3, false);
 		
 		if (factionName == "USSR" || isdebug)
 		{	

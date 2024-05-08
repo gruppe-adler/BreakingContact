@@ -149,6 +149,12 @@ class GRAD_IconMarkerUI
 	{
 		m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
 		
+		// fix null pointer
+		if (!m_wDrawingContainer) {
+			Print(string.Format("GRAD_IconMarkerUI OnMapOpen: Cant find m_wDrawingContainer"), LogLevel.ERROR);
+			return;
+		}
+				
 		foreach (MapIcon icon: m_aicons)
 		{
 			int type = icon.m_iType;

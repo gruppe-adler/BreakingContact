@@ -186,6 +186,11 @@ class GRAD_MapMarkerUI
 	{
 		m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
 		
+		if (!m_wDrawingContainer) {
+			Print(string.Format("GRAD_MapMarkerUI: Cant find m_wDrawingContainer"), LogLevel.ERROR);
+			return;
+		}
+		
 		foreach (MapCircle circle: m_aTransmissionCircles)
 		{
 			circle.CreateCircle(m_wDrawingContainer);
@@ -319,6 +324,12 @@ class GRAD_MapMarkerUI
 				Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.WARNING);
 			}
 			m_aSpawnCircles.Insert(circle);
+			// fix null pointer
+			if (!m_wDrawingContainer) {
+				Print(string.Format("GRAD_AddCircle: Cant find m_wDrawingContainer"), LogLevel.ERROR);
+				return;
+			}
+			
 			circle.CreateCircle(m_wDrawingContainer); // actually create too :P
 			foreach (MapCircle singleCircle: m_aSpawnCircles)
 			{
@@ -326,6 +337,12 @@ class GRAD_MapMarkerUI
 			}
 		} else {
 			m_aTransmissionCircles.Insert(circle);
+			// fix null pointer
+			if (!m_wDrawingContainer) {
+				Print(string.Format("GRAD_AddCircle: Cant find m_wDrawingContainer"), LogLevel.ERROR);
+				return;
+			}
+			
 			circle.CreateCircle(m_wDrawingContainer); // actually create too :P
 			foreach (MapCircle singleCircle: m_aSpawnCircles)
 			{

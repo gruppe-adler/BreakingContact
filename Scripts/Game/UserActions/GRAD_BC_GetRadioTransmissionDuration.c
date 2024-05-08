@@ -71,9 +71,10 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
-			string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000);
-		
-			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
+			if (m_radioTruckComponent) {
+				string message = string.Format("Transmission Duration: %1s", m_radioTruckComponent.GetTransmissionDuration() / 1000);
+				SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
+			}
 		}
 	}
 	

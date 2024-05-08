@@ -1,8 +1,8 @@
+SCR_AIWorld : "{E0A05C76552E7F58}Prefabs/AI/SCR_AIWorld.et" {
+ coords 4675.16 27.844 11127.72
+}
 PerceptionManager PerceptionManager1 : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
  coords 4668.313 27.791 11132.613
-}
-TagManager : "{2FA9E172CAB1857A}Prefabs/MP/Managers/TagManager.et" {
- coords 6622.411 155.034 6498.722
 }
 GRAD_BC_BreakingContactManager GRAD_BCM {
  components {
@@ -16,10 +16,4 @@ SCR_MapLocator {
 }
 HitRegistrationManager HitRegManager1 : "{0EDA3D48791120DD}Prefabs/MP/HitRegManager.et" {
  coords 4664.328 27.609 11132.922
-}
-SCR_AIGroup : "{47EADE5E4E07076C}Prefabs/Groups/BLUFOR/Group_US_FireTeam_P.et" {
- coords 4663.355 27.634 11129.734
-}
-SCR_AIGroup : "{9C7902A055DDA271}Prefabs/Groups/OPFOR/Group_USSR_FireGroup_P.et" {
- coords 4665.664 27.697 11135.6
 }

@@ -1,0 +1,7 @@
+Vehicle : "{4597626AF36C0858}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320.et" {
+ ID "5206D4E7C4A16F13"
+ components {
+  GRAD_BC_RadioTruckComponent "{6150F51835A7EF83}" {
+  }
+ }
+}

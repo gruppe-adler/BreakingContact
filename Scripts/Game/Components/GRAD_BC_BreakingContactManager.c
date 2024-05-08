@@ -50,6 +50,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	protected static GRAD_BC_BreakingContactManager s_Instance;
 	protected IEntity m_radioTruck;
+	protected IEntity m_westCommandVehicle;
 	protected bool m_bIsTransmittingCache;
 	
 	//------------------------------------------------------------------------------------------------
@@ -71,27 +72,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
-		
-		// Find radio truck east; Init order of entities unknown; therefore it could be missing
-		// I also added the check in main loop.
-		// TODO: @nomisum --> Please decide what fit's your needs
-		GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 10 * 1000, false);
     }
-
-    //------------------------------------------------------------------------------------------------
-	protected void FindRadioTruckEast()
-	{
-		if (!m_radioTruck)
-		{
-			m_radioTruck = GetGame().GetWorld().FindEntityByName("radioTruckEast");
-			
-			if (m_radioTruck) {
-				InitRadioTruckMarker(m_radioTruck);
-			} else {
-				GetGame().GetCallqueue().CallLater(FindRadioTruckEast, 5 * 1000, false);
-			}
-		}
-	} 
 	
 	void InitRadioTruckMarker(IEntity entity)
 	{
@@ -197,11 +178,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		Print(string.Format("Breaking Contact BCM -  Manage markers..."), LogLevel.NORMAL);
 		
 		if (!m_radioTruck) {
-			FindRadioTruckEast();
-			if (!m_radioTruck) {
-				Print(string.Format("Breaking Contact BCM -  No radio truck found"), LogLevel.NORMAL);
-				return;
-			};
+			Print(string.Format("Breaking Contact BCM -  No radio truck found"), LogLevel.NORMAL);
+			return;
 		};
 		
 		GRAD_BC_RadioTruckComponent RTC = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
@@ -286,6 +264,41 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			return selectedPoint;
 		}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	IEntity SpawnSpawnVehicleWest(vector center, int radius)
+	{		
+		vector newCenter = FindSpawnPoint(center, radius);
+		
+		EntitySpawnParams params = new EntitySpawnParams();
+        params.Transform[3] = newCenter;
+		
+        // create antenna that serves as component holder for transmission point
+        Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
+        IEntity WestSpawnVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+		
+		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", WestSpawnVehicle, params), LogLevel.NORMAL);
+		
+		return WestSpawnVehicle;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	IEntity SpawnSpawnVehicleEast(vector center, int radius)
+	{		
+		vector newCenter = FindSpawnPoint(center, radius);
+		
+		EntitySpawnParams params = new EntitySpawnParams();
+        params.Transform[3] = newCenter;
+		
+        // create antenna that serves as component holder for transmission point
+        Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
+        IEntity RadioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+		
+		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", RadioTruck, params), LogLevel.NORMAL);
+		
+		return RadioTruck;
+	}
 
 	
 	//------------------------------------------------------------------------------------------------
@@ -670,17 +683,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				m_debug = true;
 			}
 			
-			//--- Apply transformation to radio truck
-			vector transform[4];
-			m_radioTruck.GetWorldTransform(transform);
-			transform[3] = spawnPos;
-			SCR_TerrainHelper.OrientToTerrain(transform);
-	
-			BaseGameEntity baseGameEntity = BaseGameEntity.Cast(m_radioTruck);
-			if (baseGameEntity)
-				baseGameEntity.Teleport(transform);
-			else
-				m_radioTruck.SetWorldTransform(transform);
+			m_radioTruck = SpawnSpawnVehicleEast(m_vOpforSpawnPos, 10);
 	
 			Physics phys = m_radioTruck.GetPhysics();
 			if (phys)
@@ -690,6 +693,17 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			
 		} else {
+			m_vBluforSpawnPos = spawnPos;
+			
+			m_westCommandVehicle = SpawnSpawnVehicleWest(m_vOpforSpawnPos, 10);
+			
+			Physics phys = m_westCommandVehicle.GetPhysics();
+			if (phys)
+			{
+				phys.SetVelocity(vector.Zero);
+				phys.SetAngularVelocity(vector.Zero);
+			}
+			
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
 		

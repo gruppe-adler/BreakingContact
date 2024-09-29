@@ -73,10 +73,17 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
+		GetGame().GetCallqueue().CallLater(setPhaseInitial, 11000, false);
 		
-		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
     }
 	
+	//------------------------------------------------------------------------------------------------
+	void setPhaseInitial() 
+	{
+		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void InitRadioTruckMarker(IEntity entity)
 	{
 		Print(string.Format("Breaking Contact BCM - InitRadioTruckMarker %1", entity), LogLevel.NORMAL);
@@ -500,8 +507,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		Replication.BumpMe();
 		
-
-		NotifyAllOnPhaseChange(phase);
+		NotifyLocalPlayerOnPhaseChange(phase);
+		// NotifyAllOnPhaseChange(phase);
 		
 		Print(string.Format("Breaking Contact - Phase '%1' entered (%2)", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
 	}
@@ -593,6 +600,50 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
+	void NotifyLocalPlayerOnPhaseChange(int phase)
+	{
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+				
+		if (!playerController)
+			return;
+		
+		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		string message = "Breaking Contact";
+		
+		switch (SCR_Enum.GetEnumName(EBreakingContactPhase, phase)) {
+			case "OPFOR" :
+			{
+				message = "Opfor has to spawn now.";
+				break;
+			}
+			case "BLUFOR" :
+			{
+				message = "Blufor Commander needs to select spawn now.";
+				break;
+			}
+			case "GAME" :
+			{
+				message = "Blufor spawned, Game begins now.";
+				break;
+			}
+			case "GAMEOVER" :
+			{
+				message = "Game is over.";
+				break;
+			}
+		}
+		
+		int duration = m_iNotificationDuration;
+		bool isSilent = false;
+		
+		playerController.ShowHint(message, title, duration, isSilent);
+		playerController.PhaseChange(SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		Print(string.Format("Notifying player about phase change"), LogLevel.NORMAL);
+
+	}
+	
+	//----
 	void NotifyAllOnPhaseChange(int phase)
 	{
 		array<int> playerIds = {};
@@ -636,6 +687,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 			playerController.ShowHint(message, title, duration, isSilent);
 			playerController.PhaseChange(SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+			Print(string.Format("Notifying player about phase change"), LogLevel.NORMAL);
 		}
 	}
 	

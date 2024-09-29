@@ -41,7 +41,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     [RplProp()]
-	protected int m_iBreakingContactPhase;
+	protected EBreakingContactPhase m_iBreakingContactPhase;
 	
 
 	static float m_iMaxTransmissionDistance = 500.0;
@@ -71,6 +71,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (!Replication.IsServer())
 			return;
 		
+		m_iNotificationDuration = 10;
+		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
 		GetGame().GetCallqueue().CallLater(setPhaseInitial, 11000, false);
@@ -81,6 +83,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void setPhaseInitial() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
+		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.PREPTIME);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -161,7 +164,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
 		{
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
-				 SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
+				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
+				NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.OPFOR);
 		};
 		
 		
@@ -294,12 +298,24 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = newCenter;
+		params.TransformMode = ETransformMode.WORLD;
 		
         // create antenna that serves as component holder for transmission point
         Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
         IEntity WestSpawnVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
 		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", WestSpawnVehicle, params), LogLevel.NORMAL);
+		
+		CarControllerComponent carController = CarControllerComponent.Cast(WestSpawnVehicle.FindComponent(CarControllerComponent));
+		// Activate handbrake so the vehicles don't go downhill on their own when spawned
+		if (carController)
+			carController.SetPersistentHandBrake(true);
+
+		Physics physicsComponent = WestSpawnVehicle.GetPhysics();
+
+		// Snap to terrain
+		if (physicsComponent)
+			physicsComponent.SetVelocity("0 -1 0");
 		
 		return WestSpawnVehicle;
 	}
@@ -482,7 +498,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector spawnPos) {
 		Replication.BumpMe();
 		
-		SetBreakingContactPhase(1);
+		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
+		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.BLUFOR);
 		TeleportOpfor(spawnPos);
 	}
 	
@@ -498,13 +515,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected void 	RpcAsk_Authority_InitiateBluforSpawn(vector spawnPos) {
 		Replication.BumpMe();
 		
-		SetBreakingContactPhase(2);
+		SetBreakingContactPhase(EBreakingContactPhase.GAME);
+		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.GAME);
 		TeleportBlufor(spawnPos);
 	}
 	
 	
     //------------------------------------------------------------------------------------------------
-	void SetBreakingContactPhase(int phase)
+	void SetBreakingContactPhase(EBreakingContactPhase phase)
 	{
 		Rpc(RpcAsk_Authority_SetBreakingContactPhase, phase);
 	}
@@ -513,14 +531,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	// todo this does not log yet somehow? peer tool test pending. spawning works however.
     //------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void 	RpcAsk_Authority_SetBreakingContactPhase(int phase)
+	protected void 	RpcAsk_Authority_SetBreakingContactPhase(EBreakingContactPhase phase)
 	{
 		m_iBreakingContactPhase = phase;
 		
 		Replication.BumpMe();
-		
-		NotifyLocalPlayerOnPhaseChange(phase);
-		// NotifyAllOnPhaseChange(phase);
 		
 		Print(string.Format("Breaking Contact - Phase '%1' entered (%2)", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
 	}
@@ -611,8 +626,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     }
 
 
+	//------------------------------------------------------------------------------------------------
+	void NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
+	{
+		Rpc(RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange, currentPhase);
+	}
+	
     //------------------------------------------------------------------------------------------------
-	void NotifyLocalPlayerOnPhaseChange(int phase)
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
 	{
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
@@ -620,26 +642,31 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		if (!playerController)
 			return;
 		
-		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase));
 		string message = "Breaking Contact";
 		
-		switch (SCR_Enum.GetEnumName(EBreakingContactPhase, phase)) {
-			case "OPFOR" :
+		switch (currentPhase) {
+			case EBreakingContactPhase.PREPTIME :
+			{
+				message = "Pretime still running.";
+				break;
+			}
+			case EBreakingContactPhase.OPFOR :
 			{
 				message = "Opfor has to spawn now.";
 				break;
 			}
-			case "BLUFOR" :
+			case EBreakingContactPhase.BLUFOR :
 			{
 				message = "Blufor Commander needs to select spawn now.";
 				break;
 			}
-			case "GAME" :
+			case EBreakingContactPhase.GAME :
 			{
 				message = "Blufor spawned, Game begins now.";
 				break;
 			}
-			case "GAMEOVER" :
+			case EBreakingContactPhase.GAMEOVER :
 			{
 				message = "Game is over.";
 				break;
@@ -650,57 +677,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		bool isSilent = false;
 		
 		playerController.ShowHint(message, title, duration, isSilent);
-		playerController.PhaseChange(SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
+		playerController.PhaseChange(currentPhase);
 		Print(string.Format("Notifying player about phase change"), LogLevel.NORMAL);
 
-	}
-	
-	//----
-	void NotifyAllOnPhaseChange(int phase)
-	{
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-
-		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
-		string message = "Breaking Contact";
-		
-		switch (SCR_Enum.GetEnumName(EBreakingContactPhase, phase)) {
-			case "OPFOR" :
-			{
-				message = "Opfor has to spawn now.";
-				break;
-			}
-			case "BLUFOR" :
-			{
-				message = "Blufor Commander needs to select spawn now.";
-				break;
-			}
-			case "GAME" :
-			{
-				message = "Blufor spawned, Game begins now.";
-				break;
-			}
-			case "GAMEOVER" :
-			{
-				message = "Game is over.";
-				break;
-			}
-		}
-		
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-		
-		foreach (int playerId : playerIds)
-		{
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-			
-			if (!playerController)
-				return;
-		
-			playerController.ShowHint(message, title, duration, isSilent);
-			playerController.PhaseChange(SCR_Enum.GetEnumName(EBreakingContactPhase, phase));
-			Print(string.Format("Notifying player about phase change"), LogLevel.NORMAL);
-		}
 	}
 	
 	

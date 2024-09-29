@@ -11,7 +11,7 @@ modded class SCR_PlayerController : PlayerController
 	{
 		super.EOnInit(owner);
 		GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 30000, false);
-		GetGame().GetCallqueue().CallLater(ForceOpenMap, 30000, false);
+		// GetGame().GetCallqueue().CallLater(ForceOpenMap, 30000, false);
 		m_bChoosingSpawn = true;
     }
 			
@@ -28,7 +28,7 @@ modded class SCR_PlayerController : PlayerController
 		// try again
 		if (!playerController) {
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
-			Print(string.Format("GRAD Playercontroller - is opfor - add map key eh"), LogLevel.WARNING);
+			Print(string.Format("GRAD Playercontroller - Add map key eh"), LogLevel.WARNING);
 			return;
 		}
 		
@@ -38,8 +38,6 @@ modded class SCR_PlayerController : PlayerController
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
 		}
-		
-		bool isOpfor = ch.GetFactionKey() == "USSR";
 		
 		
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
@@ -53,25 +51,17 @@ modded class SCR_PlayerController : PlayerController
 		if (characterRoleComponent) {
 			characterRole = characterRoleComponent.GetCharacterRole();
 		}
-	
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
-		string phase = (SCR_Enum.GetEnumName(EBreakingContactPhase, BCM.GetBreakingContactPhase()));
-				
 		
 		if (characterRole == "Opfor Commander")
 		{
-			if (phase == "OPFOR" && isOpfor) {
-				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-				Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
-			}
+			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
 		}
 		
 		if (characterRole == "Blufor Commander")
 		{
-			if (phase == "BLUFOR" && !isOpfor) {
-				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-				Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
-			}
+			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+			Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
 		}
 		
 		
@@ -82,7 +72,7 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void PhaseChange(string phase) 
+	void PhaseChange(EBreakingContactPhase currentPhase) 
 	{
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
@@ -93,23 +83,34 @@ modded class SCR_PlayerController : PlayerController
 		
 		bool isOpfor = ch.GetFactionKey() == "USSR";
 		
+		// open map for opfor
+		if (currentPhase == EBreakingContactPhase.OPFOR && isOpfor) {
+			ForceOpenMap();
+		}
+		
+		// open map for blufor
+		if (currentPhase == EBreakingContactPhase.BLUFOR && !isOpfor) {
+			ForceOpenMap();
+		}
+		
 		// close map for opfor
-		if (phase == "BLUFOR" && isOpfor) {
+		if (currentPhase == EBreakingContactPhase.BLUFOR && isOpfor) {
 			ToggleMap(false);
 			m_bChoosingSpawn = false;
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
 		}
 		
 		// close map for blufor
-		if (phase == "GAME" && !isOpfor) {
+		if (currentPhase == EBreakingContactPhase.GAME && !isOpfor) {
 			ToggleMap(false);
 			m_bChoosingSpawn = false;
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 		
-		if (phase == "GAME") {
+		// show logo for all
+		if (currentPhase == EBreakingContactPhase.GAME) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			// ShowBCLogo();
+			ShowBCLogo();
 		}
 	
 	}
@@ -147,10 +148,11 @@ modded class SCR_PlayerController : PlayerController
 	void ConfirmSpawn()
 	{
 		RemoveSpawnMarker();
-		Print(string.Format("BC PlayerController ConfirmSpawn"), LogLevel.NORMAL);
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		
 		vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+		
+		Print(string.Format("Spawn Position selected: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
 		
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
@@ -165,6 +167,8 @@ modded class SCR_PlayerController : PlayerController
 		} else {
 			BCM.InitiateBluforSpawn(spawnPosition);
 		}
+		
+		Print(string.Format("BC PlayerController ConfirmSpawn"), LogLevel.NORMAL);
 		
 		// remove key listener
 		GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);

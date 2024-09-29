@@ -239,6 +239,34 @@ class GRAD_MapMarkerUI
 			Print(string.Format("GRAD CirclemarkerUI: IsChoosingSpawn is false"), LogLevel.WARNING);	
 			return;
 		}
+		
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)
+			return;
+		
+		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
+		
+		string characterRole = "none"; 
+		
+		if (characterRoleComponent) {
+			characterRole = characterRoleComponent.GetCharacterRole();
+		}
+	
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		string phase = (SCR_Enum.GetEnumName(EBreakingContactPhase, BCM.GetBreakingContactPhase()));
+		
+		bool isOpfor = ch.GetFactionKey() == "USSR";
+		string currentFaction = "none";
+		
+		if (isOpfor && characterRole == "Opfor Commander")
+		{
+			currentFaction = "USSR";
+		};
+		
+		if (!isOpfor && characterRole == "Blufor Commander")
+		{
+			currentFaction = "US";
+		};
 
 		if (!mapEntity)
 			return;
@@ -260,11 +288,18 @@ class GRAD_MapMarkerUI
 		}
 
 		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
-		CreateOrMoveSpawnMarker(coords); // sync marker/delete previous marker
+		CreateOrMoveSpawnMarker(currentFaction, coords); // sync marker/delete previous marker
 		SetSpawnPos(worldPos); // for other fnc to grab
 	}
 	
-	void CreateOrMoveSpawnMarker(vector coords)
+	// broadcast
+	void CreateOrMoveSpawnMarker(string currentfaction, vector coords) 
+	{
+		RpcAsk_Authority_CreateOrMoveSpawnMarker(currentfaction, coords);
+	}
+	
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_Authority_CreateOrMoveSpawnMarker(string currentfaction, vector coords)
 	{
 		
 		array<int> allPlayers = {};
@@ -277,7 +312,19 @@ class GRAD_MapMarkerUI
 			if (!playerController)
 					return;
 			
-			Print(string.Format("Breaking Contact CreateOrMoveSpawnMarker"), LogLevel.WARNING);
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+			if (!ch)
+				return;
+			
+			// only create marker for same faction!
+			bool createMarker = ch.GetFactionKey() == currentfaction;
+			
+			if (!createMarker) {
+				Print(string.Format("Breaking Contact - not creating marker, wrong faction"), LogLevel.WARNING);
+				return;
+			}	
+			
+			Print(string.Format("Breaking Contact CreateOrMoveSpawnMarker"), LogLevel.NORMAL);
 			
 			// todo fix hardcoded
 			playerController.AddCircleMarker(

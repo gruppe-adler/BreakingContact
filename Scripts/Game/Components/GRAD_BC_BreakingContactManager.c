@@ -1,6 +1,7 @@
 // no GAMEMASTER phase as everything should be run out of the box self explaining
 enum EBreakingContactPhase
 {
+	PREPTIME,
 	OPFOR,
 	BLUFOR,
 	GAME,
@@ -72,6 +73,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		// check win conditions every second
         GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
+		
+		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
     }
 	
 	void InitRadioTruckMarker(IEntity entity)
@@ -143,6 +146,17 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
         Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
 		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+		
+		
+		// set opfor phase as soon as players leave lobby
+		PS_GameModeCoop psGameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		EBreakingContactPhase currentPhase = GetBreakingContactPhase();
+		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
+		{
+			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
+				 SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
+		};
+		
 		
 		// todo move behind game mode started
 		ManageMarkers();		
@@ -476,7 +490,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		Rpc(RpcAsk_Authority_SetBreakingContactPhase, phase);
 	}
 
-
+	
+	// todo this does not log yet somehow? peer tool test pending. spawning works however.
     //------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	protected void 	RpcAsk_Authority_SetBreakingContactPhase(int phase)

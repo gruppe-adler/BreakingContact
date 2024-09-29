@@ -1,6 +1,14 @@
 SCR_SpawnPoint : "{45225582B358C31A}PrefabsEditable/SpawnPoints/E_SpawnPoint_USSR.et" {
  coords 6643.517 158.663 6470.402
 }
+$grp SCR_EditorRestrictionZoneEntity : "{B2A519402E9AC209}PrefabsEditable/RestrictionZone/E_EditorRestrictionZoneLarge.et" {
+ {
+  coords 4948.748 28.292 11942.76
+ }
+ {
+  coords 4640.407 27.866 11135.416
+ }
+}
 SCR_SpawnPoint : "{CEA2B24051A44525}PrefabsEditable/SpawnPoints/E_SpawnPoint_US.et" {
  coords 6633.683 155.247 6512.069
  angleY 179.594

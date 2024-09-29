@@ -1,7 +1,8 @@
 PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
  coords 4664.889 27.659 11135.528
+ m_iFreezeTime 10000
  {
-  SCR_FactionManager {
+  SCR_FactionManager "627A8E3665FD18AE" {
    ID "5ED9088735FF2D8B"
    Factions {
     SCR_Faction "{56DEAC40D2DBC8B1}" {
@@ -24,13 +25,13 @@ SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutMana
   }
  }
 }
-SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
+SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_P.et" {
  coords 4948.442 28.29 11942.487
  m_aUnitPrefabSlots {
   "{E74FC9AB1A057CB1}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF_Commander.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et"
  }
 }
-SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
+SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_P.et" {
  coords 4630.1 48.006 11142.504
  m_aUnitPrefabSlots {
   "{E370BE864F610A10}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF_Commander.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"

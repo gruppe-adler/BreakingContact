@@ -86,11 +86,13 @@ modded class SCR_PlayerController : PlayerController
 		// open map for opfor
 		if (currentPhase == EBreakingContactPhase.OPFOR && isOpfor) {
 			ForceOpenMap();
+			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for opfor"), LogLevel.NORMAL);
 		}
 		
 		// open map for blufor
 		if (currentPhase == EBreakingContactPhase.BLUFOR && !isOpfor) {
 			ForceOpenMap();
+			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for blufor"), LogLevel.NORMAL);
 		}
 		
 		// close map for opfor

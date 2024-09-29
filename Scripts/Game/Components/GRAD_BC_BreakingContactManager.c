@@ -633,7 +633,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
     //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
 	{
 		

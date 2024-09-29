@@ -15,7 +15,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	private Vehicle m_radioTruck;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
-	private VehicleWheeledSimulation_SA m_VehicleWheeledSimulationComponent;
+	private VehicleWheeledSimulation_SA_B m_VehicleWheeledSimulationComponent;
 
 	private RplComponent m_RplComponent;
 
@@ -29,7 +29,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		m_radioTruck = Vehicle.Cast(GetOwner());
 
 		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_radioTruck.FindComponent(SCR_MapDescriptorComponent));
-		m_VehicleWheeledSimulationComponent = VehicleWheeledSimulation_SA.Cast(m_radioTruck.FindComponent(VehicleWheeledSimulation_SA));
+		m_VehicleWheeledSimulationComponent = VehicleWheeledSimulation_SA_B.Cast(m_radioTruck.FindComponent(VehicleWheeledSimulation_SA_B));
 
 		m_RplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
 

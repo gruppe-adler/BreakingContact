@@ -298,7 +298,7 @@ class GRAD_MapMarkerUI
 		RpcAsk_Authority_CreateOrMoveSpawnMarker(currentfaction, coords);
 	}
 	
-	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
 	void RpcAsk_Authority_CreateOrMoveSpawnMarker(string currentfaction, vector coords)
 	{
 		

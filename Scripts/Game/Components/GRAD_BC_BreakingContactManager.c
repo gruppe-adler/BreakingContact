@@ -311,10 +311,22 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = newCenter;
+		params.TransformMode = ETransformMode.WORLD;
 		
         // create antenna that serves as component holder for transmission point
         Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
         IEntity RadioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+		
+		CarControllerComponent carController = CarControllerComponent.Cast(RadioTruck.FindComponent(CarControllerComponent));
+		// Activate handbrake so the vehicles don't go downhill on their own when spawned
+		if (carController)
+			carController.SetPersistentHandBrake(true);
+
+		Physics physicsComponent = RadioTruck.GetPhysics();
+
+		// Snap to terrain
+		if (physicsComponent)
+			physicsComponent.SetVelocity("0 -1 0");
 		
 		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", RadioTruck, params), LogLevel.NORMAL);
 		

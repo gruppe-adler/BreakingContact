@@ -61,7 +61,8 @@ class MapCircle
 				
 		int screenX, screenY, endX, endY;
 		
-		Print(string.Format("GRAD CirclemarkerUI: m_sType is %1, m_textureCache is %2", m_sType, m_textureCache), LogLevel.NORMAL);
+		// gets logged REALLY often, only uncomment if necessary
+		// Print(string.Format("GRAD CirclemarkerUI: m_sType is %1, m_textureCache is %2", m_sType, m_textureCache), LogLevel.NORMAL);
 		
 		if (m_sType != "" && m_textureCache != m_sType && !isSpawnMarker) {
 			

@@ -10,9 +10,21 @@ modded class SCR_PlayerController : PlayerController
 	override void EOnInit(IEntity owner)
 	{
 		super.EOnInit(owner);
-		GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 30000, false);
-		// GetGame().GetCallqueue().CallLater(ForceOpenMap, 30000, false);
-		m_bChoosingSpawn = true;
+		
+		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		
+		if (gameMode) {
+			if (gameMode.GetState() == SCR_EGameModeState.GAME) {
+				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
+				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 3000, false);
+				GetGame().GetCallqueue().CallLater(ForceOpenMap, 15000, false);
+				m_bChoosingSpawn = true;
+				return;
+			}
+		}
+		
+		// loop until LobbyMod decides its time to go to GAME
+		GetGame().GetCallqueue().CallLater(EOnInit, 3000, false, owner);
     }
 			
 	bool IsChoosingSpawn() 
@@ -28,7 +40,7 @@ modded class SCR_PlayerController : PlayerController
 		// try again
 		if (!playerController) {
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
-			Print(string.Format("GRAD Playercontroller - Add map key eh"), LogLevel.WARNING);
+			Print(string.Format("no playerController - wait and retry in 5s"), LogLevel.WARNING);
 			return;
 		}
 		
@@ -36,20 +48,24 @@ modded class SCR_PlayerController : PlayerController
 		// try again
 		if (!ch) {
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
+			Print(string.Format("no chimera - wait and retry in 5s"), LogLevel.WARNING);
 			return;
 		}
 		
 		
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
 		if (!characterRoleComponent) {
-			Print(string.Format("GRAD Playercontroller - no character role component for this slot"), LogLevel.WARNING);
-			// GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
+			Print(string.Format("no character role component for this slot - wait and retry in 5s"), LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
+			return;
 		}
 		
 		string characterRole = "none"; 
 		
 		if (characterRoleComponent) {
 			characterRole = characterRoleComponent.GetCharacterRole();
+		} else {
+			Print(string.Format("BC phase opfor - no commander found"), LogLevel.WARNING);
 		}
 		
 		if (characterRole == "Opfor Commander")
@@ -219,15 +235,27 @@ modded class SCR_PlayerController : PlayerController
 	void ToggleMap(bool open)
 	{
 		SCR_PlayerController pc = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!pc) return;
+		if (!pc) {
+			Print(string.Format("No SCR_PlayerController in ToggleMap"), LogLevel.ERROR);
+			return;
+		}
 		
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(pc.GetControlledEntity());
-		if (!ch) return;
+		if (!ch) {
+			Print(string.Format("No SCR_ChimeraCharacter in ToggleMap"), LogLevel.ERROR);
+			return;
+		}
 		
 		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
-		if (!gadgetManager) return;
+		if (!gadgetManager) {
+			Print(string.Format("No gadgetManager in ToggleMap"), LogLevel.ERROR);
+			return;
+		}
 		
-		if (!gadgetManager.GetGadgetByType(EGadgetType.MAP)) return;
+		if (!gadgetManager.GetGadgetByType(EGadgetType.MAP)) {
+			Print(string.Format("No EGadgetType.MAP in ToggleMap"), LogLevel.ERROR);
+			return;
+		}
 		
 		IEntity mapEntity = gadgetManager.GetGadgetByType(EGadgetType.MAP);
 		

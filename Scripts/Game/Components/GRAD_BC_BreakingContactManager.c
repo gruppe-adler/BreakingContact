@@ -153,9 +153,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	{
 
+		/* 
 		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
         Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
 		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+		*/
 		
 		
 		// set opfor phase as soon as players leave lobby

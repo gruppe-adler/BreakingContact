@@ -80,7 +80,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 					item.SetProps(props);
 				}	
 		}
-		Print(string.Format("Breaking Contact RTC -  Main Loop Tick"), LogLevel.NORMAL);
+		// Print(string.Format("Breaking Contact RTC -  Main Loop Tick"), LogLevel.NORMAL);
 	}
 	
 	bool GetTransmissionActive() 

@@ -170,9 +170,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.OPFOR);
 		};
 		
-		
-		// todo move behind game mode started
-		ManageMarkers();		
+		if (currentPhase == EBreakingContactPhase.BLUFOR) {
+			
+			m_vBluforSpawnPos = FindSpawnPoint(m_vOpforSpawnPos, 1000, 1500);	
+			InitiateBluforSpawn(m_vBluforSpawnPos);
+		}				
 		
 		if (m_skipWinConditions || !(GameModeStarted()))
         {
@@ -182,8 +184,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
         // skip win conditions if active
 		if (GameModeStarted() && !(GameModeOver())) {
+			ManageMarkers();
 			CheckWinConditions();
-            Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
+			Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		};
 	}
 
@@ -486,62 +489,31 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
 		return m_iBreakingContactPhase;
 	}
-
-
 	
 	//------------------------------------------------------------------------------------------------
 	void InitiateOpforSpawn(vector spawnPos) 
 	{
-		Rpc(RpcAsk_Authority_InitiateOpforSpawn, spawnPos);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void 	RpcAsk_Authority_InitiateOpforSpawn(vector spawnPos) {
-		Replication.BumpMe();
-		
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.BLUFOR);
 		TeleportOpfor(spawnPos);
-	}
-	
+	}	
 	
 	//------------------------------------------------------------------------------------------------
 	void InitiateBluforSpawn(vector spawnPos) 
 	{
-		Rpc(RpcAsk_Authority_InitiateBluforSpawn, spawnPos);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void 	RpcAsk_Authority_InitiateBluforSpawn(vector spawnPos) {
-		Replication.BumpMe();
-		
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
 		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.GAME);
 		TeleportBlufor(spawnPos);
 	}
 	
-	
     //------------------------------------------------------------------------------------------------
 	void SetBreakingContactPhase(EBreakingContactPhase phase)
 	{
-		Rpc(RpcAsk_Authority_SetBreakingContactPhase, phase);
-	}
-
-	
-	// todo this does not log yet somehow? peer tool test pending. spawning works however.
-    //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void 	RpcAsk_Authority_SetBreakingContactPhase(EBreakingContactPhase phase)
-	{
 		m_iBreakingContactPhase = phase;
-		
 		Replication.BumpMe();
 		
 		Print(string.Format("Breaking Contact - Phase '%1' entered (%2)", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
 	}
-
 
 	//------------------------------------------------------------------------------------------------
 	IEntity SpawnTransmissionPoint(vector center, int radius)
@@ -566,15 +538,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-    protected vector FindSpawnPoint(vector center, int radius)
+    protected vector FindSpawnPoint(vector center, int radius, int minradius = -1)
     {
         bool foundSpawnPoint;
 		int loopCount;
 
         while (!foundSpawnPoint) {
-            Math.Randomize(-1);
-            int randomDistanceX = Math.RandomInt( -radius, radius );
-            int randomDistanceY = Math.RandomInt( -radius, radius );
+			int randomDistanceX = minradius;
+            int randomDistanceY = minradius;
+			
+			if (minradius > 0) {
+				Math.Randomize(-1);
+            	randomDistanceX = Math.RandomInt( -radius, radius );
+            	randomDistanceY = Math.RandomInt( -radius, radius );
+			}
 			
 			vector worldPos = {center[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(center[0] + randomDistanceX, center[2] + randomDistanceY), center[2] + randomDistanceY};
             bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
@@ -660,7 +637,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			case EBreakingContactPhase.BLUFOR :
 			{
-				message = "Blufor Commander needs to select spawn now.";
+				message = "Blufor will spawn now.";
 				break;
 			}
 			case EBreakingContactPhase.GAME :

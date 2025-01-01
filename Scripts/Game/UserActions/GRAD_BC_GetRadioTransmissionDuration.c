@@ -19,7 +19,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool HasLocalEffectOnlyScript()
 	{
-	    return false;
+	    return true;
 	}
 	
 	//------------------------------------------------------------------------------------------------

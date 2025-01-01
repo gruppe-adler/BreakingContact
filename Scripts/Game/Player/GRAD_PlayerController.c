@@ -74,13 +74,11 @@ modded class SCR_PlayerController : PlayerController
 			m_bChoosingSpawn = true;
 		}
 		
+		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
 		}
-		
 		
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
@@ -158,7 +156,7 @@ modded class SCR_PlayerController : PlayerController
 	
 	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
-	{	
+	{
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController) {
 			Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
@@ -174,12 +172,15 @@ modded class SCR_PlayerController : PlayerController
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
 		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
 		string factionKey = playerFaction.GetFactionKey();
-		vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+		
+		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", factionKey, phase), LogLevel.NORMAL);
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
+			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
 			BCM.InitiateOpforSpawn(spawnPosition);
-			Print(string.Format("Spawn Position selected: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
 			RemoveSpawnMarker();
+			
+			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		
 			// remove key listener
 			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
@@ -187,12 +188,10 @@ modded class SCR_PlayerController : PlayerController
 		}
 		
 		if (factionKey == "US" && phase == EBreakingContactPhase.BLUFOR) {
+			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords(); // todo randomize start position
 			BCM.InitiateBluforSpawn(spawnPosition);
-			Print(string.Format("Spawn Position selected: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
+			Print(string.Format("Spawn Position found: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
 			RemoveSpawnMarker();
-		
-			// remove key listener
-			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			return;
 		}
 		
@@ -307,13 +306,6 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker = false)
 	{
-		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY, rplId, spawnMarker);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker)
-	{
 		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, rplId, spawnMarker);
 	}
 	
@@ -400,9 +392,9 @@ modded class SCR_PlayerController : PlayerController
 		ToggleMap(false);
 		
 		if(SCR_Global.TeleportLocalPlayer(pos, SCR_EPlayerTeleportedReason.DEFAULT))
-			Print(string.Format("OTF - Player with ID %1 successfully teleported to position %2", GetPlayerId(), pos), LogLevel.NORMAL);
+			Print(string.Format("PlayerController - Player with ID %1 successfully teleported to position %2", GetPlayerId(), pos), LogLevel.NORMAL);
 		else
-			Print(string.Format("OTF - Player with ID %1 NOT successfully teleported to position %2", GetPlayerId(), pos), LogLevel.WARNING);
+			Print(string.Format("PlayerController - Player with ID %1 NOT successfully teleported to position %2", GetPlayerId(), pos), LogLevel.WARNING);
 	}
 
 	//------------------------------------------------------------------------------------------------

@@ -230,48 +230,25 @@ class GRAD_MapMarkerUI
 		Print(string.Format("GRAD CirclemarkerUI: Map Selection Changed"), LogLevel.WARNING);
 		
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (!mapEntity) {
+			Print(string.Format("GRAD CirclemarkerUI: mapEntity is false"), LogLevel.WARNING);	
+			return;
+		}
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
-		
-		if (!playerController)
+		if (!playerController) {
+			Print(string.Format("GRAD CirclemarkerUI: playerController is false"), LogLevel.WARNING);	
 			return;
+		}
 		
 		if (!playerController.IsChoosingSpawn()) {
 			Print(string.Format("GRAD CirclemarkerUI: IsChoosingSpawn is false"), LogLevel.WARNING);	
 			return;
 		}
 		
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (!ch)
-			return;
+		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
+		string factionKey = playerFaction.GetFactionKey();
 		
-		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
-		
-		string characterRole = "none"; 
-		
-		if (characterRoleComponent) {
-			characterRole = characterRoleComponent.GetCharacterRole();
-		}
-	
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
-		string phase = (SCR_Enum.GetEnumName(EBreakingContactPhase, BCM.GetBreakingContactPhase()));
-		
-		bool isOpfor = ch.GetFactionKey() == "USSR";
-		string currentFaction = "none";
-		
-		if (isOpfor && characterRole == "Opfor Commander")
-		{
-			currentFaction = "USSR";
-		};
-		
-		if (!isOpfor && characterRole == "Blufor Commander")
-		{
-			currentFaction = "US";
-		};
-
-		if (!mapEntity)
-			return;
-
 		float x, y;
 		mapEntity.ScreenToWorld(coords[0], coords[2], x, y);
 		coords[0] = x;
@@ -289,7 +266,7 @@ class GRAD_MapMarkerUI
 		}
 
 		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
-		CreateOrMoveSpawnMarker(currentFaction, coords); // sync marker/delete previous marker
+		CreateOrMoveSpawnMarker(factionKey, coords); // sync marker/delete previous marker
 		SetSpawnPos(worldPos); // for other fnc to grab
 	}
 	
@@ -309,19 +286,19 @@ class GRAD_MapMarkerUI
 		foreach(int playerId : allPlayers)
 		{
 			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-	
-			if (!playerController)
-					return;
-			
-			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-			if (!ch)
+			if (!playerController) {
+				Print(string.Format("GRAD MaprmarkerUI: No playercontroller"), LogLevel.ERROR);
 				return;
+			}
+			
+			Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
+			string factionKey = playerFaction.GetFactionKey();
 			
 			// only create marker for same faction!
-			bool createMarker = ch.GetFactionKey() == currentfaction;
+			bool createMarker = factionKey == currentfaction;
 			
 			if (!createMarker) {
-				Print(string.Format("Breaking Contact - not creating marker, wrong faction"), LogLevel.WARNING);
+				Print(string.Format("Breaking Contact - skipping marker creation, wrong faction"), LogLevel.NORMAL);
 				return;
 			}	
 			
@@ -345,7 +322,7 @@ class GRAD_MapMarkerUI
 		{
 			singleCircle.SetVisibility(false); // make previous circles invisible
 			m_aSpawnCircles.Remove(m_aSpawnCircles.Find(singleCircle));
-			Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.WARNING);
+			Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.NORMAL);
 		}
 	}
 

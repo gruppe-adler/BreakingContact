@@ -1,6 +1,7 @@
 // no GAMEMASTER phase as everything should be run out of the box self explaining
 enum EBreakingContactPhase
 {
+	LOADING,
 	PREPTIME,
 	OPFOR,
 	BLUFOR,
@@ -29,8 +30,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	[Attribute(defvalue: "10", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long in seconds the notifications should be displayed", category: "Breaking Contact - Parameters", params: "1 30 1")]
 	protected int m_iNotificationDuration;
 	
-	ref ScriptInvoker OnPhaseChanged = new ScriptInvoker();
-
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
@@ -46,10 +45,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	protected static int m_BLUFOR_SPAWN_DISTANCE = 1000;
 
-
-    [RplProp()]
-	protected EBreakingContactPhase m_iBreakingContactPhase;
-	
+	[RplProp(onRplName: "OnBreakingContactPhaseChanged")]
+    protected EBreakingContactPhase m_iBreakingContactPhase = EBreakingContactPhase.LOADING;	
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
@@ -65,11 +62,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	[RplProp()]
     protected RplId westCommandVehRplId;
 	
-	
-	
 	protected bool m_bIsTransmittingCache;
-	
 	RplComponent m_RplComponent;
+	
 	
     //------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
@@ -78,7 +73,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);
 		
-		m_RplComponent = RplComponent.Cast(FindComponent(RplComponent));
+		m_RplComponent = RplComponent.Cast(FindComponent(RplComponent));  
+						
 		
 		// execute only on the server
 		if (m_RplComponent.IsMaster()) {
@@ -89,6 +85,98 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			GetGame().GetCallqueue().CallLater(setPhaseInitial, 11000, false);
 		}
     }
+	
+	
+	void OnBreakingContactPhaseChanged()
+	{
+		Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase)), LogLevel.NORMAL);
+		
+		string factionKey = GetPlayerFactionKey();
+		
+		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase));
+		string message = "Breaking Contact";
+		
+		switch (m_iBreakingContactPhase) {
+			case EBreakingContactPhase.PREPTIME :
+			{
+				message = "Pretime still running.";
+				break;
+			}
+			case EBreakingContactPhase.OPFOR :
+			{
+				message = "Opfor has to spawn now.";
+				break;
+			}
+			case EBreakingContactPhase.BLUFOR :
+			{
+				message = "Blufor will spawn now.";
+				break;
+			}
+			case EBreakingContactPhase.GAME :
+			{
+				message = "Blufor spawned, Game begins now.";
+				break;
+			}
+			case EBreakingContactPhase.GAMEOVER :
+			{
+				message = "Game is over.";
+				break;
+			}
+		}
+		
+		const int duration = 10;
+		bool isSilent = false;
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController) {
+			Print(string.Format("No player controller in grad playercontroller"), LogLevel.NORMAL);
+			return;
+		}
+		
+		playerController.ShowHint(message, title, duration, isSilent);
+		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
+		
+		// close map for opfor
+		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
+			playerController.ToggleMap(false);
+			playerController.setChoosingSpawn(false);
+			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
+		}
+		
+		// close map for blufor
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
+			playerController.ToggleMap(false);
+			playerController.setChoosingSpawn(false);
+			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
+		}
+		
+		// show logo for all
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
+			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
+			playerController.ShowBCLogo();
+		}
+
+	}
+	
+	//-----
+	string GetPlayerFactionKey() {
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+				
+		if (!playerController) {
+			Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
+			return "";
+		}
+		
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return "";
+		}
+		
+		string factionKey = ch.GetFactionKey();
+		
+		return factionKey;
+	}
 	
 	//------------------------------------------------------------------------------------------------
 	void setPhaseInitial() 
@@ -216,6 +304,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
 		m_iTransmissionsDone.Insert(transmissionPoint);
 	}
+	
 	
 	//------------------------------------------------------------------------------------------------
 	void ManageMarkers() 
@@ -511,21 +600,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	void RequestInitiateOpforSpawn(vector spawnPos) {
+
+		Rpc_RequestInitiateOpforSpawn(spawnPos);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void RequestInitiateOpforSpawn(vector spawnPos)
+	void Rpc_RequestInitiateOpforSpawn(vector spawnPos)
 	{
 		m_vOpforSpawnPos = spawnPos;
 		Replication.BumpMe();
 		
-	    InitiateOpforSpawn();
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// called by RequestInitiateOpforSpawn - server side
-	void InitiateOpforSpawn() 
-	{
+	    TeleportFactionToMapPos("USSR", false);
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
-		TeleportOpfor();
 	}
 	
 	 //------------------------------------------------------------------------------------------------
@@ -536,16 +624,13 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         Replication.BumpMe();
 
         Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
-
-        // Invoke the ScriptInvoker
-        OnPhaseChanged.Invoke(phase); // Pass the new phase as an argument
     }	
 	
 	//------------------------------------------------------------------------------------------------
 	void InitiateBluforSpawn() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
-		TeleportBlufor();
+        TeleportFactionToMapPos("US", false);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -620,16 +705,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         return m_transmissionPoints;		
     }
 
-    //------------------------------------------------------------------------------------------------
-    void TeleportOpfor() {
-        TeleportFactionToMapPos("USSR", false);
-    }
-
-    //------------------------------------------------------------------------------------------------
-    void TeleportBlufor() {
-        TeleportFactionToMapPos("US", false);
-    }
-
 
     //------------------------------------------------------------------------------------------------
     vector findBluforPosition(vector opforSpawnPos) {
@@ -698,6 +773,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName, bool isdebug)
 	{
+		if (!RplComponent.Cast(this.FindComponent(RplComponent)).IsMaster()) // Check if we are on the server
+	    {
+	        Print("TeleportFactionToMapPos called on client! This is an error.", LogLevel.ERROR);
+	        return; // Exit if not on server
+	    }
+		
 		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
 		SCR_PlayerController ExecutingPlayerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(ExecutingPlayerId));
 				

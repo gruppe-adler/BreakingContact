@@ -351,16 +351,24 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		}
 	}
 	
-	// find BCM in favor of having own client instance
+	// find the instance on the server
 	GRAD_BC_BreakingContactManager FindBreakingContactManager()
 	{
-        // Detect world size
-		GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
-	   	if (manager)
-			return manager;
+		IEntity GRAD_BCM = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
+		if (!GRAD_BCM) {
+			Print("GRAD_BCM Entity missing", LogLevel.ERROR);
+			return null	;
+		}
+		
+	 	GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM);
+        if (manager)
+        {
+             Print("Found Server BCM!", LogLevel.NORMAL);
+             return manager;
+        }
 	
-	    Print("Breaking Contact Manager not found!", LogLevel.ERROR); // Handle the case where the manager is not found
-	    return null; // or throw an exception if appropriate
+	    Print("Server Breaking Contact Manager not found!", LogLevel.ERROR);
+	    return null;
 	}
 
 }

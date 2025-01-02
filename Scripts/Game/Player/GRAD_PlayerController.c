@@ -18,18 +18,7 @@ modded class SCR_PlayerController : PlayerController
 				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 3000, false);
 				GetGame().GetCallqueue().CallLater(ForceOpenMap, 4000, false);
-				
-				GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
-		        if (BCM)
-		        {
-		            // Add a handler (lambda function in this example)
-		            BCM.OnPhaseChanged.Insert(OnBreakingContactPhaseChanged);
-		        }
-		        else
-		        {
-		            Print("Breaking Contact Manager not found!", LogLevel.ERROR);
-		        }
-						
+			
 				return;
 			}
 		}
@@ -44,109 +33,8 @@ modded class SCR_PlayerController : PlayerController
 		return m_bChoosingSpawn;
 	}
 	
-	void OnBreakingContactPhaseChanged(EBreakingContactPhase currentPhase)
-	{
-		
-		Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.NORMAL);
-		
-		string factionKey = GetPlayerFactionKey();
-		
-		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase));
-		string message = "Breaking Contact";
-		
-		switch (currentPhase) {
-			case EBreakingContactPhase.PREPTIME :
-			{
-				message = "Pretime still running.";
-				break;
-			}
-			case EBreakingContactPhase.OPFOR :
-			{
-				message = "Opfor has to spawn now.";
-				break;
-			}
-			case EBreakingContactPhase.BLUFOR :
-			{
-				message = "Blufor will spawn now.";
-				break;
-			}
-			case EBreakingContactPhase.GAME :
-			{
-				message = "Blufor spawned, Game begins now.";
-				break;
-			}
-			case EBreakingContactPhase.GAMEOVER :
-			{
-				message = "Game is over.";
-				break;
-			}
-		}
-		
-		const int duration = 10;
-		bool isSilent = false;
-		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController) {
-			return;
-		}
-		
-		playerController.ShowHint(message, title, duration, isSilent);
-		Print(string.Format("Notifying player about phase %1", currentPhase), LogLevel.NORMAL);
-		
-		
-		// open map for opfor
-		if (currentPhase == EBreakingContactPhase.OPFOR && factionKey == "USSR") {
-			ForceOpenMap();
-			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for opfor"), LogLevel.NORMAL);
-		}
-		
-		// open map for blufor
-		if (currentPhase == EBreakingContactPhase.BLUFOR && factionKey == "US") {
-			ForceOpenMap();
-			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for blufor"), LogLevel.NORMAL);
-		}
-		
-		// close map for opfor
-		if (currentPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
-			ToggleMap(false);
-			m_bChoosingSpawn = false;
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
-		}
-		
-		// close map for blufor
-		if (currentPhase == EBreakingContactPhase.GAME && factionKey == "US") {
-			ToggleMap(false);
-			m_bChoosingSpawn = false;
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
-		}
-		
-		// show logo for all
-		if (currentPhase == EBreakingContactPhase.GAME) {
-			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			ShowBCLogo();
-		}
-
-	}
-	
-	
-	//-----
-	string GetPlayerFactionKey() {
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-				
-		if (!playerController) {
-			Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
-			return "";
-		}
-		
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (!ch)  {
-			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
-			return "";
-		}
-		
-		string factionKey = ch.GetFactionKey();
-		
-		return factionKey;
+	void setChoosingSpawn(bool choosing) {
+		m_bChoosingSpawn = choosing;
 	}
 	
 	//------
@@ -205,13 +93,21 @@ modded class SCR_PlayerController : PlayerController
 	// find BCM in favor of having own client instance
 	GRAD_BC_BreakingContactManager FindBreakingContactManager()
 	{
-        // Detect world size
-		GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
-	   	if (manager)
-			return manager;
+		IEntity GRAD_BCM = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
+		if (!GRAD_BCM) {
+			Print("GRAD_BCM Entity missing", LogLevel.ERROR);
+			return null	;
+		}
+		
+	 	GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM);
+        if (manager)
+        {
+             Print("Found Server BCM!", LogLevel.NORMAL);
+             return manager;
+        }
 	
-	    Print("Breaking Contact Manager not found!", LogLevel.ERROR); // Handle the case where the manager is not found
-	    return null; // or throw an exception if appropriate
+	    Print("Server Breaking Contact Manager not found!", LogLevel.ERROR);
+	    return null;
 	}
 	
 	

@@ -177,7 +177,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
 			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-			BCM.InitiateOpforSpawn(spawnPosition);
+			BCM.RequestInitiateOpforSpawn();
 			RemoveSpawnMarker();
 			
 			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
@@ -187,15 +187,11 @@ modded class SCR_PlayerController : PlayerController
 			return;
 		}
 		
-		if (factionKey == "US" && phase == EBreakingContactPhase.BLUFOR) {
-			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords(); // todo randomize start position
-			BCM.InitiateBluforSpawn(spawnPosition);
-			Print(string.Format("Spawn Position found: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
+		if (factionKey == "US" && phase == EBreakingContactPhase.GAME) {
+			Print(string.Format("Removing spawn marker for blufor"), LogLevel.NORMAL);
 			RemoveSpawnMarker();
 			return;
 		}
-		
-		playerController.ShowHint(BCM.GetBreakingContactPhase().ToString() + "  " + factionKey, "phase state", 3, false);
 		
 	}
 

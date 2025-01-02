@@ -82,7 +82,7 @@ modded class SCR_PlayerController : PlayerController
 			}
 		}
 		
-		int duration = 10;
+		const int duration = 10;
 		bool isSilent = false;
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
@@ -514,7 +514,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
 		{
-			int radius = 3;
+			const int radius = 3;
 			Math.Randomize(-1);
             int randomDistanceX = Math.RandomInt( -radius, radius );
             int randomDistanceY = Math.RandomInt( -radius, radius );

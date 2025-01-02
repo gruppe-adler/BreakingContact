@@ -58,6 +58,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
+	
+	// not possible to replicate the IEntity itself!
+	[RplProp()]
+    protected RplId radioTruckRplId;
+	[RplProp()]
+    protected RplId westCommandVehRplId;
+	
+	
+	
 	protected bool m_bIsTransmittingCache;
 	
 	RplComponent m_RplComponent;
@@ -299,12 +308,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				selectedPoint = CreateTransmissionPoint(center);
 			}
 			return selectedPoint;
-		}
+	}
 	
 	
 	//------------------------------------------------------------------------------------------------
-	IEntity SpawnSpawnVehicleWest(vector center, int radius)
-	{		
+	void SpawnSpawnVehicleWest(vector center, int radius)
+	{
 		vector newCenter = FindSpawnPoint(center, radius);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
@@ -313,28 +322,30 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
         // create antenna that serves as component holder for transmission point
         Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
-        IEntity WestSpawnVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+        m_westCommandVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
-		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", WestSpawnVehicle, params), LogLevel.NORMAL);
-		
-		CarControllerComponent carController = CarControllerComponent.Cast(WestSpawnVehicle.FindComponent(CarControllerComponent));
-		// Activate handbrake so the vehicles don't go downhill on their own when spawned
-		if (carController)
-			carController.SetPersistentHandBrake(true);
+		if (!m_westCommandVehicle) {
+			Print(string.Format("BCM - West Command Truck failed to spawn: %1", params), LogLevel.ERROR);
+			return;
+		}
 
-		Physics physicsComponent = WestSpawnVehicle.GetPhysics();
-
-		// Snap to terrain
-		if (physicsComponent)
-			physicsComponent.SetVelocity("0 -1 0");
+		RplComponent rplComponent = RplComponent.Cast(m_westCommandVehicle.FindComponent(RplComponent));
+        if (rplComponent)
+        {
+             westCommandVehRplId = Replication.FindId(rplComponent);
+             Replication.BumpMe(); // Replicate the RplId
+			Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
+        }
 		
-		return WestSpawnVehicle;
+		SetVehiclePhysics(m_westCommandVehicle);
+		
+		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", m_westCommandVehicle, params), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	IEntity SpawnSpawnVehicleEast(vector center, int radius)
-	{		
+	void SpawnSpawnVehicleEast(vector center, int radius)
+	{
 		vector newCenter = FindSpawnPoint(center, radius);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
@@ -343,24 +354,25 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
         // create antenna that serves as component holder for transmission point
         Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
-        IEntity RadioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+        m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
-		CarControllerComponent carController = CarControllerComponent.Cast(RadioTruck.FindComponent(CarControllerComponent));
-		// Activate handbrake so the vehicles don't go downhill on their own when spawned
-		if (carController)
-			carController.SetPersistentHandBrake(true);
-
-		Physics physicsComponent = RadioTruck.GetPhysics();
-
-		// Snap to terrain
-		if (physicsComponent)
-			physicsComponent.SetVelocity("0 -1 0");
+		if (!m_radioTruck) {
+			Print(string.Format("BCM - East Radio Truck failed to spawn: %1", params), LogLevel.ERROR);
+			return;
+		}
 		
-		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", RadioTruck, params), LogLevel.NORMAL);
-		
-		return RadioTruck;
+		RplComponent rplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
+        if (rplComponent)
+        {
+             radioTruckRplId = Replication.FindId(rplComponent);
+             Replication.BumpMe(); // Replicate the RplId
+			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
+        }
+		SetVehiclePhysics(m_radioTruck);
+	
+		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", m_radioTruck, params), LogLevel.NORMAL);
 	}
-
+	
 	
 	//------------------------------------------------------------------------------------------------
 	IEntity CreateTransmissionPoint(vector center) {
@@ -499,7 +511,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RequestInitiateOpforSpawn(vector spawnPos)
 	{
 		m_vOpforSpawnPos = spawnPos;
@@ -643,7 +655,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void NotifyPlayerWrongRole(int playerId, string neededRole)
 	{
 
-		string title = "On The Fly";
+		const string title = "Breaking Contact";
 		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
@@ -663,8 +675,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
 
-		string title = "Breaking Contact";
-		string message = "You can't create the marker in this phase.";
+		const string title = "Breaking Contact";
+		const string message = "You can't create the marker in this phase.";
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
 		
@@ -684,7 +696,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	
 	void TeleportFactionToMapPos(string factionName, bool isdebug)
 	{
 		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
@@ -704,25 +715,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				m_debug = true;
 			}
 			
-			m_radioTruck = SpawnSpawnVehicleEast(m_vOpforSpawnPos, 10);
-	
-			Physics phys = m_radioTruck.GetPhysics();
-			if (phys)
-			{
-				phys.SetVelocity(vector.Zero);
-				phys.SetAngularVelocity(vector.Zero);
-			}
+			SpawnSpawnVehicleEast(m_vOpforSpawnPos, 10);
 			
 		} else {
 			
-			m_westCommandVehicle = SpawnSpawnVehicleWest(m_vBluforSpawnPos, 10);
-			
-			Physics phys = m_westCommandVehicle.GetPhysics();
-			if (phys)
-			{
-				phys.SetVelocity(vector.Zero);
-				phys.SetAngularVelocity(vector.Zero);
-			}
+			SpawnSpawnVehicleWest(m_vBluforSpawnPos, 10);
 			
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
@@ -761,6 +758,21 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		}
 	}
 
+	//----
+	void SetVehiclePhysics(IEntity vehicle) {
+		Physics physicsComponent = vehicle.GetPhysics();
+		if (physicsComponent)
+		{
+			physicsComponent.SetVelocity(vector.Zero);
+			physicsComponent.SetVelocity("0 -1 0");
+			physicsComponent.SetAngularVelocity(vector.Zero);
+		}
+		
+		CarControllerComponent carController = CarControllerComponent.Cast(vehicle.FindComponent(CarControllerComponent));
+		// Activate handbrake so the vehicles don't go downhill on their own when spawned
+		if (carController)
+			carController.SetPersistentHandBrake(true);	
+	}
 
     //------------------------------------------------------------------------------------------------
 	vector MapPosToWorldPos(int mapPos[2])

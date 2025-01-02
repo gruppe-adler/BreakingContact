@@ -32,6 +32,66 @@ modded class SCR_PlayerController : PlayerController
 		return m_bChoosingSpawn;
 	}
 	
+	void NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
+	{
+		
+		Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.NORMAL);
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+				
+		if (!playerController) {
+			Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase));
+		string message = "Breaking Contact";
+		
+		switch (currentPhase) {
+			case EBreakingContactPhase.PREPTIME :
+			{
+				message = "Pretime still running.";
+				break;
+			}
+			case EBreakingContactPhase.OPFOR :
+			{
+				message = "Opfor has to spawn now.";
+				break;
+			}
+			case EBreakingContactPhase.BLUFOR :
+			{
+				message = "Blufor will spawn now.";
+				break;
+			}
+			case EBreakingContactPhase.GAME :
+			{
+				message = "Blufor spawned, Game begins now.";
+				break;
+			}
+			case EBreakingContactPhase.GAMEOVER :
+			{
+				message = "Game is over.";
+				break;
+			}
+		}
+		
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!BCM) {
+			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		EBreakingContactPhase localCurrentPhase = BCM.GetBreakingContactPhase();
+		
+		int duration = 10;
+		bool isSilent = false;
+		
+		playerController.ShowHint(message, title, duration, isSilent);
+		playerController.PhaseChange(playerController, currentPhase);
+		Print(string.Format("Notifying player about phase %1 - local its %2", currentPhase, localCurrentPhase), LogLevel.NORMAL);
+
+	}
+	
 	//------
 	void ForceOpenMap() 
 	{
@@ -86,10 +146,15 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void PhaseChange(EBreakingContactPhase currentPhase) 
+	void PhaseChange(SCR_PlayerController playerController, EBreakingContactPhase currentPhase) 
 	{
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
 		
 		// open map for opfor
 		if (currentPhase == EBreakingContactPhase.OPFOR && factionKey == "USSR") {
@@ -170,8 +235,13 @@ modded class SCR_PlayerController : PlayerController
 		}
 		
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
 		
 		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", factionKey, phase), LogLevel.NORMAL);
 		
@@ -179,7 +249,6 @@ modded class SCR_PlayerController : PlayerController
 			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
 			BCM.RequestInitiateOpforSpawn();
 			RemoveSpawnMarker();
-			
 			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		
 			// remove key listener

@@ -23,7 +23,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	[Attribute(defvalue: "600", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
 	protected int m_TransmissionDuration;
 	
-	[Attribute(defvalue: "3000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "1 3000 1")]
+	[Attribute(defvalue: "1000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "700 3000 1000")]
 	protected int m_iBluforSpawnDistance;
 	
 	[Attribute(defvalue: "10", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long in seconds the notifications should be displayed", category: "Breaking Contact - Parameters", params: "1 30 1")]
@@ -54,12 +54,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     protected ref array<IEntity> m_transmissionPoints = {};
 	protected ref array<IEntity> m_iTransmissionsDone = {};
 	
-	[RplProp()]
-	protected static GRAD_BC_BreakingContactManager s_Instance;
-	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
 	protected bool m_bIsTransmittingCache;
+	
+	// recommendation from chatGPT
+	[RplProp(condition: RplCondition.OwnerOnly)]
+	protected static GRAD_BC_BreakingContactManager s_Instance;
+	
+	RplComponent m_RplComponent;
 	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_BreakingContactManager GetInstance()
@@ -74,12 +77,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);
 		
+		m_RplComponent = RplComponent.Cast(FindComponent(RplComponent));
+		
 		// execute only on the server
-		if (Replication.IsServer()) {
+		if (m_RplComponent.IsMaster()) {
 			m_iNotificationDuration = 10;
 			
 			// check win conditions every second
-	        GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
+			GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
 			GetGame().GetCallqueue().CallLater(setPhaseInitial, 11000, false);
 		}
     }
@@ -496,19 +501,26 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	int GetBreakingContactPhase()
+	EBreakingContactPhase GetBreakingContactPhase()
 	{
+		Print(string.Format("GetBreakingContactPhase - Phase '%1'", m_iBreakingContactPhase, LogLevel.NORMAL));
 		return m_iBreakingContactPhase;
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
 	void RequestInitiateOpforSpawn()
 	{
-		// is this really necessary or already handled above? RPL NOOB SHIT
-	    if (Replication.IsServer()) {
-	    	InitiateOpforSpawn();
-		}
+	    InitiateOpforSpawn();
+	}
+	
+    //------------------------------------------------------------------------------------------------
+	void SetBreakingContactPhase(EBreakingContactPhase phase)
+	{
+		m_iBreakingContactPhase = phase;
+		Replication.BumpMe();
+		
+		Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -525,16 +537,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
 		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.GAME);
 		TeleportBlufor();
-	}
-	
-    //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void SetBreakingContactPhase(EBreakingContactPhase phase)
-	{
-		m_iBreakingContactPhase = phase;
-		Replication.BumpMe();
-		
-		Print(string.Format("Breaking Contact - Phase '%1' entered (%2)", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -644,59 +646,21 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	//------------------------------------------------------------------------------------------------
 	void NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
 	{
-		Rpc(RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange, currentPhase);
-	}
-	
-    //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
-	{
 		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-				
-		if (!playerController) {
-			Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
-			return;
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetAllPlayers(playerIds);	
+		
+		foreach (int playerId : playerIds)
+		{
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+			
+			if (!playerController)
+				return;
+		
+			playerController.NotifyLocalPlayerOnPhaseChange(currentPhase);
 		}
 		
-		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase));
-		string message = "Breaking Contact";
-		
-		switch (currentPhase) {
-			case EBreakingContactPhase.PREPTIME :
-			{
-				message = "Pretime still running.";
-				break;
-			}
-			case EBreakingContactPhase.OPFOR :
-			{
-				message = "Opfor has to spawn now.";
-				break;
-			}
-			case EBreakingContactPhase.BLUFOR :
-			{
-				message = "Blufor will spawn now.";
-				break;
-			}
-			case EBreakingContactPhase.GAME :
-			{
-				message = "Blufor spawned, Game begins now.";
-				break;
-			}
-			case EBreakingContactPhase.GAMEOVER :
-			{
-				message = "Game is over.";
-				break;
-			}
-		}
-		
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-		
-		playerController.ShowHint(message, title, duration, isSilent);
-		playerController.PhaseChange(currentPhase);
-		Print(string.Format("Notifying player about phase change"), LogLevel.NORMAL);
-
+		Print(string.Format("Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.NORMAL);
 	}
 	
 	

@@ -247,7 +247,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
 			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-			BCM.RequestInitiateOpforSpawn();
+			BCM.RequestInitiateOpforSpawn(spawnPosition);
 			RemoveSpawnMarker();
 			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		

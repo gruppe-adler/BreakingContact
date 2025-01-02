@@ -246,8 +246,13 @@ class GRAD_MapMarkerUI
 			return;
 		}
 		
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
 		
 		float x, y;
 		mapEntity.ScreenToWorld(coords[0], coords[2], x, y);
@@ -286,8 +291,14 @@ class GRAD_MapMarkerUI
 			return;
 		}
 		
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
+		
 		
 		// only create marker for same faction!
 		bool createMarker = factionKey == currentfaction;

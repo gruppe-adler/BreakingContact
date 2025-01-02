@@ -509,8 +509,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	void RequestInitiateOpforSpawn()
+	void RequestInitiateOpforSpawn(vector spawnPos)
 	{
+		m_vOpforSpawnPos = spawnPos;
+		Replication.BumpMe();
+		
 	    InitiateOpforSpawn();
 	}
 	
@@ -524,6 +527,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
 	void InitiateOpforSpawn() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
@@ -578,7 +582,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			
 			vector worldPos = {center[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(center[0] + randomDistanceX, center[2] + randomDistanceY), center[2] + randomDistanceY};
-            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
+            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 5, 5);
 
 			loopCount = loopCount + 1;	
 			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3 .", loopCount, worldPos, spawnEmpty), LogLevel.NORMAL);
@@ -612,11 +616,13 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     }
 
     //------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     void TeleportOpfor() {
         TeleportFactionToMapPos("USSR", false);
     }
 
     //------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     void TeleportBlufor() {
         TeleportFactionToMapPos("US", false);
     }
@@ -709,13 +715,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
+	
 	void TeleportFactionToMapPos(string factionName, bool isdebug)
 	{
 		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
 		SCR_PlayerController ExecutingPlayerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(ExecutingPlayerId));
 				
 		if (!ExecutingPlayerController)
-					return;
+			return;
 			
 		ExecutingPlayerController.ShowHint("Teleporting to destination.", "Teleport initiated", 3, false);
 		
@@ -755,25 +762,31 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
 		
 		foreach (int playerId : playerIds)
-		{
-			Faction playerFaction = SCR_FactionManager.SGetPlayerFaction(playerId);
-			string playerFactionName = playerFaction.GetFactionKey();
-			
-			Print(string.Format("BCM - playerFactionName %1 - playerFaction %2", playerFactionName, playerFaction), LogLevel.NORMAL);
-			
+		{	
 			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
 			
 			if (!playerController)
 				return;
 			
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+			if (!ch)  {
+				Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+				return;
+			}
+			
+			string playerFactionName = ch.GetFactionKey();
+			
+			
+			Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
+			
 			if (factionName == playerFactionName)
 			{
 				if (factionName == "US") {
 					playerController.TeleportPlayerToMapPos(playerId, m_vBluforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), m_vBluforSpawnPos), LogLevel.NORMAL);
+					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vBluforSpawnPos), LogLevel.NORMAL);
 				} else {
 					playerController.TeleportPlayerToMapPos(playerId, m_vOpforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFaction.GetFactionKey(), m_vOpforSpawnPos), LogLevel.NORMAL);
+					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vOpforSpawnPos), LogLevel.NORMAL);
 				}	
 			}
 		}

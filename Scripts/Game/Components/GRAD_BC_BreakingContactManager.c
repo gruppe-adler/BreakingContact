@@ -28,6 +28,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	[Attribute(defvalue: "10", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long in seconds the notifications should be displayed", category: "Breaking Contact - Parameters", params: "1 30 1")]
 	protected int m_iNotificationDuration;
+	
+	ref ScriptInvoker OnPhaseChanged = new ScriptInvoker();
 
 
     protected bool m_bluforCaptured;
@@ -58,17 +60,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected IEntity m_westCommandVehicle;
 	protected bool m_bIsTransmittingCache;
 	
-	// recommendation from chatGPT
-	[RplProp(condition: RplCondition.OwnerOnly)]
-	protected static GRAD_BC_BreakingContactManager s_Instance;
-	
 	RplComponent m_RplComponent;
-	
-	//------------------------------------------------------------------------------------------------
-	static GRAD_BC_BreakingContactManager GetInstance()
-	{
-		return s_Instance;
-	}
 	
     //------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
@@ -93,7 +85,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void setPhaseInitial() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
-		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.PREPTIME);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -177,7 +168,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		{
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
 				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
-				NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.OPFOR);
 		};
 		
 		if (currentPhase == EBreakingContactPhase.BLUFOR) {
@@ -342,6 +332,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	IEntity SpawnSpawnVehicleEast(vector center, int radius)
 	{		
 		vector newCenter = FindSpawnPoint(center, radius);
@@ -517,29 +508,31 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	    InitiateOpforSpawn();
 	}
 	
-    //------------------------------------------------------------------------------------------------
-	void SetBreakingContactPhase(EBreakingContactPhase phase)
-	{
-		m_iBreakingContactPhase = phase;
-		Replication.BumpMe();
-		
-		Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
-	}
-	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	// called by RequestInitiateOpforSpawn - server side
 	void InitiateOpforSpawn() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
-		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.BLUFOR);
 		TeleportOpfor();
-	}	
+	}
+	
+	 //------------------------------------------------------------------------------------------------
+	// called by InitiateOpforSpawn - server side
+	void SetBreakingContactPhase(EBreakingContactPhase phase)
+    {
+        m_iBreakingContactPhase = phase;
+        Replication.BumpMe();
+
+        Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
+
+        // Invoke the ScriptInvoker
+        OnPhaseChanged.Invoke(phase); // Pass the new phase as an argument
+    }	
 	
 	//------------------------------------------------------------------------------------------------
 	void InitiateBluforSpawn() 
 	{
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
-		NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase.GAME);
 		TeleportBlufor();
 	}
 
@@ -616,13 +609,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     }
 
     //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     void TeleportOpfor() {
         TeleportFactionToMapPos("USSR", false);
     }
 
     //------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     void TeleportBlufor() {
         TeleportFactionToMapPos("US", false);
     }
@@ -647,28 +638,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	        center[1] // If this is a 2D context, you can omit this line.
 	    );
 	}
-
-
-	//------------------------------------------------------------------------------------------------
-	void NotifyLocalPlayerOnPhaseChange(EBreakingContactPhase currentPhase)
-	{
-		
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);	
-		
-		foreach (int playerId : playerIds)
-		{
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-			
-			if (!playerController)
-				return;
-		
-			playerController.NotifyLocalPlayerOnPhaseChange(currentPhase);
-		}
-		
-		Print(string.Format("Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.NORMAL);
-	}
-	
 	
 	//------------------------------------------------------------------------------------------------
 	void NotifyPlayerWrongRole(int playerId, string neededRole)
@@ -799,22 +768,5 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         // get surfaceY of position mapPos X(Z)Y
 		vector worldPos = {mapPos[0], GetGame().GetWorld().GetSurfaceY(mapPos[0], mapPos[1]), mapPos[1]};
 		return worldPos;
-	}
-
-    //------------------------------------------------------------------------------------------------	
-	void GRAD_BC_BreakingContactManager(IEntitySource src, IEntity parent)
-	{
-		if (s_Instance)
-		{
-			Print("Breaking Contact - Only one instance of GRAD_BC_BreakingContactManager is allowed in the world!", LogLevel.WARNING);
-			delete this;
-			return;
-		}
-
-		s_Instance = this;
-
-		// rest of the init code
-		
-		SetEventMask(EntityEvent.INIT);
 	}
 }

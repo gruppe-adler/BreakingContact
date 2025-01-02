@@ -235,7 +235,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				SetTransmissionState(ETransmissionState.DONE);
 				currentState = GetTransmissionState(); // update to reflect this change
 
-				GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+				GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
 				BCM.AddTransmissionPointDone(m_transmissionPoint);
 			};
 			 
@@ -350,4 +350,17 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 			Print("BC Debug - marker off", LogLevel.NORMAL);
 		}
 	}
+	
+	// find BCM in favor of having own client instance
+	GRAD_BC_BreakingContactManager FindBreakingContactManager()
+	{
+        // Detect world size
+		GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
+	   	if (manager)
+			return manager;
+	
+	    Print("Breaking Contact Manager not found!", LogLevel.ERROR); // Handle the case where the manager is not found
+	    return null; // or throw an exception if appropriate
+	}
+
 }

@@ -143,6 +143,11 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
 	{
+		if (Replication.IsServer()) {
+			Print(string.Format("ConfirmSpawn executed on server too"), LogLevel.NORMAL);
+		}
+ 
+		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController) {
 			Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
@@ -168,7 +173,7 @@ modded class SCR_PlayerController : PlayerController
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
 			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-			BCM.RequestInitiateOpforSpawn(spawnPosition);
+			RequestInitiateOpforSpawnLocal(spawnPosition);
 			RemoveSpawnMarker();
 			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		
@@ -191,6 +196,23 @@ modded class SCR_PlayerController : PlayerController
 	void InsertMarker(SCR_MapMarkerBase marker)
 	{
 		Rpc(RpcDo_Owner_InsertMarker, marker);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void RequestInitiateOpforSpawnLocal(vector spawnPos) {
+		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
+		
+		Rpc(RequestInitiateOpforSpawn,spawnPos);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// this needs to be inside player controller to work, dont switch component during rpc? i guess
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	void RequestInitiateOpforSpawn(vector spawnPos) {
+		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		
+		BCM.Rpc_RequestInitiateOpforSpawn(spawnPos);
 	}
 	
 	//------------------------------------------------------------------------------------------------

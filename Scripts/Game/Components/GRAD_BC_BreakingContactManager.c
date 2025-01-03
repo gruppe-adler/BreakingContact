@@ -181,6 +181,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	//------------------------------------------------------------------------------------------------
 	void setPhaseInitial() 
 	{
+		Print(string.Format("setPhaseInitial executed"), LogLevel.NORMAL);
 		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
 	}
 	
@@ -600,15 +601,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void RequestInitiateOpforSpawn(vector spawnPos) {
-
-		Rpc_RequestInitiateOpforSpawn(spawnPos);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void Rpc_RequestInitiateOpforSpawn(vector spawnPos)
 	{
+		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		m_vOpforSpawnPos = spawnPos;
 		Replication.BumpMe();
 		
@@ -773,11 +768,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName, bool isdebug)
 	{
-		if (!RplComponent.Cast(this.FindComponent(RplComponent)).IsMaster()) // Check if we are on the server
-	    {
-	        Print("TeleportFactionToMapPos called on client! This is an error.", LogLevel.ERROR);
-	        return; // Exit if not on server
-	    }
+		Print(string.Format("Breaking Contact - TeleportFactionToMapPos"), LogLevel.NORMAL);
 		
 		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
 		SCR_PlayerController ExecutingPlayerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(ExecutingPlayerId));

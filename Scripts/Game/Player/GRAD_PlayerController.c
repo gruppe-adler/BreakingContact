@@ -18,6 +18,7 @@ modded class SCR_PlayerController : PlayerController
 				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 3000, false);
 				GetGame().GetCallqueue().CallLater(ForceOpenMap, 4000, false);
+			
 				return;
 			}
 		}
@@ -30,6 +31,10 @@ modded class SCR_PlayerController : PlayerController
 	{
 		Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
+	}
+	
+	void setChoosingSpawn(bool choosing) {
+		m_bChoosingSpawn = choosing;
 	}
 	
 	//------
@@ -74,58 +79,37 @@ modded class SCR_PlayerController : PlayerController
 			m_bChoosingSpawn = true;
 		}
 		
+		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase blufor - is blufor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
 		}
-		
 		
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
 		
 	}
 	
-	//------------------------------------------------------------------------------------------------
-	void PhaseChange(EBreakingContactPhase currentPhase) 
+	// find BCM in favor of having own client instance
+	GRAD_BC_BreakingContactManager FindBreakingContactManager()
 	{
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
-		
-		// open map for opfor
-		if (currentPhase == EBreakingContactPhase.OPFOR && factionKey == "USSR") {
-			ForceOpenMap();
-			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for opfor"), LogLevel.NORMAL);
+		IEntity GRAD_BCM = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
+		if (!GRAD_BCM) {
+			Print("GRAD_BCM Entity missing", LogLevel.ERROR);
+			return null	;
 		}
 		
-		// open map for blufor
-		if (currentPhase == EBreakingContactPhase.BLUFOR && factionKey == "US") {
-			ForceOpenMap();
-			Print(string.Format("GRAD Playercontroller PhaseChange - opening map for blufor"), LogLevel.NORMAL);
-		}
-		
-		// close map for opfor
-		if (currentPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
-			ToggleMap(false);
-			m_bChoosingSpawn = false;
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
-		}
-		
-		// close map for blufor
-		if (currentPhase == EBreakingContactPhase.GAME && factionKey == "US") {
-			ToggleMap(false);
-			m_bChoosingSpawn = false;
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
-		}
-		
-		// show logo for all
-		if (currentPhase == EBreakingContactPhase.GAME) {
-			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			ShowBCLogo();
-		}
+	 	GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM);
+        if (manager)
+        {
+             Print("Found Server BCM!", LogLevel.NORMAL);
+             return manager;
+        }
 	
+	    Print("Server Breaking Contact Manager not found!", LogLevel.ERROR);
+	    return null;
 	}
+	
 	
 	void ShowBCLogo() {
 		PlayerController playerController = GetGame().GetPlayerController();
@@ -158,45 +142,51 @@ modded class SCR_PlayerController : PlayerController
 	
 	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
-	{	
+	{
+		if (Replication.IsServer()) {
+			Print(string.Format("ConfirmSpawn executed on server too"), LogLevel.NORMAL);
+		}
+ 
+		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController) {
 			Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
 		if (!BCM) {
 			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
-		vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
+		
+		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", factionKey, phase), LogLevel.NORMAL);
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
-			BCM.InitiateOpforSpawn(spawnPosition);
-			Print(string.Format("Spawn Position selected: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
+			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+			RequestInitiateOpforSpawnLocal(spawnPosition);
 			RemoveSpawnMarker();
+			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		
 			// remove key listener
 			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			return;
 		}
 		
-		if (factionKey == "US" && phase == EBreakingContactPhase.BLUFOR) {
-			BCM.InitiateBluforSpawn(spawnPosition);
-			Print(string.Format("Spawn Position selected: %1", GetPlayerId(), spawnPosition), LogLevel.NORMAL);
+		if (factionKey == "US" && phase == EBreakingContactPhase.GAME) {
+			Print(string.Format("Removing spawn marker for blufor"), LogLevel.NORMAL);
 			RemoveSpawnMarker();
-		
-			// remove key listener
-			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			return;
 		}
-		
-		playerController.ShowHint(BCM.GetBreakingContactPhase().ToString() + "  " + factionKey, "phase state", 3, false);
 		
 	}
 
@@ -206,6 +196,23 @@ modded class SCR_PlayerController : PlayerController
 	void InsertMarker(SCR_MapMarkerBase marker)
 	{
 		Rpc(RpcDo_Owner_InsertMarker, marker);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void RequestInitiateOpforSpawnLocal(vector spawnPos) {
+		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
+		
+		Rpc(RequestInitiateOpforSpawn,spawnPos);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// this needs to be inside player controller to work, dont switch component during rpc? i guess
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	void RequestInitiateOpforSpawn(vector spawnPos) {
+		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		
+		BCM.Rpc_RequestInitiateOpforSpawn(spawnPos);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -307,13 +314,6 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker = false)
 	{
-		Rpc(RpcDo_Owner_AddCircleMarker, startX, startY, endX, endY, rplId, spawnMarker);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker)
-	{
 		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, rplId, spawnMarker);
 	}
 	
@@ -400,9 +400,9 @@ modded class SCR_PlayerController : PlayerController
 		ToggleMap(false);
 		
 		if(SCR_Global.TeleportLocalPlayer(pos, SCR_EPlayerTeleportedReason.DEFAULT))
-			Print(string.Format("OTF - Player with ID %1 successfully teleported to position %2", GetPlayerId(), pos), LogLevel.NORMAL);
+			Print(string.Format("PlayerController - Player with ID %1 successfully teleported to position %2", GetPlayerId(), pos), LogLevel.NORMAL);
 		else
-			Print(string.Format("OTF - Player with ID %1 NOT successfully teleported to position %2", GetPlayerId(), pos), LogLevel.WARNING);
+			Print(string.Format("PlayerController - Player with ID %1 NOT successfully teleported to position %2", GetPlayerId(), pos), LogLevel.WARNING);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -426,20 +426,20 @@ modded class SCR_PlayerController : PlayerController
 		
 		bool teleportSuccessful;
 		bool spawnEmpty;
-		int spawnSearchLoop;
+		int spawnSearchLoop = 0;
 		
 		vector newWorldPos;
 		
 		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
 		{
-			int radius = 3;
+			int radius = 3 + spawnSearchLoop; // increasing each loop
 			Math.Randomize(-1);
-            int randomDistanceX = Math.RandomInt( -radius, radius );
-            int randomDistanceY = Math.RandomInt( -radius, radius );
+            float randomDistanceX = Math.RandomFloat( -radius, radius );
+            float randomDistanceY = Math.RandomFloat( -radius, radius );
 			
 			vector spawnPosFinal = {spawnPos[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(spawnPos[0] + randomDistanceX, spawnPos[2] + randomDistanceY), spawnPos[2] + randomDistanceY};
 			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, 2, 2);
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, radius, 2);
 			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
 			Print(string.Format("GRAD PlayerController - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
 		}

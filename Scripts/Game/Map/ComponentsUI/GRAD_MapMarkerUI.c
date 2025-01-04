@@ -246,8 +246,13 @@ class GRAD_MapMarkerUI
 			return;
 		}
 		
-		Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-		string factionKey = playerFaction.GetFactionKey();
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
 		
 		float x, y;
 		mapEntity.ScreenToWorld(coords[0], coords[2], x, y);
@@ -276,44 +281,45 @@ class GRAD_MapMarkerUI
 		RpcAsk_Authority_CreateOrMoveSpawnMarker(currentfaction, coords);
 	}
 	
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	// everyone evaluates and adds circle if faction is correct
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcAsk_Authority_CreateOrMoveSpawnMarker(string currentfaction, vector coords)
 	{
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		if (!playerController) {
+			Print(string.Format("GRAD MapmarkerUI: No playercontroller"), LogLevel.ERROR);
+			return;
+		}
 		
-		array<int> allPlayers = {};
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
 		
-		GetGame().GetPlayerManager().GetPlayers(allPlayers);
-		foreach(int playerId : allPlayers)
-		{
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-			if (!playerController) {
-				Print(string.Format("GRAD MaprmarkerUI: No playercontroller"), LogLevel.ERROR);
-				return;
-			}
-			
-			Faction playerFaction = SCR_FactionManager.SGetLocalPlayerFaction();
-			string factionKey = playerFaction.GetFactionKey();
-			
-			// only create marker for same faction!
-			bool createMarker = factionKey == currentfaction;
-			
-			if (!createMarker) {
-				Print(string.Format("Breaking Contact - skipping marker creation, wrong faction"), LogLevel.NORMAL);
-				return;
-			}	
-			
-			Print(string.Format("Breaking Contact CreateOrMoveSpawnMarker"), LogLevel.NORMAL);
-			
-			// todo fix hardcoded
-			playerController.AddCircleMarker(
-				coords[0] - 500.0,
-				coords[2] + 500.0,
-				coords[0] + 500.0,
-				coords[2] + 500.0,
-				-1,
-				true
-			);
-		};
+		string factionKey = ch.GetFactionKey();
+		
+		
+		// only create marker for same faction!
+		bool createMarker = factionKey == currentfaction;
+		
+		
+		Print(string.Format("GRAD MapmarkerUI: factionKey is " + factionKey + " | " + "createMarker is " + createMarker.ToString()), LogLevel.NORMAL);
+		
+		if (!createMarker) {
+			Print(string.Format("Breaking Contact - skipping marker creation, wrong faction"), LogLevel.NORMAL);
+			return;
+		}
+		
+		// todo fix hardcoded
+		playerController.AddCircleMarker(
+			coords[0] - 500.0,
+			coords[2] + 500.0,
+			coords[0] + 500.0,
+			coords[2] + 500.0,
+			-1,
+			true
+		);
 	}
 	
 	//------------------------------------------------------------------------------------------------

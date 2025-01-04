@@ -42,8 +42,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	[RplProp()]
     protected vector m_vBluforSpawnPos;
-	
-	protected static int m_BLUFOR_SPAWN_DISTANCE = 1000;
 
 	[RplProp(onRplName: "OnBreakingContactPhaseChanged")]
     protected EBreakingContactPhase m_iBreakingContactPhase = EBreakingContactPhase.LOADING;	
@@ -270,11 +268,16 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		if (currentPhase == EBreakingContactPhase.BLUFOR) {
 			
-			m_vBluforSpawnPos = findBluforPosition(m_vOpforSpawnPos);
-			bool isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 10, 10);
-			if (!isvalid) {
-				Print(string.Format("Breaking Contact - Blufor spawn position invalid, trying again next main loop tick."), LogLevel.NORMAL);
-				return;
+			bool isvalid = false;
+			int loopcount = 0;
+			while (!isvalid) {
+				loopcount = loopcount + 1;
+				m_vBluforSpawnPos = findBluforPosition(m_vOpforSpawnPos);
+			 	Print(string.Format("Breaking Contact - Blufor spawn position %1 - %2.", isvalid, loopcount), LogLevel.NORMAL);
+				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 10, 10);
+				
+				
+				if (loopcount > 150) { isvalid = true }; // emergency exit
 			}
 				
 			InitiateBluforSpawn();
@@ -655,12 +658,29 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     {
         bool foundSpawnPoint;
 		int loopCount;
+		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
+		// (vector pos, out BaseRoad foundRoad, out float distance, bool skipNavlinks = false);
+		if (roadNetworkManager) {
+			BaseRoad emptyRoad;
+			float distanceRoad;
+			auto outPoints = new array<vector>();
+			outPoints.Insert(Vector(0, 0, 0));
+			outPoints.Insert(Vector(0, 0, 0));
+			roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
+			
+			if (emptyRoad) {
+				PrintFormat("BCM - found road %1 - outPoints before %1", emptyRoad, outPoints);
+				emptyRoad.GetPoints(outPoints);
+				PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
+			}
+			
+		}
 
         while (!foundSpawnPoint) {
 			int randomDistanceX = minradius;
             int randomDistanceY = minradius;
 			
-			if (minradius > 0) {
+			if (minradius < 0) {
 				Math.Randomize(-1);
             	randomDistanceX = Math.RandomInt( -radius, radius );
             	randomDistanceY = Math.RandomInt( -radius, radius );
@@ -705,7 +725,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     vector findBluforPosition(vector opforSpawnPos) {
 		
 		int degrees = Math.RandomIntInclusive(0, 360);
-		vector bluforSpawnPos = GetPointOnCircle(opforSpawnPos, m_BLUFOR_SPAWN_DISTANCE, degrees);
+		vector bluforSpawnPos = GetPointOnCircle(opforSpawnPos, m_iBluforSpawnDistance, degrees);
 
 		return bluforSpawnPos;
     }

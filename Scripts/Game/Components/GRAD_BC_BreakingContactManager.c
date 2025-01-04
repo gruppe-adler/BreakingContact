@@ -272,9 +272,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			int loopcount = 0;
 			while (!isvalid) {
 				loopcount = loopcount + 1;
-				m_vBluforSpawnPos = findBluforPosition(m_vOpforSpawnPos);
+				m_vBluforSpawnPos = findBluforPosition();
 			 	Print(string.Format("Breaking Contact - Blufor spawn position %1 - %2.", isvalid, loopcount), LogLevel.NORMAL);
-				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 10, 10);
+				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 5, 7);
 				
 				
 				if (loopcount > 150) { isvalid = true }; // emergency exit
@@ -405,9 +405,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	
 	//------------------------------------------------------------------------------------------------
-	void SpawnSpawnVehicleWest(vector center, int radius)
+	void SpawnSpawnVehicleWest(vector center)
 	{
-		vector newCenter = FindSpawnPoint(center, radius);
+		vector newCenter = FindSpawnPoint(center);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = newCenter;
@@ -437,9 +437,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void SpawnSpawnVehicleEast(vector center, int radius)
+	void SpawnSpawnVehicleEast(vector center)
 	{
-		vector newCenter = FindSpawnPoint(center, radius);
+		vector newCenter = FindSpawnPoint(center);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = newCenter;
@@ -652,55 +652,63 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		return transmissionPoint;
 	}
 
+	// 
+	protected vector GetNearestRoadPos(vector center) {
+	
+		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
+		
+		if (roadNetworkManager) {
+				BaseRoad emptyRoad;
+				float distanceRoad;
+				auto outPoints = new array<vector>();
+				// needs 2 points i presume, no documentation for this
+				outPoints.Insert(Vector(0, 0, 0));
+				outPoints.Insert(Vector(0, 0, 0));
+				roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
+				
+				if (emptyRoad) {
+					emptyRoad.GetPoints(outPoints);
+					PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
+				
+					return outPoints[0];
+				}
+			}
+			return center;
+	}
 
     //------------------------------------------------------------------------------------------------
-    protected vector FindSpawnPoint(vector center, int radius, int minradius = -1)
+    protected vector FindSpawnPoint(vector center, int minradius = -1)
     {
         bool foundSpawnPoint;
-		int loopCount;
-		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
+		int loopCount = 0;
+		
 		// (vector pos, out BaseRoad foundRoad, out float distance, bool skipNavlinks = false);
-		if (roadNetworkManager) {
-			BaseRoad emptyRoad;
-			float distanceRoad;
-			auto outPoints = new array<vector>();
-			outPoints.Insert(Vector(0, 0, 0));
-			outPoints.Insert(Vector(0, 0, 0));
-			roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
-			
-			if (emptyRoad) {
-				PrintFormat("BCM - found road %1 - outPoints before %1", emptyRoad, outPoints);
-				emptyRoad.GetPoints(outPoints);
-				PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
-			}
-			
-		}
+		
 
         while (!foundSpawnPoint) {
-			int randomDistanceX = minradius;
-            int randomDistanceY = minradius;
 			
 			if (minradius < 0) {
-				Math.Randomize(-1);
-            	randomDistanceX = Math.RandomInt( -radius, radius );
-            	randomDistanceY = Math.RandomInt( -radius, radius );
+				minradius = loopCount;
 			}
 			
-			vector worldPos = {center[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(center[0] + randomDistanceX, center[2] + randomDistanceY), center[2] + randomDistanceY};
-            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 5, 5);
-
+			vector roadPos = GetNearestRoadPos(center);
+			// vector worldPos = {roadPos[0], GetGame().GetWorld().GetSurfaceY(roadPos[0], roadPos[2]), roadPos[2]};
+            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minradius, 7);
+			
 			loopCount = loopCount + 1;	
-			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3 .", loopCount, worldPos, spawnEmpty), LogLevel.NORMAL);
+			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3 .", loopCount, roadPos, spawnEmpty), LogLevel.NORMAL);
 			
             if (spawnEmpty) {
                 foundSpawnPoint = true;
-				center = worldPos;
+				center = roadPos;
 				
 				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
             }
 			
-			if (loopCount > 100)
+			if (loopCount > 100) {
 				return center;
+				Print(string.Format("BCM - no spawn point after '%1 loops'.", loopCount), LogLevel.ERROR);
+			}
         }
 
         return center;
@@ -722,10 +730,33 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-    vector findBluforPosition(vector opforSpawnPos) {
+    vector findBluforPosition() {
+		bool foundPositionOnLand = false;
+		int loopCount = 0;
+		vector bluforSpawnPos = m_vOpforSpawnPos;
 		
-		int degrees = Math.RandomIntInclusive(0, 360);
-		vector bluforSpawnPos = GetPointOnCircle(opforSpawnPos, m_iBluforSpawnDistance, degrees);
+		while (!foundPositionOnLand) {
+			
+			loopCount = loopCount + 1;
+			int degrees = Math.RandomIntInclusive(0, 360);
+			bluforSpawnPos = GetPointOnCircle(m_vOpforSpawnPos, m_iBluforSpawnDistance, degrees);
+			
+			vector spawnPosOnRoad = GetNearestRoadPos(bluforSpawnPos);
+			float distanceToOpfor = vector.DistanceXZ(spawnPosOnRoad, m_vOpforSpawnPos);
+			Print(string.Format("BCM - blufor position distanceToOpfor %1 - degrees %2 - bluforSpawnPos %3 - spawnPosOnRoad %4 - distanceToOpfor %5 - m_vOpforSpawnPos %6 .", distanceToOpfor, degrees, bluforSpawnPos, spawnPosOnRoad, distanceToOpfor, m_vOpforSpawnPos), LogLevel.NORMAL);
+			
+			// we accept up to 200m closer to opfor than param
+			if (distanceToOpfor >= m_iBluforSpawnDistance) {
+				bluforSpawnPos = spawnPosOnRoad;
+				Print(string.Format("BCM - findBluforPosition on road after '%1 loops'.", loopCount), LogLevel.NORMAL);				
+				foundPositionOnLand = true;
+			}
+			
+			if (loopCount > 150) {
+				foundPositionOnLand = true;
+				Print(string.Format("BCM - findBluforPosition on road NOT FOUND after '%1 loops'.", loopCount), LogLevel.ERROR);		
+			}
+		}
 
 		return bluforSpawnPos;
     }
@@ -807,11 +838,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				m_debug = true;
 			}
 			
-			SpawnSpawnVehicleEast(m_vOpforSpawnPos, 10);
+			SpawnSpawnVehicleEast(m_vOpforSpawnPos);
 			
 		} else {
 			
-			SpawnSpawnVehicleWest(m_vBluforSpawnPos, 10);
+			SpawnSpawnVehicleWest(m_vBluforSpawnPos);
 			
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
@@ -840,10 +871,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			if (factionName == playerFactionName)
 			{
 				if (factionName == "US") {
-					playerController.TeleportPlayerToMapPos(playerId, m_vBluforSpawnPos);
+					
+					GetGame().GetCallqueue().CallLater(playerController.TeleportPlayerToMapPos, 3000, false, playerId, m_vBluforSpawnPos);
 					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vBluforSpawnPos), LogLevel.NORMAL);
 				} else {
-					playerController.TeleportPlayerToMapPos(playerId, m_vOpforSpawnPos);
+					GetGame().GetCallqueue().CallLater(playerController.TeleportPlayerToMapPos, 3000, false, playerId, m_vOpforSpawnPos);
 					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vOpforSpawnPos), LogLevel.NORMAL);
 				}	
 			}
@@ -852,6 +884,18 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 	//----
 	void SetVehiclePhysics(IEntity vehicle) {
+		// handbrake first, saw this in BI method		
+		CarControllerComponent carController = CarControllerComponent.Cast(vehicle.FindComponent(CarControllerComponent));
+		// Activate handbrake so the vehicles don't go downhill on their own when spawned
+		// not entirely sure why there are two functions for this, probably one for unsimulated/frozen and one for simulated
+		if (carController)
+			carController.SetPersistentHandBrake(true);
+		
+		VehicleWheeledSimulation simulation = carController.GetSimulation();
+		if (simulation) {
+			simulation.SetBreak(true, true);	
+		}
+		
 		Physics physicsComponent = vehicle.GetPhysics();
 		if (physicsComponent)
 		{
@@ -859,11 +903,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			physicsComponent.SetVelocity("0 -1 0");
 			physicsComponent.SetAngularVelocity(vector.Zero);
 		}
-		
-		CarControllerComponent carController = CarControllerComponent.Cast(vehicle.FindComponent(CarControllerComponent));
-		// Activate handbrake so the vehicles don't go downhill on their own when spawned
-		if (carController)
-			carController.SetPersistentHandBrake(true);	
 	}
 
     //------------------------------------------------------------------------------------------------

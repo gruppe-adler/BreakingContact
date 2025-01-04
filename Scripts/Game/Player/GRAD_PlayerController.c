@@ -426,20 +426,20 @@ modded class SCR_PlayerController : PlayerController
 		
 		bool teleportSuccessful;
 		bool spawnEmpty;
-		int spawnSearchLoop;
+		int spawnSearchLoop = 0;
 		
 		vector newWorldPos;
 		
 		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
 		{
-			const int radius = 3;
+			int radius = 3 + spawnSearchLoop; // increasing each loop
 			Math.Randomize(-1);
-            int randomDistanceX = Math.RandomInt( -radius, radius );
-            int randomDistanceY = Math.RandomInt( -radius, radius );
+            float randomDistanceX = Math.RandomFloat( -radius, radius );
+            float randomDistanceY = Math.RandomFloat( -radius, radius );
 			
 			vector spawnPosFinal = {spawnPos[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(spawnPos[0] + randomDistanceX, spawnPos[2] + randomDistanceY), spawnPos[2] + randomDistanceY};
 			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, 2, 2);
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, radius, 2);
 			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
 			Print(string.Format("GRAD PlayerController - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
 		}

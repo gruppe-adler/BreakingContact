@@ -16,7 +16,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool HasLocalEffectOnlyScript()
 	{
-	    return true;
+	    return false;
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -1,3 +1,51 @@
 Vehicle : "{9A0D72816DFFDB7F}Prefabs/Vehicles/Wheeled/M923A1/M923A1.et" {
  ID "5206D4E79715C115"
+ components {
+  ADM_ShopComponent "{644D68F4328589DC}" {
+   m_AdditionalMerchandise {
+    ADM_ShopMerchandise "{644D68F4459D7B34}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F443B2CADC}" {
+      m_iMaxPurchaseQuantity 1
+      m_sPrefab "{47D94E1193A88497}Prefabs/Vehicles/Wheeled/M151A2/M151A2_transport.et"
+      m_SpawnPosition PointInfo "{644D68F441121020}" {
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F45C6C716E}" {
+       m_Quantity 1
+      }
+     }
+    }
+    ADM_ShopMerchandise "{644D68F47D923954}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F4795AD7F7}" {
+      m_iMaxPurchaseQuantity 10
+      m_sPrefab "{F6B23D17D5067C11}Prefabs/Vehicles/Wheeled/M151A2/M151A2_M2HB.et"
+      m_SpawnPosition PointInfo "{644D68F488E39F9D}" {
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F485F1E8EE}" {
+       m_Quantity 1
+      }
+     }
+    }
+    ADM_ShopMerchandise "{644D68F480FF5F7E}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F49D2F905C}" {
+      m_iMaxPurchaseQuantity 1
+      m_sPrefab "{DDDD9B51F1234DF3}Prefabs/Vehicles/Helicopters/UH1H/UH1H_armed.et"
+      m_SpawnPosition PointInfo "{644D68F494093F35}" {
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F4AF35959E}" {
+       m_Quantity 1
+      }
+     }
+    }
+   }
+  }
+ }
 }

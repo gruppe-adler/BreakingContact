@@ -7,12 +7,12 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
 		
-		if (m_wRoot) {
-			if (!m_logo) {
-				m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget"));
-				m_logo.SetOpacity(0.0);
-			};
-		};
+		m_wRoot = GetRootWidget();
+		
+		if (!m_wRoot) {
+			PrintFormat("GRAD_BC_Transmission: no m_wRoot found", LogLevel.ERROR);
+			return;
+		}
 	}
 	
 	override event void DisplayStartDraw(IEntity owner)
@@ -20,10 +20,8 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		super.DisplayStartDraw(owner);	
 		
 		if (!m_logo) { 
-			if (m_wRoot) {
-				m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget"));
-				m_logo.SetOpacity(0.0);
-			};
+			m_logo = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Logo_Widget"));
+			m_logo.SetOpacity(0.0);
 		};
 	}
 	

@@ -31,7 +31,10 @@ class MapCircle
 		if (isSpawnMarker) {
 			m_wCircleImage.LoadImageTexture (0, "{7B0B54A321361079}UI/Textures/Map/circle_spawn.edds", false, false);
 			UpdateCircle(); // set opacity to 1 for spawn marker
-		};
+		} else {
+			m_wCircleImage.LoadImageTexture (0, "{F4DD93249A5EC259}UI/Textures/Map/circle_range.edds", false, false);
+			UpdateCircle();
+		}
 	}
 	
 	//---
@@ -375,7 +378,7 @@ class GRAD_MapMarkerUI
 			}
 			
 			circle.CreateCircle(m_wDrawingContainer); // actually create too :P
-			foreach (MapCircle singleCircle: m_aSpawnCircles)
+			foreach (MapCircle singleCircle: m_aTransmissionCircles)
 			{
 				GetGame().GetCallqueue().CallLater(singleCircle.UpdateCircle, 1, false); // needs to be delayed by a frame as it cant always update the size after zoom correctly within the same frame
 			}

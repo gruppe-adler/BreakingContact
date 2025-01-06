@@ -1,13 +1,20 @@
 SCR_PlayerController {
  ID "1A9BA6BEFA06E3B1"
  components {
+  ADM_CurrencyComponent "{644D68F422C12855}" {
+   m_Value 5
+  }
+  ADM_PlayerShopManagerComponent "{644D68F5C12179D3}" {
+  }
   SCR_HUDManagerComponent "{2FDC275D9EBCDB8B}" {
    InfoDisplays {
     GRAD_BC_Logo "{5F3EC92AC9E424F8}" {
      m_LayoutPath "{9A969E139E27E0F5}UI/Layouts/HUD/GRAD_BC_Logo/GRAD_BC_Logo.layout"
+     m_eShow 55
     }
     GRAD_BC_Transmission "{5F3EC93024E76EF5}" {
      m_LayoutPath "{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout"
+     m_eShow 55
     }
    }
   }

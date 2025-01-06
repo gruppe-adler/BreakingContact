@@ -47,40 +47,72 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	{
 
 		if (m_mapDescriptorComponent) {
-			MapItem item;
-			item = m_mapDescriptorComponent.Item();
-			MapDescriptorProps props = item.GetProps();
-
-				if (m_bIsTransmitting)
-				{
-					Print(string.Format("Breaking Contact RTC - Transmitting..."), LogLevel.NORMAL);
-
-					string progressString = string.Format("Radio Truck active");
-
-					item.SetDisplayName(progressString);
-					props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-					item.SetImageDef("{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds");
-			        // props.SetImageDef("{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset");
-					props.SetIconVisible(true);
-					props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-					props.SetOutlineColor(Color.Black);
-					props.SetTextColor(Color.Red);
-					props.SetTextSize(30.0, 30.0, 30.0);
-					props.SetIconSize(30.0, 30.0, 30.0);
-					props.Activate(true);
-					item.SetProps(props);
-				} else {
-					props.SetIconVisible(true);
-					props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-					props.SetOutlineColor(Color.Black);
-					props.SetTextColor(Color.FromRGBA(0, 0, 0, 0));
-					props.SetTextSize(30.0, 30.0, 30.0);
-					props.SetIconSize(3.0, 3.0, 3.0);
-					props.Activate(true);
-					item.SetProps(props);
-				}	
+			adjustMapItem(GetTransmissionActive());	
 		}
-		// Print(string.Format("Breaking Contact RTC -  Main Loop Tick"), LogLevel.NORMAL);
+		
+		if (GetTransmissionActive()) { applyBrakes(); }
+	}
+	
+	void adjustMapItem(bool active) {
+		MapItem item;
+		item = m_mapDescriptorComponent.Item();
+		MapDescriptorProps props = item.GetProps();
+		
+		if (active)
+		{
+			Print(string.Format("Breaking Contact RTC - Transmitting..."), LogLevel.NORMAL);
+
+			string progressString = string.Format("Radio Truck active");
+
+			props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
+			item.SetImageDef("{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds");
+	        // props.SetImageDef("{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset");
+			props.SetIconVisible(true);
+			props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			props.SetOutlineColor(Color.Black);
+			props.SetTextColor(Color.Red);
+			props.SetTextSize(30.0, 30.0, 30.0);
+			props.SetTextOffsetX(-10);
+			props.SetTextOffsetY(-16.5);
+			props.SetTextBold();
+			props.SetIconSize(30.0, 30.0, 30.0);
+			props.Activate(true);
+			item.SetProps(props);
+			item.SetDisplayName(progressString);
+			item.SetVisible(true);
+			
+		} else {
+			props.SetIconVisible(true);
+			props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
+			props.SetOutlineColor(Color.Black);
+			props.SetTextColor(Color.FromRGBA(0, 0, 0, 0));
+			props.SetTextSize(30.0, 30.0, 30.0);
+			props.SetIconSize(3.0, 3.0, 3.0);
+			props.Activate(true);
+			item.SetProps(props);
+		}	
+	}
+	
+	void applyBrakes() {
+		RplComponent rplComp = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
+		// currently log is on server always, even when players steer the truck :/
+		if (!rplComp.IsProxy()) {
+			Print(string.Format("Breaking Contact RTC - i am server, exiting brake lock"), LogLevel.NORMAL);
+			return;
+		}
+			
+		CarControllerComponent carController = CarControllerComponent.Cast(m_radioTruck.FindComponent(CarControllerComponent));
+		// apparently this does not work?		
+		if (carController && !carController.GetPersistentHandBrake()) {
+			carController.SetPersistentHandBrake(true);
+			Print(string.Format("Breaking Contact RTC - setting handbrake"), LogLevel.NORMAL);
+		}
+		
+		VehicleWheeledSimulation simulation = carController.GetSimulation();
+		if (simulation && !simulation.GetBrake()) {
+			simulation.SetBreak(true, true);	
+			Print(string.Format("Breaking Contact RTC - setting brake"), LogLevel.NORMAL);
+		}
 	}
 	
 	bool GetTransmissionActive() 
@@ -109,14 +141,69 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 	}
 
-	int GetTransmissionDuration() {
-		int duration;
+	float GetTransmissionDuration() {
+		float duration = -1.0;
+		vector positionRadioTruck = m_radioTruck.GetOrigin();
 
 		// todo get nearest transmission, get duration of that
-
+		GRAD_BC_TransmissionPointComponent nearestTPC = GetNearestTPC(positionRadioTruck);
+		array<GRAD_BC_TransmissionPointComponent> allPoints = GetTransmissionPoints();
+		
+		if (nearestTPC) {
+			duration = nearestTPC.GetTransmissionDuration();
+		}
+		
 		return duration;
 	}
+	
+	
+	GRAD_BC_TransmissionPointComponent GetNearestTPC(vector center) {
+		GRAD_BC_TransmissionPointComponent nearestPoint = null;	
+		array<GRAD_BC_TransmissionPointComponent> transmissionPoints = GetTransmissionPoints();	
+		
+		int transmissionPointsCount = transmissionPoints.Count();
+		// if transmission points exist, find out which one is the nearest
+		if (transmissionPointsCount > 0) {
+			float minDistance = 999999;
+			
+			PrintFormat("Found %1 transmission points", transmissionPointsCount);
 
+			foreach (GRAD_BC_TransmissionPointComponent TPCAntenna : transmissionPoints)
+			{
+				float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
+
+				// check if distance is in reach of radiotruck
+				if (distance < minDistance) {
+					minDistance = distance;
+					nearestPoint = TPCAntenna;
+					
+					PrintFormat("Nearest TPC is %1 s", nearestPoint);
+				}
+			}
+		}
+		return nearestPoint;
+	}
+	
+	array<GRAD_BC_TransmissionPointComponent> GetTransmissionPoints() {
+		array<GRAD_BC_TransmissionPointComponent> allPoints;
+		
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		if (!playerController) {
+			return allPoints;
+		}
+		
+		GRAD_BC_BreakingContactManager BCM = playerController.FindBreakingContactManager();
+		if (!BCM) {
+			return allPoints;
+		}
+		
+		return(BCM.GetTransmissionPoints());
+	}
+	
+
+		
+	
+	
 
 	//------------------------------------------------------------------------------------------------
 	void SyncVariables()

@@ -8,11 +8,12 @@ enum ETransmissionState
 }
 
 [ComponentEditorProps(category: "GRAD/Breaking Contact", description: "")]
-class GRAD_BC_TransmissionPointComponentClass : ScriptComponentClass
+class GRAD_BC_TransmissionPointComponentClass : GenericEntityClass
 {
 }
 
-class GRAD_BC_TransmissionPointComponent : ScriptComponent
+// entity to be able to work without spawning an actual antenna
+class GRAD_BC_TransmissionPointComponent : GenericEntity
 {
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.EditBox, desc: "MinDistance", params: "", category: "Breaking Contact - Transmission Point")];
 	protected int m_TransmissionPointMinDistance;
@@ -27,27 +28,23 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
-	private IEntity m_transmissionPoint;
 
 	private RplComponent m_RplComponent;
 
 	protected bool m_bTransmissionActive;
-
-	void YourComponent(IEntity owner)
-	{
-		SetEventMask(owner, EntityEvent.FRAME);
-	}
+	
+	GRAD_BC_TransmissionPointComponent m_TPC;
 
 	//------------------------------------------------------------------------------------------------
-	override void OnPostInit(IEntity owner)
+	override void EOnInit(IEntity owner)
 	{
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
+		
+		m_TPC = GRAD_BC_TransmissionPointComponent.Cast(owner);
 
-		m_transmissionPoint = owner;
+		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(owner.FindComponent(SCR_MapDescriptorComponent));
 
-		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_transmissionPoint.FindComponent(SCR_MapDescriptorComponent));
-
-		m_RplComponent = RplComponent.Cast(m_transmissionPoint.FindComponent(RplComponent));
+		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 
 		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
 		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
@@ -58,14 +55,16 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
 
 		if (m_RplComponent.IsMaster()) {
-			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true);	
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);	
 		}
 		
 		// m_transmissionPoint.GetParent().GetParent().RemoveChild(owner, false); // disable attachment hierarchy to radiotruck (?!)
 		
 	}
+	
+	
 	//------------------------------------------------------------------------------------------------
-	int GetTransmissionDuration()
+	float GetTransmissionDuration()
 	{
 		//RpcAsk_Authority_SyncVariables();
 
@@ -89,6 +88,8 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	{
 		if (m_eTransmissionState != transmissionState) {
 			m_eTransmissionState = transmissionState;
+			
+			Replication.BumpMe();
 		
 			/*
 			int playerId = GetGame().GetDataCollector().GetPlayerData(GetGame().GetPlayerController().GetPlayerId());
@@ -114,12 +115,12 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 		switch (m_eTransmissionState)
 			{
 				case ETransmissionState.TRANSMITTING: {
-						info.TransmissionStarted();
+					info.TransmissionStarted();
 					break;
 				}
 
 				case ETransmissionState.INTERRUPTED: {
-						info.TransmissionInterrupted();
+					info.TransmissionInterrupted();
 					break;
 				}
 
@@ -134,45 +135,47 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				}
 
 				default: {
+					Print(string.Format("Breaking Contact TPC - No known ETransmissionState %1", m_eTransmissionState), LogLevel.ERROR);
 					break;
 				}
 			}
 		}
+		Print(string.Format("Breaking Contact TPC - Set Transmissionstate to %1", m_eTransmissionState), LogLevel.NORMAL);
 	}
 
 
 	//------------------------------------------------------------------------------------------------
+	
 	void SetTransmissionActive(bool setState) {
+		Rpc(Rpc_SetTransmissionActive, setState);
+	}
+	
+	// each client on its own
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	void Rpc_SetTransmissionActive(bool setState) {
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
 			
-			array<int> allPlayers = {};
 			RplId entityId = Replication.FindId(m_RplComponent);
-			
-			GetGame().GetPlayerManager().GetPlayers(allPlayers);
-			foreach(int playerId : allPlayers)
-			{
-				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-					
+		
+			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
 				
-				if (m_bTransmissionActive) {
-					playerController.SetIconMarker(
-						"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
-						entityId
-					);
-					playerController.SetCircleMarkerActive(entityId);
-				} else {
-					playerController.SetIconMarker(
-						"{97BB746698125B85}UI/Textures/Map/transmission_default.edds",
-						entityId
-					);
-					playerController.SetCircleMarkerInactive(entityId);
-				}
+			
+			if (m_bTransmissionActive) {
+				playerController.SetIconMarker(
+					"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
+					entityId
+				);
+				playerController.SetCircleMarkerActive(entityId);
+			} else {
+				playerController.SetIconMarker(
+					"{97BB746698125B85}UI/Textures/Map/transmission_default.edds",
+					entityId
+				);
+				playerController.SetCircleMarkerInactive(entityId);
+			}
 				
-			};
 			
-			
-
 			if (m_bTransmissionActive &&
 				(
 					GetTransmissionState() == ETransmissionState.OFF ||
@@ -211,7 +214,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	protected void MainLoop()
+	protected void MainLoop(IEntity owner)
 	{
 		// this function runs on server-side only
 	
@@ -236,7 +239,7 @@ class GRAD_BC_TransmissionPointComponent : ScriptComponent
 				currentState = GetTransmissionState(); // update to reflect this change
 
 				GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
-				BCM.AddTransmissionPointDone(m_transmissionPoint);
+				BCM.AddTransmissionPointDone(m_TPC);
 			};
 			 
 			switch (currentState)

@@ -1,6 +1,53 @@
 Vehicle : "{4597626AF36C0858}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320.et" {
  ID "5206D4E7C4A16F13"
  components {
+  ADM_ShopComponent "{644D68F67A98DFC5}" {
+   m_AdditionalMerchandise {
+    ADM_ShopMerchandise "{644D68F68F9903F3}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F68CB3CA6A}" {
+      m_iMaxPurchaseQuantity 5
+      m_sPrefab "{0B4DEA8078B78A9B}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM.et"
+      m_SpawnPosition PointInfo "{644D68F69127CC48}" {
+       PivotID "COM_Ural_4320_base"
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F6EB5B31CD}" {
+       m_Quantity 1
+      }
+     }
+    }
+    ADM_ShopMerchandise "{644D68F549838731}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F547CC7974}" {
+      m_iMaxPurchaseQuantity 1
+      m_sPrefab "{C012BB3488BEA0C2}Prefabs/Vehicles/Wheeled/BTR70/BTR70.et"
+      m_SpawnPosition PointInfo "{644D68F556DB0251}" {
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F5517B2B6E}" {
+       m_Quantity 1
+      }
+     }
+    }
+    ADM_ShopMerchandise "{644D68F59E339D58}" {
+     m_Merchandise ADM_MerchandiseVehicle "{644D68F595BDD1CF}" {
+      m_iMaxPurchaseQuantity 1
+      m_sPrefab "{259EE7B78C51B624}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469.et"
+      m_SpawnPosition PointInfo "{644D68F592DC7A57}" {
+       Offset 0 0 10
+      }
+     }
+     m_BuyPayment {
+      ADM_PaymentMethodCurrency "{644D68F5AE7D65E5}" {
+       m_Quantity 1
+      }
+     }
+    }
+   }
+  }
   GRAD_BC_RadioTruckComponent "{6150F51835A7EF83}" {
   }
   ActionsManagerComponent "{C97BE5489221AE18}" {

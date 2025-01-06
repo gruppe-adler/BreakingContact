@@ -1,4 +1,5 @@
 enum e_currentDisplay {
+	NONE,
 	STARTED,
 	INTERRUPTED,
 	DONE
@@ -14,19 +15,31 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
 		
+		m_wRoot = GetRootWidget();
+		
+		if (!m_wRoot) {
+			PrintFormat("GRAD_BC_Transmission: no m_wRoot found", LogLevel.ERROR);
+			return;
+		}
+		
 		if (m_wRoot) {
 			if (!m_infoImage) { 
 				m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget")) 
 			};
 		};
+	}
+	
+	// check for display update and hide/show info
+	override event void DisplayUpdate(IEntity owner, float timeSlice) {
+			super.DisplayUpdate(owner, timeSlice);
 		
-		if (!m_isDisplayed && m_infoImage) {
-			m_infoImage.SetVisible(false);
-		} else if (m_infoImage && m_isDisplayed) {
-			m_infoImage.SetVisible(true);
-		} else if (m_infoImage){
-			m_infoImage.SetVisible(false);
-		};
+			if (!m_isDisplayed && m_infoImage) {
+				m_infoImage.SetVisible(false);
+			} else if (m_infoImage && m_isDisplayed) {
+				m_infoImage.SetVisible(true);
+			} else if (m_infoImage){
+				m_infoImage.SetVisible(false);
+			};
 	}
 	
 	override event void DisplayStartDraw(IEntity owner)

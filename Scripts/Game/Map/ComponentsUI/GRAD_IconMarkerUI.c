@@ -85,7 +85,8 @@ class MapIcon
 		m_wiconImage.SetRotation(angles[1]);
 		
 		iconVector = m_MapEntity.GetMapWidget().SizeToPixels(iconVector);
-		m_wiconImage.SetSize(GetGame().GetWorkspace().DPIUnscale(iconVector.Length()), GetGame().GetWorkspace().DPIUnscale(iconVector.Length()));
+		// m_wiconImage.SetSize(GetGame().GetWorkspace().DPIUnscale(iconVector.Length()), GetGame().GetWorkspace().DPIUnscale(iconVector.Length()));
+		m_wiconImage.SetSize(20.0, 20.0);
 		
 		FrameSlot.SetPos(m_wicon, GetGame().GetWorkspace().DPIUnscale(screenX), GetGame().GetWorkspace().DPIUnscale(screenY));	// needs unscaled coords
 	}

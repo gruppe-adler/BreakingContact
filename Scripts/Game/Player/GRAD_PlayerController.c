@@ -3,8 +3,11 @@ modded class SCR_PlayerController : PlayerController
 {
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
+	ref GRAD_BC_Logo m_BC_logo;
 	
 	protected bool m_bChoosingSpawn;
+	
+	SCR_PlayerController m_playerController;
 	
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
@@ -12,6 +15,10 @@ modded class SCR_PlayerController : PlayerController
 		super.EOnInit(owner);
 		
 		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		
+		m_BC_logo = new GRAD_BC_Logo;
+		
+		m_playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		
 		if (gameMode) {
 			if (gameMode.GetState() == SCR_EGameModeState.GAME) {
@@ -40,15 +47,14 @@ modded class SCR_PlayerController : PlayerController
 	//------
 	void ForceOpenMap() 
 	{
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		// try again
-		if (!playerController) {
+		if (!m_playerController) {
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			Print(string.Format("no playerController - wait and retry in 5s"), LogLevel.WARNING);
 			return;
 		}
 		
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 		// try again
 		if (!ch) {
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
@@ -112,27 +118,27 @@ modded class SCR_PlayerController : PlayerController
 	
 	
 	void ShowBCLogo() {
-		PlayerController playerController = GetGame().GetPlayerController();
-		if (!playerController) {
+		if (!m_playerController) {
 			Print(string.Format("GRAD Playercontroller ShowBCLogo - no playercontroller found"), LogLevel.WARNING);
 			return;
 		}
-		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(playerController.FindComponent(GRAD_BC_Logo));
-		if (!logo) {
+	
+		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(m_playerController.FindComponent(GRAD_BC_Logo));
+		// todo currently no logo found
+		if (!m_BC_logo) {
 			Print(string.Format("GRAD Playercontroller ShowBCLogo - no logo found"), LogLevel.WARNING);
 			return;
 		}
-		logo.SetVisible(true);
+		m_BC_logo.SetVisible(true);
 		GetGame().GetCallqueue().CallLater(HideBCLogo, 5000, false);
 	}
 	
 	void HideBCLogo() {
-		PlayerController playerController = GetGame().GetPlayerController();
-		if (!playerController) {
+		if (!m_playerController) {
 			Print(string.Format("GRAD Playercontroller HideBCLogo - no playercontroller found"), LogLevel.WARNING);
 			return;
 		}
-		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(playerController.FindComponent(GRAD_BC_Logo));
+		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(m_playerController.FindComponent(GRAD_BC_Logo));
 		if (!logo) {
 			Print(string.Format("GRAD Playercontroller HideBCLogo - no logo found"), LogLevel.WARNING);
 			return;
@@ -147,9 +153,7 @@ modded class SCR_PlayerController : PlayerController
 			Print(string.Format("ConfirmSpawn executed on server too"), LogLevel.NORMAL);
 		}
  
-		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController) {
+		if (!m_playerController) {
 			Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
@@ -161,9 +165,9 @@ modded class SCR_PlayerController : PlayerController
 		}
 		
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 		if (!ch)  {
-			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			Print(string.Format("SCR_ChimeraCharacter missing in m_playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
@@ -189,7 +193,42 @@ modded class SCR_PlayerController : PlayerController
 		}
 		
 	}
+	
+	//-----------------------------------------------------------------------
+	void Rpc_AddTransmissionMarker(GRAD_BC_TransmissionPointComponent entity, float radius) {
+	
+		Print(string.Format("Breaking Contact - executing RPC Rpc_AddTransmissionMarker locally"), LogLevel.NORMAL);
+	
+		vector center = entity.GetOrigin();
+		RplId rplId = Replication.FindId(RplComponent.Cast(entity.FindComponent(RplComponent)));
+		
+		int playerId = GetGame().GetPlayerController().GetPlayerId();
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
 
+		if (!playerController) {
+			Print(string.Format("Breaking Contact - no playerController found in Rpc_AddTransmissionMarker"), LogLevel.ERROR);
+			return;
+		}
+	
+		playerController.AddCircleMarker(
+			center[0] - radius,
+			center[2] + radius,
+			center[0] + radius,
+			center[2] + radius,
+			rplId
+		);
+		
+		playerController.SetCircleMarkerActive(rplId); // if a new transmission point is created, its active by default
+		
+		playerController.AddIconMarker(
+			center[0] - (radius / 12),
+			center[2] + (radius / 12),
+			center[0] + (radius / 12),
+			center[2] + (radius / 12),
+			"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
+			rplId
+		);
+	}
 	
 	
 	//------------------------------------------------------------------------------------------------
@@ -249,13 +288,12 @@ modded class SCR_PlayerController : PlayerController
 	//------------------------------------------------------------------------------------------------
 	void ToggleMap(bool open)
 	{
-		SCR_PlayerController pc = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!pc) {
+		if (!m_playerController) {
 			Print(string.Format("No SCR_PlayerController in ToggleMap"), LogLevel.ERROR);
 			return;
 		}
 		
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(pc.GetControlledEntity());
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 		if (!ch) {
 			Print(string.Format("No SCR_ChimeraCharacter in ToggleMap"), LogLevel.ERROR);
 			return;

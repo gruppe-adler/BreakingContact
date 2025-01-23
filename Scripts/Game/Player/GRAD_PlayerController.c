@@ -177,7 +177,8 @@ modded class SCR_PlayerController : PlayerController
 		
 		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
 			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-			RequestInitiateOpforSpawnLocal(spawnPosition);
+			BCM.SetOpforSpawnPos(spawnPosition);
+			RequestInitiateOpforSpawnLocal();
 			RemoveSpawnMarker();
 			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 		
@@ -238,20 +239,24 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void RequestInitiateOpforSpawnLocal(vector spawnPos) {
+	void RequestInitiateOpforSpawnLocal() {
 		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
 		
-		Rpc(RequestInitiateOpforSpawn,spawnPos);
+		Rpc(RequestInitiateOpforSpawn);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	// this needs to be inside player controller to work, dont switch component during rpc? i guess
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void RequestInitiateOpforSpawn(vector spawnPos) {
+	void RequestInitiateOpforSpawn() {
 		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
 		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		
-		BCM.Rpc_RequestInitiateOpforSpawn(spawnPos);
+		if (!BCM) {
+			Print("PANIC, no BCM in PC");
+			return;
+		}
+		BCM.Rpc_RequestInitiateOpforSpawn();
 	}
 	
 	//------------------------------------------------------------------------------------------------

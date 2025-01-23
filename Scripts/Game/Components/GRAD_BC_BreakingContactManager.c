@@ -287,13 +287,16 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				loopcount = loopcount + 1;
 				m_vBluforSpawnPos = findBluforPosition();
 			 	Print(string.Format("Breaking Contact - Blufor spawn position %1 - %2.", isvalid, loopcount), LogLevel.NORMAL);
-				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 5, 7);
+				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 5, 5);
 				
 				
-				if (loopcount > 150) { isvalid = true }; // emergency exit
+				if (loopcount > 150) {
+					 isvalid = true;
+					 Print(string.Format("Breaking Contact - 150 tries to find blufor pos"), LogLevel.NORMAL);
+				} // emergency exit
 			}
 				
-			InitiateBluforSpawn();
+			// InitiateBluforSpawn();
 		}				
 		
 		if (m_skipWinConditions || !(GameModeStarted()))
@@ -416,12 +419,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			return selectedPoint;
 	}
-	
+
 	
 	//------------------------------------------------------------------------------------------------
-	void SpawnSpawnVehicleWest(vector center)
+	void SpawnSpawnVehicleWest()
 	{
-		array<vector> roadPositions = FindSpawnPointOnRoad(center);
+		array<vector> roadPositions = FindSpawnPointOnRoad(m_vBluforSpawnPos);
 		m_vBluforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
 		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
 		
@@ -433,7 +436,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
         m_westCommandVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 	    m_westCommandVehicle.SetYawPitchRoll(m_vBluforSpawnDir.VectorToAngles());
-		
 		
 		if (!m_westCommandVehicle) {
 			Print(string.Format("BCM - West Command Truck failed to spawn: %1", params), LogLevel.ERROR);
@@ -455,20 +457,13 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void SpawnSpawnVehicleEast(vector center)
-	{
-		array<vector> roadPositions = FindSpawnPointOnRoad(center);
-		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
-		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
-		
+	void SpawnSpawnVehicleEast()
+	{		
 		EntitySpawnParams params = new EntitySpawnParams();
-        params.Transform[3] = midpoint;
+        params.Transform[3] = m_vOpforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
 		
-		m_vOpforSpawnPos = midpoint;
-		Replication.BumpMe();
-		
-        // create antenna that serves as component holder for transmission point
+        // create radiotruck
         Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		m_radioTruck.SetYawPitchRoll(m_vOpforSpawnDir.VectorToAngles());
@@ -601,12 +596,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void Rpc_RequestInitiateOpforSpawn(vector spawnPos)
+	void Rpc_RequestInitiateOpforSpawn()
 	{
-		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
-		m_vOpforSpawnPos = spawnPos;
-		Replication.BumpMe();
-		
+		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);		
 	    TeleportFactionToMapPos("USSR", false);
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -677,7 +669,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     protected array<vector> FindSpawnPointOnRoad(vector center, int minradius = -1)
     {
         bool foundSpawnPoint;
-		int loopCount = 0;
+		int loopCount = 1;
 		array<vector> roadPoints;
 		
 		// (vector pos, out BaseRoad foundRoad, out float distance, bool skipNavlinks = false);
@@ -692,10 +684,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			array<vector> roadPosArray = GetNearestRoadPos(center);
 			vector roadPos = roadPosArray[0];
 			// vector worldPos = {roadPos[0], GetGame().GetWorld().GetSurfaceY(roadPos[0], roadPos[2]), roadPos[2]};
-            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minradius, 7);
+            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minradius, 4);
 			
 			loopCount = loopCount + 1;	
-			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3 .", loopCount, roadPos, spawnEmpty), LogLevel.NORMAL);
+			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3, radius is %4.", loopCount, roadPos, spawnEmpty, minradius), LogLevel.NORMAL);
 			
             if (spawnEmpty) {
                 foundSpawnPoint = true;
@@ -704,7 +696,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
             }
 			
-			if (loopCount > 1000) {
+			if (loopCount > 100) {
 				return roadPosArray;
 				Print(string.Format("BCM - no spawn point after '%1 loops'.", loopCount), LogLevel.ERROR);
 			}
@@ -840,11 +832,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				m_debug = true;
 			}
 			
-			SpawnSpawnVehicleEast(m_vOpforSpawnPos);
+			SpawnSpawnVehicleEast();
 			
 		} else {
 			
-			SpawnSpawnVehicleWest(m_vBluforSpawnPos);
+			SpawnSpawnVehicleWest();
 			
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
@@ -906,6 +898,26 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			physicsComponent.SetVelocity("0 -1 0");
 			physicsComponent.SetAngularVelocity(vector.Zero);
 		}
+	}
+	
+	void SetOpforSpawnPos(vector spawnPos) {		
+		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
+		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
+		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+		
+		m_vOpforSpawnPos = midpoint;
+		
+		Replication.BumpMe();
+	}
+	
+	void SetBluforSpawnPos(vector spawnPos) {
+		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
+		m_vBluforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
+		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+		
+		m_vBluforSpawnPos = midpoint;
+		
+		Replication.BumpMe();
 	}
 
     //------------------------------------------------------------------------------------------------

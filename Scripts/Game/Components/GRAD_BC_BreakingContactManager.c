@@ -268,8 +268,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
 		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
 		*/
-		
-		
+			
 		// set opfor phase as soon as players leave lobby
 		PS_GameModeCoop psGameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
 		EBreakingContactPhase currentPhase = GetBreakingContactPhase();
@@ -280,24 +279,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		};
 		
 		if (currentPhase == EBreakingContactPhase.BLUFOR) {
+			m_vBluforSpawnPos = findBluforPosition();
 			
-			bool isvalid = false;
-			int loopcount = 0;
-			while (!isvalid) {
-				loopcount = loopcount + 1;
-				m_vBluforSpawnPos = findBluforPosition();
-			 	Print(string.Format("Breaking Contact - Blufor spawn position %1 - %2.", isvalid, loopcount), LogLevel.NORMAL);
-				isvalid = SCR_WorldTools.FindEmptyTerrainPosition(m_vBluforSpawnPos, m_vBluforSpawnPos, 5, 5);
-				
-				
-				if (loopcount > 150) {
-					 isvalid = true;
-					 Print(string.Format("Breaking Contact - 150 tries to find blufor pos"), LogLevel.NORMAL);
-				} // emergency exit
-			}
+			SetBluforSpawnPos(m_vBluforSpawnPos);
 				
 			// InitiateBluforSpawn();
-		}				
+		};			
 		
 		if (m_skipWinConditions || !(GameModeStarted()))
         {
@@ -642,7 +629,19 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	// 
 	protected array<vector> GetNearestRoadPos(vector center) {
 		
-		array<vector> roadPos;
+		vector mins, maxs;
+		GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
+		vector worldCenter = vector.Lerp(mins, maxs, 0.5);
+		
+		auto worldCenterArray = new array<vector>();
+		worldCenterArray.Insert(worldCenter);
+		worldCenterArray.Insert(worldCenter);
+		
+		float halfSize = 500.0; // Adjust as needed for your AABB size
+		// Adjust AABB for XZY coordinate system
+		vector aabbMin = center - Vector(halfSize, 10, halfSize); // Clamp Z slightly below ground
+		vector aabbMax = center + Vector(halfSize, 100, halfSize); // Clamp Z slightly above ground
+
 		
 		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
 		
@@ -650,54 +649,67 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				BaseRoad emptyRoad;
 				float distanceRoad;
 				auto outPoints = new array<vector>();
+
 				// needs 2 points i presume, no documentation for this
-				outPoints.Insert(Vector(0, 0, 0));
-				outPoints.Insert(Vector(0, 0, 0));
-				roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
+				// outPoints.Insert("0 0 1");
+				// outPoints.Insert("1 1 1");
+				auto emptyRoads = new array<BaseRoad>;
+				// roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
+				int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
+			
+			 	// Debug outputs
+			    Print("BCM - Center: " + center.ToString());
+			    Print("BCM - aabbMin: " + aabbMin.ToString());
+			    Print("BCM - aabbMax: " + aabbMax.ToString());
+			    Print("BCM - Result Code: " + result);
+			    Print("BCM - Roads Count: " + emptyRoads.Count());
+			
+			    // Output the retrieved roads
+			    for (int i = 0; i < emptyRoads.Count(); i++) {
+			        Print("Road " + i + ": " + emptyRoads[i].ToString());
+			    }
+			
+				PrintFormat("BCM - result %1", result);
 				
-				if (emptyRoad) {
+				if (result > 0) {
+					emptyRoad = emptyRoads[0];
 					emptyRoad.GetPoints(outPoints);
 					PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
 				
 					return outPoints;
 				}
 			}
-			return roadPos;
+			return worldCenterArray;
 	}
 
     //------------------------------------------------------------------------------------------------
-    protected array<vector> FindSpawnPointOnRoad(vector center, int minradius = -1)
+    protected array<vector> FindSpawnPointOnRoad(vector center)
     {
         bool foundSpawnPoint;
 		int loopCount = 1;
-		array<vector> roadPoints;
+		int minRadius = 1;
+		auto roadPoints = new array<vector>;
 		
-		// (vector pos, out BaseRoad foundRoad, out float distance, bool skipNavlinks = false);
-		
-
         while (!foundSpawnPoint) {
 			
-			if (minradius < 0) {
-				minradius = loopCount;
-			}
+			minRadius = loopCount;
 			
-			array<vector> roadPosArray = GetNearestRoadPos(center);
-			vector roadPos = roadPosArray[0];
-			// vector worldPos = {roadPos[0], GetGame().GetWorld().GetSurfaceY(roadPos[0], roadPos[2]), roadPos[2]};
-            bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minradius, 4);
+			
+			roadPoints = GetNearestRoadPos(center);
+			vector roadPos = roadPoints[0];
+			
+			bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minRadius, minRadius);
 			
 			loopCount = loopCount + 1;	
-			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3, radius is %4.", loopCount, roadPos, spawnEmpty, minradius), LogLevel.NORMAL);
+			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3, radius is %4.", loopCount, roadPos, spawnEmpty, minRadius), LogLevel.NORMAL);
 			
             if (spawnEmpty) {
                 foundSpawnPoint = true;
-				roadPoints = roadPosArray;
-				
 				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
             }
 			
 			if (loopCount > 100) {
-				return roadPosArray;
+				return roadPoints;
 				Print(string.Format("BCM - no spawn point after '%1 loops'.", loopCount), LogLevel.ERROR);
 			}
         }
@@ -724,24 +736,19 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     vector findBluforPosition() {
 		bool foundPositionOnLand = false;
 		int loopCount = 0;
-		vector bluforSpawnPos = m_vOpforSpawnPos;
+		vector bluforSpawnPos;
 		
 		while (!foundPositionOnLand) {
 			
 			loopCount = loopCount + 1;
 			int degrees = Math.RandomIntInclusive(0, 360);
 			bluforSpawnPos = GetPointOnCircle(m_vOpforSpawnPos, m_iBluforSpawnDistance, degrees);
+						
+			float distanceToOpfor = vector.DistanceXZ(bluforSpawnPos, m_vOpforSpawnPos);
+			Print(string.Format("BCM - blufor position distanceToOpfor %1 - degrees %2 - bluforSpawnPos %3 - m_vOpforSpawnPos %4 .", distanceToOpfor, degrees, bluforSpawnPos, m_vOpforSpawnPos), LogLevel.NORMAL);
 			
-			array<vector> roadPosArray = GetNearestRoadPos(bluforSpawnPos);
-			m_vBluforSpawnDir = vector.Direction(roadPosArray[0], roadPosArray[1]);
-			
-			vector spawnPosOnRoad = roadPosArray[0];
-			float distanceToOpfor = vector.DistanceXZ(spawnPosOnRoad, m_vOpforSpawnPos);
-			Print(string.Format("BCM - blufor position distanceToOpfor %1 - degrees %2 - bluforSpawnPos %3 - spawnPosOnRoad %4 - distanceToOpfor %5 - m_vOpforSpawnPos %6 .", distanceToOpfor, degrees, bluforSpawnPos, spawnPosOnRoad, distanceToOpfor, m_vOpforSpawnPos), LogLevel.NORMAL);
-			
-			// we accept up to 200m closer to opfor than param
-			if (distanceToOpfor >= m_iBluforSpawnDistance) {
-				bluforSpawnPos = spawnPosOnRoad;
+			// minimum of blufor spawn distance is set value - 200
+			if (!SurfaceIsWater(bluforSpawnPos)) {
 				Print(string.Format("BCM - findBluforPosition on road after '%1 loops'.", loopCount), LogLevel.NORMAL);				
 				foundPositionOnLand = true;
 			}
@@ -756,7 +763,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     }
 	
 	// helper to find point on circle
-	protected vector GetPointOnCircle(vector center, float radius, int degrees)
+	protected vector GetPointOnCircle(vector center, int radius, int degrees)
 	{
 	    // - half PI because 90 deg offset left
 	    return Vector(
@@ -814,14 +821,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void TeleportFactionToMapPos(string factionName, bool isdebug)
 	{
 		Print(string.Format("Breaking Contact - TeleportFactionToMapPos"), LogLevel.NORMAL);
-		
-		int ExecutingPlayerId = GetGame().GetPlayerController().GetPlayerId();
-		SCR_PlayerController ExecutingPlayerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(ExecutingPlayerId));
-				
-		if (!ExecutingPlayerController)
-			return;
-			
-		ExecutingPlayerController.ShowHint("Teleporting to destination.", "Teleport initiated", 3, false);
+
 		
 		if (factionName == "USSR" || isdebug)
 		{	
@@ -841,16 +841,28 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 		}
 		
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		// array<int> playerIds = {};
+		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
+		array<PS_PlayableComponent> playables = m_PlayableManager.GetPlayablesSorted();
+		// GetGame().GetPlayerManager().GetAllPlayers(playerIds);
 		
-		foreach (int playerId : playerIds)
+		foreach (PS_PlayableComponent playableComp : playables)
 		{	
+			/*
 			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
 			
 			if (!playerController)
 				return;
+			*/
+			FactionAffiliationComponent factionComp = playableComp.GetFactionAffiliationComponent();
+			if (!factionComp) {
+				return;
+			}
 			
+			string playerFactionName = factionComp.GetAffiliatedFaction().GetFactionKey();
+			
+			
+			/*
 			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
 			if (!ch)  {
 				Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
@@ -858,23 +870,56 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			}
 			
 			string playerFactionName = ch.GetFactionKey();
+			*/
 			
 			
 			Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
 			
 			if (factionName == playerFactionName)
 			{
+				IEntity playerInstance = playableComp.GetOwnerCharacter();
 				// delay is because spawn vehicle opfor needs to find road position and will change opfor spawn pos once again
 				if (factionName == "US") {
-					GetGame().GetCallqueue().CallLater(playerController.TeleportPlayerToMapPos, 10000, false, playerId, m_vBluforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vBluforSpawnPos), LogLevel.NORMAL);
+					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, 10000, false, playerInstance, m_vBluforSpawnPos);
+					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerInstance, playerFactionName, m_vBluforSpawnPos), LogLevel.NORMAL);
 				} else {
-					GetGame().GetCallqueue().CallLater(playerController.TeleportPlayerToMapPos, 10000, false, playerId, m_vOpforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerId, playerFactionName, m_vOpforSpawnPos), LogLevel.NORMAL);
+					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, 10000, false, playerInstance, m_vOpforSpawnPos);
+					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerInstance, playerFactionName, m_vOpforSpawnPos), LogLevel.NORMAL);
 				}	
 			}
 		}
 	}
+	
+	// Server side!
+	protected void TeleportPlayerInstanceToMapPos(IEntity playerInstance, vector spawnPos)
+	{
+		// executed locally on players machine
+		
+		Print(string.Format("GRAD PlayerController - Player has position %1", playerInstance.GetOrigin()), LogLevel.NORMAL);
+		
+		bool teleportSuccessful;
+		bool spawnEmpty;
+		int spawnSearchLoop = 0;
+		
+		vector newWorldPos;
+		
+		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
+		{
+			int radius = 3 + spawnSearchLoop; // increasing each loop
+			Math.Randomize(-1);
+            float randomDistanceX = Math.RandomFloat( -radius, radius );
+            float randomDistanceY = Math.RandomFloat( -radius, radius );
+			
+			vector spawnPosFinal = {spawnPos[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(spawnPos[0] + randomDistanceX, spawnPos[2] + randomDistanceY), spawnPos[2] + randomDistanceY};
+			spawnSearchLoop = spawnSearchLoop + 1;
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, radius, 2);
+			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
+			Print(string.Format("GRAD PlayerController - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
+		}
+		Print(string.Format("GRAD PlayerController - teleport %1", teleportSuccessful), LogLevel.NORMAL);
+		
+	}
+	
 
 	//----
 	void SetVehiclePhysics(IEntity vehicle) {
@@ -905,7 +950,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
 		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
 		
-		m_vOpforSpawnPos = midpoint;
+		m_vOpforSpawnPos = midpoint; // midpoint;
 		
 		Replication.BumpMe();
 	}
@@ -915,7 +960,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		m_vBluforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
 		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
 		
-		m_vBluforSpawnPos = midpoint;
+		m_vBluforSpawnPos = midpoint; // midpoint;
 		
 		Replication.BumpMe();
 	}
@@ -926,5 +971,17 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         // get surfaceY of position mapPos X(Z)Y
 		vector worldPos = {mapPos[0], GetGame().GetWorld().GetSurfaceY(mapPos[0], mapPos[1]), mapPos[1]};
 		return worldPos;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	static bool SurfaceIsWater(vector pos)
+	{
+	    pos[1] = GetGame().GetWorld().GetSurfaceY(pos[0], pos[2]);
+	    vector outWaterSurfacePoint;
+	    EWaterSurfaceType outType;
+	    vector transformWS[4];
+	    vector obbExtents;
+	    ChimeraWorldUtils.TryGetWaterSurface(GetGame().GetWorld(), pos, outWaterSurfacePoint, outType, transformWS, obbExtents);
+	    return outType != EWaterSurfaceType.WST_NONE;
 	}
 }

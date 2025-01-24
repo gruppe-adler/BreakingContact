@@ -1,0 +1,26 @@
+FrameWidgetClass {
+ Name "rootFrame"
+ {
+  CanvasWidgetClass "{6471110A76D8C009}" {
+   Name "Canvas"
+   Slot FrameWidgetSlot "{6471110A76D8C06D}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX -1920
+    OffsetRight 1920
+    SizeY -1080
+    OffsetBottom 1080
+   }
+   SizeInUnits 1024 1024
+   FontProperties {
+    FontProperties "{6471110AE5F61397}" {
+     Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
+     OutlineSize 1
+    }
+   }
+  }
+ }
+}

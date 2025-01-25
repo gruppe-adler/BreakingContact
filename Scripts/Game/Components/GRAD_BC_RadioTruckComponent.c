@@ -45,52 +45,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void mainLoop()
 	{
-
-		if (m_mapDescriptorComponent) {
-			adjustMapItem(GetTransmissionActive());	
-		}
-		
 		if (GetTransmissionActive()) { applyBrakes(); }
-	}
-	
-	void adjustMapItem(bool active) {
-		MapItem item;
-		item = m_mapDescriptorComponent.Item();
-		MapDescriptorProps props = item.GetProps();
-		
-		if (active)
-		{
-			Print(string.Format("Breaking Contact RTC - Transmitting..."), LogLevel.NORMAL);
-
-			string progressString = string.Format("Radio Truck active");
-
-			props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			item.SetImageDef("{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds");
-	        // props.SetImageDef("{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset");
-			props.SetIconVisible(true);
-			props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-			props.SetOutlineColor(Color.Black);
-			props.SetTextColor(Color.Red);
-			props.SetTextSize(30.0, 30.0, 30.0);
-			props.SetTextOffsetX(-10);
-			props.SetTextOffsetY(-16.5);
-			props.SetTextBold();
-			props.SetIconSize(30.0, 30.0, 30.0);
-			props.Activate(true);
-			item.SetProps(props);
-			item.SetDisplayName(progressString);
-			item.SetVisible(true);
-			
-		} else {
-			props.SetIconVisible(true);
-			props.SetFrontColor(Color.FromRGBA(0, 0, 0, 0));
-			props.SetOutlineColor(Color.Black);
-			props.SetTextColor(Color.FromRGBA(0, 0, 0, 0));
-			props.SetTextSize(30.0, 30.0, 30.0);
-			props.SetIconSize(3.0, 3.0, 3.0);
-			props.Activate(true);
-			item.SetProps(props);
-		}	
 	}
 	
 	void applyBrakes() {
@@ -139,21 +94,6 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
 			}
 		}
-	}
-
-	float GetTransmissionDuration() {
-		float duration = -1.0;
-		vector positionRadioTruck = m_radioTruck.GetOrigin();
-
-		// todo get nearest transmission, get duration of that
-		GRAD_BC_TransmissionPointComponent nearestTPC = GetNearestTPC(positionRadioTruck);
-		array<GRAD_BC_TransmissionPointComponent> allPoints = GetTransmissionPoints();
-		
-		if (nearestTPC) {
-			duration = nearestTPC.GetTransmissionDuration();
-		}
-		
-		return duration;
 	}
 	
 	

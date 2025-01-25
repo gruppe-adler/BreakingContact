@@ -63,6 +63,8 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 	
 	override void OnMapOpen(MapConfiguration config)
 	{
+		Print("GRAD GRAD_MapMarkerLayer: OnMapOpen called", LogLevel.NORMAL);
+		
 		super.OnMapOpen(config);
 		
 		m_Commands = new array<ref CanvasWidgetCommand>();

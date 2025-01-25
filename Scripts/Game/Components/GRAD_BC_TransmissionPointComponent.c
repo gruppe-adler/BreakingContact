@@ -27,8 +27,6 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 	static float m_iTransmissionDuration = 30.0; // todo make param, 120s for debug
 	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
-	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
-
 	private RplComponent m_RplComponent;
 
 	protected bool m_bTransmissionActive;
@@ -41,8 +39,6 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
 		
 		m_TPC = GRAD_BC_TransmissionPointComponent.Cast(owner);
-
-		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(owner.FindComponent(SCR_MapDescriptorComponent));
 
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 
@@ -156,26 +152,6 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
 			
-			RplId entityId = Replication.FindId(m_RplComponent);
-		
-			SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
-				
-			
-			if (m_bTransmissionActive) {
-				playerController.SetIconMarker(
-					"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
-					entityId
-				);
-				playerController.SetCircleMarkerActive(entityId);
-			} else {
-				playerController.SetIconMarker(
-					"{97BB746698125B85}UI/Textures/Map/transmission_default.edds",
-					entityId
-				);
-				playerController.SetCircleMarkerInactive(entityId);
-			}
-				
-			
 			if (m_bTransmissionActive &&
 				(
 					GetTransmissionState() == ETransmissionState.OFF ||
@@ -225,134 +201,52 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 			return;
 		}
 		
-		if (m_mapDescriptorComponent) {
-			MapItem item;
-			item = m_mapDescriptorComponent.Item();
-			MapDescriptorProps props = item.GetProps();
-			
-	        float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
-			string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
-			
-			// 
-			if (currentProgress >= 100) {
-				SetTransmissionState(ETransmissionState.DONE);
-				currentState = GetTransmissionState(); // update to reflect this change
+		// todo make string stuff in mapmanager
+        float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
+		string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
+		
+		// 
+		if (currentProgress >= 100) {
+			SetTransmissionState(ETransmissionState.DONE);
+			currentState = GetTransmissionState(); // update to reflect this change
 
-				GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
-				BCM.AddTransmissionPointDone(m_TPC);
-			};
-			 
-			switch (currentState)
-			{
-		   		 case ETransmissionState.TRANSMITTING: {
-			        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
-			        PrintFormat("m_iTransmissionDuration: %1", m_iTransmissionDuration);
-			        PrintFormat("m_iTransmissionUpdateTickSize: %1", m_iTransmissionUpdateTickSize);
-			        PrintFormat("m_iTransmissionProgress: %1", m_iTransmissionProgress);
-			        item.SetDisplayName(progressString);
-			        item.SetInfoText("Transmitting");
-			        props.SetIconVisible(true);
-			        props.SetBackgroundColor(Color.Red);
-			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("transmission_active");
-					props.SetIconVisible(true);
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
-			        props.SetOutlineColor(Color.Black);
-			        props.SetTextColor(Color.Red);
-			        props.SetTextSize(60.0, 30.0, 60.0);
-			        props.SetIconSize(32, 0.3, 0.3);
-			        props.Activate(true);
-			        item.SetProps(props);
-		        	break;
-				}
-						
-				case ETransmissionState.DISABLED: {
-					progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
-			        props.SetIconVisible(true);
-			        item.SetDisplayName(progressString);
-			        item.SetInfoText("Transmission disabled");
-			        props.SetBackgroundColor(Color.Black);
-			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("transmission_interrupted");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
-			        props.SetTextColor(Color.Black);
-			        props.SetTextSize(60.0, 30.0, 60.0);
-			        props.SetIconSize(32, 0.3, 0.3);
-			        props.Activate(true);
-			        item.SetProps(props);
-					break;
-				}
-		
-			    case ETransmissionState.INTERRUPTED: {
-					progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
-			        props.SetIconVisible(true);
-			        item.SetDisplayName(progressString);
-			        item.SetInfoText("Transmission interrupted");
-			        props.SetBackgroundColor(Color.Black);
-			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("transmission_interrupted");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
-			        props.SetTextColor(Color.Black);
-			        props.SetTextSize(60.0, 30.0, 60.0);
-			        props.SetIconSize(32, 0.3, 0.3);
-			        props.Activate(true);
-			        item.SetProps(props);
-					break;
-				}
-		        
-		
-		    	case ETransmissionState.DONE: {
-					progressString = "Transmission Done";
-			        props.SetIconVisible(true);
-			        item.SetInfoText("Transmission Done");
-			        item.SetDisplayName("100\%");
-			        props.SetFont("{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt");
-			        props.SetImageDef("transmission_default");
-			        props.SetFrontColor(Color.FromRGBA(0, 0, 0, 1));
-			        props.SetTextColor(Color.Green);
-			        props.SetTextSize(60.0, 30.0, 60.0);
-			        props.SetIconSize(32, 0.3, 0.3);
-			        props.Activate(true);
-			        item.SetProps(props);
-			        break;
-				}
-		
-		   	 	// Add more cases as needed
-		
-		   		 default: {
-		        	// Handle any other state if necessary
-		        	break;
-				}
+			GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+		};
+		 
+		switch (currentState)
+		{
+	   		 case ETransmissionState.TRANSMITTING: {
+		        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+				PrintFormat("m_iTransmissionProgress %1", m_iTransmissionProgress);
+	        	break;
+			}
+					
+			case ETransmissionState.DISABLED: {
+				progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
+				break;
+			}
+	
+		    case ETransmissionState.INTERRUPTED: {
+				progressString = string.Format("Antenna: %1\%", currentProgress); // % needs to be escaped
+				break;
+			}
+	        
+	
+	    	case ETransmissionState.DONE: {
+				progressString = "Transmission Done";
+		        break;
+			}
+	
+	   	 	// Add more cases as needed
+	
+	   		 default: {
+	        	// Handle any other state if necessary
+	        	break;
 			}
 		}
 	}
 
-	//------------------------------------------------------------------------------------------------
-	protected void SetTransmissionPointMarkerVisibility(bool enableMarkerVisibility)
-	{
-		// this function runs on server-side only
-
-		if (!m_mapDescriptorComponent)
-		{
-			Print("BC Debug - m_mapDescriptorComponent is null", LogLevel.ERROR);
-			return;
-		}
-
-		if (enableMarkerVisibility && !(m_mapDescriptorComponent.Item().IsVisible()))
-		{
-			m_mapDescriptorComponent.Item().SetVisible(true);
-			//Rpc(RpcAsk_Authority_SetMarkerVisibility, true);
-			//SCR_HintManagerComponent.GetInstance().ShowCustomHint("MARKER ON");
-			Print("BC Debug - marker on", LogLevel.NORMAL);
-		}
-		else if (!enableMarkerVisibility && (m_mapDescriptorComponent.Item().IsVisible()))
-		{
-			m_mapDescriptorComponent.Item().SetVisible(false);
-			//Rpc(RpcAsk_Authority_SetMarkerVisibility, false);
-			//SCR_HintManagerComponent.GetInstance().ShowCustomHint("MARKER OFF");
-			Print("BC Debug - marker off", LogLevel.NORMAL);
-		}
-	}
+	
 	
 	// find the instance on the server
 	GRAD_BC_BreakingContactManager FindBreakingContactManager()

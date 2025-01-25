@@ -221,14 +221,6 @@ modded class SCR_PlayerController : PlayerController
 		
 		playerController.SetCircleMarkerActive(rplId); // if a new transmission point is created, its active by default
 		
-		playerController.AddIconMarker(
-			center[0] - (radius / 12),
-			center[2] + (radius / 12),
-			center[0] + (radius / 12),
-			center[2] + (radius / 12),
-			"{534DF45C06CFB00C}UI/Textures/Map/transmission_active.edds",
-			rplId
-		);
 	}
 	
 	
@@ -387,32 +379,6 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void AddIconMarker(float startX, float startY, float endX, float endY, string sType, RplId rplId)
-	{
-		Rpc(RpcDo_Owner_AddIconMarker, startX, startY, endX, endY, sType, rplId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_AddIconMarker(float startX, float startY, float endX, float endY, string sType, RplId rplId)
-	{
-		m_IconMarkerUI.AddIcon(startX, startY, endX, endY, sType, rplId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void SetIconMarker(string sType, RplId rplId)
-	{
-		Rpc(RpcDo_Owner_SetIconMarker, sType, rplId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_SetIconMarker(string sType, RplId rplId)
-	{
-		m_IconMarkerUI.SetIcon(sType, rplId);
-	}
-	
-	//------------------------------------------------------------------------------------------------
 	void ShowHint(string message, string title, int duration, bool isSilent)
 	{
 		Rpc(RpcDo_Owner_ShowHint, message, title, duration, isSilent);
@@ -426,67 +392,5 @@ modded class SCR_PlayerController : PlayerController
 		
 		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 	}
-		
-	//------------------------------------------------------------------------------------------------
-	void TeleportPlayer(vector pos)
-	{
-		Rpc(RpcDo_Owner_TeleportPlayer, pos);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void RpcDo_Owner_TeleportPlayer(vector pos)
-	{
-		// executed locally on players machine
-		
-		// Close map before creating marker
-		ToggleMap(false);
-		
-		if(SCR_Global.TeleportLocalPlayer(pos, SCR_EPlayerTeleportedReason.DEFAULT))
-			Print(string.Format("PlayerController - Player with ID %1 successfully teleported to position %2", GetPlayerId(), pos), LogLevel.NORMAL);
-		else
-			Print(string.Format("PlayerController - Player with ID %1 NOT successfully teleported to position %2", GetPlayerId(), pos), LogLevel.WARNING);
-	}
 
-	//------------------------------------------------------------------------------------------------
-	void TeleportPlayerToMapPos(int playerId, vector spawnPos)
-	{
-		Rpc(Rpc_Do_Owner_TeleportPlayerToMapPos, playerId, spawnPos);
-	}
-		
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	protected void Rpc_Do_Owner_TeleportPlayerToMapPos(int playerId, vector spawnPos)
-	{
-		// executed locally on players machine
-		
-		IEntity playerEntity = GetGame().GetPlayerManager().GetPlayerControlledEntity(playerId);
-		
-		if (!playerEntity)
-			return;
-		
-		Print(string.Format("GRAD PlayerController - Player with ID %1 has position %2", playerId, playerEntity.GetOrigin()), LogLevel.NORMAL);
-		
-		bool teleportSuccessful;
-		bool spawnEmpty;
-		int spawnSearchLoop = 0;
-		
-		vector newWorldPos;
-		
-		while ((!teleportSuccessful || !spawnEmpty) && spawnSearchLoop < 10)
-		{
-			int radius = 3 + spawnSearchLoop; // increasing each loop
-			Math.Randomize(-1);
-            float randomDistanceX = Math.RandomFloat( -radius, radius );
-            float randomDistanceY = Math.RandomFloat( -radius, radius );
-			
-			vector spawnPosFinal = {spawnPos[0] + randomDistanceX, GetGame().GetWorld().GetSurfaceY(spawnPos[0] + randomDistanceX, spawnPos[2] + randomDistanceY), spawnPos[2] + randomDistanceY};
-			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(spawnPosFinal, spawnPosFinal, radius, 2);
-			teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
-			Print(string.Format("GRAD PlayerController - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
-		}
-		Print(string.Format("GRAD PlayerController - teleport %1", teleportSuccessful), LogLevel.NORMAL);
-		
-	}
 };

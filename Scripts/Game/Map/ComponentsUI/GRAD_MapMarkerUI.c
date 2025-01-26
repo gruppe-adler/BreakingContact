@@ -329,9 +329,15 @@ class GRAD_MapMarkerUI
 	void RemoveSpawnMarker() {
 		foreach (MapCircle singleCircle: m_aSpawnCircles)
 		{
+			if (!singleCircle) {
+				Print(string.Format("GRAD CirclemarkerUI: no singleCircle"), LogLevel.ERROR);
+			}
 			singleCircle.SetVisibility(false); // make previous circles invisible
-			m_aSpawnCircles.Remove(m_aSpawnCircles.Find(singleCircle));
-			Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.NORMAL);
+			int index = m_aSpawnCircles.Find(singleCircle);
+			if (index >= 0) {
+				m_aSpawnCircles.Remove(index);
+				Print(string.Format("GRAD CirclemarkerUI: making previous spawn circles invisible"), LogLevel.NORMAL);
+			}
 		}
 	}
 

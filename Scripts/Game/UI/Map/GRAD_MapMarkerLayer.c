@@ -16,11 +16,13 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 	
 	override void Update(float timeSlice)
 	{	
+		/*
 		Draw();	
 		if(m_Commands.Count() > 0)
 		{						
 			m_Canvas.SetDrawCommands(m_Commands);			
 		}
+		*/
 	}
 	
 	void DrawCircle(vector center, float range, int color, int n = 36)	

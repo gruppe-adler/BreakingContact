@@ -9,7 +9,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 	protected ref array<vector> m_transmissionPointsDone;
 	protected ref array<int> m_Ranges;
 	protected int m_RangeDefault = 1000;
-	protected ref SharedItemRef m_IconDestroyed;
+	// protected ref SharedItemRef m_IconDestroyed;
 	
 	override void Draw()
 	{			
@@ -28,10 +28,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 			DrawCircle(center, m_Ranges[i], ARGB(50, 50, 50, 50));
 		}
 		
+		/*
 		foreach(int i, vector center : m_transmissionPointsDisabled)
 		{			
 			DrawImage(center, 25, 25, m_IconDestroyed);
 		}
+		*/
 		
 		foreach(int i, vector center : m_transmissionPointsDone)
 		{			
@@ -45,6 +47,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		// Print("GRAD_MapMarkerManager: OnMapOpen called", LogLevel.NORMAL);
 		
 		super.OnMapOpen(config);
+		
+		if (true) return;
 		
 		m_Ranges = new array<int>;
 		m_transmissionPointsActive = new array<vector>;
@@ -106,6 +110,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		
 		   		 default: {
 		        	// Handle any other state if necessary
+					PrintFormat("Unexpected transmission state: %1", currentState, LogLevel.ERROR);
 		        	break;
 				}
 			}
@@ -113,7 +118,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 			m_Ranges.Insert(m_RangeDefault);
 		}
 			
-		m_IconDestroyed = m_Canvas.LoadTexture("{09A7BA5E10D5E250}UI/Textures/Map/transmission_destroyed.edds");
+		// m_IconDestroyed = m_Canvas.LoadTexture("{09A7BA5E10D5E250}UI/Textures/Map/transmission_destroyed.edds");
 		
 	}
 	
@@ -121,6 +126,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 	{	
 		super.OnMapClose(config);
 			
+		/*
 		m_Ranges.Clear();
 		m_Ranges = null;
 		m_transmissionPointsActive.Clear();
@@ -132,6 +138,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		m_transmissionPointsInactive = null;
 		m_transmissionPointsDisabled = null;
 		m_RangeDefault = null;
-		m_IconDestroyed = null;
+		*/
+   		// m_IconDestroyed = null;
 	}
 }

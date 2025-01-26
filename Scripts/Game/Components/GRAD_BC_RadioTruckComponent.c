@@ -20,8 +20,6 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	private RplComponent m_RplComponent;
 
-	private GRAD_BC_TransmissionComponent m_nearestTransmissionPoint;
-
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -52,7 +50,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	void applyBrakes() {
 		RplComponent rplComp = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
 		// currently log is on server always, even when players steer the truck :/
-		if (!rplComp.IsProxy()) {
+		if (!rplComp.IsProxy() && rplComp.IsOwner()) {
 			Print(string.Format("Breaking Contact RTC - i am server, exiting brake lock"), LogLevel.NORMAL);
 			return;
 		}
@@ -98,7 +96,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 	}
 	
-	
+	/*
 	GRAD_TransmissionPoint GetNearestTPC(vector center) {
 		GRAD_TransmissionPoint nearestPoint;	
 		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();	
@@ -110,7 +108,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			
 			PrintFormat("Found %1 transmission points", transmissionPointsCount);
 
-			foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
+			foreach (GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
 			{
 				float distance = vector.Distance(TPCAntenna.GetPosition(), center);
 
@@ -125,7 +123,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 		return nearestPoint;
 	}
+	*/
 	
+	/*
 	array<GRAD_TransmissionPoint> GetTransmissionPoints() {
 		array<GRAD_TransmissionPoint> allPoints;
 		
@@ -141,11 +141,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		
 		return(BCM.GetTransmissionPoints());
 	}
-	
-
-		
-	
-	
+	*/
 
 	//------------------------------------------------------------------------------------------------
 	void SyncVariables()
@@ -163,59 +159,4 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	}
 
 
-	/*
-
-	//Check if garage is nearby
-		GetGame().GetWorld().QueryEntitiesBySphere(GetOwner().GetOrigin(), m_fGarageSearchRadius, FindFirstGarage, FilterGarage);
-		return (m_GarageManager);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	bool FilterGarage(IEntity ent)
-	{
-		return (ent.FindComponent(EL_GarageManagerComponent));
-	}
-
-	//------------------------------------------------------------------------------------------------
-	bool FindFirstGarage(IEntity ent)
-	{
-		m_GarageManager = EL_GarageManagerComponent.Cast(ent.FindComponent(EL_GarageManagerComponent));
-		if (!m_GarageManager)
-			return true; //Continue search
-
-		return false; //Stop search
-	}
-
-	*/
-
-
-
-
-
-
-	/*
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void RpcAsk_Authority_SetMarkerVisibility(bool isVisible)
-	{
-		Print("BC Debug - RpcAsk_Authority_SetMarkerVisibility()", LogLevel.NORMAL);
-
-		m_mapDescriptorComponent.Item().SetVisible(isVisible);
-
-		m_bIsVisible = isVisible;
-
-		Replication.BumpMe();
-
-		Rpc(RpcDo_Broadcast_SetMarkerVisibility, isVisible);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	protected void RpcDo_Broadcast_SetMarkerVisibility(bool isVisible)
-	{
-		Print("BC Debug - RpcDo_Broadcast_SetMarkerVisibility()", LogLevel.NORMAL);
-
-		m_mapDescriptorComponent.Item().SetVisible(isVisible);
-	}
-	*/
 }

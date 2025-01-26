@@ -72,6 +72,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 		
 		bool isTransmitting = m_radioTruckComponent.GetTransmissionActive();
 		
+		/*
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
 		if (!BCM) return;
 		
@@ -84,6 +85,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 			string message = string.Format("Transmission Duration: %1s", TPC.GetTransmissionDuration() / 1000); // todo why does this fail?!
 			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);		
 		}
+		*/
 	}
 	
 	//------------------------------------------------------------------------------------------------

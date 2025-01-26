@@ -70,10 +70,12 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 			m_radioTruckComponent.SyncVariables();
 		}
 		
+		bool isTransmitting = m_radioTruckComponent.GetTransmissionActive();
+		
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
 		if (!BCM) return;
 		
-		GRAD_BC_TransmissionPointComponent TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), false);
+		GRAD_TransmissionPoint TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), isTransmitting);
 		if (!TPC) return;
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())

@@ -54,10 +54,12 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
-    protected ref array<GRAD_BC_TransmissionPointComponent> m_transmissionPoints = {};
+    protected ref array<GRAD_TransmissionPoint> m_transmissionPoints = {};
 	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
+	
+	protected bool choosingBluforSpawn;
 	
 	// not possible to replicate the IEntity itself!
 	[RplProp()]
@@ -253,13 +255,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
 		};
 		
-		if (currentPhase == EBreakingContactPhase.BLUFOR) {
-			m_vBluforSpawnPos = findBluforPosition();
-			
-			SetBluforSpawnPos(m_vBluforSpawnPos);
-				
+		if (currentPhase == EBreakingContactPhase.BLUFOR && !choosingBluforSpawn) {
+			Print(string.Format("Breaking Contact - choosingBluforSpawn upcoming"), LogLevel.NORMAL);
+			choosingBluforSpawn = true;
+			vector bluforSpawnPos = findBluforPosition();
+			Print(string.Format("Breaking Contact - bluforSpawnPos %1", bluforSpawnPos), LogLevel.NORMAL);
+			SetBluforSpawnPos(bluforSpawnPos);
 			InitiateBluforSpawn();
-		};			
+		};
 		
 		if (m_skipWinConditions || !(GameModeStarted()))
         {
@@ -267,9 +270,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			return;
 		};
 		
+		ManageMarkers();
+		
         // skip win conditions if active
 		if (GameModeStarted() && !(GameModeOver())) {
-			ManageMarkers();
 			CheckWinConditions();
 			Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		};
@@ -280,13 +284,20 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
 		int count = 0;
 		
-		foreach (GRAD_BC_TransmissionPointComponent transmissionPoint : m_transmissionPoints)
+		foreach (ref GRAD_TransmissionPoint transmissionPoint : m_transmissionPoints)
 		{
 			if (transmissionPoint.GetTransmissionState() == ETransmissionState.DONE) {
 				count = count + 1;
 			}
 		}
 		return count;
+	}
+	
+	
+	//------------------------------------------------------------------------------------------------
+	IEntity GetRadioTruck() 
+	{
+		return m_radioTruck;
 	}
 	
 	
@@ -310,36 +321,36 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		bool stateChanged = (m_bIsTransmittingCache != isTransmitting);
 		m_bIsTransmittingCache = isTransmitting;
 		
-		GRAD_BC_TransmissionPointComponent nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), isTransmitting);
-		array<GRAD_BC_TransmissionPointComponent> transmissionPoints = GetTransmissionPoints();
+		GRAD_TransmissionPoint nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), isTransmitting);
+		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();
 		
 		if (!nearestTPCAntenna) {
 			Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
 			return;
 		}
 		
-		GRAD_BC_TransmissionPointComponent activeTPC = nearestTPCAntenna;
+		GRAD_TransmissionPoint activeTPC = nearestTPCAntenna;
 		if (activeTPC) {
 			if (stateChanged && isTransmitting) {
 				activeTPC.SetTransmissionActive(true);
 				
 				Print(string.Format("Breaking Contact RTC - activating active TPC: %1 - Component: %2", nearestTPCAntenna, activeTPC), LogLevel.NORMAL);
 				
-				foreach (GRAD_BC_TransmissionPointComponent singleTPCAntenna : transmissionPoints)
+				foreach (ref GRAD_TransmissionPoint singleTPCAntenna : transmissionPoints)
 				{
 					// disable all others
 					if (nearestTPCAntenna != singleTPCAntenna) {
-						GRAD_BC_TransmissionPointComponent singleTPC = singleTPCAntenna;
+						GRAD_TransmissionPoint singleTPC = singleTPCAntenna;
 						singleTPC.SetTransmissionActive(false);
 						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
 					};
 				};
 				
 			} else if (stateChanged && !isTransmitting) {
-				foreach (GRAD_BC_TransmissionPointComponent singleTPCAntenna : transmissionPoints)
+				foreach (ref GRAD_TransmissionPoint singleTPCAntenna : transmissionPoints)
 				{
 					// disable all
-					GRAD_BC_TransmissionPointComponent singleTPC = singleTPCAntenna;
+					GRAD_TransmissionPoint singleTPC = singleTPCAntenna;
 					singleTPC.SetTransmissionActive(false);
 					Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
 				};
@@ -347,16 +358,16 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			//	Print(string.Format("Breaking Contact RTC - No state change"), LogLevel.NORMAL);
 			};
 		} else {
-			Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionPointComponent found"), LogLevel.NORMAL);
+			Print(string.Format("Breaking Contact RTC - No GRAD_TransmissionPoint found"), LogLevel.NORMAL);
 		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	GRAD_BC_TransmissionPointComponent GetNearestTransmissionPoint(vector center, bool isTransmitting)
+	GRAD_TransmissionPoint GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 		
-			array<GRAD_BC_TransmissionPointComponent> transmissionPoints = GetTransmissionPoints();
-			GRAD_BC_TransmissionPointComponent selectedPoint;
+			array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();
+			GRAD_TransmissionPoint selectedPoint;
 		
 			Print(string.Format("Breaking Contact RTC - GetNearestTransmissionPoint"), LogLevel.NORMAL);
 
@@ -364,9 +375,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			if (transmissionPoints.Count() > 0) {
 				float distanceMaxTemp;
 
-				foreach (GRAD_BC_TransmissionPointComponent TPCAntenna : transmissionPoints)
+				foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
 				{
-					float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
+					float distance = vector.Distance(TPCAntenna.GetPosition(), center);
 
 					// check if distance is in reach of radiotruck
 					if (distance < m_iMaxTransmissionDistance) {
@@ -443,15 +454,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
              Replication.BumpMe(); // Replicate the RplId
 			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
         }
-		SetVehiclePhysics(m_radioTruck);
+		// SetVehiclePhysics(m_radioTruck);
 	
 		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", m_radioTruck, params), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	GRAD_BC_TransmissionPointComponent CreateTransmissionPoint(vector center) {
+	GRAD_TransmissionPoint CreateTransmissionPoint(vector center) {
 		// if no transmission point exists, create one
-		GRAD_BC_TransmissionPointComponent TPCAntenna = SpawnTransmissionPoint(center, 10);
+		GRAD_TransmissionPoint TPCAntenna = SpawnTransmissionPoint(center);
 		Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
 		
 		return TPCAntenna;
@@ -532,7 +543,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	{
 		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);		
 	    TeleportFactionToMapPos("USSR");
-		// SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
+		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
 	
 	 //------------------------------------------------------------------------------------------------
@@ -553,20 +564,19 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 
 	//------------------------------------------------------------------------------------------------
-	GRAD_BC_TransmissionPointComponent SpawnTransmissionPoint(vector center, int radius)
-	{				
-		EntitySpawnParams params = new EntitySpawnParams();
-        params.Transform[3] = center;
-		params.TransformMode = ETransformMode.WORLD;
-		
-        // create antenna that serves as component holder for transmission point
+	GRAD_TransmissionPoint SpawnTransmissionPoint(vector center)
+	{	
+		// create antenna that serves as component holder for transmission point
         // Resource ressource = Resource.Load("{5B8922E61D8DF345}Prefabs/Props/Military/Antennas/Antenna_R161_01.et");
-        GRAD_BC_TransmissionPointComponent transmissionPoint = GRAD_BC_TransmissionPointComponent.Cast(GetGame().SpawnEntity(GRAD_BC_TransmissionPointComponent, GetWorld(), params));
+        // GRAD_TransmissionPoint transmissionPoint = GRAD_TransmissionPoint.Cast(GetGame().SpawnEntity(GRAD_TransmissionPoint, GetWorld(), params));
 		// RemoveChild(transmissionPoint, false); // disable attachment hierarchy to radiotruck (?!)
+		
+		GRAD_TransmissionPoint transmissionPoint = new GRAD_TransmissionPoint();
+		transmissionPoint.SetPosition(center);
 		
         addTransmissionPoint(transmissionPoint); // add to array
 		
-		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, params), LogLevel.NORMAL);
+		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint), LogLevel.NORMAL);
 		
 		return transmissionPoint;
 	}
@@ -582,17 +592,17 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		worldCenterArray.Insert(worldCenter);
 		worldCenterArray.Insert(worldCenter);
 		
-		float halfSize = 500.0; // Adjust as needed for your AABB size
+		const float halfSize = 5000; // Adjust as needed for your AABB size
 		// Adjust AABB for XZY coordinate system
-		vector aabbMin = center - Vector(halfSize, 10, halfSize); // Clamp Z slightly below ground
-		vector aabbMax = center + Vector(halfSize, 100, halfSize); // Clamp Z slightly above ground
+		// i dont care for Z anymore now, just give me all you have 
+		vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
+		vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
 
 		
 		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
 		
 		if (roadNetworkManager) {
 				BaseRoad emptyRoad;
-				float distanceRoad;
 				auto outPoints = new array<vector>();
 
 				// needs 2 points i presume, no documentation for this
@@ -607,14 +617,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			    Print("BCM - aabbMin: " + aabbMin.ToString());
 			    Print("BCM - aabbMax: " + aabbMax.ToString());
 			    Print("BCM - Result Code: " + result);
-			    Print("BCM - Roads Count: " + emptyRoads.Count());
 			
 			    // Output the retrieved roads
 			    for (int i = 0; i < emptyRoads.Count(); i++) {
 			        Print("Road " + i + ": " + emptyRoads[i].ToString());
 			    }
-			
-				PrintFormat("BCM - result %1", result);
 				
 				if (result > 0) {
 					emptyRoad = emptyRoads[0];
@@ -638,7 +645,6 @@ class GRAD_BC_BreakingContactManager : GenericEntity
         while (!foundSpawnPoint) {
 			
 			minRadius = loopCount;
-			
 			
 			roadPoints = GetNearestRoadPos(center);
 			vector roadPos = roadPoints[0];
@@ -664,14 +670,14 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 
 
     //------------------------------------------------------------------------------------------------
-	protected void addTransmissionPoint(GRAD_BC_TransmissionPointComponent transmissionPoint)
+	protected void addTransmissionPoint(GRAD_TransmissionPoint transmissionPoint)
 	{
         m_transmissionPoints.Insert(transmissionPoint);		
     }
 	
 	
 	//------------------------------------------------------------------------------------------------
-	array<GRAD_BC_TransmissionPointComponent> GetTransmissionPoints()
+	array<GRAD_TransmissionPoint> GetTransmissionPoints()
 	{
         return m_transmissionPoints;		
     }
@@ -699,7 +705,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				foundPositionOnLand = true;
 			}
 			
-			if (loopCount > 1000) {
+			if (loopCount > 100) {
 				foundPositionOnLand = true;
 				Print(string.Format("BCM - findBluforPosition panic exit after '%1 loops'.", loopCount), LogLevel.ERROR);		
 			}
@@ -766,25 +772,28 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
-		Print(string.Format("Breaking Contact - TeleportFactionToMapPos"), LogLevel.NORMAL);
-
-		
 		if (factionName == "USSR")
 		{	
 			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
 			SpawnSpawnVehicleEast();
 			
-		} else {	
-			SpawnSpawnVehicleWest();	
+		}
+		if (factionName == "US") {	
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
+			SpawnSpawnVehicleWest();
+		}
+		if (factionName != "US" && factionName != "USSR") {
+			Print(string.Format("Breaking Contact - PANIC, faction is %1", factionName), LogLevel.NORMAL);
+			return;
 		}
 		
 		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
 		array<PS_PlayableComponent> playables = m_PlayableManager.GetPlayablesSorted();
+		int index = 10000;
 		
 		foreach (PS_PlayableComponent playableComp : playables)
 		{	
-		
+			index = index + 1;
 			FactionAffiliationComponent factionComp = playableComp.GetFactionAffiliationComponent();
 			if (!factionComp) {
 				Print(string.Format("BCM - no factionComp"), LogLevel.ERROR);
@@ -799,11 +808,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 				IEntity playerInstance = playableComp.GetOwnerCharacter();
 				// delay is because spawn vehicle opfor needs to find road position and will change opfor spawn pos once again
 				if (factionName == "US") {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, 10000, false, playerInstance, m_vBluforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerInstance, playerFactionName, m_vBluforSpawnPos), LogLevel.NORMAL);
+					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vBluforSpawnPos);
+					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vBluforSpawnPos, index), LogLevel.NORMAL);
 				} else {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, 10000, false, playerInstance, m_vOpforSpawnPos);
-					Print(string.Format("Breaking Contact - Player with ID %1 is Member of Faction %2 and will be teleported to %3", playerInstance, playerFactionName, m_vOpforSpawnPos), LogLevel.NORMAL);
+					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vOpforSpawnPos);
+					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vOpforSpawnPos, index), LogLevel.NORMAL);
 				}	
 			}
 		}
@@ -813,35 +822,42 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected void TeleportPlayerInstanceToMapPos(IEntity playerInstance, vector spawnPos)
 	{
 		// executed locally on players machine
-		
-		Print(string.Format("GRAD playerInstance - Player has position %1 - spawnPos is %2", playerInstance.GetOrigin(), spawnPos), LogLevel.NORMAL);
 	
 		bool spawnEmpty;
 		int spawnSearchLoop = 0;
 		vector foundSpawnPos;
 		
-		while ((!spawnEmpty) && spawnSearchLoop < 100)
+		while (!spawnEmpty)
 		{
 			int radius = 3 + spawnSearchLoop; // increasing each loop
 
 			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(foundSpawnPos, spawnPos, radius);
+			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(foundSpawnPos, spawnPos, radius*2);
+			Print(string.Format("GRAD playerInstance - foundSpawnPos %1 - spawnEmpty %2 - spawnSearchLoop %3", foundSpawnPos, spawnEmpty, spawnSearchLoop), LogLevel.NORMAL);
+			// Print(string.Format("GRAD playerInstance - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
 			
-			// teleportSuccessful = SCR_Global.TeleportLocalPlayer(spawnPosFinal, SCR_EPlayerTeleportedReason.DEFAULT);
-			Print(string.Format("GRAD playerInstance - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
+			if (spawnSearchLoop > 150) {
+				foundSpawnPos = spawnPos;
+				Print(string.Format("GRAD playerInstance - not found a position after %1 tries and radius %2", spawnSearchLoop, radius), LogLevel.ERROR);
+			}
 		}
 		
+		SCR_Global.TeleportLocalPlayer(foundSpawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
+		
+		/*
+		// cause of crash?
 		BaseGameEntity baseGameEntity = BaseGameEntity.Cast(playerInstance);
 		if (baseGameEntity && !BaseVehicle.Cast(baseGameEntity))
 		{
 			baseGameEntity.Teleport(foundSpawnPos);
+			Print(string.Format("GRAD player teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
 		}
 		else
 		{
 			playerInstance.SetWorldTransform(foundSpawnPos);
+			Print(string.Format("GRAD AI teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
 		}
-			
-		Print(string.Format("GRAD playerInstance teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
+		*/
 		
 	}
 	
@@ -908,31 +924,5 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	    vector obbExtents;
 	    ChimeraWorldUtils.TryGetWaterSurface(GetGame().GetWorld(), pos, outWaterSurfacePoint, outType, transformWS, obbExtents);
 	    return outType != EWaterSurfaceType.WST_NONE;
-	}
-	
-	//---------------Arkensor magic----------------------------------------------------------
-	static void ForceTransformEx(notnull IEntity entity, vector transform[4])
-	{
-		vector previousOrigin = entity.GetOrigin();
-
-		BaseGameEntity baseGameEntity = BaseGameEntity.Cast(entity);
-		if (baseGameEntity && !BaseVehicle.Cast(baseGameEntity))
-		{
-			baseGameEntity.Teleport(transform);
-		}
-		else
-		{
-			entity.SetWorldTransform(transform);
-		}
-
-		Physics physics = entity.GetPhysics();
-		if (physics)
-		{
-			physics.SetVelocity(vector.Zero);
-			physics.SetAngularVelocity(vector.Zero);
-		}
-
-		if (!ChimeraCharacter.Cast(entity))
-			entity.Update();
 	}
 }

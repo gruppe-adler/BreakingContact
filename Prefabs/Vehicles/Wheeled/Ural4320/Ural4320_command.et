@@ -50,6 +50,8 @@ Vehicle : "{4597626AF36C0858}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320.et" {
   }
   GRAD_BC_RadioTruckComponent "{6150F51835A7EF83}" {
   }
+  GRAD_BC_RadioTruckComponent "{64735A819DF09558}" {
+  }
   ActionsManagerComponent "{C97BE5489221AE18}" {
    additionalActions {
     GRAD_BC_ToggleRadioTransmission "{644ABAE084092DB0}" {

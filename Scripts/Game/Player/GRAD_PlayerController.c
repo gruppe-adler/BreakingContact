@@ -175,16 +175,26 @@ modded class SCR_PlayerController : PlayerController
 		
 		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", factionKey, phase), LogLevel.NORMAL);
 		
-		if (factionKey == "USSR" && phase == EBreakingContactPhase.OPFOR) {
-			vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-			BCM.SetOpforSpawnPos(spawnPosition);
-			RequestInitiateOpforSpawnLocal();
-			RemoveSpawnMarker();
-			Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3", spawnPosition, factionKey, phase), LogLevel.NORMAL);
-		
-			// remove key listener
-			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			return;
+		if (factionKey == "USSR") {
+			if (phase != EBreakingContactPhase.OPFOR) {
+				Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
+				return;
+			}
+			if (phase == EBreakingContactPhase.OPFOR) {
+				vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
+				if (BCM.SurfaceIsWater(spawnPosition)) {
+					return;
+				}
+				
+				// remove key listener
+				GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+				
+				BCM.SetOpforSpawnPos(spawnPosition);
+				RequestInitiateOpforSpawnLocal();
+				RemoveSpawnMarker();
+				Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3 - Removing spawn marker for opfor.", spawnPosition, factionKey, phase), LogLevel.NORMAL);
+				return;
+			}
 		}
 		
 		if (factionKey == "US" && phase == EBreakingContactPhase.GAME) {
@@ -192,34 +202,6 @@ modded class SCR_PlayerController : PlayerController
 			RemoveSpawnMarker();
 			return;
 		}
-		
-	}
-	
-	//-----------------------------------------------------------------------
-	void Rpc_AddTransmissionMarker(GRAD_BC_TransmissionPointComponent entity, float radius) {
-	
-		Print(string.Format("Breaking Contact - executing RPC Rpc_AddTransmissionMarker locally"), LogLevel.NORMAL);
-	
-		vector center = entity.GetOrigin();
-		RplId rplId = Replication.FindId(RplComponent.Cast(entity.FindComponent(RplComponent)));
-		
-		int playerId = GetGame().GetPlayerController().GetPlayerId();
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-
-		if (!playerController) {
-			Print(string.Format("Breaking Contact - no playerController found in Rpc_AddTransmissionMarker"), LogLevel.ERROR);
-			return;
-		}
-	
-		playerController.AddCircleMarker(
-			center[0] - radius,
-			center[2] + radius,
-			center[0] + radius,
-			center[2] + radius,
-			rplId
-		);
-		
-		playerController.SetCircleMarkerActive(rplId); // if a new transmission point is created, its active by default
 		
 	}
 	

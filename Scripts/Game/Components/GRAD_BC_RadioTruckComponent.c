@@ -1,4 +1,4 @@
-[ComponentEditorProps(category: "GRAD/Breaking Contact", description: "")]
+[ComponentEditorProps(category: "GRAD/Breaking Contact", description: "manages the radio truck itself")]
 class GRAD_BC_RadioTruckComponentClass : ScriptComponentClass
 {
 }
@@ -10,6 +10,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
+	[RplProp()]
 	protected bool m_bIsTransmitting;
 
 	private Vehicle m_radioTruck;
@@ -19,7 +20,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	private RplComponent m_RplComponent;
 
-	private GRAD_BC_TransmissionPointComponent m_nearestTransmissionPoint;
+	private GRAD_BC_TransmissionComponent m_nearestTransmissionPoint;
 
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
@@ -77,6 +78,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	void SetTransmissionActive(bool setTo) {
 		m_bIsTransmitting = setTo;
+		Replication.BumpMe();
 		
 		Print(string.Format("Breaking Contact RTC -  Setting m_bIsTransmitting to %1", m_bIsTransmitting), LogLevel.NORMAL);
 		
@@ -97,20 +99,20 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	}
 	
 	
-	GRAD_BC_TransmissionPointComponent GetNearestTPC(vector center) {
-		GRAD_BC_TransmissionPointComponent nearestPoint = null;	
-		array<GRAD_BC_TransmissionPointComponent> transmissionPoints = GetTransmissionPoints();	
-		
+	GRAD_TransmissionPoint GetNearestTPC(vector center) {
+		GRAD_TransmissionPoint nearestPoint;	
+		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();	
 		int transmissionPointsCount = transmissionPoints.Count();
+		
 		// if transmission points exist, find out which one is the nearest
 		if (transmissionPointsCount > 0) {
 			float minDistance = 999999;
 			
 			PrintFormat("Found %1 transmission points", transmissionPointsCount);
 
-			foreach (GRAD_BC_TransmissionPointComponent TPCAntenna : transmissionPoints)
+			foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
 			{
-				float distance = vector.Distance(TPCAntenna.GetOrigin(), center);
+				float distance = vector.Distance(TPCAntenna.GetPosition(), center);
 
 				// check if distance is in reach of radiotruck
 				if (distance < minDistance) {
@@ -124,8 +126,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		return nearestPoint;
 	}
 	
-	array<GRAD_BC_TransmissionPointComponent> GetTransmissionPoints() {
-		array<GRAD_BC_TransmissionPointComponent> allPoints;
+	array<GRAD_TransmissionPoint> GetTransmissionPoints() {
+		array<GRAD_TransmissionPoint> allPoints;
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
 		if (!playerController) {

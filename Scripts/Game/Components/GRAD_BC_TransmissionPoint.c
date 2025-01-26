@@ -1,19 +1,10 @@
-enum ETransmissionState
-{
-	OFF,
-	TRANSMITTING,
-	INTERRUPTED,
-	DISABLED,
-	DONE
-}
-
-[ComponentEditorProps(category: "GRAD/Breaking Contact", description: "")]
-class GRAD_BC_TransmissionPointComponentClass : GenericEntityClass
+[ComponentEditorProps(category: "GRAD/Breaking Contact", description: "adds transmission point management")]
+class GRAD_BC_TransmissionComponentClass : ScriptComponentClass
 {
 }
 
 // entity to be able to work without spawning an actual antenna
-class GRAD_BC_TransmissionPointComponent : GenericEntity
+class GRAD_BC_TransmissionComponent : ScriptComponent
 {
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.EditBox, desc: "MinDistance", params: "", category: "Breaking Contact - Transmission Point")];
 	protected int m_TransmissionPointMinDistance;
@@ -31,14 +22,16 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 
 	protected bool m_bTransmissionActive;
 	
-	GRAD_BC_TransmissionPointComponent m_TPC;
+	[RplProp()]
+	vector m_position;
 
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
 		
-		m_TPC = GRAD_BC_TransmissionPointComponent.Cast(owner);
+		m_position = owner.GetOrigin();
+		Replication.BumpMe();
 
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 
@@ -78,7 +71,19 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 	{
 		return m_bTransmissionActive;
 	}
+	
+	vector GetPosition() 
+	{
+		return m_position;
+	}
+	
+	void SetPosition(vector center) 
+	{
+		m_position = center;
+	}
 
+	
+		// todo move into playercontroller
 	//------------------------------------------------------------------------------------------------
 	private void SetTransmissionState(ETransmissionState transmissionState)
 	{
@@ -138,17 +143,8 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 		}
 		Print(string.Format("Breaking Contact TPC - Set Transmissionstate to %1", m_eTransmissionState), LogLevel.NORMAL);
 	}
-
-
-	//------------------------------------------------------------------------------------------------
 	
 	void SetTransmissionActive(bool setState) {
-		Rpc(Rpc_SetTransmissionActive, setState);
-	}
-	
-	// each client on its own
-	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-	void Rpc_SetTransmissionActive(bool setState) {
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
 			
@@ -173,21 +169,6 @@ class GRAD_BC_TransmissionPointComponent : GenericEntity
 		}
 	}
 
-
-	//------------------------------------------------------------------------------------------------
-	void SyncVariables()
-	{
-		Rpc(RpcAsk_Authority_SyncVariables);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void RpcAsk_Authority_SyncVariables()
-	{
-		//Print("BC Debug - RpcAsk_Authority_SyncTransmissionDuration()", LogLevel.NORMAL);
-
-		Replication.BumpMe();
-	}
 
 	//------------------------------------------------------------------------------------------------
 	protected void MainLoop(IEntity owner)

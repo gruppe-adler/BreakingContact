@@ -15,7 +15,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 	{			
 		m_Commands.Clear();
 		
-		Print("GRAD_MapMarkerManager: Draw called", LogLevel.NORMAL);
+		// this works - calls every time map opens
+		// Print("GRAD_MapMarkerManager: Draw called", LogLevel.NORMAL);
 		
 		foreach(int i, vector center : m_transmissionPointsActive)
 		{			
@@ -41,7 +42,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 	
 	override void OnMapOpen(MapConfiguration config)
 	{
-		Print("GRAD_MapMarkerManager: OnMapOpen called", LogLevel.NORMAL);
+		// Print("GRAD_MapMarkerManager: OnMapOpen called", LogLevel.NORMAL);
 		
 		super.OnMapOpen(config);
 		
@@ -53,20 +54,26 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		
 		IEntity GRAD_BCM_Entity = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
 		if (!GRAD_BCM_Entity) {
-			Print("GRAD GRAD_MapMarkerManager: GRAD_BCM Entity missing", LogLevel.ERROR);
+			Print("GRAD_MapMarkerManager: GRAD_BCM Entity missing", LogLevel.ERROR);
 			return	;
 		}
 		
 	 	GRAD_BC_BreakingContactManager GRAD_BCM = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM_Entity);
 		if (!GRAD_BCM) {
-			Print("GRAD GRAD_MapMarkerManager: manager missing", LogLevel.ERROR);
+			Print("GRAD_MapMarkerManager: GRAD_BCM missing", LogLevel.ERROR);
 			return;
 		}
 		
-		array<GRAD_BC_TransmissionPointComponent> GRAD_TPCs = GRAD_BCM.GetTransmissionPoints();
-		PrintFormat("GRAD_TPCs %1",GRAD_TPCs);
+		IEntity radioTruck = GRAD_BCM.GetRadioTruck();
+		if (!radioTruck) {
+			Print("GRAD_MapMarkerManager: radioTruck missing", LogLevel.ERROR);
+			return;
+		}
 		
-		foreach(GRAD_BC_TransmissionPointComponent GRAD_TPC : GRAD_TPCs)
+		array<GRAD_TransmissionPoint> GRAD_TPCs = GRAD_BCM.GetTransmissionPoints();
+		PrintFormat("GRAD_TPCs %1", GRAD_TPCs);
+		
+		foreach(GRAD_TransmissionPoint GRAD_TPC : GRAD_TPCs)
 		{	
 			
 			ETransmissionState currentState = GRAD_TPC.GetTransmissionState();
@@ -75,23 +82,23 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 			switch (currentState)
 			{
 		   		 case ETransmissionState.TRANSMITTING: {
-			        m_transmissionPointsActive.Insert(GRAD_TPC.GetOrigin());
+			        m_transmissionPointsActive.Insert(GRAD_TPC.GetPosition());
 		        	break;
 				}
 						
 				case ETransmissionState.DISABLED: {
-					m_transmissionPointsDisabled.Insert(GRAD_TPC.GetOrigin());
+					m_transmissionPointsDisabled.Insert(GRAD_TPC.GetPosition());
 					break;
 				}
 		
 			    case ETransmissionState.INTERRUPTED: {
-					m_transmissionPointsInactive.Insert(GRAD_TPC.GetOrigin());
+					m_transmissionPointsInactive.Insert(GRAD_TPC.GetPosition());
 					break;
 				}
 		        
 		
 		    	case ETransmissionState.DONE: {
-					m_transmissionPointsDone.Insert(GRAD_TPC.GetOrigin());
+					m_transmissionPointsDone.Insert(GRAD_TPC.GetPosition());
 			        break;
 				}
 		
@@ -120,5 +127,11 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		m_transmissionPointsDone.Clear();
 		m_transmissionPointsInactive.Clear();
 		m_transmissionPointsDisabled.Clear();
+		m_transmissionPointsActive = null;
+		m_transmissionPointsDone = null;
+		m_transmissionPointsInactive = null;
+		m_transmissionPointsDisabled = null;
+		m_RangeDefault = null;
+		m_IconDestroyed = null;
 	}
 }

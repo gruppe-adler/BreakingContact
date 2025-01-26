@@ -263,7 +263,7 @@ class GRAD_MapMarkerUI
 		coords[2] = y;
 	
 		vector worldPos = {coords[0], GetGame().GetWorld().GetSurfaceY(coords[0], coords[2]), coords[2]};
-        bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
+        int spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(worldPos, worldPos, 2, 2);
 
 		if (!spawnEmpty)
 		{

@@ -598,8 +598,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
 		vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
 
-		
-		RoadNetworkManager roadNetworkManager = GetGame().GetAIWorld().GetRoadNetworkManager();
+		SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
+		RoadNetworkManager roadNetworkManager = aiWorld.GetRoadNetworkManager();
 		
 		if (roadNetworkManager) {
 				BaseRoad emptyRoad;
@@ -788,12 +788,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		}
 		
 		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
-		array<PS_PlayableComponent> playables = m_PlayableManager.GetPlayablesSorted();
+		array<PS_PlayableContainer> playables = m_PlayableManager.GetPlayablesSorted();
 		int index = 10000;
 		
-		foreach (PS_PlayableComponent playableComp : playables)
+		foreach (PS_PlayableContainer playableCont : playables)
 		{	
 			index = index + 1;
+			
+			PS_PlayableComponent playableComp = playableCont.GetPlayableComponent();
+			
 			FactionAffiliationComponent factionComp = playableComp.GetFactionAffiliationComponent();
 			if (!factionComp) {
 				Print(string.Format("BCM - no factionComp"), LogLevel.ERROR);

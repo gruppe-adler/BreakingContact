@@ -548,9 +548,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void Rpc_RequestInitiateOpforSpawn()
+	void Rpc_RequestInitiateOpforSpawn(vector spawnPosition)
 	{
-		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);		
+		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		SetOpforSpawnPos(spawnPosition);
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -877,7 +878,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		}
 	}
 	
-	void SetOpforSpawnPos(vector spawnPos) {		
+	void SetOpforSpawnPos(vector spawnPos)
+	{
 		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
 		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
 		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);

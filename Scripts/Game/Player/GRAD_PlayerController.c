@@ -189,8 +189,7 @@ modded class SCR_PlayerController : PlayerController
 				// remove key listener
 				GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 				
-				BCM.SetOpforSpawnPos(spawnPosition);
-				RequestInitiateOpforSpawnLocal();
+				RequestInitiateOpforSpawnLocal(spawnPosition);
 				RemoveSpawnMarker();
 				Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3 - Removing spawn marker for opfor.", spawnPosition, factionKey, phase), LogLevel.NORMAL);
 				return;
@@ -213,16 +212,16 @@ modded class SCR_PlayerController : PlayerController
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void RequestInitiateOpforSpawnLocal() {
+	void RequestInitiateOpforSpawnLocal(vector spawnPosition) {
 		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
 		
-		Rpc(RequestInitiateOpforSpawn);
+		Rpc(RequestInitiateOpforSpawn, spawnPosition);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	// this needs to be inside player controller to work, dont switch component during rpc? i guess
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void RequestInitiateOpforSpawn() {
+	void RequestInitiateOpforSpawn(vector spawnPosition) {
 		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
 		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		
@@ -230,7 +229,7 @@ modded class SCR_PlayerController : PlayerController
 			Print("PANIC, no BCM in PC");
 			return;
 		}
-		BCM.Rpc_RequestInitiateOpforSpawn();
+		BCM.Rpc_RequestInitiateOpforSpawn(spawnPosition);
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -70,6 +70,15 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	protected bool m_bIsTransmittingCache;
 	RplComponent m_RplComponent;
 	
+	protected PlayerManager m_PlayerManager;
+	
+	protected PlayerManager GetPlayerManager()
+	{
+		if (m_PlayerManager == null)
+			m_PlayerManager = GetGame().GetPlayerManager();
+		
+		return m_PlayerManager;
+	}
 	
     //------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
@@ -210,11 +219,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		array<int> alivePlayersOfSide = {};
 		
 		array<int> allPlayers = {};
-		GetGame().GetPlayerManager().GetPlayers(allPlayers);
+		GetPlayerManager().GetPlayers(allPlayers);
 		foreach(int playerId : allPlayers)
 		{
 			// null check bc of null pointer crash
-			PlayerController pc = GetGame().GetPlayerManager().GetPlayerController(playerId);
+			PlayerController pc = GetPlayerManager().GetPlayerController(playerId);
 			if (!pc) continue;
 			
 			// Game Master is also a player but perhaps with no controlled entity
@@ -734,7 +743,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
 		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetPlayerManager().GetPlayerController(playerId));
 		
 		if (!playerController)
 			return;
@@ -747,7 +756,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void NotifyFactionWrongPhaseForMarker(Faction faction)
 	{
 		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		GetPlayerManager().GetAllPlayers(playerIds);
 
 		const string title = "Breaking Contact";
 		const string message = "You can't create the marker in this phase.";
@@ -758,7 +767,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		{
 			if (SCR_FactionManager.SGetPlayerFaction(playerId) == faction)
 			{
-				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
+				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetPlayerManager().GetPlayerController(playerId));
 				
 				if (!playerController)
 					return;
@@ -772,16 +781,22 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
+		array<vector> availablePositions = new array<vector>();
+		
 		if (factionName == "USSR")
 		{	
 			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
 			SpawnSpawnVehicleEast();
+			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos);
 			
 		}
+		
 		if (factionName == "US") {	
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 			SpawnSpawnVehicleWest();
+			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos);
 		}
+		
 		if (factionName != "US" && factionName != "USSR") {
 			Print(string.Format("Breaking Contact - PANIC, faction is %1", factionName), LogLevel.NORMAL);
 			return;
@@ -789,81 +804,54 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
 		array<PS_PlayableContainer> playables = m_PlayableManager.GetPlayablesSorted();
-		int index = 10000;
 		
-		foreach (PS_PlayableContainer playableCont : playables)
-		{	
-			index = index + 1;
-			
+		int index = 0;
+		foreach (int idx, PS_PlayableContainer playableCont : playables)
+		{			
 			PS_PlayableComponent playableComp = playableCont.GetPlayableComponent();
+			IEntity owner = playableComp.GetOwnerCharacter();
+			int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(owner);
+			if (playerId == 0) // This isn't a real player so we can skip it
+				continue;
 			
-			FactionAffiliationComponent factionComp = playableComp.GetFactionAffiliationComponent();
-			if (!factionComp) {
-				Print(string.Format("BCM - no factionComp"), LogLevel.ERROR);
-				return;
-			}
-			
-			string playerFactionName = factionComp.GetAffiliatedFaction().GetFactionKey();			
+			string playerFactionName = playableComp.GetFactionKey();		
 			Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
 			
 			if (factionName == playerFactionName)
-			{
-				IEntity playerInstance = playableComp.GetOwnerCharacter();
-				// delay is because spawn vehicle opfor needs to find road position and will change opfor spawn pos once again
-				if (factionName == "US") {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vBluforSpawnPos);
-					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vBluforSpawnPos, index), LogLevel.NORMAL);
-				} else {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vOpforSpawnPos);
-					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vOpforSpawnPos, index), LogLevel.NORMAL);
-				}	
+			{								
+				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(owner.FindComponent(GRAD_PlayerComponent));
+				if (playerComponent == null)
+				{
+					Print("Unable to find GRAD_PlayerComponent", LogLevel.ERROR);
+					return;
+				}
+				
+				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000, false, availablePositions[index]);
+				
+				index = index + 1;
+				
+				// In case we ran out of positions start over
+				// Not ideal that they spawn exact same location but better than not spawning at all...
+				if (index >= availablePositions.Count())
+					index = 0;
 			}
 		}
 	}
 	
-	// Server side!
-	protected void TeleportPlayerInstanceToMapPos(IEntity playerInstance, vector spawnPos)
+	//------------------------------------------------------------------------------------------------
+	protected array<vector> FindAllEmptyTerrainPositions(vector location, int minCount = 100)
 	{
-		// executed locally on players machine
-	
-		bool spawnEmpty;
-		int spawnSearchLoop = 0;
-		vector foundSpawnPos;
+		array<vector> availablePositions = new array<vector>();
+		int range = 200;
 		
-		while (!spawnEmpty)
+		while (availablePositions.Count() <= minCount || range < 1000)
 		{
-			int radius = 3 + spawnSearchLoop; // increasing each loop
-
-			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(foundSpawnPos, spawnPos, radius*2);
-			Print(string.Format("GRAD playerInstance - foundSpawnPos %1 - spawnEmpty %2 - spawnSearchLoop %3", foundSpawnPos, spawnEmpty, spawnSearchLoop), LogLevel.NORMAL);
-			// Print(string.Format("GRAD playerInstance - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
-			
-			if (spawnSearchLoop > 150) {
-				foundSpawnPos = spawnPos;
-				Print(string.Format("GRAD playerInstance - not found a position after %1 tries and radius %2", spawnSearchLoop, radius), LogLevel.ERROR);
-			}
+			SCR_WorldTools.FindAllEmptyTerrainPositions(availablePositions, location, range, 3, 5, 100);
+			range = range + 100;
 		}
 		
-		SCR_Global.TeleportLocalPlayer(foundSpawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
-		
-		/*
-		// cause of crash?
-		BaseGameEntity baseGameEntity = BaseGameEntity.Cast(playerInstance);
-		if (baseGameEntity && !BaseVehicle.Cast(baseGameEntity))
-		{
-			baseGameEntity.Teleport(foundSpawnPos);
-			Print(string.Format("GRAD player teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
-		}
-		else
-		{
-			playerInstance.SetWorldTransform(foundSpawnPos);
-			Print(string.Format("GRAD AI teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
-		}
-		*/
-		
+		return availablePositions;
 	}
-	
 
 	//----
 	void SetVehiclePhysics(IEntity vehicle) {

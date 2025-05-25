@@ -4,5 +4,7 @@ SCR_ChimeraCharacter {
   GRAD_CharacterRoleComponent "{607F64131E3AB5D2}" {
    m_sCharacterRole "none"
   }
+  GRAD_PlayerComponent "{6572761CF0F9CFDE}" {
+  }
  }
 }

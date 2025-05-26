@@ -151,6 +151,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		
 		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+		if (playerComponent == null)
+			return;
 		
 		// no rpc needed here, logs already on client
 		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);

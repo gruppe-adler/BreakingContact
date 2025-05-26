@@ -11,6 +11,8 @@ class GRAD_PlayerComponent : ScriptComponent
 		if (m_instance == null)
 		{
 			PlayerController playerController = GetGame().GetPlayerController();
+			if (playerController == null)
+				return null;
 			
 			m_instance = GRAD_PlayerComponent.Cast(playerController.FindComponent(GRAD_PlayerComponent));
 		}

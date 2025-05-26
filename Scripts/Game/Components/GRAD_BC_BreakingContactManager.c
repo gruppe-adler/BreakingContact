@@ -68,7 +68,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     protected RplId westCommandVehRplId;
 	
 	protected bool m_bIsTransmittingCache;
-	RplComponent m_RplComponent;
 	
 	protected PlayerManager m_PlayerManager;
 	
@@ -97,13 +96,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 		super.EOnInit(owner);
 		
-		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);
-		
-		m_RplComponent = RplComponent.Cast(FindComponent(RplComponent));  
-						
+		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);					
 		
 		// execute only on the server
-		if (m_RplComponent.IsMaster()) {
+		if (Replication.IsServer()) {
 			m_iNotificationDuration = 10;
 			
 			// check win conditions every second
@@ -948,5 +944,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			m_vOpforSpawnPos[2] + 500.0,
 			-1,
 			true);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	override void OnPostInit(IEntity owner)
+	{
+		SetEventMask(owner, EntityEvent.INIT);
 	}
 }

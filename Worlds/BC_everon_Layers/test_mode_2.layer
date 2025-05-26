@@ -1,4 +1,8 @@
 PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
+ components {
+  GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
+  }
+ }
  coords 4664.889 27.659 11135.528
  m_iFreezeTime 10000
  {

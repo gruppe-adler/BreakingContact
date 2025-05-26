@@ -10,13 +10,13 @@ enum EBreakingContactPhase
 }
 
 [EntityEditorProps(category: "Gruppe Adler", description: "Breaking Contact Gamemode Manager")]
-class GRAD_BC_BreakingContactManagerClass : GenericEntityClass
+class GRAD_BC_BreakingContactManagerClass : ScriptComponentClass
 {
 }
 
 // This class is server-only code
 
-class GRAD_BC_BreakingContactManager : GenericEntity
+class GRAD_BC_BreakingContactManager : ScriptComponent
 {
     [Attribute(defvalue: "3", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
@@ -37,7 +37,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	protected string m_sWinnerSide;
 
-	[RplProp()]
+	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
 	
 	[RplProp()]
@@ -78,6 +78,18 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 			m_PlayerManager = GetGame().GetPlayerManager();
 		
 		return m_PlayerManager;
+	}
+	
+	protected static GRAD_BC_BreakingContactManager m_instance;
+	
+	static GRAD_BC_BreakingContactManager GetInstance()
+	{
+		if (m_instance == null)
+		{
+			m_instance = GRAD_BC_BreakingContactManager.Cast(GetGame().GetGameMode().FindComponent(GRAD_BC_BreakingContactManager))
+		}
+		
+		return m_instance;
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -141,11 +153,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		const int duration = 10;
 		bool isSilent = false;
 		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController) {
-			Print(string.Format("No player controller in grad playercontroller"), LogLevel.NORMAL);
-			return;
-		}
+		
+		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 		
 		// no rpc needed here, logs already on client
 		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
@@ -153,28 +162,28 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		// close map for opfor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
-			playerController.ToggleMap(false);
-			playerController.setChoosingSpawn(false);
+			playerComponent.ToggleMap(false);
+			playerComponent.setChoosingSpawn(false);
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
 		}
 		
 		// close map for blufor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
-			playerController.ToggleMap(false);
-			playerController.setChoosingSpawn(false);
+			playerComponent.ToggleMap(false);
+			playerComponent.setChoosingSpawn(false);
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerController.ShowBCLogo();
+			playerComponent.ShowBCLogo();
 		}
 			
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerController.ShowBCLogo();
+			playerComponent.ShowBCLogo();
 		}
 
 	}
@@ -548,10 +557,9 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void Rpc_RequestInitiateOpforSpawn(vector spawnPosition)
+	void Rpc_RequestInitiateOpforSpawn()
 	{
 		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
-		SetOpforSpawnPos(spawnPosition);
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -743,13 +751,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
-		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetPlayerManager().GetPlayerController(playerId));
-		
-		if (!playerController)
-			return;
 	
-		playerController.ShowHint(message, title, duration, isSilent);
+		GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
 	}
 
 
@@ -767,13 +770,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		foreach (int playerId : playerIds)
 		{
 			if (SCR_FactionManager.SGetPlayerFaction(playerId) == faction)
-			{
-				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetPlayerManager().GetPlayerController(playerId));
-				
-				if (!playerController)
-					return;
-			
-				playerController.ShowHint(message, title, duration, isSilent);
+			{			
+				GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
 			}
 		}
 	}
@@ -887,6 +885,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		m_vOpforSpawnPos = midpoint; // midpoint;
 		
 		Replication.BumpMe();
+		
+		// Manually call change on the server since replication is not happening there
+		if (Replication.IsServer())
+			OnOpforPositionChanged();
 	}
 	
 	void SetBluforSpawnPos(vector spawnPos) {
@@ -917,5 +919,34 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	    vector obbExtents;
 	    ChimeraWorldUtils.TryGetWaterSurface(GetGame().GetWorld(), pos, outWaterSurfacePoint, outType, transformWS, obbExtents);
 	    return outType != EWaterSurfaceType.WST_NONE;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void OnOpforPositionChanged()
+	{
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		if (!playerController) {
+			Print(string.Format("GRAD CirclemarkerUI: playerController is false"), LogLevel.WARNING);	
+			return;
+		}
+		
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
+		
+		if (factionKey != "USSR")
+			return;
+		
+		GRAD_PlayerComponent.GetInstance().AddCircleMarker(
+			m_vOpforSpawnPos[0] - 500.0,
+			m_vOpforSpawnPos[2] + 500.0,
+			m_vOpforSpawnPos[0] + 500.0,
+			m_vOpforSpawnPos[2] + 500.0,
+			-1,
+			true);
 	}
 }

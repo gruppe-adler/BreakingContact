@@ -18,5 +18,7 @@ SCR_PlayerController {
     }
    }
   }
+  GRAD_PlayerComponent "{6574C16112F8567A}" {
+  }
  }
 }

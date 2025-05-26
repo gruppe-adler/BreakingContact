@@ -4,14 +4,6 @@ SCR_AIWorld {
 PerceptionManager PerceptionManager1 : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
  coords 4668.313 27.791 11132.613
 }
-GRAD_BC_BreakingContactManager GRAD_BCM {
- components {
-  RplComponent "{6050C2AAC9951B05}" {
-   Streamable Disabled
-  }
- }
- coords 5748.535 -1687.529 8425.173
-}
 SCR_MapLocator {
  coords 4664.372 27.611 11133.005
 }

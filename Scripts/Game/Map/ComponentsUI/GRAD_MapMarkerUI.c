@@ -118,20 +118,6 @@ class GRAD_MapMarkerUI
 	
 	protected SCR_MapEntity m_MapEntity;
 	
-	protected vector m_vSpawnPos;
-	
-	//----
-	vector GetSpawnCoords() 
-	{
-		return m_vSpawnPos;
-	}
-	
-	//----
-	void SetSpawnPos(vector spawnPos) 
-	{
-		m_vSpawnPos = spawnPos;
-	}
-	
 	
 	//------------------------------------------------------------------------------------------------
 	//! SCR_MapEntity event
@@ -238,13 +224,13 @@ class GRAD_MapMarkerUI
 			return;
 		}
 		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController) {
 			Print(string.Format("GRAD CirclemarkerUI: playerController is false"), LogLevel.WARNING);	
 			return;
 		}
 		
-		if (!playerController.IsChoosingSpawn()) {
+		if (!GRAD_PlayerComponent.GetInstance().IsChoosingSpawn()) {
 			Print(string.Format("GRAD CirclemarkerUI: IsChoosingSpawn is false"), LogLevel.WARNING);	
 			return;
 		}
@@ -273,9 +259,10 @@ class GRAD_MapMarkerUI
 			return;
 		}
 
-		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);	
-		CreateOrMoveSpawnMarker(factionKey, coords); // sync marker/delete previous marker
-		SetSpawnPos(worldPos); // for other fnc to grab
+		SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);
+		
+		if (factionKey == "USSR")
+			GRAD_PlayerComponent.GetInstance().SetOpforSpawn(worldPos);
 	}
 	
 	// broadcast
@@ -315,7 +302,7 @@ class GRAD_MapMarkerUI
 		}
 		
 		// todo fix hardcoded
-		playerController.AddCircleMarker(
+		GRAD_PlayerComponent.GetInstance().AddCircleMarker(
 			coords[0] - 500.0,
 			coords[2] + 500.0,
 			coords[0] + 500.0,

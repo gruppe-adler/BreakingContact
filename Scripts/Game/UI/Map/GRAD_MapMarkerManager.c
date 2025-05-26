@@ -52,13 +52,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 		m_transmissionPointsInactive = new array<vector>;
 		m_transmissionPointsDisabled = new array<vector>;
 		
-		IEntity GRAD_BCM_Entity = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
-		if (!GRAD_BCM_Entity) {
-			Print("GRAD_MapMarkerManager: GRAD_BCM Entity missing", LogLevel.ERROR);
-			return	;
-		}
-		
-	 	GRAD_BC_BreakingContactManager GRAD_BCM = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM_Entity);
+	 	GRAD_BC_BreakingContactManager GRAD_BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!GRAD_BCM) {
 			Print("GRAD_MapMarkerManager: GRAD_BCM missing", LogLevel.ERROR);
 			return;

@@ -134,7 +134,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			return allPoints;
 		}
 		
-		GRAD_BC_BreakingContactManager BCM = playerController.FindBreakingContactManager();
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) {
 			return allPoints;
 		}

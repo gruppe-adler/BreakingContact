@@ -816,7 +816,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			
 			if (factionName == playerFactionName)
 			{								
-				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(owner.FindComponent(GRAD_PlayerComponent));
+				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(GetPlayerManager().GetPlayerController(playerId).FindComponent(GRAD_PlayerComponent));
 				if (playerComponent == null)
 				{
 					Print("Unable to find GRAD_PlayerComponent", LogLevel.ERROR);

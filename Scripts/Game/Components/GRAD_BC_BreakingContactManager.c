@@ -597,92 +597,80 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		return transmissionPoint;
 	}
 
-	// 
-	protected array<vector> GetNearestRoadPos(vector center) {
-		
-		vector mins, maxs;
-		GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
-		vector worldCenter = vector.Lerp(mins, maxs, 0.5);
-		
-		auto worldCenterArray = new array<vector>();
-		worldCenterArray.Insert(worldCenter);
-		worldCenterArray.Insert(worldCenter);
-		
-		const float halfSize = 5000; // Adjust as needed for your AABB size
-		// Adjust AABB for XZY coordinate system
-		// i dont care for Z anymore now, just give me all you have 
-		vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
-		vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
-
-		SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
-		RoadNetworkManager roadNetworkManager = aiWorld.GetRoadNetworkManager();
-		
-		if (roadNetworkManager) {
-				BaseRoad emptyRoad;
-				auto outPoints = new array<vector>();
-
-				// needs 2 points i presume, no documentation for this
-				// outPoints.Insert("0 0 1");
-				// outPoints.Insert("1 1 1");
-				auto emptyRoads = new array<BaseRoad>;
-				// roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
-				int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
-			
-			 	// Debug outputs
-			    Print("BCM - Center: " + center.ToString());
-			    Print("BCM - aabbMin: " + aabbMin.ToString());
-			    Print("BCM - aabbMax: " + aabbMax.ToString());
-			    Print("BCM - Result Code: " + result);
-			
-			    // Output the retrieved roads
-			    for (int i = 0; i < emptyRoads.Count(); i++) {
-			        Print("Road " + i + ": " + emptyRoads[i].ToString());
-			    }
-				
-				if (result > 0) {
-					emptyRoad = emptyRoads[0];
-					emptyRoad.GetPoints(outPoints);
-					PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
-				
-					return outPoints;
-				}
-			}
-			return worldCenterArray;
+	// Method to find the closest road position
+	protected vector FindSpawnPointOnRoad(vector position)
+	{
+	    array<vector> roadPoints = GetNearestRoadPos(position);
+	    if (roadPoints.IsEmpty())
+	        return position; // Fallback to input position if no road points found
+	    
+	    // Find the closest point from the road points
+	    vector closestPos = position;
+	    float minDistance = float.MAX;
+	    
+	    foreach (vector roadPoint : roadPoints)
+	    {
+	        float distance = vector.Distance(position, roadPoint);
+	        if (distance < minDistance)
+	        {
+	            minDistance = distance;
+	            closestPos = roadPoint;
+	        }
+	    }
+	    
+	    return closestPos;
 	}
-
-    //------------------------------------------------------------------------------------------------
-    protected array<vector> FindSpawnPointOnRoad(vector center)
-    {
-        bool foundSpawnPoint;
-		int loopCount = 1;
-		int minRadius = 1;
-		auto roadPoints = new array<vector>;
-		
-        while (!foundSpawnPoint) {
-			
-			minRadius = loopCount;
-			
-			roadPoints = GetNearestRoadPos(center);
-			vector roadPos = roadPoints[0];
-			
-			bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minRadius, minRadius);
-			
-			loopCount = loopCount + 1;	
-			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3, radius is %4.", loopCount, roadPos, spawnEmpty, minRadius), LogLevel.NORMAL);
-			
-            if (spawnEmpty) {
-                foundSpawnPoint = true;
-				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
-            }
-			
-			if (loopCount > 100) {
-				return roadPoints;
-				Print(string.Format("BCM - no spawn point after '%1 loops'.", loopCount), LogLevel.ERROR);
-			}
-        }
-
-        return roadPoints;
-    }
+	
+	// Method to get road points using RoadNetworkManager
+	protected array<vector> GetNearestRoadPos(vector center)
+	{
+	    vector mins, maxs;
+	    GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
+	    vector worldCenter = vector.Lerp(mins, maxs, 0.5);
+	    
+	    auto worldCenterArray = new array<vector>();
+	    worldCenterArray.Insert(worldCenter);
+	    worldCenterArray.Insert(worldCenter);
+	    
+	    const float halfSize = 5; // Adjust as needed for your AABB size
+	    vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
+	    vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
+	
+	    SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
+	    if (!aiWorld)
+	        return worldCenterArray; // Fallback if AIWorld is not available
+	        
+	    RoadNetworkManager roadNetworkManager = aiWorld.GetRoadNetworkManager();
+	    if (!roadNetworkManager)
+	        return worldCenterArray; // Fallback if RoadNetworkManager is not available
+	    
+	    auto outPoints = new array<vector>();
+	    auto emptyRoads = new array<BaseRoad>();
+	    int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
+	    
+	    // Debug outputs
+	    Print("BCM - Center: " + center.ToString());
+	    Print("BCM - aabbMin: " + aabbMin.ToString());
+	    Print("BCM - aabbMax: " + aabbMax.ToString());
+	    Print("BCM - Result Code: " + result);
+	    
+	    // Output the retrieved roads
+	    for (int i = 0; i < emptyRoads.Count(); i++)
+	    {
+	        Print("Road " + i + ": " + emptyRoads[i].ToString());
+	    }
+	    
+	    if (result > 0)
+	    {
+	        BaseRoad emptyRoad = emptyRoads[0];
+	        emptyRoad.GetPoints(outPoints);
+	        PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
+	        
+	        return outPoints;
+	    }
+	    
+	    return worldCenterArray;
+	}
 
 
     //------------------------------------------------------------------------------------------------
@@ -876,9 +864,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	void SetOpforSpawnPos(vector spawnPos)
 	{
-		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
-		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
-		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		m_vOpforSpawnDir = vector.Direction(roadPosition, roadPosition);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
 		
 		m_vOpforSpawnPos = midpoint; // midpoint;
 		
@@ -890,9 +878,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	}
 	
 	void SetBluforSpawnPos(vector spawnPos) {
-		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
-		m_vBluforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
-		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		m_vBluforSpawnDir = vector.Direction(roadPosition, roadPosition);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
 		
 		m_vBluforSpawnPos = midpoint; // midpoint;
 		

@@ -450,12 +450,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	void SpawnSpawnVehicleEast()
 	{		
 		EntitySpawnParams params = new EntitySpawnParams();
-        params.Transform[3] = m_vOpforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
+		
+		params.Transform[3] = m_vOpforSpawnPos + Vector(0, 0.5, 0); // lift it 0.5m
 		
         // create radiotruck
         Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+		
+		Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);
+			
 		m_radioTruck.SetYawPitchRoll(m_vOpforSpawnDir.VectorToAngles());
 		
 		if (!m_radioTruck) {
@@ -600,7 +604,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Method to find the closest road position
 	protected vector FindSpawnPointOnRoad(vector position)
 	{
-	    array<vector> roadPoints = GetNearestRoadPos(position);
+	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
 	    if (roadPoints.IsEmpty())
 	        return position; // Fallback to input position if no road points found
 	    
@@ -621,8 +625,60 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    return closestPos;
 	}
 	
+	// Method to find the second closest road position for e.g. road direction
+	protected vector FindNextSpawnPointOnRoad(vector position)
+	{
+	    array<vector> roadPoints = GetNearestRoadPos(position,100);
+	    if (roadPoints.IsEmpty())
+	        return position; // no road points at all
+	
+	    // Track best and runner-up
+	    float   bestDist    = float.MAX;
+	    float   secondDist  = float.MAX;
+	    vector  bestPos     = position;
+	    vector  secondPos   = position;
+	
+	    foreach (vector roadPoint : roadPoints)
+	    {
+	        float d = vector.Distance(position, roadPoint);
+			Print("d: %1" + d);
+	
+	        if (d < bestDist)
+	        {
+	            // shift best → second, then update best
+	            secondDist = bestDist;
+	            secondPos  = bestPos;
+	
+	            bestDist   = d;
+	            bestPos    = roadPoint;
+				Print("secondDist: %1" + secondDist);
+				Print("bestDist: %1" + bestDist);
+	        }
+	        else if (d < secondDist)
+	        {
+	            // it's worse than best but better than current second
+	            secondDist = d;
+	            secondPos  = roadPoint;
+				Print("secondDist: %1" + secondDist);
+	        }
+	    }
+	
+	    // If we never found a true second, fall back to the nearest
+	    if (secondDist < float.MAX)
+	    {
+			Print("secondDist found! %1" + secondPos);
+	        return secondPos;
+	    }
+	    else
+	    {
+			Print("no second best found! %1" + bestPos);
+	        return bestPos;
+	    }
+	}
+
+	
 	// Method to get road points using RoadNetworkManager
-	protected array<vector> GetNearestRoadPos(vector center)
+	protected array<vector> GetNearestRoadPos(vector center, int searchRadius)
 	{
 	    vector mins, maxs;
 	    GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
@@ -631,8 +687,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    auto worldCenterArray = new array<vector>();
 	    worldCenterArray.Insert(worldCenter);
 	    worldCenterArray.Insert(worldCenter);
+		
+		auto centerArray = new array<vector>();
+		centerArray.Insert(center);
+		centerArray.Insert(center);
 	    
-	    const float halfSize = 5; // Adjust as needed for your AABB size
+	    const float halfSize = searchRadius; // Adjust as needed for your AABB size
 	    vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
 	    vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
 	
@@ -669,7 +729,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	        return outPoints;
 	    }
 	    
-	    return worldCenterArray;
+		// changed from worldcenter array
+	    return centerArray;
 	}
 
 
@@ -865,8 +926,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	void SetOpforSpawnPos(vector spawnPos)
 	{
 		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
-		m_vOpforSpawnDir = vector.Direction(roadPosition, roadPosition);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
+		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
+		m_vOpforSpawnDir = vector.Direction(roadPosition, roadPosition2);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
 		
 		m_vOpforSpawnPos = midpoint; // midpoint;
 		
@@ -879,7 +941,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	void SetBluforSpawnPos(vector spawnPos) {
 		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
-		m_vBluforSpawnDir = vector.Direction(roadPosition, roadPosition);
+		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
+		m_vBluforSpawnDir = vector.Direction(roadPosition, roadPosition2);
 		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
 		
 		m_vBluforSpawnPos = midpoint; // midpoint;

@@ -191,7 +191,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			SetTransmissionState(ETransmissionState.DONE);
 			currentState = GetTransmissionState(); // update to reflect this change
 
-			GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+			GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		};
 		 
 		switch (currentState)
@@ -226,27 +226,4 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			}
 		}
 	}
-
-	
-	
-	// find the instance on the server
-	GRAD_BC_BreakingContactManager FindBreakingContactManager()
-	{
-		IEntity GRAD_BCM = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
-		if (!GRAD_BCM) {
-			Print("GRAD_BCM Entity missing", LogLevel.ERROR);
-			return null	;
-		}
-		
-	 	GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM);
-        if (manager)
-        {
-             Print("Found Server BCM!", LogLevel.NORMAL);
-             return manager;
-        }
-	
-	    Print("Server Breaking Contact Manager not found!", LogLevel.ERROR);
-	    return null;
-	}
-
 }

@@ -1,6 +1,48 @@
-//------------------------------------------------------------------------------------------------
-modded class SCR_PlayerController : PlayerController
+[ComponentEditorProps(category: "Gruppe Adler/Breaking Contact", description: "Attach to a character. Handles stuff")]
+class GRAD_PlayerComponentClass : ScriptComponentClass
 {
+}
+
+class GRAD_PlayerComponent : ScriptComponent
+{
+	static protected GRAD_PlayerComponent m_instance;
+	static GRAD_PlayerComponent GetInstance()
+	{		
+		if (m_instance == null)
+		{
+			PlayerController playerController = GetGame().GetPlayerController();
+			if (playerController == null)
+				return null;
+			
+			m_instance = GRAD_PlayerComponent.Cast(playerController.FindComponent(GRAD_PlayerComponent));
+		}
+		
+		return m_instance;
+	}
+	
+	protected PlayerManager m_PlayerManager;
+	
+	protected PlayerManager GetPlayerManager()
+	{
+		if (m_PlayerManager == null)
+			m_PlayerManager = GetGame().GetPlayerManager();
+		
+		return m_PlayerManager;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void Ask_TeleportPlayer(vector location)
+	{
+		Rpc(RpcDo_Owner_TeleportPlayer, location);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	protected void RpcDo_Owner_TeleportPlayer(vector location)
+	{
+		SCR_Global.TeleportLocalPlayer(location, SCR_EPlayerTeleportedReason.DEFAULT);
+	}
+	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
 	ref GRAD_BC_Logo m_BC_logo;
@@ -94,28 +136,7 @@ modded class SCR_PlayerController : PlayerController
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
 		
-	}
-	
-	// find BCM in favor of having own client instance
-	GRAD_BC_BreakingContactManager FindBreakingContactManager()
-	{
-		IEntity GRAD_BCM = GetGame().GetWorld().FindEntityByName("GRAD_BCM");
-		if (!GRAD_BCM) {
-			Print("GRAD_BCM Entity missing", LogLevel.ERROR);
-			return null	;
-		}
-		
-	 	GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.Cast(GRAD_BCM);
-        if (manager)
-        {
-             Print("Found Server BCM!", LogLevel.NORMAL);
-             return manager;
-        }
-	
-	    Print("Server Breaking Contact Manager not found!", LogLevel.ERROR);
-	    return null;
-	}
-	
+	}	
 	
 	void ShowBCLogo() {
 		if (!m_playerController) {
@@ -158,7 +179,7 @@ modded class SCR_PlayerController : PlayerController
 			return;
 		}
 		
-		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) {
 			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
 			return;
@@ -180,19 +201,13 @@ modded class SCR_PlayerController : PlayerController
 				Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
 				return;
 			}
-			if (phase == EBreakingContactPhase.OPFOR) {
-				vector spawnPosition = m_MapMarkerUI.GetSpawnCoords();
-				if (BCM.SurfaceIsWater(spawnPosition)) {
-					return;
-				}
-				
+			if (phase == EBreakingContactPhase.OPFOR) {				
 				// remove key listener
 				GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 				
-				BCM.SetOpforSpawnPos(spawnPosition);
 				RequestInitiateOpforSpawnLocal();
 				RemoveSpawnMarker();
-				Print(string.Format("ConfirmSpawn: %1 - factionKey: %2 - phase: %3 - Removing spawn marker for opfor.", spawnPosition, factionKey, phase), LogLevel.NORMAL);
+				Print(string.Format("ConfirmSpawn - factionKey: %1 - phase: %2 - Removing spawn marker for opfor.", factionKey, phase), LogLevel.NORMAL);
 				return;
 			}
 		}
@@ -205,6 +220,19 @@ modded class SCR_PlayerController : PlayerController
 		
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	void SetOpforSpawn(vector worldPos)
+	{
+		Rpc(RpcDo_SetOpforSpawn, worldPos);
+	}
+	
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcDo_SetOpforSpawn(vector spawnPoint)
+	{
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		
+		BCM.SetOpforSpawnPos(spawnPoint);
+	}
 	
 	//------------------------------------------------------------------------------------------------
 	void InsertMarker(SCR_MapMarkerBase marker)
@@ -223,7 +251,7 @@ modded class SCR_PlayerController : PlayerController
 	// this needs to be inside player controller to work, dont switch component during rpc? i guess
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RequestInitiateOpforSpawn() {
-		GRAD_BC_BreakingContactManager BCM = FindBreakingContactManager();
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		
 		if (!BCM) {
@@ -374,5 +402,10 @@ modded class SCR_PlayerController : PlayerController
 		
 		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 	}
-
-};
+	
+	//------------------------------------------------------------------------------------------------
+	override void OnPostInit(IEntity owner)
+	{
+		SetEventMask(owner, EntityEvent.INIT);
+	}
+}

@@ -72,7 +72,7 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 		
 		bool isTransmitting = m_radioTruckComponent.GetTransmissionActive();
 		
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.Cast(GetGame().GetWorld().FindEntityByName("GRAD_BCM"));
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) return;
 		
 		GRAD_TransmissionPoint TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), isTransmitting);

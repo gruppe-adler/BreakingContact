@@ -10,13 +10,13 @@ enum EBreakingContactPhase
 }
 
 [EntityEditorProps(category: "Gruppe Adler", description: "Breaking Contact Gamemode Manager")]
-class GRAD_BC_BreakingContactManagerClass : GenericEntityClass
+class GRAD_BC_BreakingContactManagerClass : ScriptComponentClass
 {
 }
 
 // This class is server-only code
 
-class GRAD_BC_BreakingContactManager : GenericEntity
+class GRAD_BC_BreakingContactManager : ScriptComponent
 {
     [Attribute(defvalue: "3", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
@@ -37,7 +37,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	
 	protected string m_sWinnerSide;
 
-	[RplProp()]
+	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
 	
 	[RplProp()]
@@ -68,21 +68,38 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     protected RplId westCommandVehRplId;
 	
 	protected bool m_bIsTransmittingCache;
-	RplComponent m_RplComponent;
 	
+	protected PlayerManager m_PlayerManager;
+	
+	protected PlayerManager GetPlayerManager()
+	{
+		if (m_PlayerManager == null)
+			m_PlayerManager = GetGame().GetPlayerManager();
+		
+		return m_PlayerManager;
+	}
+	
+	protected static GRAD_BC_BreakingContactManager m_instance;
+	
+	static GRAD_BC_BreakingContactManager GetInstance()
+	{
+		if (m_instance == null)
+		{
+			m_instance = GRAD_BC_BreakingContactManager.Cast(GetGame().GetGameMode().FindComponent(GRAD_BC_BreakingContactManager))
+		}
+		
+		return m_instance;
+	}
 	
     //------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
 		super.EOnInit(owner);
 		
-		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);
-		
-		m_RplComponent = RplComponent.Cast(FindComponent(RplComponent));  
-						
+		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);					
 		
 		// execute only on the server
-		if (m_RplComponent.IsMaster()) {
+		if (Replication.IsServer()) {
 			m_iNotificationDuration = 10;
 			
 			// check win conditions every second
@@ -132,11 +149,10 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		const int duration = 10;
 		bool isSilent = false;
 		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController) {
-			Print(string.Format("No player controller in grad playercontroller"), LogLevel.NORMAL);
+		
+		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+		if (playerComponent == null)
 			return;
-		}
 		
 		// no rpc needed here, logs already on client
 		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
@@ -144,28 +160,28 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		// close map for opfor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
-			playerController.ToggleMap(false);
-			playerController.setChoosingSpawn(false);
+			playerComponent.ToggleMap(false);
+			playerComponent.setChoosingSpawn(false);
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
 		}
 		
 		// close map for blufor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
-			playerController.ToggleMap(false);
-			playerController.setChoosingSpawn(false);
+			playerComponent.ToggleMap(false);
+			playerComponent.setChoosingSpawn(false);
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerController.ShowBCLogo();
+			playerComponent.ShowBCLogo();
 		}
 			
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerController.ShowBCLogo();
+			playerComponent.ShowBCLogo();
 		}
 
 	}
@@ -210,11 +226,11 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		array<int> alivePlayersOfSide = {};
 		
 		array<int> allPlayers = {};
-		GetGame().GetPlayerManager().GetPlayers(allPlayers);
+		GetPlayerManager().GetPlayers(allPlayers);
 		foreach(int playerId : allPlayers)
 		{
 			// null check bc of null pointer crash
-			PlayerController pc = GetGame().GetPlayerManager().GetPlayerController(playerId);
+			PlayerController pc = GetPlayerManager().GetPlayerController(playerId);
 			if (!pc) continue;
 			
 			// Game Master is also a player but perhaps with no controlled entity
@@ -434,12 +450,16 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void SpawnSpawnVehicleEast()
 	{		
 		EntitySpawnParams params = new EntitySpawnParams();
-        params.Transform[3] = m_vOpforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
+		
+		params.Transform[3] = m_vOpforSpawnPos + Vector(0, 0.5, 0); // lift it 0.5m
 		
         // create radiotruck
         Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
+		
+		Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);
+			
 		m_radioTruck.SetYawPitchRoll(m_vOpforSpawnDir.VectorToAngles());
 		
 		if (!m_radioTruck) {
@@ -541,7 +561,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	//------------------------------------------------------------------------------------------------
 	void Rpc_RequestInitiateOpforSpawn()
 	{
-		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);		
+		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -581,92 +601,137 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		return transmissionPoint;
 	}
 
-	// 
-	protected array<vector> GetNearestRoadPos(vector center) {
-		
-		vector mins, maxs;
-		GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
-		vector worldCenter = vector.Lerp(mins, maxs, 0.5);
-		
-		auto worldCenterArray = new array<vector>();
-		worldCenterArray.Insert(worldCenter);
-		worldCenterArray.Insert(worldCenter);
-		
-		const float halfSize = 5000; // Adjust as needed for your AABB size
-		// Adjust AABB for XZY coordinate system
-		// i dont care for Z anymore now, just give me all you have 
-		vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
-		vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
-
-		SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
-		RoadNetworkManager roadNetworkManager = aiWorld.GetRoadNetworkManager();
-		
-		if (roadNetworkManager) {
-				BaseRoad emptyRoad;
-				auto outPoints = new array<vector>();
-
-				// needs 2 points i presume, no documentation for this
-				// outPoints.Insert("0 0 1");
-				// outPoints.Insert("1 1 1");
-				auto emptyRoads = new array<BaseRoad>;
-				// roadNetworkManager.GetClosestRoad(center, emptyRoad, distanceRoad, true);
-				int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
-			
-			 	// Debug outputs
-			    Print("BCM - Center: " + center.ToString());
-			    Print("BCM - aabbMin: " + aabbMin.ToString());
-			    Print("BCM - aabbMax: " + aabbMax.ToString());
-			    Print("BCM - Result Code: " + result);
-			
-			    // Output the retrieved roads
-			    for (int i = 0; i < emptyRoads.Count(); i++) {
-			        Print("Road " + i + ": " + emptyRoads[i].ToString());
-			    }
-				
-				if (result > 0) {
-					emptyRoad = emptyRoads[0];
-					emptyRoad.GetPoints(outPoints);
-					PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
-				
-					return outPoints;
-				}
-			}
-			return worldCenterArray;
+	// Method to find the closest road position
+	protected vector FindSpawnPointOnRoad(vector position)
+	{
+	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
+	    if (roadPoints.IsEmpty())
+	        return position; // Fallback to input position if no road points found
+	    
+	    // Find the closest point from the road points
+	    vector closestPos = position;
+	    float minDistance = float.MAX;
+	    
+	    foreach (vector roadPoint : roadPoints)
+	    {
+	        float distance = vector.Distance(position, roadPoint);
+	        if (distance < minDistance)
+	        {
+	            minDistance = distance;
+	            closestPos = roadPoint;
+	        }
+	    }
+	    
+	    return closestPos;
+	}
+	
+	// Method to find the second closest road position for e.g. road direction
+	protected vector FindNextSpawnPointOnRoad(vector position)
+	{
+	    array<vector> roadPoints = GetNearestRoadPos(position,100);
+	    if (roadPoints.IsEmpty())
+	        return position; // no road points at all
+	
+	    // Track best and runner-up
+	    float   bestDist    = float.MAX;
+	    float   secondDist  = float.MAX;
+	    vector  bestPos     = position;
+	    vector  secondPos   = position;
+	
+	    foreach (vector roadPoint : roadPoints)
+	    {
+	        float d = vector.Distance(position, roadPoint);
+			Print("d: %1" + d);
+	
+	        if (d < bestDist)
+	        {
+	            // shift best → second, then update best
+	            secondDist = bestDist;
+	            secondPos  = bestPos;
+	
+	            bestDist   = d;
+	            bestPos    = roadPoint;
+				Print("secondDist: %1" + secondDist);
+				Print("bestDist: %1" + bestDist);
+	        }
+	        else if (d < secondDist)
+	        {
+	            // it's worse than best but better than current second
+	            secondDist = d;
+	            secondPos  = roadPoint;
+				Print("secondDist: %1" + secondDist);
+	        }
+	    }
+	
+	    // If we never found a true second, fall back to the nearest
+	    if (secondDist < float.MAX)
+	    {
+			Print("secondDist found! %1" + secondPos);
+	        return secondPos;
+	    }
+	    else
+	    {
+			Print("no second best found! %1" + bestPos);
+	        return bestPos;
+	    }
 	}
 
-    //------------------------------------------------------------------------------------------------
-    protected array<vector> FindSpawnPointOnRoad(vector center)
-    {
-        bool foundSpawnPoint;
-		int loopCount = 1;
-		int minRadius = 1;
-		auto roadPoints = new array<vector>;
+	
+	// Method to get road points using RoadNetworkManager
+	protected array<vector> GetNearestRoadPos(vector center, int searchRadius)
+	{
+	    vector mins, maxs;
+	    GetGame().GetWorldEntity().GetWorldBounds(mins, maxs);
+	    vector worldCenter = vector.Lerp(mins, maxs, 0.5);
+	    
+	    auto worldCenterArray = new array<vector>();
+	    worldCenterArray.Insert(worldCenter);
+	    worldCenterArray.Insert(worldCenter);
 		
-        while (!foundSpawnPoint) {
-			
-			minRadius = loopCount;
-			
-			roadPoints = GetNearestRoadPos(center);
-			vector roadPos = roadPoints[0];
-			
-			bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(roadPos, roadPos, minRadius, minRadius);
-			
-			loopCount = loopCount + 1;	
-			Print(string.Format("BCM - spawn point loop '%1 at %2, success is %3, radius is %4.", loopCount, roadPos, spawnEmpty, minRadius), LogLevel.NORMAL);
-			
-            if (spawnEmpty) {
-                foundSpawnPoint = true;
-				Print(string.Format("BCM - spawn point found after '%1 loops'.", loopCount), LogLevel.NORMAL);
-            }
-			
-			if (loopCount > 100) {
-				return roadPoints;
-				Print(string.Format("BCM - no spawn point after '%1 loops'.", loopCount), LogLevel.ERROR);
-			}
-        }
-
-        return roadPoints;
-    }
+		auto centerArray = new array<vector>();
+		centerArray.Insert(center);
+		centerArray.Insert(center);
+	    
+	    const float halfSize = searchRadius; // Adjust as needed for your AABB size
+	    vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
+	    vector aabbMax = center + Vector(halfSize, halfSize, halfSize); 
+	
+	    SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
+	    if (!aiWorld)
+	        return worldCenterArray; // Fallback if AIWorld is not available
+	        
+	    RoadNetworkManager roadNetworkManager = aiWorld.GetRoadNetworkManager();
+	    if (!roadNetworkManager)
+	        return worldCenterArray; // Fallback if RoadNetworkManager is not available
+	    
+	    auto outPoints = new array<vector>();
+	    auto emptyRoads = new array<BaseRoad>();
+	    int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
+	    
+	    // Debug outputs
+	    Print("BCM - Center: " + center.ToString());
+	    Print("BCM - aabbMin: " + aabbMin.ToString());
+	    Print("BCM - aabbMax: " + aabbMax.ToString());
+	    Print("BCM - Result Code: " + result);
+	    
+	    // Output the retrieved roads
+	    for (int i = 0; i < emptyRoads.Count(); i++)
+	    {
+	        Print("Road " + i + ": " + emptyRoads[i].ToString());
+	    }
+	    
+	    if (result > 0)
+	    {
+	        BaseRoad emptyRoad = emptyRoads[0];
+	        emptyRoad.GetPoints(outPoints);
+	        PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
+	        
+	        return outPoints;
+	    }
+	    
+		// changed from worldcenter array
+	    return centerArray;
+	}
 
 
     //------------------------------------------------------------------------------------------------
@@ -733,13 +798,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
-		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-		
-		if (!playerController)
-			return;
 	
-		playerController.ShowHint(message, title, duration, isSilent);
+		GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
 	}
 
 
@@ -747,7 +807,7 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	void NotifyFactionWrongPhaseForMarker(Faction faction)
 	{
 		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		GetPlayerManager().GetAllPlayers(playerIds);
 
 		const string title = "Breaking Contact";
 		const string message = "You can't create the marker in this phase.";
@@ -757,13 +817,8 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		foreach (int playerId : playerIds)
 		{
 			if (SCR_FactionManager.SGetPlayerFaction(playerId) == faction)
-			{
-				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-				
-				if (!playerController)
-					return;
-			
-				playerController.ShowHint(message, title, duration, isSilent);
+			{			
+				GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
 			}
 		}
 	}
@@ -772,16 +827,22 @@ class GRAD_BC_BreakingContactManager : GenericEntity
     //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
+		array<vector> availablePositions = new array<vector>();
+		
 		if (factionName == "USSR")
 		{	
 			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
 			SpawnSpawnVehicleEast();
+			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos);
 			
 		}
+		
 		if (factionName == "US") {	
 			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
 			SpawnSpawnVehicleWest();
+			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos);
 		}
+		
 		if (factionName != "US" && factionName != "USSR") {
 			Print(string.Format("Breaking Contact - PANIC, faction is %1", factionName), LogLevel.NORMAL);
 			return;
@@ -789,81 +850,54 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		
 		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
 		array<PS_PlayableContainer> playables = m_PlayableManager.GetPlayablesSorted();
-		int index = 10000;
 		
-		foreach (PS_PlayableContainer playableCont : playables)
-		{	
-			index = index + 1;
-			
+		int index = 0;
+		foreach (int idx, PS_PlayableContainer playableCont : playables)
+		{			
 			PS_PlayableComponent playableComp = playableCont.GetPlayableComponent();
+			IEntity owner = playableComp.GetOwnerCharacter();
+			int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(owner);
+			if (playerId == 0) // This isn't a real player so we can skip it
+				continue;
 			
-			FactionAffiliationComponent factionComp = playableComp.GetFactionAffiliationComponent();
-			if (!factionComp) {
-				Print(string.Format("BCM - no factionComp"), LogLevel.ERROR);
-				return;
-			}
-			
-			string playerFactionName = factionComp.GetAffiliatedFaction().GetFactionKey();			
+			string playerFactionName = playableComp.GetFactionKey();		
 			Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
 			
 			if (factionName == playerFactionName)
-			{
-				IEntity playerInstance = playableComp.GetOwnerCharacter();
-				// delay is because spawn vehicle opfor needs to find road position and will change opfor spawn pos once again
-				if (factionName == "US") {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vBluforSpawnPos);
-					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vBluforSpawnPos, index), LogLevel.NORMAL);
-				} else {
-					GetGame().GetCallqueue().CallLater(TeleportPlayerInstanceToMapPos, index, false, playerInstance, m_vOpforSpawnPos);
-					Print(string.Format("BCM - ID %1 is %2, moves to %3 after %4 s", playerInstance, playerFactionName, m_vOpforSpawnPos, index), LogLevel.NORMAL);
-				}	
+			{								
+				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(GetPlayerManager().GetPlayerController(playerId).FindComponent(GRAD_PlayerComponent));
+				if (playerComponent == null)
+				{
+					Print("Unable to find GRAD_PlayerComponent", LogLevel.ERROR);
+					return;
+				}
+				
+				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000, false, availablePositions[index]);
+				
+				index = index + 1;
+				
+				// In case we ran out of positions start over
+				// Not ideal that they spawn exact same location but better than not spawning at all...
+				if (index >= availablePositions.Count())
+					index = 0;
 			}
 		}
 	}
 	
-	// Server side!
-	protected void TeleportPlayerInstanceToMapPos(IEntity playerInstance, vector spawnPos)
+	//------------------------------------------------------------------------------------------------
+	protected array<vector> FindAllEmptyTerrainPositions(vector location, int minCount = 100)
 	{
-		// executed locally on players machine
-	
-		bool spawnEmpty;
-		int spawnSearchLoop = 0;
-		vector foundSpawnPos;
+		array<vector> availablePositions = new array<vector>();
+		int range = 200;
 		
-		while (!spawnEmpty)
+		while (availablePositions.Count() <= minCount || range < 1000)
 		{
-			int radius = 3 + spawnSearchLoop; // increasing each loop
-
-			spawnSearchLoop = spawnSearchLoop + 1;
-			spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(foundSpawnPos, spawnPos, radius*2);
-			Print(string.Format("GRAD playerInstance - foundSpawnPos %1 - spawnEmpty %2 - spawnSearchLoop %3", foundSpawnPos, spawnEmpty, spawnSearchLoop), LogLevel.NORMAL);
-			// Print(string.Format("GRAD playerInstance - spawnSearchLoop %1", spawnSearchLoop), LogLevel.NORMAL);
-			
-			if (spawnSearchLoop > 150) {
-				foundSpawnPos = spawnPos;
-				Print(string.Format("GRAD playerInstance - not found a position after %1 tries and radius %2", spawnSearchLoop, radius), LogLevel.ERROR);
-			}
+			SCR_WorldTools.FindAllEmptyTerrainPositions(availablePositions, location, range, 3, 5, 100);
+			range = range + 100;
 		}
 		
-		SCR_Global.TeleportLocalPlayer(foundSpawnPos, SCR_EPlayerTeleportedReason.DEFAULT);
-		
-		/*
-		// cause of crash?
-		BaseGameEntity baseGameEntity = BaseGameEntity.Cast(playerInstance);
-		if (baseGameEntity && !BaseVehicle.Cast(baseGameEntity))
-		{
-			baseGameEntity.Teleport(foundSpawnPos);
-			Print(string.Format("GRAD player teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
-		}
-		else
-		{
-			playerInstance.SetWorldTransform(foundSpawnPos);
-			Print(string.Format("GRAD AI teleport successful to %1 while spawnPos was %2", foundSpawnPos, spawnPos), LogLevel.NORMAL);
-		}
-		*/
-		
+		return availablePositions;
 	}
-	
 
 	//----
 	void SetVehiclePhysics(IEntity vehicle) {
@@ -889,20 +923,27 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 		}
 	}
 	
-	void SetOpforSpawnPos(vector spawnPos) {		
-		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
-		m_vOpforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
-		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+	void SetOpforSpawnPos(vector spawnPos)
+	{
+		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
+		m_vOpforSpawnDir = vector.Direction(roadPosition, roadPosition2);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
 		
 		m_vOpforSpawnPos = midpoint; // midpoint;
 		
 		Replication.BumpMe();
+		
+		// Manually call change on the server since replication is not happening there
+		if (Replication.IsServer())
+			OnOpforPositionChanged();
 	}
 	
 	void SetBluforSpawnPos(vector spawnPos) {
-		array<vector> roadPositions = FindSpawnPointOnRoad(spawnPos);
-		m_vBluforSpawnDir = vector.Direction(roadPositions[0], roadPositions[1]);
-		vector midpoint = vector.Lerp(roadPositions[0], roadPositions[1], 0.5);
+		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
+		m_vBluforSpawnDir = vector.Direction(roadPosition, roadPosition2);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
 		
 		m_vBluforSpawnPos = midpoint; // midpoint;
 		
@@ -927,5 +968,40 @@ class GRAD_BC_BreakingContactManager : GenericEntity
 	    vector obbExtents;
 	    ChimeraWorldUtils.TryGetWaterSurface(GetGame().GetWorld(), pos, outWaterSurfacePoint, outType, transformWS, obbExtents);
 	    return outType != EWaterSurfaceType.WST_NONE;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void OnOpforPositionChanged()
+	{
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
+		if (!playerController) {
+			Print(string.Format("GRAD CirclemarkerUI: playerController is false"), LogLevel.WARNING);	
+			return;
+		}
+		
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+		if (!ch)  {
+			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			return;
+		}
+		
+		string factionKey = ch.GetFactionKey();
+		
+		if (factionKey != "USSR")
+			return;
+		
+		GRAD_PlayerComponent.GetInstance().AddCircleMarker(
+			m_vOpforSpawnPos[0] - 500.0,
+			m_vOpforSpawnPos[2] + 500.0,
+			m_vOpforSpawnPos[0] + 500.0,
+			m_vOpforSpawnPos[2] + 500.0,
+			-1,
+			true);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	override void OnPostInit(IEntity owner)
+	{
+		SetEventMask(owner, EntityEvent.INIT);
 	}
 }

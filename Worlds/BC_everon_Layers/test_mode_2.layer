@@ -1,7 +1,76 @@
+SCR_MapEntity MapEntity : "{731564B66F91B107}Prefabs/World/Game/MapEntity.et" {
+ coords 7114.537 103.319 6281.017
+ "Map Geometry Data" "{984B832A2B86D79B}worlds/Eden/Eden.topo"
+ "Satellite background image" "{6EB44A780AF7DDDF}UI/Textures/Map/worlds/EveronRasterized.edds"
+ {
+  CommentEntity {
+   coords 0 1 0
+   m_Comment "MapEntity: "\
+   "Set up map textures"
+   m_Color 0 0 0
+   m_FaceCamera 1
+   m_TextBackground 1
+   m_BackgroundColor 1 0.6 0
+   m_BackgroundTransparency 0
+  }
+ }
+}
+SCR_AIWorld SCR_AIWorld : "{E0A05C76552E7F58}Prefabs/AI/SCR_AIWorld.et" {
+ components {
+  NavmeshWorldComponent "{5584F30E67F617AD}" {
+   NavmeshSettings NavmeshWorld "{50FC63BEBE3973C5}" {
+    NavmeshFilesConfig BaseNavmeshFilesConfig "{657896E8C9523C32}" {
+     NavmeshFile "{AD5F99CD7C59D5E0}worlds/GameMaster/Navmeshes/GM_Eden.nmn"
+    }
+   }
+  }
+  NavmeshWorldComponent "{5584F30EEFEE1223}" {
+   NavmeshSettings ChimeraNavmeshWorld "{50FC63BEBE3973C5}" {
+    NavmeshFilesConfig BaseNavmeshFilesConfig "{60CA9BE5536BF701}" {
+     NavmeshFile "{C35ECF3276824654}worlds/GameMaster/Navmeshes/GM_Eden_vehicles.nmn"
+    }
+   }
+  }
+  NavmeshWorldComponent "{5C8C9B750D124A63}" {
+   NavmeshSettings NavmeshWorld "{5C8C9B750B60C6E2}" {
+    NavmeshFilesConfig BaseNavmeshFilesConfig "{5C90BD0EC793647D}" {
+     NavmeshFile "{5E19E60F26327356}worlds/MP/Navmeshes/LowResEden.nmn"
+    }
+   }
+  }
+ }
+ coords 7114.537 103.491 6280.017
+ {
+  CommentEntity {
+   coords 0 1 0
+   m_Comment "SCR_AIWorld: "\
+   "Configure navigation mesh"
+   m_Color 0 0 0
+   m_FaceCamera 1
+   m_TextBackground 1
+   m_BackgroundColor 1 0.6 0
+   m_BackgroundTransparency 0
+  }
+ }
+}
+PerceptionManager PerceptionManager : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
+ coords 7114.537 103.567 6279.017
+}
 PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
- coords 4664.889 27.659 11135.528
+ components {
+  GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
+  }
+ }
  m_iFreezeTime 10000
  {
+  RadioManagerEntity {
+   ID "5ED9088735FF2DEE"
+   coords 0 0 0
+  }
+  ScriptedChatEntity {
+   ID "5ED9088735FF2DC2"
+   coords 0 0 0
+  }
   SCR_FactionManager "627A8E3665FD18AE" {
    ID "5ED9088735FF2D8B"
    Factions {
@@ -12,16 +81,9 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
     }
    }
   }
- }
-}
-SCR_LoadoutManager : "{97EF4C1A41F63DDB}Prefabs/MP/Managers/Loadouts/LoadoutManager_USxUSSR.et" {
- coords 4640.714 27.844 11166.834
- m_aPlayerLoadouts {
-  SCR_FactionPlayerLoadout "{56B2B461C34A570F}" {
-   m_sLoadoutResource "{64AD55FF89C97DF9}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P.et"
-  }
-  SCR_FactionPlayerLoadout "{56B2B46134D39388}" {
-   m_sLoadoutResource "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
+  ItemPreviewManagerEntity {
+   ID "5ED9088735FF2DD5"
+   coords 0 1 0
   }
  }
 }

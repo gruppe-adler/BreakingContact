@@ -8,117 +8,104 @@ enum e_currentDisplay {
 class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 {
 	private ImageWidget m_infoImage;
-	private bool m_isDisplayed;
-	protected e_currentDisplay	m_currentDisplayCached;
-	protected e_currentDisplay	m_currentDisplay;
+	private e_currentDisplay m_currentDisplayCached = e_currentDisplay.NONE;
 	
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
 		
-		m_wRoot = GetRootWidget();
+		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout", null);
 		
 		if (!m_wRoot) {
 			PrintFormat("GRAD_BC_Transmission: no m_wRoot found", LogLevel.ERROR);
 			return;
 		}
 		
-		if (m_wRoot) {
-			if (!m_infoImage) { 
-				m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget")) 
-			};
-		};
-	}
-	
-	// check for display update and hide/show info
-	override event void DisplayUpdate(IEntity owner, float timeSlice) {
-			super.DisplayUpdate(owner, timeSlice);
+		Widget w = m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget");
+   		m_infoImage = ImageWidget.Cast(w);
 		
-			if (!m_isDisplayed && m_infoImage) {
-				m_infoImage.SetVisible(false);
-			} else if (m_infoImage && m_isDisplayed) {
-				m_infoImage.SetVisible(true);
-			} else if (m_infoImage){
-				m_infoImage.SetVisible(false);
-			};
-	}
-	
-	override event void DisplayStartDraw(IEntity owner)
-	{
-		super.DisplayStartDraw(owner);
-		
-		if (m_wRoot) {
-			if (!m_infoImage) { 
-				m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget")) 
-			};
-		};
-	}
-	
-	
-	// todo: check MP compatibility, might need to RPC stuff 
-	void TransmissionStarted() {
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			PrintFormat("GRAD_BC_Transmission_Widget: no GRAD_BC_Transmission_Widget found", LogLevel.ERROR);
 			return;
 		}
-		m_infoImage.LoadImageTexture(0,"{B8C70A7749D318C2}UI/Transmission/us_established.edds");
-		SetVisible(true);
-		PrintFormat("GRAD_BC_Transmission: m_infoImage set to started");
+		
+		super.Show(false, 0.0, EAnimationCurve.LINEAR);
+	}
+	
+	void TransmissionStarted() {
+		if (!m_infoImage) {
+			PrintFormat("GRAD_BC_Transmission: TransmissionStarted → m_infoImage is missing", LogLevel.ERROR);
+			return;
+		}
+		
+		// Change to the “started” texture
+		m_infoImage.LoadImageTexture(0, "{B8C70A7749D318C2}UI/Transmission/us_established.edds");		
 		m_currentDisplayCached = e_currentDisplay.STARTED;
-		m_currentDisplay = e_currentDisplay.STARTED;
-		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
+		
+		// After 15 s, attempt to hide (fade out)
+		GetGame().GetCallqueue().CallLater(
+            FadeOutIfStill,       // name of our helper method
+            15000,                // 15 sec
+            false,                // not a loop
+            m_currentDisplayCached // pass the state enum as a parameter
+        );
 	}
 	
 	void TransmissionInterrupted() {
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			PrintFormat("GRAD_BC_Transmission: TransmissionInterrupted → m_infoImage is missing", LogLevel.ERROR);
 			return;
 		}
-		m_infoImage.LoadImageTexture(0,"{2AE03288555F4237}UI/Transmission/us_cutoff.edds");
-		SetVisible(true);
-		PrintFormat("GRAD_BC_Transmission: m_infoImage set to interrupted");
+		
+		m_infoImage.LoadImageTexture(0, "{2AE03288555F4237}UI/Transmission/us_cutoff.edds");
 		m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
-		m_currentDisplay = e_currentDisplay.INTERRUPTED;
-		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
+		
+		// After 15 s, attempt to hide (fade out)
+		GetGame().GetCallqueue().CallLater(
+            FadeOutIfStill,       // name of our helper method
+            15000,                // 15 sec
+            false,                // not a loop
+            m_currentDisplayCached // pass the state enum as a parameter
+        );
 	}
 	
 	void TransmissionDone() {
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: transmission started m_infoImage not found");
+			PrintFormat("GRAD_BC_Transmission: TransmissionDone → m_infoImage is missing", LogLevel.ERROR);
 			return;
 		}
-		m_infoImage.LoadImageTexture(0,"{92B573238A373130}UI/Transmission/us_done.edds");
-		SetVisible(true);
-		PrintFormat("GRAD_BC_Transmission: m_infoImage set to done");
+		
+		m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_done.edds");
 		m_currentDisplayCached = e_currentDisplay.DONE;
-		m_currentDisplay = e_currentDisplay.DONE;
-		GetGame().GetCallqueue().CallLater(SetInvisible,15000,false,m_currentDisplay);
+		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
+		
+		// After 15 s, attempt to hide (fade out)
+		GetGame().GetCallqueue().CallLater(
+            FadeOutIfStill,       // name of our helper method
+            15000,                // 15 sec
+            false,                // not a loop
+            m_currentDisplayCached // pass the state enum as a parameter
+        );
 	}
 	
-	void SetVisible(bool visible) {
-		if (m_infoImage) {
-			float opacity;
-			if (visible) { 
-				opacity = 1.0 
-			} else {
-				opacity = 0.0;
-			};
-			m_infoImage.SetOpacity(opacity);
-		} else {
-			PrintFormat("GRAD_BC_Transmission: m_infoImage not found");
-		}
-	}
-	
-	void SetInvisible(e_currentDisplay currentDisplay) {
-		// only hide if nothing stacked / hides afterwards
-		if (m_currentDisplayCached == currentDisplay) {
-			if (m_infoImage) {
-				m_infoImage.SetOpacity(0.0);
-			} else {
-				PrintFormat("GRAD_BC_Transmission: m_infoImage not found");
-			}
-		} else {
-			PrintFormat("GRAD_BC_Transmission: not setting invisible as other image already displayed");
-		}
-	}
+	void FadeOutIfStill(e_currentDisplay stateToCheck)
+    {
+        if (m_currentDisplayCached == stateToCheck)
+        {
+            super.Show(false, 0.5, EAnimationCurve.EASE_IN_QUART);
+            PrintFormat("GRAD_BC_Transmission: Fading out state %1", stateToCheck, LogLevel.DEBUG);
+        }
+        else
+        {
+            // Something else replaced it in the meantime; do nothing.
+            PrintFormat(
+                "GRAD_BC_Transmission: Skipping fade‐out for %1 because current is %2",
+                stateToCheck,
+                m_currentDisplayCached,
+                LogLevel.DEBUG
+            );
+        }
+    }
 }
 

@@ -411,4 +411,40 @@ class GRAD_PlayerComponent : ScriptComponent
     {
         Rpc(Rpc_ShowBCLogo_Local);
     }
+	
+	
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+    protected void Rpc_ShowTransmissionHint_Local()
+    {
+        // Find the HUD display and call ShowLogo() on it
+        array<BaseInfoDisplay> infoDisplays = {};
+        GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);
+
+        // Search for our GRAD_BC_Logo instance
+        GRAD_BC_Transmission transmissionDisplay = null;
+        foreach (BaseInfoDisplay baseDisp : infoDisplays)
+        {
+            GRAD_BC_Transmission candidate = GRAD_BC_Transmission.Cast(baseDisp);
+            if (candidate)
+            {
+                transmissionDisplay = candidate;
+                break;
+            }
+        }
+
+        if (!transmissionDisplay)
+        {
+            Print("SCR_PlayerController: could not find GRAD_BC_Transmission in HUD", LogLevel.ERROR);
+            return;
+        }
+
+        // Show the logo immediately
+        transmissionDisplay.TransmissionStarted();
+    }
+	
+	// RPC wrapper for BC Logo
+	void ShowTransmissionHintRPC()
+    {
+        Rpc(Rpc_ShowTransmissionHint_Local);
+    }
 }

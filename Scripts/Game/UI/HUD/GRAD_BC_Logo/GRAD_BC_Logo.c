@@ -26,16 +26,17 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 	
 	void ShowLogo()
     {
-       if (!m_logo)
-			return;
+       // if (!m_logo) return;
+		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		PrintFormat("GRAD_BC_Logo: showLogo called!", LogLevel.VERBOSE);
-		m_logo.SetOpacity(1.0);
+		//	m_logo.SetOpacity(1.0);
     	GetGame().GetCallqueue().CallLater(HideLogo, 15000);
     }
 	
 	private void HideLogo()
     {
-        if (m_logo) { m_logo.SetOpacity(0.0); };
+        // if (m_logo) { m_logo.SetOpacity(0.0); };
+		super.Show(false, 3.0, EAnimationCurve.EASE_OUT_QUART);
 		PrintFormat("GRAD_BC_Logo: hiding m_logo", LogLevel.VERBOSE);
     }
 }

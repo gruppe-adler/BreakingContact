@@ -5,18 +5,16 @@ FrameWidgetClass {
    Name "GRAD_BC_Logo_Widget"
    Slot FrameWidgetSlot "{5F3E9E3E957EF622}" {
     Anchor 0.5 0.5 0.5 0.5
-    PositionX -360
-    OffsetLeft -360
-    PositionY -240
-    OffsetTop -240
-    SizeX 720
-    OffsetRight -360
-    SizeY 480
-    OffsetBottom -240
+    PositionX -256
+    OffsetLeft -256
+    PositionY -198
+    OffsetTop -198
+    SizeX 512
+    OffsetRight -256
+    SizeY 396
+    OffsetBottom -198
    }
-   Pivot 0.5 0.5
-   Texture "{9C097333003725E8}UI/Logo/BC_logo.edds"
-   Size 1100 717
+   Texture "{76958DC30C3FE807}UI/Logo/bc_logo.edds"
   }
  }
 }

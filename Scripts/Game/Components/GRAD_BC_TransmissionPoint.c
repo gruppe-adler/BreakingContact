@@ -83,7 +83,6 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	}
 
 	
-		// todo move into playercontroller
 	//------------------------------------------------------------------------------------------------
 	private void SetTransmissionState(ETransmissionState transmissionState)
 	{
@@ -91,57 +90,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			m_eTransmissionState = transmissionState;
 			
 			Replication.BumpMe();
-		
-			/*
-			int playerId = GetGame().GetDataCollector().GetPlayerData(GetGame().GetPlayerController().GetPlayerId());
-			if (playerId) {
-				SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(playerId));
-			*/
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController) return;
-		SCR_HUDManagerComponent hudmanager = SCR_HUDManagerComponent.Cast(playerController.FindComponent(SCR_HUDManagerComponent));
-		
-		if (!hudmanager) {
-			PrintFormat("TPC - No hudmanager found");
-			return;
 		}
-		
-		GRAD_BC_Transmission info = GRAD_BC_Transmission.Cast(hudmanager.FindInfoDisplay(GRAD_BC_Transmission));
-		
-		if (!info) {
-			PrintFormat("TPC - No Info Panel found");
-			return;
-		}
-
-		switch (m_eTransmissionState)
-			{
-				case ETransmissionState.TRANSMITTING: {
-					info.TransmissionStarted();
-					break;
-				}
-
-				case ETransmissionState.INTERRUPTED: {
-					info.TransmissionInterrupted();
-					break;
-				}
-
-				case ETransmissionState.DISABLED: {
-					info.TransmissionInterrupted();
-					break;
-				}
-
-				case ETransmissionState.DONE: {
-					info.TransmissionDone();
-					break;
-				}
-
-				default: {
-					Print(string.Format("Breaking Contact TPC - No known ETransmissionState %1", m_eTransmissionState), LogLevel.ERROR);
-					break;
-				}
-			}
-		}
-		Print(string.Format("Breaking Contact TPC - Set Transmissionstate to %1", m_eTransmissionState), LogLevel.NORMAL);
 	}
 	
 	void SetTransmissionActive(bool setState) {

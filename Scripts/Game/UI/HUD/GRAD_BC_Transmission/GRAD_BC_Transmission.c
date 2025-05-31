@@ -31,54 +31,63 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 		super.Show(false, 0.0, EAnimationCurve.LINEAR);
 	}
 	
-	void TransmissionStarted() {
+	void showTransmissionHint(string faction, ETransmissionState state) {
 		if (!m_infoImage) {
 			PrintFormat("GRAD_BC_Transmission: TransmissionStarted → m_infoImage is missing", LogLevel.ERROR);
 			return;
 		}
 		
-		// Change to the “started” texture
-		m_infoImage.LoadImageTexture(0, "{B8C70A7749D318C2}UI/Transmission/us_established.edds");		
-		m_currentDisplayCached = e_currentDisplay.STARTED;
+		switch (state)
+			{
+				case ETransmissionState.TRANSMITTING: {
+					m_currentDisplayCached = e_currentDisplay.STARTED;
+					if (faction == "US") {
+						m_infoImage.LoadImageTexture(0, "{B8C70A7749D318C2}UI/Transmission/us_established.edds");	
+					} else {
+						m_infoImage.LoadImageTexture(0, "{3B1DCBDCE5DA9CEB}UI/Transmission/rus_established.edds");	
+					}
+					break;
+				}
+
+				case ETransmissionState.INTERRUPTED: {
+					m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
+					if (faction == "US") {
+						m_infoImage.LoadImageTexture(0, "{2AE03288555F4237}UI/Transmission/us_cutoff.edds");	
+					} else {
+						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
+					}
+					break;
+				}
+
+				case ETransmissionState.DISABLED: {
+					m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
+					if (faction == "US") {
+						m_infoImage.LoadImageTexture(0, "{2AE03288555F4237}UI/Transmission/us_cutoff.edds");	
+					} else {
+						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
+					}
+					break;
+				}
+
+				case ETransmissionState.DONE: {
+					m_currentDisplayCached = e_currentDisplay.DONE;
+					if (faction == "US") {
+						m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_done.edds");	
+					} else {
+						m_infoImage.LoadImageTexture(0, "{8BE8C2B40DACD244}UI/Transmission/rus_done.edds");	
+					}
+					break;
+				}
+
+				default: {
+					Print(string.Format("Breaking Contact TPC - No known ETransmissionState %1", state), LogLevel.ERROR);
+					break;
+				}
+			}
+			
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		
-		// After 15 s, attempt to hide (fade out)
-		GetGame().GetCallqueue().CallLater(
-            FadeOutIfStill,       // name of our helper method
-            15000,                // 15 sec
-            false,                // not a loop
-            m_currentDisplayCached // pass the state enum as a parameter
-        );
-	}
-	
-	void TransmissionInterrupted() {
-		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: TransmissionInterrupted → m_infoImage is missing", LogLevel.ERROR);
-			return;
-		}
 		
-		m_infoImage.LoadImageTexture(0, "{2AE03288555F4237}UI/Transmission/us_cutoff.edds");
-		m_currentDisplayCached = e_currentDisplay.INTERRUPTED;
-		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
-		
-		// After 15 s, attempt to hide (fade out)
-		GetGame().GetCallqueue().CallLater(
-            FadeOutIfStill,       // name of our helper method
-            15000,                // 15 sec
-            false,                // not a loop
-            m_currentDisplayCached // pass the state enum as a parameter
-        );
-	}
-	
-	void TransmissionDone() {
-		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: TransmissionDone → m_infoImage is missing", LogLevel.ERROR);
-			return;
-		}
-		
-		m_infoImage.LoadImageTexture(0, "{92B573238A373130}UI/Transmission/us_done.edds");
-		m_currentDisplayCached = e_currentDisplay.DONE;
-		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		
 		// After 15 s, attempt to hide (fade out)
 		GetGame().GetCallqueue().CallLater(

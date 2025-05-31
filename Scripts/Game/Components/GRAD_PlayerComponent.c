@@ -48,6 +48,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	protected bool m_bChoosingSpawn;
 	
+	protected string m_faction;
+	
 	SCR_PlayerController m_playerController;
 	
 	//------------------------------------------------------------------------------------------------
@@ -64,6 +66,15 @@ class GRAD_PlayerComponent : ScriptComponent
 				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 3000, false);
 				GetGame().GetCallqueue().CallLater(ForceOpenMap, 4000, false);
+				
+				SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
+				if (!ch)  {
+					Print(string.Format("SCR_ChimeraCharacter missing in m_playerController"), LogLevel.NORMAL);
+					return;
+				}
+				
+				m_faction = ch.GetFactionKey();
+				Print(string.Format("faction detected: %1", m_faction), LogLevel.NORMAL);
 			
 				return;
 			}
@@ -154,17 +165,11 @@ class GRAD_PlayerComponent : ScriptComponent
 		}
 		
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
-		if (!ch)  {
-			Print(string.Format("SCR_ChimeraCharacter missing in m_playerController"), LogLevel.NORMAL);
-			return;
-		}
 		
-		string factionKey = ch.GetFactionKey();
 		
-		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", factionKey, phase), LogLevel.NORMAL);
+		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", m_faction, phase), LogLevel.NORMAL);
 		
-		if (factionKey == "USSR") {
+		if (m_faction == "USSR") {
 			if (phase != EBreakingContactPhase.OPFOR) {
 				Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
 				return;
@@ -175,12 +180,12 @@ class GRAD_PlayerComponent : ScriptComponent
 				
 				RequestInitiateOpforSpawnLocal();
 				RemoveSpawnMarker();
-				Print(string.Format("ConfirmSpawn - factionKey: %1 - phase: %2 - Removing spawn marker for opfor.", factionKey, phase), LogLevel.NORMAL);
+				Print(string.Format("ConfirmSpawn - m_faction: %1 - phase: %2 - Removing spawn marker for opfor.", m_faction, phase), LogLevel.NORMAL);
 				return;
 			}
 		}
 		
-		if (factionKey == "US" && phase == EBreakingContactPhase.GAME) {
+		if (m_faction == "US" && phase == EBreakingContactPhase.GAME) {
 			Print(string.Format("Removing spawn marker for blufor"), LogLevel.NORMAL);
 			RemoveSpawnMarker();
 			return;
@@ -414,7 +419,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
-    protected void Rpc_ShowTransmissionHint_Local()
+    protected void Rpc_ShowTransmissionHint_Local(ETransmissionState state)
     {
         // Find the HUD display and call ShowLogo() on it
         array<BaseInfoDisplay> infoDisplays = {};
@@ -439,12 +444,12 @@ class GRAD_PlayerComponent : ScriptComponent
         }
 
         // Show the logo immediately
-        transmissionDisplay.TransmissionStarted();
+        transmissionDisplay.showTransmissionHint(m_faction, state);
     }
 	
 	// RPC wrapper for BC Logo
-	void ShowTransmissionHintRPC()
+	void ShowTransmissionHintRPC(ETransmissionState state)
     {
-        Rpc(Rpc_ShowTransmissionHint_Local);
+        Rpc(Rpc_ShowTransmissionHint_Local, state);
     }
 }

@@ -3,7 +3,7 @@ GameProject {
  GUID "5E94F8A105D69A62"
  TITLE "Breaking Contact"
  Dependencies {
-  "58D0FB3206B6F859" "5EAF2B0473DB5A99" "DEB66BADC0DE6667" "5D2D1436D1FA5A13"
+  "58D0FB3206B6F859" "0315131312150202" "DEB66BADC0DE6667" "5D2D1436D1FA5A13"
  }
  Configurations {
   GameProjectConfig PC {
@@ -13,6 +13,9 @@ GameProject {
   GameProjectConfig XBOX_SERIES {
   }
   GameProjectConfig PS4 {
+  }
+  GameProjectConfig PS5 {
+   PlatformHardware PS5
   }
   GameProjectConfig HEADLESS {
   }

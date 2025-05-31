@@ -45,7 +45,6 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
-	ref GRAD_BC_Logo m_BC_logo;
 	
 	protected bool m_bChoosingSpawn;
 	
@@ -57,8 +56,6 @@ class GRAD_PlayerComponent : ScriptComponent
 		super.EOnInit(owner);
 		
 		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
-		
-		m_BC_logo = new GRAD_BC_Logo;
 		
 		m_playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		
@@ -136,35 +133,6 @@ class GRAD_PlayerComponent : ScriptComponent
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
 		
-	}	
-	
-	void ShowBCLogo() {
-		if (!m_playerController) {
-			Print(string.Format("GRAD Playercontroller ShowBCLogo - no playercontroller found"), LogLevel.WARNING);
-			return;
-		}
-	
-		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(m_playerController.FindComponent(GRAD_BC_Logo));
-		// todo currently no logo found
-		if (!m_BC_logo) {
-			Print(string.Format("GRAD Playercontroller ShowBCLogo - no logo found"), LogLevel.WARNING);
-			return;
-		}
-		m_BC_logo.SetVisible(true);
-		GetGame().GetCallqueue().CallLater(HideBCLogo, 5000, false);
-	}
-	
-	void HideBCLogo() {
-		if (!m_playerController) {
-			Print(string.Format("GRAD Playercontroller HideBCLogo - no playercontroller found"), LogLevel.WARNING);
-			return;
-		}
-		GRAD_BC_Logo logo = GRAD_BC_Logo.Cast(m_playerController.FindComponent(GRAD_BC_Logo));
-		if (!logo) {
-			Print(string.Format("GRAD Playercontroller HideBCLogo - no logo found"), LogLevel.WARNING);
-			return;
-		}
-		logo.SetVisible(false);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -408,4 +376,39 @@ class GRAD_PlayerComponent : ScriptComponent
 	{
 		SetEventMask(owner, EntityEvent.INIT);
 	}
+	
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+    protected void Rpc_ShowBCLogo_Local()
+    {
+        // Find the HUD display and call ShowLogo() on it
+        array<BaseInfoDisplay> infoDisplays = {};
+        GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);
+
+        // Search for our GRAD_BC_Logo instance
+        GRAD_BC_Logo logoDisplay = null;
+        foreach (BaseInfoDisplay baseDisp : infoDisplays)
+        {
+            GRAD_BC_Logo candidate = GRAD_BC_Logo.Cast(baseDisp);
+            if (candidate)
+            {
+                logoDisplay = candidate;
+                break;
+            }
+        }
+
+        if (!logoDisplay)
+        {
+            Print("SCR_PlayerController: could not find GRAD_BC_Logo in HUD", LogLevel.ERROR);
+            return;
+        }
+
+        // Show the logo immediately
+        logoDisplay.ShowLogo();
+    }
+	
+	// RPC wrapper for BC Logo
+	void ShowBCLogoRPC()
+    {
+        Rpc(Rpc_ShowBCLogo_Local);
+    }
 }

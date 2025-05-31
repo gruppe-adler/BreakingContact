@@ -172,16 +172,45 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 		
+		// Retrieve the HUD‐display and call ShowLogo on it:
+	    SCR_HUDManagerComponent hud = SCR_HUDManagerComponent.GetHUDManager();
+	    if (!hud) {
+	        Print("Cannot find SCR_HUDManagerComponent!", LogLevel.ERROR);
+	        return;
+	    }
+	
+	    array<BaseInfoDisplay> infoDisplays = {};
+		GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);
+		GRAD_BC_Logo logoDisplay = null;
+		foreach (BaseInfoDisplay baseDisp : infoDisplays)
+		{
+		    // Try casting *each* BaseInfoDisplay directly to GRAD_BC_Logo
+		    GRAD_BC_Logo candidate = GRAD_BC_Logo.Cast(baseDisp);
+		    if (candidate)
+		    {
+		        logoDisplay = candidate;
+		        break;
+		    }
+		}
+	    if (!logoDisplay) {
+	        Print("InfoDisplay found was not a GRAD_BC_Logo!", LogLevel.ERROR);
+	        return;
+	    }
+		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerComponent.ShowBCLogo();
+		
+		    // Now bump the counter on the server so that all clients show it.
+		    // (ShowLogo() itself only increments on Listen/Dedicated, so it is safe
+		    // to call here from a dedicated server or listen‐server host.)
+		    logoDisplay.ShowLogo();
 		}
 			
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			playerComponent.ShowBCLogo();
+			logoDisplay.ShowLogo();
 		}
 
 	}
@@ -572,6 +601,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     {
         m_iBreakingContactPhase = phase;
         Replication.BumpMe();
+		
+		OnBreakingContactPhaseChanged(); // call on server too for debug in SP test
 
         Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
     }	

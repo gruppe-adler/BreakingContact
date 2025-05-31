@@ -80,6 +80,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	void SetPosition(vector center) 
 	{
 		m_position = center;
+		Replication.BumpMe();
 	}
 
 	

@@ -333,6 +333,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker = false)
 	{
 		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, rplId, spawnMarker);
+		PrintFormat("AddCircleMarker in GRAD_PlayerComponent");
 	}
 	
 	//------------------------------------------------------------------------------------------------

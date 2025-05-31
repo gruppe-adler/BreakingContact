@@ -102,6 +102,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	GRAD_TransmissionPoint GetNearestTPC(vector center) {
 		GRAD_TransmissionPoint nearestPoint;	
 		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();	
+		
+		PrintFormat("Breaking Contact RTC - currently have %1 TPCs in array", transmissionPoints.Count());
 		int transmissionPointsCount = transmissionPoints.Count();
 		
 		// if transmission points exist, find out which one is the nearest

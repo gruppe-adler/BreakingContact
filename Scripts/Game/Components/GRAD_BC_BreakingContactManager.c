@@ -83,9 +83,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	static GRAD_BC_BreakingContactManager GetInstance()
 	{
-		if (m_instance == null)
+		if (!m_instance)
 		{
-			m_instance = GRAD_BC_BreakingContactManager.Cast(GetGame().GetGameMode().FindComponent(GRAD_BC_BreakingContactManager))
+			m_instance = GRAD_BC_BreakingContactManager.Cast(GetGame().GetGameMode().FindComponent(GRAD_BC_BreakingContactManager));
+			Print(string.Format("Breaking Contact BCM - m_instance got filled %1", m_instance), LogLevel.NORMAL);	
 		}
 		
 		return m_instance;
@@ -329,8 +330,14 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 		int count = 0;
 		
+		if (!m_transmissionPoints)
+        	return 0;
+		
 		foreach (ref GRAD_TransmissionPoint transmissionPoint : m_transmissionPoints)
 		{
+			if (!transmissionPoint)
+            	continue;
+			
 			if (transmissionPoint.GetTransmissionState() == ETransmissionState.DONE) {
 				count = count + 1;
 			}
@@ -411,36 +418,58 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	GRAD_TransmissionPoint GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 		
-			array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();
-			GRAD_TransmissionPoint selectedPoint;
+			auto transmissionPoints = GetTransmissionPoints();
+			PrintFormat(
+			  "Breaking Contact GetNearestTransmissionPoint — currently have %1 TPCs in array",
+			  transmissionPoints.Count(),
+			  LogLevel.NORMAL
+			);
 		
 			Print(string.Format("Breaking Contact RTC - GetNearestTransmissionPoint"), LogLevel.NORMAL);
 
 			// if transmission points exist, find out which one is the nearest
-			if (transmissionPoints.Count() > 0) {
-				float distanceMaxTemp;
+			if (transmissionPoints && transmissionPoints.Count() > 0) 
+			{
+				float bestDist  = m_iMaxTransmissionDistance;
+				GRAD_TransmissionPoint closest = null;
 
+				// Scan through all existing points, find the one closest but still < maxDistance
 				foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
 				{
+					if (!TPCAntenna) {
+						Print(string.Format("Breaking Contact RTC - TPCAntenna is null"), LogLevel.ERROR);
+						continue;
+					}
+				
 					float distance = vector.Distance(TPCAntenna.GetPosition(), center);
 
 					// check if distance is in reach of radiotruck
-					if (distance < m_iMaxTransmissionDistance) {
-						distanceMaxTemp = distance;
-						selectedPoint = TPCAntenna;
+					if (distance < bestDist) {
+						bestDist = distance;
+						closest = TPCAntenna;
 					}
 				}
-				// create transmission point if player is outside existing but multiple exist
-				if (!selectedPoint && isTransmitting) {
-					selectedPoint = CreateTransmissionPoint(center);
-				}
+			
+				// If we already found an existing TPC within range, return that:
+				if (closest)
+	        		return closest;
+			
+				// Otherwise, if we are currently transmitting, spawn a new one
+				if (!closest && isTransmitting)
+		        {
+					closest = this.SpawnTransmissionPoint(center);
+		            Print("Breaking Contact RTC - Created New Transmission Point (in-range none found)", LogLevel.NORMAL);
+		        }
+				return closest;
+			}
+			// if no TPC exist, create a new
+			if (transmissionPoints.Count() == 0 && isTransmitting)
+		    {
+				GRAD_TransmissionPoint selectedPoint = this.SpawnTransmissionPoint(center);
+		        Print("Breaking Contact RTC - SpawnTransmissionPoint called (no existing points)", LogLevel.NORMAL);
 				return selectedPoint;
-			}
-			if (isTransmitting) {
-				selectedPoint = CreateTransmissionPoint(center);
-				Print(string.Format("Breaking Contact RTC - CreateTransmissionPoint called - transmitting"), LogLevel.NORMAL);
-			}
-			return selectedPoint;
+		    }
+			return null;
 	}
 
 	
@@ -506,15 +535,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// SetVehiclePhysics(m_radioTruck);
 	
 		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", m_radioTruck, params), LogLevel.NORMAL);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	GRAD_TransmissionPoint CreateTransmissionPoint(vector center) {
-		// if no transmission point exists, create one
-		GRAD_TransmissionPoint TPCAntenna = SpawnTransmissionPoint(center);
-		Print(string.Format("Breaking Contact RTC -  Create TransmissionPoint: %1", TPCAntenna), LogLevel.NORMAL);
-		
-		return TPCAntenna;
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -625,9 +645,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		GRAD_TransmissionPoint transmissionPoint = new GRAD_TransmissionPoint();
 		transmissionPoint.SetPosition(center);
 		
-        addTransmissionPoint(transmissionPoint); // add to array
+		if (transmissionPoint) {
+        	m_transmissionPoints.Insert(transmissionPoint);
+		}
 		
-		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint), LogLevel.NORMAL);
+		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
 		
 		return transmissionPoint;
 	}
@@ -763,18 +785,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// changed from worldcenter array
 	    return centerArray;
 	}
-
-
-    //------------------------------------------------------------------------------------------------
-	protected void addTransmissionPoint(GRAD_TransmissionPoint transmissionPoint)
-	{
-        m_transmissionPoints.Insert(transmissionPoint);		
-    }
-	
 	
 	//------------------------------------------------------------------------------------------------
 	array<GRAD_TransmissionPoint> GetTransmissionPoints()
 	{
+		Print(string.Format("BCM - GetTransmissionPoints '%1'.", m_transmissionPoints.Count()), LogLevel.NORMAL);	
         return m_transmissionPoints;		
     }
 
@@ -865,7 +880,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
 			SpawnSpawnVehicleEast();
 			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos);
-			
 		}
 		
 		if (factionName == "US") {	

@@ -29,11 +29,12 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 		}
 		
 		super.Show(false, 0.0, EAnimationCurve.LINEAR);
+		PrintFormat("GRAD_BC_Transmission: Hiding hint", LogLevel.ERROR);
 	}
 	
 	void showTransmissionHint(string faction, ETransmissionState state) {
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: TransmissionStarted → m_infoImage is missing", LogLevel.ERROR);
+			PrintFormat("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.ERROR);
 			return;
 		}
 		

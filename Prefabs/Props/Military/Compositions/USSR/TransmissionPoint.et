@@ -1,0 +1,7 @@
+GenericEntity : "{55B73CF1EE914E07}Prefabs/Props/Military/Compositions/USSR/Antenna_02_USSR.et" {
+ ID "F0DBA538AC2A0552"
+ components {
+  GRAD_BC_TransmissionComponent "{658291401AD140B8}" {
+  }
+ }
+}

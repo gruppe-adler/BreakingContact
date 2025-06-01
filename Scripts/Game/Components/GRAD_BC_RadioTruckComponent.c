@@ -99,9 +99,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	}
 	
 	
-	GRAD_TransmissionPoint GetNearestTPC(vector center) {
-		GRAD_TransmissionPoint nearestPoint;	
-		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();	
+	GRAD_BC_TransmissionComponent GetNearestTPC(vector center) {
+		GRAD_BC_TransmissionComponent nearestPoint;	
+		array<GRAD_BC_TransmissionComponent> transmissionPoints = GetTransmissionPoints();	
 		
 		PrintFormat("Breaking Contact RTC - currently have %1 TPCs in array", transmissionPoints.Count());
 		int transmissionPointsCount = transmissionPoints.Count();
@@ -112,7 +112,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			
 			PrintFormat("Found %1 transmission points", transmissionPointsCount);
 
-			foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
+			foreach (ref GRAD_BC_TransmissionComponent TPCAntenna : transmissionPoints)
 			{
 				float distance = vector.Distance(TPCAntenna.GetPosition(), center);
 
@@ -128,8 +128,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		return nearestPoint;
 	}
 	
-	array<GRAD_TransmissionPoint> GetTransmissionPoints() {
-		array<GRAD_TransmissionPoint> allPoints;
+	array<GRAD_BC_TransmissionComponent> GetTransmissionPoints() {
+		array<GRAD_BC_TransmissionComponent> allPoints;
 		
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
 		if (!playerController) {

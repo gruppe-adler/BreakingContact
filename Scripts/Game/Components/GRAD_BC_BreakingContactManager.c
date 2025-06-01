@@ -304,9 +304,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		if (currentPhase == EBreakingContactPhase.BLUFOR && !choosingBluforSpawn) {
 			Print(string.Format("Breaking Contact - choosingBluforSpawn upcoming"), LogLevel.NORMAL);
 			choosingBluforSpawn = true;
-			vector bluforSpawnPos = findBluforPosition();
-			Print(string.Format("Breaking Contact - bluforSpawnPos %1", bluforSpawnPos), LogLevel.NORMAL);
-			SetBluforSpawnPos(bluforSpawnPos);
 			InitiateBluforSpawn();
 		};
 		
@@ -659,7 +656,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
 	    if (roadPoints.IsEmpty())
-	        return position; // Fallback to input position if no road points found
+	        return vector.Zero; // No suitable spawn found
 	    
 	    // Find the closest point from the road points
 	    vector closestPos = position;
@@ -740,10 +737,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    auto worldCenterArray = new array<vector>();
 	    worldCenterArray.Insert(worldCenter);
 	    worldCenterArray.Insert(worldCenter);
-		
-		auto centerArray = new array<vector>();
-		centerArray.Insert(center);
-		centerArray.Insert(center);
 	    
 	    const float halfSize = searchRadius; // Adjust as needed for your AABB size
 	    vector aabbMin = center - Vector(halfSize, halfSize, halfSize); 
@@ -782,8 +775,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	        return outPoints;
 	    }
 	    
-		// changed from worldcenter array
-	    return centerArray;
+		// in case we dont find return null
+		PrintFormat("BCM - Unable to determine spawn pos for position %1 and search radius", center, searchRadius, level: LogLevel.WARNING);
+	    return new array<vector>();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -795,45 +789,81 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 
     //------------------------------------------------------------------------------------------------
-    vector findBluforPosition() {
-		bool foundPositionOnLand = false;
-		int loopCount = 0;
-		vector bluforSpawnPos;
+    protected array<vector> findBluforPosition(vector opforPosition) {
+	    bool foundPositionOnLand = false;
+	    int loopCount = 0;
+	    vector roadPosition;
+	    
+	    // Define min and max distance bounds
+	    float minDistance = m_iBluforSpawnDistance - 100;
+	    float maxDistance = m_iBluforSpawnDistance + 100;
+	    
+	    while (!foundPositionOnLand && loopCount < 100) {
+	        loopCount++;
+	        
+	        // Generate random direction
+	        int degrees = Math.RandomIntInclusive(0, 360);
+	        
+	        // Generate random distance within bounds
+	        float randomDistance = Math.RandomFloatInclusive(minDistance, maxDistance);
+	        
+	        // Get initial point on circle
+	        vector candidatePos = GetPointOnCircle(opforPosition, randomDistance, degrees);
+	        
+	        // Find nearest road position within a reasonable search radius
+	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 200); // 200m search radius
+	        
+	        if (roadPositions && !roadPositions.IsEmpty()) {
+	            // Use the closest road position
+	            roadPosition = roadPositions[0];
+	            
+	            // Verify the position meets distance requirements and is on land
+	            float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
+	            
+	            if (!SurfaceIsWater(roadPosition) && 
+	                distanceToOpfor >= minDistance && 
+	                distanceToOpfor <= maxDistance) {
+	                Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2 - pos: %3 - opfor: %4 - degrees: %5", 
+	                    loopCount, distanceToOpfor, roadPosition, opforPosition, degrees), LogLevel.NORMAL);
+	                foundPositionOnLand = true;
+	            }
+	        }
+	        
+	        if (!foundPositionOnLand && loopCount >= 100) {
+	            Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
+	            // roadPosition to original position if no valid road position found
+	            roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, degrees);
+	            foundPositionOnLand = true;
+	        }
+	    }
 		
-		while (!foundPositionOnLand) {
-			
-			loopCount = loopCount + 1;
-			int degrees = Math.RandomIntInclusive(0, 360);
-			// todo m_iBluforSpawnDistance
-			bluforSpawnPos = GetPointOnCircle(m_vOpforSpawnPos, 1000, degrees);
-						
-			float distanceToOpfor = vector.Distance(bluforSpawnPos, m_vOpforSpawnPos);
-			Print(string.Format("BCM - loopCount %1 - distanceToOpfor %2 - bluforSpawnPos %4 - m_vOpforSpawnPos %5 - degrees %3.", loopCount, distanceToOpfor, degrees, bluforSpawnPos, m_vOpforSpawnPos), LogLevel.NORMAL);
-			
-			// minimum of blufor spawn distance is set value - 200
-			if (!SurfaceIsWater(bluforSpawnPos)) {
-				Print(string.Format("BCM - findBluforPosition after '%1 loops'.", loopCount), LogLevel.NORMAL);				
-				foundPositionOnLand = true;
-			}
-			
-			if (loopCount > 100) {
-				foundPositionOnLand = true;
-				Print(string.Format("BCM - findBluforPosition panic exit after '%1 loops'.", loopCount), LogLevel.ERROR);		
-			}
-		}
-
-		return bluforSpawnPos;
-    }
+		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
+		
+		vector direction = vector.Direction(roadPosition, roadPosition2);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
+		
+		array<vector> output = new array<vector>();
+		output.Insert(midpoint);
+		output.Insert(direction);
+		
+		return output;
+	}
 	
 	// helper to find point on circle
-	protected vector GetPointOnCircle(vector center, int radius, int degrees)
+	protected vector GetPointOnCircle(vector center, float radius, float degrees)
 	{
-	    // - half PI because 90 deg offset left
-	    return Vector(
-	        center[0] + radius * Math.Cos(degrees - 0.5 * Math.PI),
-	        center[2] + radius * Math.Sin(degrees - 0.5 * Math.PI),
-	        center[1] // If this is a 2D context, you can omit this line.
-	    );
+	    // Convert degrees to radians
+	    float radians = degrees * Math.DEG2RAD;
+	    
+	    // Calculate offsets using cosine and sine (radians)
+	    float offsetX = radius * Math.Cos(radians - 0.5 * Math.PI);
+	    float offsetZ = radius * Math.Sin(radians - 0.5 * Math.PI);
+	    
+	    float terrainX = center[0] + offsetX;
+		float terrainZ = center[2] + offsetZ;
+		float terrainY = GetGame().GetWorld().GetSurfaceY(terrainX, terrainZ);
+		
+		return Vector(terrainX, terrainY, terrainZ);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -968,31 +998,59 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 	}
 	
-	void SetOpforSpawnPos(vector spawnPos)
+	GRAD_SpawnPointResponse SetSpawnPositions(vector spawnPos)
 	{
-		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
-		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		m_vOpforSpawnDir = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
+		m_vOpforSpawnPos = vector.Zero;
+		m_vOpforSpawnDir = vector.Zero;
+		m_vBluforSpawnPos = vector.Zero;
+		m_vBluforSpawnDir = vector.Zero;
 		
-		m_vOpforSpawnPos = midpoint; // midpoint;
+		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);		
+		if (opforSpawnPos.Count() != 2)
+		{
+			return GRAD_SpawnPointResponse.OPFOR_NOTFOUND;
+		}
+		
+		array<vector> bluforSpawnPos = findBluforPosition(opforSpawnPos[0]);
+		if (bluforSpawnPos.Count() != 2)
+		{
+			return GRAD_SpawnPointResponse.BLUFOR_NOTFOUND;
+		}
+		
+		// If we get both then we can set them and do replication	
+		m_vOpforSpawnPos = opforSpawnPos[0];
+		m_vOpforSpawnDir = opforSpawnPos[1];
+		
+		m_vBluforSpawnPos = bluforSpawnPos[0];
+		m_vBluforSpawnDir = bluforSpawnPos[1];
 		
 		Replication.BumpMe();
 		
 		// Manually call change on the server since replication is not happening there
 		if (Replication.IsServer())
 			OnOpforPositionChanged();
+		
+		return GRAD_SpawnPointResponse.OK;
 	}
 	
-	void SetBluforSpawnPos(vector spawnPos) {
+	protected array<vector> GetSpawnPos(vector spawnPos)
+	{
 		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		if (roadPosition == vector.Zero)
+		{
+			return new array<vector>();
+		}
+		
 		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		m_vBluforSpawnDir = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition, 0.5);
 		
-		m_vBluforSpawnPos = midpoint; // midpoint;
+		vector direction = vector.Direction(roadPosition, roadPosition2);
+		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
 		
-		Replication.BumpMe();
+		array<vector> output = new array<vector>();
+		output.Insert(midpoint);
+		output.Insert(direction);
+		
+		return output;
 	}
 
     //------------------------------------------------------------------------------------------------
@@ -1049,4 +1107,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 		SetEventMask(owner, EntityEvent.INIT);
 	}
+}
+
+enum GRAD_SpawnPointResponse
+{
+	OK,
+	OPFOR_NOTFOUND,
+	BLUFOR_NOTFOUND
 }

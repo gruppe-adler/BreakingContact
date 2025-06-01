@@ -196,15 +196,37 @@ class GRAD_PlayerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SetOpforSpawn(vector worldPos)
 	{
-		Rpc(RpcDo_SetOpforSpawn, worldPos);
+		int playerId = GetGame().GetPlayerController().GetPlayerId();
+		Rpc(RpcDo_SetOpforSpawn, worldPos, playerId);
 	}
 	
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void RpcDo_SetOpforSpawn(vector spawnPoint)
+	protected void RpcDo_SetOpforSpawn(vector spawnPoint, int requesterPlayerId)
 	{
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		
-		BCM.SetOpforSpawnPos(spawnPoint);
+		GRAD_SpawnPointResponse result = BCM.SetSpawnPositions(spawnPoint);
+		Rpc(RcpResp_SetOpforSpawn, result);
+	}
+	
+	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
+	void RcpResp_SetOpforSpawn(GRAD_SpawnPointResponse result)
+	{
+		string text;
+		switch(result)
+		{
+			case GRAD_SpawnPointResponse.OK:
+				text = "OK";
+				break;
+			case GRAD_SpawnPointResponse.OPFOR_NOTFOUND:
+				text = "Couldn't find suitable OPFOR spawn pos";
+				break;
+			case GRAD_SpawnPointResponse.BLUFOR_NOTFOUND:
+				text = "Couldn't find suitable BLUFOR spawn pos";
+				break;
+		}
+		
+		SCR_HintManagerComponent.GetInstance().ShowCustomHint(text, "Spawn pos", 5, true);
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -12,7 +12,7 @@ class TransmissionEntry
 // GRAD_MapMarkerManager
 //
 // Inherits from GRAD_MapMarkerLayer (which in turn extends SCR_MapModuleBase).
-// - OnMapOpen: Populate m_AllMarkers from the current GRAD_TransmissionPoint list.
+// - OnMapOpen: Populate m_AllMarkers from the current GRAD_BC_TransmissionComponent list.
 // - Draw(): Iterate m_AllMarkers, draw circles or icons based on each entry’s state.
 // - OnMapClose: Clear the list so next open starts fresh.
 //------------------------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
 
         // 2) Get the list of all existing transmission‐point objects
-        array<GRAD_TransmissionPoint> tpcs = bcm.GetTransmissionPoints();
+        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
         if (!tpcs)
         {
             Print("GRAD_MapMarkerManager: No TransmissionPoints returned!", LogLevel.WARNING);
@@ -80,7 +80,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
 
         // 3) For each TPC, build a TransmissionEntry and insert it into m_AllMarkers
-        foreach (GRAD_TransmissionPoint tpc : tpcs)
+        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
         {
             if (!tpc)
                 continue; // guard against null references

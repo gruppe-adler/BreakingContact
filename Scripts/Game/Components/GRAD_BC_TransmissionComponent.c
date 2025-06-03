@@ -3,6 +3,15 @@ class GRAD_BC_TransmissionComponentClass : ScriptComponentClass
 {
 }
 
+enum ETransmissionState
+{
+	OFF,
+	TRANSMITTING,
+	INTERRUPTED,
+	DISABLED,
+	DONE
+}
+
 // entity to be able to work without spawning an actual antenna
 class GRAD_BC_TransmissionComponent : ScriptComponent
 {
@@ -31,7 +40,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
 		
 		m_position = owner.GetOrigin();
-		Replication.BumpMe();
+		Replication.BumpMe();		
 
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 
@@ -47,6 +56,12 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);	
 		}
 		
+		if (Replication.IsServer())
+		{
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm)
+				bcm.RegisterTransmissionComponent(this);
+		}
 		// m_transmissionPoint.GetParent().GetParent().RemoveChild(owner, false); // disable attachment hierarchy to radiotruck (?!)
 		
 	}

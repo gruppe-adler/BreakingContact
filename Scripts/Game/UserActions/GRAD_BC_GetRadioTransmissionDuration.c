@@ -75,13 +75,12 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) return;
 		
-		GRAD_TransmissionPoint TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), isTransmitting);
+		GRAD_BC_TransmissionComponent TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), isTransmitting);
 		if (!TPC) return;
 
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
-			//todo for some wonky reason this breaks everything bc it still does not catch null
-			string message = string.Format("Transmission Duration: %1s", TPC.GetTransmissionDuration() / 1000); // todo why does this fail?!
+			string message = string.Format("Progress: %1 %%", Math.Floor(TPC.GetTransmissionDuration() * 100));
 			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);		
 		}
 	}

@@ -54,7 +54,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
-    protected ref array<GRAD_TransmissionPoint> m_transmissionPoints = {};
+    protected ref array<GRAD_BC_TransmissionComponent> m_aTransmissionComps = {};
+	
+	[RplProp()]
+	protected ref array<RplId> m_aTransmissionIds = {};
 	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
@@ -327,16 +330,18 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 		int count = 0;
 		
-		if (!m_transmissionPoints)
+		if (!m_aTransmissionComps )
         	return 0;
 		
-		foreach (ref GRAD_TransmissionPoint transmissionPoint : m_transmissionPoints)
+		foreach (ref GRAD_BC_TransmissionComponent tpc : m_aTransmissionComps )
 		{
-			if (!transmissionPoint)
+			if (!tpc)
             	continue;
 			
-			if (transmissionPoint.GetTransmissionState() == ETransmissionState.DONE) {
-				count = count + 1;
+			if (tpc) {			
+				if (tpc.GetTransmissionState() == ETransmissionState.DONE) {
+					count = count + 1;
+				}
 			}
 		}
 		return count;
@@ -370,36 +375,36 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		bool stateChanged = (m_bIsTransmittingCache != isTransmitting);
 		m_bIsTransmittingCache = isTransmitting;
 		
-		GRAD_TransmissionPoint nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), isTransmitting);
-		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();
+		GRAD_BC_TransmissionComponent nearestTPCAntenna = GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), isTransmitting);
+		array<GRAD_BC_TransmissionComponent> transmissionPoints = GetTransmissionPoints();
 		
 		if (!nearestTPCAntenna) {
 			Print(string.Format("Breaking Contact RTC -  No Transmission Point found"), LogLevel.NORMAL);
 			return;
 		}
 		
-		GRAD_TransmissionPoint activeTPC = nearestTPCAntenna;
+		GRAD_BC_TransmissionComponent activeTPC = nearestTPCAntenna;
 		if (activeTPC) {
 			if (stateChanged && isTransmitting) {
 				activeTPC.SetTransmissionActive(true);
 				
 				Print(string.Format("Breaking Contact RTC - activating active TPC: %1 - Component: %2", nearestTPCAntenna, activeTPC), LogLevel.NORMAL);
 				
-				foreach (ref GRAD_TransmissionPoint singleTPCAntenna : transmissionPoints)
+				foreach (ref GRAD_BC_TransmissionComponent singleTPCAntenna : transmissionPoints)
 				{
 					// disable all others
 					if (nearestTPCAntenna != singleTPCAntenna) {
-						GRAD_TransmissionPoint singleTPC = singleTPCAntenna;
+						GRAD_BC_TransmissionComponent singleTPC = singleTPCAntenna;
 						singleTPC.SetTransmissionActive(false);
 						Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
 					};
 				};
 				
 			} else if (stateChanged && !isTransmitting) {
-				foreach (ref GRAD_TransmissionPoint singleTPCAntenna : transmissionPoints)
+				foreach (ref GRAD_BC_TransmissionComponent singleTPCAntenna : transmissionPoints)
 				{
 					// disable all
-					GRAD_TransmissionPoint singleTPC = singleTPCAntenna;
+					GRAD_BC_TransmissionComponent singleTPC = singleTPCAntenna;
 					singleTPC.SetTransmissionActive(false);
 					Print(string.Format("Breaking Contact RTC -  Disabling Transmission at: %1", singleTPCAntenna), LogLevel.NORMAL);
 				};
@@ -407,12 +412,30 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			//	Print(string.Format("Breaking Contact RTC - No state change"), LogLevel.NORMAL);
 			};
 		} else {
-			Print(string.Format("Breaking Contact RTC - No GRAD_TransmissionPoint found"), LogLevel.NORMAL);
+			Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionComponent found"), LogLevel.NORMAL);
+		}
+	}
+	
+	void RegisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
+	{
+		if (!comp) return;
+	
+		// Already known?
+		if (m_aTransmissionComps.Find(comp) != -1) return;
+	
+		m_aTransmissionComps.Insert(comp);
+	
+		//clients need to know the list, store the RplId as well
+		RplComponent rpl = RplComponent.Cast(comp.GetOwner().FindComponent(RplComponent));
+		if (rpl)
+		{
+			m_aTransmissionIds.Insert(Replication.FindId(rpl));
+			Replication.BumpMe(); // replicate the updated array
 		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	GRAD_TransmissionPoint GetNearestTransmissionPoint(vector center, bool isTransmitting)
+	GRAD_BC_TransmissionComponent GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 		
 			auto transmissionPoints = GetTransmissionPoints();
@@ -428,22 +451,22 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (transmissionPoints && transmissionPoints.Count() > 0) 
 			{
 				float bestDist  = m_iMaxTransmissionDistance;
-				GRAD_TransmissionPoint closest = null;
+				GRAD_BC_TransmissionComponent closest;
 
 				// Scan through all existing points, find the one closest but still < maxDistance
-				foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
+				foreach (ref GRAD_BC_TransmissionComponent tpc : transmissionPoints)
 				{
-					if (!TPCAntenna) {
-						Print(string.Format("Breaking Contact RTC - TPCAntenna is null"), LogLevel.ERROR);
+					if (!tpc) {
+						Print(string.Format("Breaking Contact RTC - tpc is null"), LogLevel.ERROR);
 						continue;
 					}
 				
-					float distance = vector.Distance(TPCAntenna.GetPosition(), center);
+					float distance = vector.Distance(tpc.GetPosition(), center);
 
 					// check if distance is in reach of radiotruck
 					if (distance < bestDist) {
 						bestDist = distance;
-						closest = TPCAntenna;
+						closest = tpc;
 					}
 				}
 			
@@ -462,7 +485,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			// if no TPC exist, create a new
 			if (transmissionPoints.Count() == 0 && isTransmitting)
 		    {
-				GRAD_TransmissionPoint selectedPoint = this.SpawnTransmissionPoint(center);
+				GRAD_BC_TransmissionComponent selectedPoint = this.SpawnTransmissionPoint(center);
 		        Print("Breaking Contact RTC - SpawnTransmissionPoint called (no existing points)", LogLevel.NORMAL);
 				return selectedPoint;
 		    }
@@ -632,23 +655,31 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	GRAD_TransmissionPoint SpawnTransmissionPoint(vector center)
+	GRAD_BC_TransmissionComponent SpawnTransmissionPoint(vector center)
 	{	
-		// create antenna that serves as component holder for transmission point
-        // Resource ressource = Resource.Load("{5B8922E61D8DF345}Prefabs/Props/Military/Antennas/Antenna_R161_01.et");
-        // GRAD_TransmissionPoint transmissionPoint = GRAD_TransmissionPoint.Cast(GetGame().SpawnEntity(GRAD_TransmissionPoint, GetWorld(), params));
-		// RemoveChild(transmissionPoint, false); // disable attachment hierarchy to radiotruck (?!)
+		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, GetOwner().GetOrigin(), 15, 3);
 		
-		GRAD_TransmissionPoint transmissionPoint = new GRAD_TransmissionPoint();
-		transmissionPoint.SetPosition(center);
-		
-		if (transmissionPoint) {
-        	m_transmissionPoints.Insert(transmissionPoint);
+		if (!spawnEmpty) {
+			Print(string.Format("BCM - Transmission Point position dangerous, didnt find a free spot!"), LogLevel.NORMAL);
 		}
+		
+		EntitySpawnParams params = new EntitySpawnParams();
+		params.TransformMode = ETransformMode.WORLD;
+		
+		params.Transform[3] = center;
+		
+		Resource ressource = Resource.Load("{55B73CF1EE914E07}Prefabs/Props/Military/Compositions/USSR/Antenna_02_USSR.et");
+        IEntity transmissionPoint = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
 		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
 		
-		return transmissionPoint;
+		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(transmissionPoint.FindComponent(GRAD_BC_TransmissionComponent));
+		
+		if (tpc) {
+			RegisterTransmissionComponent(tpc);
+		};
+		
+		return tpc;
 	}
 
 	// Method to find the closest road position
@@ -781,10 +812,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	array<GRAD_TransmissionPoint> GetTransmissionPoints()
+	array<GRAD_BC_TransmissionComponent> GetTransmissionPoints()
 	{
-		Print(string.Format("BCM - GetTransmissionPoints '%1'.", m_transmissionPoints.Count()), LogLevel.NORMAL);	
-        return m_transmissionPoints;		
+		Print(string.Format("BCM - GetTransmissionPoints '%1'.", m_aTransmissionComps.Count()), LogLevel.NORMAL);	
+        return m_aTransmissionComps;		
     }
 
 

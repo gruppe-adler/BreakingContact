@@ -1,0 +1,7 @@
+GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_02_base.et" {
+ ID "F0DBA538AC2A0552"
+ components {
+  GRAD_BC_TransmissionComponent "{658733D53165E0DE}" {
+  }
+ }
+}

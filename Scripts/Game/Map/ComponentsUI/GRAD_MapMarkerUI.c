@@ -21,6 +21,8 @@ class MapCircle
 	{
 		m_wRootW = rootW;
 		
+		if (!m_MapEntity) m_MapEntity = SCR_MapEntity.GetMapInstance();
+		
 		Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
 		if (!mapFrame)
 			return;
@@ -174,6 +176,7 @@ class GRAD_MapMarkerUI
 	//------------------------------------------------------------------------------------------------
 	void OnMapOpen(MapConfiguration config)
 	{
+		m_MapEntity        = SCR_MapEntity.GetMapInstance();
 		m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
 		
 		if (!m_wDrawingContainer) {
@@ -183,12 +186,14 @@ class GRAD_MapMarkerUI
 		
 		foreach (MapCircle circle: m_aTransmissionCircles)
 		{
+			circle.m_MapEntity = m_MapEntity;
 			circle.CreateCircle(m_wDrawingContainer);
 			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 1, false);
 		}
 		
 		foreach (MapCircle circle: m_aSpawnCircles)
 		{
+			circle.m_MapEntity = m_MapEntity;
 			circle.CreateCircle(m_wDrawingContainer);
 			GetGame().GetCallqueue().CallLater(circle.UpdateCircle, 1, false);
 		}

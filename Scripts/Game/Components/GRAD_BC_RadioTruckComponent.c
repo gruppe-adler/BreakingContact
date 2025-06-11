@@ -66,7 +66,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		
 		VehicleWheeledSimulation simulation = carController.GetSimulation();
 		if (simulation && !simulation.GetBrake()) {
-			simulation.SetBreak(true, true);	
+			simulation.SetBreak(1.0, true);	
 			Print(string.Format("Breaking Contact RTC - setting brake"), LogLevel.NORMAL);
 		}
 	}

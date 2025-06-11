@@ -434,6 +434,23 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 	}
 	
+	
+	void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
+	{
+	    int ix = m_aTransmissionComps.Find(comp);
+	    if (ix != -1)
+	        m_aTransmissionComps.Remove(ix);
+	
+	    // tidy the replicated Id array
+	    for (int i = m_aTransmissionIds.Count() - 1; i >= 0; i--)
+	    {
+	        IEntity ent = IEntity.Cast(Replication.FindItem(m_aTransmissionIds[i]));
+	        if (!ent || ent.FindComponent(GRAD_BC_TransmissionComponent) == comp)
+	            m_aTransmissionIds.Remove(i);
+	    }
+	    Replication.BumpMe();
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	GRAD_BC_TransmissionComponent GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
@@ -441,8 +458,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			auto transmissionPoints = GetTransmissionPoints();
 			PrintFormat(
 			  "Breaking Contact GetNearestTransmissionPoint — currently have %1 TPCs in array",
-			  transmissionPoints.Count(),
-			  LogLevel.NORMAL
+			  transmissionPoints.Count()
 			);
 		
 			Print(string.Format("Breaking Contact RTC - GetNearestTransmissionPoint"), LogLevel.NORMAL);
@@ -664,9 +680,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 		
 		EntitySpawnParams params = new EntitySpawnParams();
+		Math3D.MatrixIdentity4(params.Transform); // reset to unit matrix
 		params.TransformMode = ETransformMode.WORLD;
+		params.Transform[3]  = center;                   // the radio-trucks position
 		
-		params.Transform[3] = center;
 		
 		Resource ressource = Resource.Load("{55B73CF1EE914E07}Prefabs/Props/Military/Compositions/USSR/Antenna_02_USSR.et");
         IEntity transmissionPoint = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
@@ -1016,7 +1033,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		VehicleWheeledSimulation simulation = carController.GetSimulation();
 		if (simulation) {
-			simulation.SetBreak(true, true);	
+			simulation.SetBreak(1.0, true);	
 		}
 		
 		Physics physicsComponent = vehicle.GetPhysics();
@@ -1124,7 +1141,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		if (factionKey != "USSR")
 			return;
 		
-		GRAD_PlayerComponent.GetInstance().AddCircleMarker(
+		// avoid the log spam by delaying the call by one frame
+		GetGame().GetCallqueue().CallLater(GRAD_PlayerComponent.GetInstance().AddCircleMarker, 0, false,
 			m_vOpforSpawnPos[0] - 500.0,
 			m_vOpforSpawnPos[2] + 500.0,
 			m_vOpforSpawnPos[0] + 500.0,

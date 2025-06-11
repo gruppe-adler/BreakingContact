@@ -66,7 +66,13 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		
 	}
 	
-	
+	override void OnDelete(IEntity owner)
+	{
+	    GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+	    if (bcm) bcm.UnregisterTransmissionComponent(this);
+	}
+		
+		
 	//------------------------------------------------------------------------------------------------
 	float GetTransmissionDuration()
 	{
@@ -163,6 +169,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		{
 	   		 case ETransmissionState.TRANSMITTING: {
 		        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+				Replication.BumpMe();
 				PrintFormat("m_iTransmissionProgress %1", m_iTransmissionProgress);
 	        	break;
 			}

@@ -42,28 +42,27 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		m_position = owner.GetOrigin();
 		Replication.BumpMe();		
 
+		if (!Replication.IsServer())
+			return;
+		
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 
-		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
-		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
-		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
-
-		// Initially set transmission state to off and disable the map marker
-		//SetTransmissionState(m_eTransmissionState);
-		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
-
-		if (m_RplComponent.IsMaster()) {
-			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);	
-		}
-		
-		if (Replication.IsServer())
+		// Wait until the prefab has a valid RplComponent attached
+		RplComponent rpl = RplComponent.Cast(owner.FindComponent(RplComponent));
+		if (Replication.FindItemId(owner) == Replication.INVALID_ID)
 		{
-			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-			if (bcm)
-				bcm.RegisterTransmissionComponent(this);
+			// Try again next frame – prevents race conditions
+			GetGame().GetCallqueue().CallLater(EOnInit, 0, false, owner);
+			PrintFormat("TPC EOnInit trying again next frame");
+			return;
 		}
-		// m_transmissionPoint.GetParent().GetParent().RemoveChild(owner, false); // disable attachment hierarchy to radiotruck (?!)
-		
+	
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+			bcm.RegisterTransmissionComponent(this);
+	
+		// State machine tick (server only)
+		GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
 	}
 	
 	override void OnDelete(IEntity owner)

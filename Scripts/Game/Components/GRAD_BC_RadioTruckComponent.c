@@ -52,10 +52,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	void applyBrakes() {
 		RplComponent rplComp = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
 		// currently log is on server always, even when players steer the truck :/
-		if (!rplComp.IsProxy()) {
-			Print(string.Format("Breaking Contact RTC - i am server, exiting brake lock"), LogLevel.NORMAL);
-			return;
-		}
+		if (rplComp.IsMaster()) {
+				return;
+		};
 			
 		CarControllerComponent carController = CarControllerComponent.Cast(m_radioTruck.FindComponent(CarControllerComponent));
 		// apparently this does not work?		

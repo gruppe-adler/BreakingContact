@@ -68,7 +68,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			}
 			else
 			{
-				Print("TPC RplComponent is not master, skipping registration.", LogLevel.WARNING);
+				// Retry activation after a short delay
+				GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
 			}
 		}
 		else
@@ -180,7 +181,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
         float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
 		string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
 		
-		Print(("TPC mainloop" + progressString), LogLevel.NORMAL);
+		Print(("TPC mainloop, progress is " + progressString + " and state is " + currentState), LogLevel.NORMAL);
 		
 		// 
 		if (currentProgress >= 100) {
@@ -221,6 +222,25 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	        	// Handle any other state if necessary
 	        	break;
 			}
+		}
+	}
+
+	void DeferredActivation(IEntity owner)
+	{
+		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm) {
+				bcm.RegisterTransmissionComponent(this);
+			}
+			SetTransmissionActive(true);
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
+		}
+		else
+		{
+			// Keep retrying until master
+			GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
 		}
 	}
 }

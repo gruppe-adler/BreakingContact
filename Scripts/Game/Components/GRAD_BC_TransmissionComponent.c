@@ -34,13 +34,15 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	[RplProp()]
 	vector m_position;
 
+	private int m_retryCount = 0; // Instance variable for retry logic
+	const int MAX_RETRIES = 50;
+
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
 		PrintFormat("TPC EOnInit: owner=%1, position=%2, RplId=%3, IsServer=%4", owner, owner.GetOrigin(), Replication.FindItemId(owner), Replication.IsServer());
 		m_position = owner.GetOrigin();
 		Replication.BumpMe();
-		
 		PrintFormat("TPC parent: %1", owner.GetParent());
 
 		if (!Replication.IsServer())
@@ -48,42 +50,31 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 		if (m_RplComponent)
-			PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
-		else
-			Print("TPC RplComponent is null!", LogLevel.ERROR);
-
-		// Wait until the prefab has a valid RplComponent attached
-		static int retryCount = 0;
-		const int maxRetries = 50; // e.g., 50 frames
-
-		RplComponent rpl = RplComponent.Cast(owner.FindComponent(RplComponent));
-		if (Replication.FindItemId(owner) == Replication.INVALID_ID)
 		{
-			if (retryCount < maxRetries)
+			PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
+			if (m_RplComponent.IsMaster())
 			{
-				retryCount++;
-				// Try again next frame – prevents race conditions
-				GetGame().GetCallqueue().CallLater(EOnInit, 0, false, owner);
-				PrintFormat("TPC EOnInit trying again next frame (retry %1/%2)", retryCount, maxRetries);
+				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+				if (bcm) {
+					bcm.RegisterTransmissionComponent(this);
+					PrintFormat("TPC Registered with BCM: %1", bcm);
+				} else {
+					Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
+				}
+				// Start transmission immediately
+				SetTransmissionActive(true);
+				// State machine tick (server only)
+				GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
 			}
 			else
 			{
-				Print("TPC EOnInit failed: Max retries reached waiting for valid Replication ID!", LogLevel.ERROR);
+				Print("TPC RplComponent is not master, skipping registration.", LogLevel.WARNING);
 			}
-			return;
 		}
-		retryCount = 0; // Reset on success
-
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcm) {
-			bcm.RegisterTransmissionComponent(this);
-			PrintFormat("TPC Registered with BCM: %1", bcm);
-		} else {
-			Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
+		else
+		{
+			Print("TPC RplComponent is null!", LogLevel.ERROR);
 		}
-
-		// State machine tick (server only)
-		GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
 	}
 	
 	override void OnPostInit(IEntity owner)

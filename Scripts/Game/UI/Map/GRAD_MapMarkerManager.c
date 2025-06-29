@@ -45,6 +45,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     protected float m_fPulseDuration = 2.0; // seconds for a full cycle
     protected float m_fPulseTime = 0.0;
 
+    // Persistent draw command for the pulsing circle
+    protected ref PolygonDrawCommand m_PulsingCircleCmd;
+    protected ref array<ref CanvasWidgetCommand> m_MarkerDrawCommands;
+
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapOpen
     // ───────────────────────────────────────────────────────────────────────────────
@@ -66,6 +70,9 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         {
             m_AllMarkers = new array<ref TransmissionEntry>();
             m_IconDestroyed = m_Canvas.LoadTexture("{09A7BA5E10D5E250}UI/Textures/Map/transmission_destroyed.edds");
+            m_PulsingCircleCmd = new PolygonDrawCommand();
+            m_MarkerDrawCommands = { m_PulsingCircleCmd };
+            m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
             m_IsInitialized = true;
         }
 
@@ -131,6 +138,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // If you see zero or tiny canvas size in debug, fix the anchors and size in MapCanvasLayer.layout.
         // Remove any SetWidth/SetHeight/SetSize/BringToFront calls from script.
         // Use debug prints to check canvas size after creation.
+
+        m_RegisterPostFrame();
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -141,60 +150,47 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // ───────────────────────────────────────────────────────────────────────────────
     override void Draw()
     {
-        // Ensure the draw‐command buffer is empty at the start of each Draw()
-        m_Commands.Clear();
-
-        // Pulse timer update
+        // Only update pulse timer for use in EOnPostFrame
         float dt = GetGame().GetWorld().GetWorldTime() / 1000.0;
         m_fPulseTime = Math.Mod(dt, m_fPulseDuration) / m_fPulseDuration;
-
         PrintFormat("GRAD_MapMarkerManager: Draw() called, m_AllMarkers.Count() = %1", m_AllMarkers.Count());
+    }
 
-        // Iterate every transmission entry, draw a circle or icon based on its state
-        foreach (TransmissionEntry entry : m_AllMarkers)
-        {
-            PrintFormat("GRAD_MapMarkerManager: Drawing marker at %1 with state %2", entry.m_Position, entry.m_State);
-            switch (entry.m_State)
-            {
-                case ETransmissionState.TRANSMITTING:
-                    DrawPulsingCircle(entry.m_Position, 1.0, entry.m_Radius, ARGB(255,255,50,50));
-                    break;
-                case ETransmissionState.INTERRUPTED:
-                    DrawStaticCircle(entry.m_Position, entry.m_Radius, ARGB(128, 50, 50, 50));
-                    break;
-                case ETransmissionState.DONE:
-                    DrawStaticCircle(entry.m_Position, entry.m_Radius, ARGB(128, 50, 255, 50));
-                    break;
-                case ETransmissionState.DISABLED:
-                    DrawImage(entry.m_Position, 25, 25, m_IconDestroyed);
-                    break;
-                default:
-                    DrawStaticCircle(entry.m_Position, entry.m_Radius, ARGB(128, 200, 200, 200));
-                    break;
+    void EOnPostFrame(IEntity owner, float timeSlice)
+    {
+        Print("EOnPostFrame: updating marker vertices", LogLevel.ERROR);
+        m_PulsingCircleCmd.m_Vertices = new array<float>();
+        m_PulsingCircleCmd.m_iColor = ARGB(255,255,0,0); // fully opaque red for debug
+        if (m_AllMarkers.Count() > 0) {
+            TransmissionEntry entry = m_AllMarkers[0];
+            float screenX, screenY;
+            m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
+            PrintFormat("Marker world pos: %1, screenX: %2, screenY: %3", entry.m_Position, screenX, screenY);
+            float radius = Math.Lerp(1.0, entry.m_Radius, m_fPulseTime);
+            PrintFormat("Marker radius: %1", radius);
+            float twoPi = 6.28318530718;
+            for (int i = 0; i < 32; i++) {
+                float angle = twoPi * i / 32;
+                float x = screenX + Math.Cos(angle) * radius;
+                float y = screenY + Math.Sin(angle) * radius;
+                m_PulsingCircleCmd.m_Vertices.Insert(x);
+                m_PulsingCircleCmd.m_Vertices.Insert(y);
             }
         }
-
-        // Test: draw a fixed circle at (500, 500)
-        ref array<float> testVertices = new array<float>();
-        float testRadius = 10000;
-        float twoPi = 6.28318530718;
-        for (int i = 0; i < 32; i++) {
-            float angle = twoPi * i / 32;
-            float x = 500 + Math.Cos(angle) * testRadius;
-            float y = 500 + Math.Sin(angle) * testRadius;
-            testVertices.Insert(x);
-            testVertices.Insert(y);
+        // Always add a debug rectangle polygon every frame
+        if (m_MarkerDrawCommands.Count() < 2) {
+            ref PolygonDrawCommand rectCmd = new PolygonDrawCommand();
+            m_MarkerDrawCommands.Insert(rectCmd);
         }
-        ref PolygonDrawCommand testCmd = new PolygonDrawCommand();
-        testCmd.m_iColor = ARGB(255,0,0,255); // blue
-        testCmd.m_Vertices = testVertices;
-        m_Commands.Insert(testCmd);
-
-        // Finally, push the collected draw commands onto the Canvas
-        if (m_Commands.Count() > 0)
-        {
-            m_Canvas.SetDrawCommands(m_Commands);
-        }
+        PolygonDrawCommand rectCmd = PolygonDrawCommand.Cast(m_MarkerDrawCommands[1]);
+        rectCmd.m_iColor = ARGB(255,0,255,0); // opaque green
+        rectCmd.m_Vertices = new array<float>();
+        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(10);   // Top-left
+        rectCmd.m_Vertices.Insert(110); rectCmd.m_Vertices.Insert(10);  // Top-right
+        rectCmd.m_Vertices.Insert(110); rectCmd.m_Vertices.Insert(110); // Bottom-right
+        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(110);  // Bottom-left
+        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(10);   // Close loop
+        m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -214,55 +210,17 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Clear out our list so next map‐open starts fresh
         if (m_AllMarkers)
             m_AllMarkers.Clear();
+
+        m_UnregisterPostFrame();
     }
 
-    // Helper: Draw a pulsing polygon circle
-    void DrawPulsingCircle(vector worldPos, float minRadius, float maxRadius, int color, int segments = 32)
+    // Use null for the owner argument in CallLater, since EOnPostFrame expects IEntity and we don't use it
+    void m_RegisterPostFrame()
     {
-        Print("DrawPulsingCircle: called", LogLevel.ERROR);
-        float radius = Math.Lerp(minRadius, maxRadius, m_fPulseTime);
-        float alpha = 1.0 - m_fPulseTime;
-        int a = Math.Clamp(Math.Floor(255 * alpha), 0, 255);
-        int fadedColor = ARGB(255,255,0,0); // fully opaque red for debug
-
-        vector screenPos = m_Widget.GetWorkspace().ProjWorldToScreen(worldPos, GetGame().GetWorld());
-        PrintFormat("DrawPulsingCircle: worldPos=%1, screenPos=%2, radius=%3", worldPos, screenPos, radius);
-
-        ref array<float> vertices = new array<float>();
-        float twoPi = 6.28318530718;
-        for (int i = 0; i < segments; i++)
-        {
-            float angle = twoPi * i / segments;
-            float x = screenPos[0] + Math.Cos(angle) * radius;
-            float y = screenPos[1] + Math.Sin(angle) * radius;
-            vertices.Insert(x);
-            vertices.Insert(y);
-        }
-
-        ref PolygonDrawCommand cmd = new PolygonDrawCommand();
-        cmd.m_iColor = fadedColor;
-        cmd.m_Vertices = vertices;
-        m_Commands.Insert(cmd);
+        GetGame().GetCallqueue().CallLater(this.EOnPostFrame, 0, true, null, 0.0);
     }
-
-    // Helper: Draw a static polygon circle
-    void DrawStaticCircle(vector worldPos, float radius, int color, int segments = 32)
+    void m_UnregisterPostFrame()
     {
-        vector screenPos = m_Widget.GetWorkspace().ProjWorldToScreen(worldPos, GetGame().GetWorld());
-        PrintFormat("DrawStaticCircle: worldPos=%1, screenPos=%2, radius=%3", worldPos, screenPos, radius);
-        ref array<float> vertices = new array<float>();
-        float twoPi = 6.28318530718;
-        for (int i = 0; i < segments; i++)
-        {
-            float angle = twoPi * i / segments;
-            float x = screenPos[0] + Math.Cos(angle) * radius;
-            float y = screenPos[1] + Math.Sin(angle) * radius;
-            vertices.Insert(x);
-            vertices.Insert(y);
-        }
-        ref PolygonDrawCommand cmd = new PolygonDrawCommand();
-        cmd.m_iColor = ARGB(255,0,255,0); // fully opaque green for debug
-        cmd.m_Vertices = vertices;
-        m_Commands.Insert(cmd);
+        GetGame().GetCallqueue().Remove(this.EOnPostFrame);
     }
 }

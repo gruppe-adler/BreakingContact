@@ -101,8 +101,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected GRAD_BC_TransmissionComponent GetNearestTPC()
 	{
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (!bcm)
+		if (!bcm) {
+			Print(string.Format("Breaking Contact RTC - No BCM found!"), LogLevel.ERROR);
 			return null;
+		}
 	
 		// ‘false’: I only need the nearest – do **not** spawn a new one.
 		return bcm.GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), false);

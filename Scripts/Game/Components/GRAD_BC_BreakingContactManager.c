@@ -88,13 +88,24 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	static GRAD_BC_BreakingContactManager GetInstance()
 	{
-		if (!m_instance)
-		{
-			m_instance = GRAD_BC_BreakingContactManager.Cast(GetGame().GetGameMode().FindComponent(GRAD_BC_BreakingContactManager));
-			Print(string.Format("Breaking Contact BCM - m_instance got filled %1", m_instance), LogLevel.NORMAL);	
-		}
-		
-		return m_instance;
+    if (!m_instance)
+    {
+        BaseGameMode gameMode = GetGame().GetGameMode();
+        if (!gameMode) {
+            Print("Breaking Contact BCM - No game mode found!", LogLevel.WARNING);
+            return null;
+        }
+
+        m_instance = GRAD_BC_BreakingContactManager.Cast(gameMode.FindComponent(GRAD_BC_BreakingContactManager));
+        if (!m_instance) {
+            Print("Breaking Contact BCM - Could not find BCM component in game mode!", LogLevel.WARNING);
+            return null;
+        }
+
+        Print(string.Format("Breaking Contact BCM - m_instance initialized: %1", m_instance), LogLevel.NORMAL);
+    }
+
+    return m_instance;
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -695,12 +706,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 	//------------------------------------------------------------------------------------------------
 	void SpawnTransmissionPoint(vector center)
-	{	
-		// Bail if the truck hasn't finished streaming in yet
-		if (center.LengthSq() < 1.0)
-	    	return;
-			
-		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, GetOwner().GetOrigin(), 15, 3);
+	{				
+		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, center, 15, 3);
+		
+		Print(string.Format("BCM - Transmission Point position search starts at %1", center), LogLevel.NORMAL);
 		
 		if (!spawnEmpty) {
 			Print(string.Format("BCM - Transmission Point position dangerous, didnt find a free spot!"), LogLevel.NORMAL);
@@ -710,11 +719,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		params.TransformMode = ETransformMode.WORLD;
 		params.Transform[3]  = center;
 		
+		Print(string.Format("BCM - Transmission Point position transformed to %1", center), LogLevel.NORMAL);
 		
 		Resource ressource = Resource.Load("{55B73CF1EE914E07}Prefabs/Props/Military/Compositions/USSR/Antenna_02_USSR.et");
         IEntity transmissionPoint = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
 		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
+		
 		
 		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(transmissionPoint.FindComponent(GRAD_BC_TransmissionComponent));
 	    if (tpc) {

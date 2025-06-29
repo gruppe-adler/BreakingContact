@@ -1,7 +1,33 @@
 GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_02_base.et" {
  ID "F0DBA538AC2A0552"
  components {
-  GRAD_BC_TransmissionComponent "{658733D53165E0DE}" {
+  GRAD_BC_TransmissionComponent "{65BB0BC5851B9C6F}" {
+  }
+  ActionsManagerComponent "{65BB39AD35B128C8}" {
+   ActionContexts {
+    UserActionContext "{65BB39AC9686AF11}" {
+     UIInfo SCR_ActionContextUIInfo "{65BB39ACD228971C}" {
+      Name "Destroy"
+     }
+     Position PointInfo "{65BB39ACED83E7E4}" {
+      Offset 0 1.9571 0
+     }
+     Radius 1
+    }
+   }
+   additionalActions {
+    GRAD_BC_DestroyRadioTransmission "{65BB39AD4E33E9C5}" {
+     UIInfo SCR_ActionUIInfo "{65BB39AD4AD44211}" {
+      Name "Destroy Transmission"
+     }
+     Duration 5
+    }
+   }
+  }
+  RplComponent "{5CB6D5B3749D59BC}" {
+   "Self Insert" 0
+   "Parent Node From Parent Entity" 0
+   Streamable Disabled
   }
  }
 }

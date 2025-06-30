@@ -142,6 +142,38 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         m_RegisterPostFrame();
     }
 
+    // Try to populate markers, retrying if none found (max 10 tries)
+    void m_AttemptPopulateMarkers(int attempt)
+    {
+        GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+        if (!bcm) {
+            Print("GRAD_MapMarkerManager: BreakingContactManager not found!", LogLevel.ERROR);
+            return;
+        }
+        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
+        if (!tpcs || tpcs.Count() == 0) {
+            if (attempt < 10) {
+                PrintFormat("GRAD_MapMarkerManager: No TransmissionPoints yet, retrying (%1)...", attempt+1);
+                GetGame().GetCallqueue().CallLater(this.m_AttemptPopulateMarkers, 100, false, attempt+1);
+            } else {
+                Print("GRAD_MapMarkerManager: No TransmissionPoints after retries!", LogLevel.WARNING);
+            }
+            return;
+        }
+        int markerCount = 0;
+        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
+        {
+            if (!tpc) continue;
+            TransmissionEntry entry = new TransmissionEntry();
+            entry.m_Position = tpc.GetPosition();
+            entry.m_State    = tpc.GetTransmissionState();
+            entry.m_Radius   = 1000;
+            m_AllMarkers.Insert(entry);
+            markerCount++;
+        }
+        PrintFormat("GRAD_MapMarkerManager: Total markers after populate: %1", markerCount);
+    }
+
     // ───────────────────────────────────────────────────────────────────────────────
     // Draw
     //
@@ -160,14 +192,27 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     {
         Print("EOnPostFrame: updating marker vertices", LogLevel.ERROR);
         m_PulsingCircleCmd.m_Vertices = new array<float>();
-        m_PulsingCircleCmd.m_iColor = ARGB(255,255,0,0); // fully opaque red for debug
+        // Fade out: start at 30% opacity, go to 0% at full size
+        float alpha = Math.Lerp(0.3, 0.0, m_fPulseTime); // 0.3 = 30% opacity
+        int iAlpha = Math.Round(alpha * 255);
+        m_PulsingCircleCmd.m_iColor = ARGB(iAlpha,255,0,0); // red, fading out
+
+        // Remove any static outline commands from previous frame
+        while (m_MarkerDrawCommands.Count() > 2) m_MarkerDrawCommands.Remove(m_MarkerDrawCommands.Count() - 1);
+
         if (m_AllMarkers.Count() > 0) {
             TransmissionEntry entry = m_AllMarkers[0];
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
             PrintFormat("Marker world pos: %1, screenX: %2, screenY: %3", entry.m_Position, screenX, screenY);
-            float radius = Math.Lerp(1.0, entry.m_Radius, m_fPulseTime);
-            PrintFormat("Marker radius: %1", radius);
+            // Convert 1000m world radius to map screen pixels
+            float worldRadius = 1000.0; // meters
+            float edgeWorldX = entry.m_Position[0] + worldRadius;
+            float edgeWorldY = entry.m_Position[2];
+            float edgeScreenX, edgeScreenY;
+            m_MapEntity.WorldToScreen(edgeWorldX, edgeWorldY, edgeScreenX, edgeScreenY, true);
+            float radius = Math.Sqrt(Math.Pow(edgeScreenX - screenX, 2) + Math.Pow(edgeScreenY - screenY, 2));
+            PrintFormat("Marker screen radius (for 1000m): %1", radius);
             float twoPi = 6.28318530718;
             for (int i = 0; i < 32; i++) {
                 float angle = twoPi * i / 32;
@@ -176,20 +221,32 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 m_PulsingCircleCmd.m_Vertices.Insert(x);
                 m_PulsingCircleCmd.m_Vertices.Insert(y);
             }
+
+            // Draw static outline for INTERRUPTED (gray) or DONE (green)
+            if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE) {
+                ref LineDrawCommand outlineCmd = new LineDrawCommand();
+                outlineCmd.m_Vertices = new array<float>();
+                float outlineRadius = radius; // use calculated screen radius for outline
+                for (int i = 0; i < 32; i++) {
+                    float angle = twoPi * i / 32;
+                    float x = screenX + Math.Cos(angle) * outlineRadius;
+                    float y = screenY + Math.Sin(angle) * outlineRadius;
+                    outlineCmd.m_Vertices.Insert(x);
+                    outlineCmd.m_Vertices.Insert(y);
+                }
+                // Close loop
+                outlineCmd.m_Vertices.Insert(screenX + Math.Cos(0) * outlineRadius);
+                outlineCmd.m_Vertices.Insert(screenY + Math.Sin(0) * outlineRadius);
+                if (entry.m_State == ETransmissionState.INTERRUPTED) {
+                    outlineCmd.m_iColor = ARGB(255,128,128,128); // gray
+                } else {
+                    outlineCmd.m_iColor = ARGB(255,0,255,0); // green
+                }
+                outlineCmd.m_fOutlineWidth = 3.0; // 3px outline
+                m_MarkerDrawCommands.Insert(outlineCmd);
+            }
         }
-        // Always add a debug rectangle polygon every frame
-        if (m_MarkerDrawCommands.Count() < 2) {
-            ref PolygonDrawCommand rectCmd = new PolygonDrawCommand();
-            m_MarkerDrawCommands.Insert(rectCmd);
-        }
-        PolygonDrawCommand rectCmd = PolygonDrawCommand.Cast(m_MarkerDrawCommands[1]);
-        rectCmd.m_iColor = ARGB(255,0,255,0); // opaque green
-        rectCmd.m_Vertices = new array<float>();
-        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(10);   // Top-left
-        rectCmd.m_Vertices.Insert(110); rectCmd.m_Vertices.Insert(10);  // Top-right
-        rectCmd.m_Vertices.Insert(110); rectCmd.m_Vertices.Insert(110); // Bottom-right
-        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(110);  // Bottom-left
-        rectCmd.m_Vertices.Insert(10); rectCmd.m_Vertices.Insert(10);   // Close loop
+        // Remove debug rectangle code
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
     }
 

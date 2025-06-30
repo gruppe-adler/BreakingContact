@@ -134,8 +134,24 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	{
 		if (m_eTransmissionState != transmissionState) {
 			m_eTransmissionState = transmissionState;
-			
 			Replication.BumpMe();
+
+			// Show transmission hint to all players when starting transmission
+			if (transmissionState == ETransmissionState.TRANSMITTING) {
+				PlayerManager playerManager = GetGame().GetPlayerManager();
+				if (playerManager) {
+					array<int> playerIds = {};
+					playerManager.GetAllPlayerIds(playerIds);
+					foreach (int playerId : playerIds) {
+						PlayerController pc = playerManager.GetPlayerController(playerId);
+						if (!pc) continue;
+						GRAD_PlayerComponent gradPC = GRAD_PlayerComponent.Cast(pc.FindComponent(GRAD_PlayerComponent));
+						if (gradPC) {
+							gradPC.ShowTransmissionHintRPC(ETransmissionState.TRANSMITTING);
+						}
+					}
+				}
+			}
 		}
 	}
 	

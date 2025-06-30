@@ -141,7 +141,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 				PlayerManager playerManager = GetGame().GetPlayerManager();
 				if (playerManager) {
 					array<int> playerIds = {};
-					playerManager.GetAllPlayerIds(playerIds);
+					playerManager.GetAllPlayers(playerIds);
 					foreach (int playerId : playerIds) {
 						PlayerController pc = playerManager.GetPlayerController(playerId);
 						if (!pc) continue;

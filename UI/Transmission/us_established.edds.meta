@@ -26,5 +26,7 @@ MetaFileClass {
    OriginalPixelBitDepth 1
    ColorSpace ToSRGB
   }
+  PNGResourceClass PS5 : PC {
+  }
  }
 }

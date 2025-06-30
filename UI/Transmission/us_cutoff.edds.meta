@@ -26,5 +26,7 @@ MetaFileClass {
    GenerateMips 0
    MipAlphaFadeStart 0
   }
+  PNGResourceClass PS5 : PC {
+  }
  }
 }

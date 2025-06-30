@@ -37,7 +37,26 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 			PrintFormat("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.ERROR);
 			return;
 		}
-		
+
+		// Only show for valid states
+		bool shouldShow = false;
+		switch (state)
+		{
+			case ETransmissionState.TRANSMITTING:
+			case ETransmissionState.INTERRUPTED:
+			case ETransmissionState.DISABLED:
+			case ETransmissionState.DONE:
+				shouldShow = true;
+				break;
+			default:
+				shouldShow = false;
+				break;
+		}
+		if (!shouldShow) {
+			super.Show(false, 0.0, EAnimationCurve.LINEAR);
+			return;
+		}
+
 		switch (state)
 			{
 				case ETransmissionState.TRANSMITTING: {

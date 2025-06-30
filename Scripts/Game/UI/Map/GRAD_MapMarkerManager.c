@@ -45,9 +45,15 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     protected float m_fPulseDuration = 2.0; // seconds for a full cycle
     protected float m_fPulseTime = 0.0;
 
+    // Constant for 2*PI
+    static const float TWO_PI = Math.PI * 2.0;
+
     // Persistent draw command for the pulsing circle
     protected ref PolygonDrawCommand m_PulsingCircleCmd;
     protected ref array<ref CanvasWidgetCommand> m_MarkerDrawCommands;
+
+    // Add for progress text widgets
+    protected ref array<Widget> m_ProgressTextWidgets;
 
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapOpen
@@ -73,50 +79,22 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_PulsingCircleCmd = new PolygonDrawCommand();
             m_MarkerDrawCommands = { m_PulsingCircleCmd };
             m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
+            m_ProgressTextWidgets = new array<Widget>();
             m_IsInitialized = true;
         }
 
         // Always start by emptying out any old entries (so we repopulate fresh)
         m_AllMarkers.Clear();
 
-        // ─── Populate m_AllMarkers ─────────────────────────────────────────────
-        // 1) Grab the BreakingContactManager
+        // Subscribe to transmission point events
         GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-        if (!bcm)
+        if (bcm)
         {
-            Print("GRAD_MapMarkerManager: BreakingContactManager not found!", LogLevel.ERROR);
-            return;
+            if (!m_TransmissionPointInvoker) m_TransmissionPointInvoker = new ScriptInvoker();
+            m_TransmissionPointInvoker.Insert(this.PopulateMarkers);
+            bcm.AddTransmissionPointListener(m_TransmissionPointInvoker);
         }
-
-        // 2) Get the list of all existing transmission‐point objects
-        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
-        if (!tpcs)
-        {
-            Print("GRAD_MapMarkerManager: No TransmissionPoints returned!", LogLevel.WARNING);
-            return;
-        }
-
-        // 3) For each TPC, build a TransmissionEntry and insert it into m_AllMarkers
-        int markerCount = 0;
-        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
-        {
-            if (!tpc) {
-                Print("GRAD_MapMarkerManager: Skipping null TPC!", LogLevel.WARNING);
-                continue; // guard against null references
-            }
-
-            TransmissionEntry entry = new TransmissionEntry();
-            entry.m_Position = tpc.GetPosition();
-            entry.m_State    = tpc.GetTransmissionState();
-            entry.m_Radius   = 1000; // Force radius to 1000m for visibility
-
-            PrintFormat("GRAD_MapMarkerManager: Added marker at %1 with state %2", entry.m_Position, entry.m_State);
-            m_AllMarkers.Insert(entry);
-            markerCount++;
-        }
-        PrintFormat("GRAD_MapMarkerManager: Total markers after OnMapOpen: %1", markerCount);
-        // Now m_AllMarkers holds one entry per transmission point,
-        // each tagged with its position, state, and drawing radius.
+        PopulateMarkers();
 
         // ─── Canvas debug: check existence and size ───────────────
         if (!m_Canvas) {
@@ -124,12 +102,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         } else {
             float w, h;
             m_Canvas.GetScreenSize(w, h);
-            PrintFormat("GRAD_MapMarkerManager: m_Canvas size: %1 x %2", w, h);
+            // PrintFormat("GRAD_MapMarkerManager: m_Canvas size: %1 x %2", w, h);
             m_Canvas.SetVisible(true);
             // Print widget hierarchy
             Widget parent = m_Canvas;
             while (parent) {
-                PrintFormat("Widget: %1", parent.GetName());
+                // PrintFormat("Widget: %1", parent.GetName());
                 parent = parent.GetParent();
             }
         }
@@ -140,38 +118,6 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Use debug prints to check canvas size after creation.
 
         m_RegisterPostFrame();
-    }
-
-    // Try to populate markers, retrying if none found (max 10 tries)
-    void m_AttemptPopulateMarkers(int attempt)
-    {
-        GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-        if (!bcm) {
-            Print("GRAD_MapMarkerManager: BreakingContactManager not found!", LogLevel.ERROR);
-            return;
-        }
-        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
-        if (!tpcs || tpcs.Count() == 0) {
-            if (attempt < 10) {
-                PrintFormat("GRAD_MapMarkerManager: No TransmissionPoints yet, retrying (%1)...", attempt+1);
-                GetGame().GetCallqueue().CallLater(this.m_AttemptPopulateMarkers, 100, false, attempt+1);
-            } else {
-                Print("GRAD_MapMarkerManager: No TransmissionPoints after retries!", LogLevel.WARNING);
-            }
-            return;
-        }
-        int markerCount = 0;
-        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
-        {
-            if (!tpc) continue;
-            TransmissionEntry entry = new TransmissionEntry();
-            entry.m_Position = tpc.GetPosition();
-            entry.m_State    = tpc.GetTransmissionState();
-            entry.m_Radius   = 1000;
-            m_AllMarkers.Insert(entry);
-            markerCount++;
-        }
-        PrintFormat("GRAD_MapMarkerManager: Total markers after populate: %1", markerCount);
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -185,41 +131,48 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Only update pulse timer for use in EOnPostFrame
         float dt = GetGame().GetWorld().GetWorldTime() / 1000.0;
         m_fPulseTime = Math.Mod(dt, m_fPulseDuration) / m_fPulseDuration;
-        PrintFormat("GRAD_MapMarkerManager: Draw() called, m_AllMarkers.Count() = %1", m_AllMarkers.Count());
     }
-
+    
     void EOnPostFrame(IEntity owner, float timeSlice)
     {
-        Print("EOnPostFrame: updating marker vertices", LogLevel.ERROR);
-        m_PulsingCircleCmd.m_Vertices = new array<float>();
-        // Fade out: start at 30% opacity, go to 0% at full size
-        float alpha = Math.Lerp(0.3, 0.0, m_fPulseTime); // 0.3 = 30% opacity
-        int iAlpha = Math.Round(alpha * 255);
-        m_PulsingCircleCmd.m_iColor = ARGB(iAlpha,255,0,0); // red, fading out
+        // Clear previous draw commands except the persistent pulsing circle
+        m_MarkerDrawCommands.Clear();
 
-        // Remove any static outline commands from previous frame
-        while (m_MarkerDrawCommands.Count() > 2) m_MarkerDrawCommands.Remove(m_MarkerDrawCommands.Count() - 1);
+        float twoPi = 6.28318530718;
 
-        if (m_AllMarkers.Count() > 0) {
-            TransmissionEntry entry = m_AllMarkers[0];
+        for (int markerIdx = 0; markerIdx < m_AllMarkers.Count(); markerIdx++)
+        {
+            TransmissionEntry entry = m_AllMarkers[markerIdx];
+
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
-            PrintFormat("Marker world pos: %1, screenX: %2, screenY: %3", entry.m_Position, screenX, screenY);
-            // Convert 1000m world radius to map screen pixels
-            float worldRadius = 1000.0; // meters
-            float edgeWorldX = entry.m_Position[0] + worldRadius;
-            float edgeWorldY = entry.m_Position[2];
-            float edgeScreenX, edgeScreenY;
-            m_MapEntity.WorldToScreen(edgeWorldX, edgeWorldY, edgeScreenX, edgeScreenY, true);
-            float radius = Math.Sqrt(Math.Pow(edgeScreenX - screenX, 2) + Math.Pow(edgeScreenY - screenY, 2));
-            PrintFormat("Marker screen radius (for 1000m): %1", radius);
-            float twoPi = 6.28318530718;
-            for (int i = 0; i < 32; i++) {
-                float angle = twoPi * i / 32;
-                float x = screenX + Math.Cos(angle) * radius;
-                float y = screenY + Math.Sin(angle) * radius;
-                m_PulsingCircleCmd.m_Vertices.Insert(x);
-                m_PulsingCircleCmd.m_Vertices.Insert(y);
+            float radius = entry.m_Radius; // or use a conversion if needed for screen units
+
+            if (entry.m_State == ETransmissionState.TRANSMITTING)
+            {
+                m_PulsingCircleCmd.m_Vertices = new array<float>();
+                float alpha = Math.Lerp(0.6, 0.0, m_fPulseTime); // 0.3 = 60% opacity
+                int iAlpha = Math.Round(alpha * 255);
+                m_PulsingCircleCmd.m_iColor = ARGB(iAlpha,255,0,0); // red, fading out
+
+                float pulseRadius = radius * m_fPulseTime; // <-- animate from 0 to full radius
+
+                for (int i = 0; i < 32; i++) {
+                    float angle = twoPi * i / 32;
+                    float x = screenX + Math.Cos(angle) * pulseRadius;
+                    float y = screenY + Math.Sin(angle) * pulseRadius;
+                    m_PulsingCircleCmd.m_Vertices.Insert(x);
+                    m_PulsingCircleCmd.m_Vertices.Insert(y);
+                }
+                // Close loop
+                m_PulsingCircleCmd.m_Vertices.Insert(screenX + Math.Cos(0) * pulseRadius);
+                m_PulsingCircleCmd.m_Vertices.Insert(screenY + Math.Sin(0) * pulseRadius);
+
+                m_MarkerDrawCommands.Insert(m_PulsingCircleCmd);
+            }
+            else
+            {
+                m_PulsingCircleCmd.m_Vertices = {};
             }
 
             // Draw static outline for INTERRUPTED (gray) or DONE (green)
@@ -245,10 +198,76 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 outlineCmd.m_fOutlineWidth = 3.0; // 3px outline
                 m_MarkerDrawCommands.Insert(outlineCmd);
             }
+            // --- Draw progress text ---
+            // Find the corresponding TPC for this entry
+            GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+            if (bcm) {
+                array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
+                foreach (GRAD_BC_TransmissionComponent tpc : tpcs) {
+                    if (tpc && tpc.GetPosition() == entry.m_Position) {
+                        float progress = tpc.GetTransmissionDuration(); // Actually returns progress [0..1]
+                        int percent = Math.Round(progress * 100);
+                        string text = string.Format("%1%%", percent);
+                        break;
+                    }
+                }
+            }
         }
         // Remove debug rectangle code
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
+        // Remove debug rectangle code
+        m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
+
+        // Remove any old text widgets if marker count changed
+        while (m_ProgressTextWidgets.Count() > m_AllMarkers.Count()) {
+            Widget w = m_ProgressTextWidgets[m_ProgressTextWidgets.Count()-1];
+            if (w) w.RemoveFromHierarchy();
+            m_ProgressTextWidgets.Remove(m_ProgressTextWidgets.Count()-1);
+        }
+        // Add widgets if needed
+        while (m_ProgressTextWidgets.Count() < m_AllMarkers.Count()) {
+            Widget textWidget = GetGame().GetWorkspace().CreateWidgets("{A6A79ABB08D490BE}UI/Layouts/Map/MapDrawText.layout", m_Widget);
+            m_ProgressTextWidgets.Insert(textWidget);
+        }
+        for (int i = 0; i < m_AllMarkers.Count(); i++) {
+            TransmissionEntry entry = m_AllMarkers[i];
+            float screenX, screenY;
+            m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
+
+            // Find progress for this marker
+            string text = "";
+            GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+            if (bcm) {
+                array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
+                foreach (GRAD_BC_TransmissionComponent tpc : tpcs) {
+                    if (tpc && tpc.GetPosition() == entry.m_Position) {
+                        float progress = tpc.GetTransmissionDuration(); // [0..1]
+                        int percent = Math.Round(progress * 100);
+                        text = string.Format("%1%%", percent);
+                        break;
+                    }
+                }
+            }
+
+            Widget textWidget = m_ProgressTextWidgets[i];
+            TextWidget tw = TextWidget.Cast(textWidget);
+            if (tw) {
+                tw.SetText(text);
+                FrameSlot.SetPos(tw, screenX - 50, screenY - 40); // adjust offset as needed
+            }
+        }
+        // Hide unused widgets
+        for (int i = m_AllMarkers.Count(); i < m_ProgressTextWidgets.Count(); i++) {
+            Widget textWidget = m_ProgressTextWidgets[i];
+            if (textWidget) textWidget.SetVisible(false);
+        }
     }
+
+    // --- Smarter marker population ---
+    // NOTE: The current retry loop is a workaround for late-initialized transmission points.
+    // If you can trigger marker population from an event/callback when a transmission point is registered,
+    // you can remove the retry loop and call m_AttemptPopulateMarkers() only when needed.
+    // For now, the retry loop is a practical solution if no such event is available.
 
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapClose
@@ -268,8 +287,54 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         if (m_AllMarkers)
             m_AllMarkers.Clear();
 
+        // Remove text widgets
+        foreach (Widget w : m_ProgressTextWidgets) {
+            if (w) w.RemoveFromHierarchy();
+        }
+        m_ProgressTextWidgets.Clear();
+
         m_UnregisterPostFrame();
+        // Unsubscribe from event
+        GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+        if (bcm && m_TransmissionPointInvoker)
+            bcm.RemoveTransmissionPointListener(m_TransmissionPointInvoker);
     }
+
+    // Remove retry loop, use only event/callback
+    void PopulateMarkers()
+    {
+        m_AllMarkers.Clear();
+        GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+        if (!bcm)
+        {
+            Print("GRAD_MapMarkerManager: BreakingContactManager not found!", LogLevel.ERROR);
+            return;
+        }
+        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
+        if (!tpcs)
+        {
+            Print("GRAD_MapMarkerManager: No TransmissionPoints returned!", LogLevel.WARNING);
+            return;
+        }
+        int markerCount = 0;
+        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
+        {
+            if (!tpc) {
+                Print("GRAD_MapMarkerManager: Skipping null TPC!", LogLevel.WARNING);
+                continue;
+            }
+            TransmissionEntry entry = new TransmissionEntry();
+            entry.m_Position = tpc.GetPosition();
+            entry.m_State    = tpc.GetTransmissionState();
+            entry.m_Radius   = 1000;
+            m_AllMarkers.Insert(entry);
+            markerCount++;
+        }
+        PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", markerCount);
+    }
+
+    // Add member for invoker
+    protected ref ScriptInvoker m_TransmissionPointInvoker;
 
     // Use null for the owner argument in CallLater, since EOnPostFrame expects IEntity and we don't use it
     void m_RegisterPostFrame()

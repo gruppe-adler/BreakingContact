@@ -6,7 +6,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 
 	// comment from discord:
 	// if HasLocalEffectOnly returns true, it will be executing only on the client where the action has been trigerred 
-	// if HasLocalEffectOnly returns false, then it will be exeucted only on the client where the action has been trigered and server --> perhaps wrong
+	// if HasLocalEffectOnly returns false, then it will be exeucted only on the client where the action has been trigerred and server --> perhaps wrong
 	// if HasLocalEffectOnly returns false and CanBroadcast returns true, then it will be exeucted on client where the action has been trigerred and server and everybody else.    
 	
 	// comment from discord:
@@ -34,6 +34,14 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBePerformedScript(IEntity user)
 	{
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!bcm) return false;
+		EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
+
+		// Only allow in GAME phase (adjust if your "started" phase is different)
+		if (currentPhase != EBreakingContactPhase.GAME)
+			return false;
+
 		return true;
 	}
 	

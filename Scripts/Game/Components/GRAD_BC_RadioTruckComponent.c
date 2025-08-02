@@ -52,10 +52,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	void applyBrakes() {
 		RplComponent rplComp = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
 		// currently log is on server always, even when players steer the truck :/
-		if (!rplComp.IsProxy()) {
-			Print(string.Format("Breaking Contact RTC - i am server, exiting brake lock"), LogLevel.NORMAL);
-			return;
-		}
+		if (rplComp.IsMaster()) {
+				return;
+		};
 			
 		CarControllerComponent carController = CarControllerComponent.Cast(m_radioTruck.FindComponent(CarControllerComponent));
 		// apparently this does not work?		
@@ -66,7 +65,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		
 		VehicleWheeledSimulation simulation = carController.GetSimulation();
 		if (simulation && !simulation.GetBrake()) {
-			simulation.SetBreak(true, true);	
+			simulation.SetBreak(1.0, true);	
 			Print(string.Format("Breaking Contact RTC - setting brake"), LogLevel.NORMAL);
 		}
 	}
@@ -81,6 +80,12 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		Replication.BumpMe();
 		
 		Print(string.Format("Breaking Contact RTC -  Setting m_bIsTransmitting to %1", m_bIsTransmitting), LogLevel.NORMAL);
+		
+		// Immediately notify the BreakingContactManager to handle transmission points
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm) {
+			bcm.ManageMarkers(); // Force immediate update instead of waiting for mainLoop
+		}
 		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
@@ -97,53 +102,19 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			}
 		}
 	}
-	
-	
-	GRAD_TransmissionPoint GetNearestTPC(vector center) {
-		GRAD_TransmissionPoint nearestPoint;	
-		array<GRAD_TransmissionPoint> transmissionPoints = GetTransmissionPoints();	
-		
-		PrintFormat("Breaking Contact RTC - currently have %1 TPCs in array", transmissionPoints.Count());
-		int transmissionPointsCount = transmissionPoints.Count();
-		
-		// if transmission points exist, find out which one is the nearest
-		if (transmissionPointsCount > 0) {
-			float minDistance = 999999;
-			
-			PrintFormat("Found %1 transmission points", transmissionPointsCount);
 
-			foreach (ref GRAD_TransmissionPoint TPCAntenna : transmissionPoints)
-			{
-				float distance = vector.Distance(TPCAntenna.GetPosition(), center);
-
-				// check if distance is in reach of radiotruck
-				if (distance < minDistance) {
-					minDistance = distance;
-					nearestPoint = TPCAntenna;
-					
-					PrintFormat("Nearest TPC is %1 s", nearestPoint);
-				}
-			}
-		}
-		return nearestPoint;
-	}
 	
-	array<GRAD_TransmissionPoint> GetTransmissionPoints() {
-		array<GRAD_TransmissionPoint> allPoints;
-		
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerManager().GetPlayerController(SCR_PlayerController.GetLocalPlayerId()));
-		if (!playerController) {
-			return allPoints;
+	protected GRAD_BC_TransmissionComponent GetNearestTPC()
+	{
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!bcm) {
+			Print(string.Format("Breaking Contact RTC - No BCM found!"), LogLevel.ERROR);
+			return null;
 		}
-		
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
-		if (!BCM) {
-			return allPoints;
-		}
-		
-		return(BCM.GetTransmissionPoints());
-	}
 	
+		// ‘false’: I only need the nearest – do **not** spawn a new one.
+		return bcm.GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), false);
+	}
 
 		
 	

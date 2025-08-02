@@ -1,15 +1,15 @@
-class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
+class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 {
 	// This scripted user action if triggered runs on all clients and server
 	// But in code execution is filtered on performing user und server
 	
-	private GRAD_BC_RadioTruckComponent m_radioTruckComponent;
+	private GRAD_BC_TransmissionComponent m_transmissionComponent;
 	
 	private RplComponent m_RplComponent;
 
 	// comment from discord:
 	// if HasLocalEffectOnly returns true, it will be executing only on the client where the action has been trigerred 
-	// if HasLocalEffectOnly returns false, then it will be exeucted only on the client where the action has been trigered and server --> perhaps wrong
+	// if HasLocalEffectOnly returns false, then it will be exeucted only on the client where the action has been trigerred and server --> perhaps wrong
 	// if HasLocalEffectOnly returns false and CanBroadcast returns true, then it will be exeucted on client where the action has been trigerred and server and everybody else.    
 	
 	// comment from discord:
@@ -37,58 +37,35 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBePerformedScript(IEntity user)
 	{
-		
-		if (!m_radioTruckComponent)
-		{
-			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
+		if (!m_transmissionComponent)
 			return false;
-		}
-		
-		if (m_radioTruckComponent.GetTransmissionActive())
-		{
-			return true;
-		} else
-		{
-			return false;
-		}
+		return m_transmissionComponent.GetTransmissionActive();
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
-		//Print("BC Debug - PerformAction() GetRadioTransmissionDuration", LogLevel.NORMAL);
-		
-		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(pUserEntity);
-		
-		if (!m_radioTruckComponent)
+		if (!m_transmissionComponent)
 		{
-			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
+			Print("BC Debug - m_transmissionComponent is null", LogLevel.ERROR);
 			return;
 		}
-		
-		if(m_RplComponent.IsMaster() && m_radioTruckComponent) {
-			m_radioTruckComponent.SyncVariables();
-		}
-		
-		bool isTransmitting = m_radioTruckComponent.GetTransmissionActive();
-		
-		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
-		if (!BCM) return;
-		
-		GRAD_BC_TransmissionComponent TPC = BCM.GetNearestTransmissionPoint(pUserEntity.GetOrigin(), false);
-		if (!TPC) return;
 
+		if (m_RplComponent && m_RplComponent.IsMaster())
+			m_transmissionComponent.OnDelete(pOwnerEntity);
+
+		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(pUserEntity);
 		if (playerId == GetGame().GetPlayerController().GetPlayerId())
 		{
-			string message = string.Format("Progress: %1 %%", Math.Floor(TPC.GetTransmissionDuration() * 100));
-			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);		
+			string message = string.Format("Progress: %1 %%", Math.Floor(m_transmissionComponent.GetTransmissionDuration() * 100));
+			SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, "Breaking Contact", 10.0);
 		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
-		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(pOwnerEntity.FindComponent(GRAD_BC_RadioTruckComponent));
+		m_transmissionComponent = GRAD_BC_TransmissionComponent.Cast(pOwnerEntity.FindComponent(GRAD_BC_TransmissionComponent));
 		
 		m_RplComponent = RplComponent.Cast(pOwnerEntity.FindComponent(RplComponent));
 	}

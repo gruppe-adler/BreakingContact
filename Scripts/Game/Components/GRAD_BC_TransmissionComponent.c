@@ -3,6 +3,15 @@ class GRAD_BC_TransmissionComponentClass : ScriptComponentClass
 {
 }
 
+enum ETransmissionState
+{
+	OFF,
+	TRANSMITTING,
+	INTERRUPTED,
+	DISABLED,
+	DONE
+}
+
 // entity to be able to work without spawning an actual antenna
 class GRAD_BC_TransmissionComponent : ScriptComponent
 {
@@ -25,33 +34,69 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	[RplProp()]
 	vector m_position;
 
+	private int m_retryCount = 0; // Instance variable for retry logic
+	const int MAX_RETRIES = 50;
+
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
-		//Print("BC Debug - OnPostInit()", LogLevel.NORMAL);
-		
+		PrintFormat("TPC EOnInit: owner=%1, position=%2, RplId=%3, IsServer=%4", owner, owner.GetOrigin(), Replication.FindItemId(owner), Replication.IsServer());
 		m_position = owner.GetOrigin();
 		Replication.BumpMe();
+		PrintFormat("TPC parent: %1", owner.GetParent());
+
+		if (!Replication.IsServer())
+			return;
 
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
-
-		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
-		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
-		//PrintFormat("BC Debug - IsOwner(): %1", m_RplComponent.IsOwner());
-
-		// Initially set transmission state to off and disable the map marker
-		//SetTransmissionState(m_eTransmissionState);
-		GetGame().GetCallqueue().CallLater(SetTransmissionState, 5000, false, m_eTransmissionState);
-
-		if (m_RplComponent.IsMaster()) {
-			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);	
+		if (m_RplComponent)
+		{
+			PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
+			if (m_RplComponent.IsMaster())
+			{
+				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+				if (bcm) {
+					bcm.RegisterTransmissionComponent(this);
+					PrintFormat("TPC Registered with BCM: %1", bcm);
+				} else {
+					Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
+				}
+				// Start transmission immediately
+				SetTransmissionActive(true);
+				// State machine tick (server only)
+				GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
+			}
+			else
+			{
+				// Retry activation after a short delay
+				GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
+			}
 		}
-		
-		// m_transmissionPoint.GetParent().GetParent().RemoveChild(owner, false); // disable attachment hierarchy to radiotruck (?!)
-		
+		else
+		{
+			Print("TPC RplComponent is null!", LogLevel.ERROR);
+		}
 	}
 	
-	
+	override void OnPostInit(IEntity owner)
+	{
+		SetEventMask(owner, EntityEvent.INIT);
+	}
+
+	override void OnDelete(IEntity owner)
+	{
+		PrintFormat("TPC OnDelete: owner=%1, position=%2", owner, m_position);
+		if (!GetGame() || !GetGame().GetGameMode())
+			return;
+
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+			bcm.UnregisterTransmissionComponent(this);
+		else
+			Print("BCM - Warning: Could not unregister transmission component, manager not found!", LogLevel.WARNING);
+	}
+		
+		
 	//------------------------------------------------------------------------------------------------
 	float GetTransmissionDuration()
 	{
@@ -88,15 +133,41 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	private void SetTransmissionState(ETransmissionState transmissionState)
 	{
 		if (m_eTransmissionState != transmissionState) {
+			ETransmissionState oldState = m_eTransmissionState;
 			m_eTransmissionState = transmissionState;
-			
 			Replication.BumpMe();
+			
+			PrintFormat("TPC: State changed from %1 to %2", oldState, transmissionState);
+
+			// Notify BreakingContactManager of state change for instant map updates
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm) {
+				bcm.NotifyTransmissionPointListeners();
+			}
+
+			// Show transmission hint to all players for all state changes
+			PlayerManager playerManager = GetGame().GetPlayerManager();
+			if (playerManager) {
+				array<int> playerIds = {};
+				playerManager.GetAllPlayers(playerIds);
+				foreach (int playerId : playerIds) {
+					PlayerController pc = playerManager.GetPlayerController(playerId);
+					if (!pc) continue;
+					GRAD_PlayerComponent gradPC = GRAD_PlayerComponent.Cast(pc.FindComponent(GRAD_PlayerComponent));
+					if (gradPC) {
+						gradPC.ShowTransmissionHintRPC(transmissionState);
+					}
+				}
+			}
 		}
 	}
 	
 	void SetTransmissionActive(bool setState) {
+		PrintFormat("TPC SetTransmissionActive called: setState=%1, current m_bTransmissionActive=%2, current state=%3", setState, m_bTransmissionActive, GetTransmissionState());
+		
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
+			PrintFormat("TPC SetTransmissionActive: Changed m_bTransmissionActive to %1", setState);
 			
 			if (m_bTransmissionActive &&
 				(
@@ -104,6 +175,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.INTERRUPTED
 				)
 			) {
+				PrintFormat("TPC SetTransmissionActive: Starting transmission (setState=true, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.TRANSMITTING);
 			};
 
@@ -112,10 +184,13 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.TRANSMITTING
 				)
 			) {
+				PrintFormat("TPC SetTransmissionActive: Interrupting transmission (setState=false, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.INTERRUPTED);
 			};
-			PrintFormat("TPC - SetTransmissionActive : %1", GetTransmissionState());
+			PrintFormat("TPC - SetTransmissionActive final state: %1", GetTransmissionState());
 
+		} else {
+			PrintFormat("TPC SetTransmissionActive: No change needed, setState=%1 equals current m_bTransmissionActive=%2", setState, m_bTransmissionActive);
 		}
 	}
 
@@ -136,6 +211,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
         float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
 		string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
 		
+		Print(("TPC mainloop, progress is " + progressString + " and state is " + currentState), LogLevel.NORMAL);
+		
 		// 
 		if (currentProgress >= 100) {
 			SetTransmissionState(ETransmissionState.DONE);
@@ -148,6 +225,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		{
 	   		 case ETransmissionState.TRANSMITTING: {
 		        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
+				Replication.BumpMe();
 				PrintFormat("m_iTransmissionProgress %1", m_iTransmissionProgress);
 	        	break;
 			}
@@ -174,6 +252,25 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	        	// Handle any other state if necessary
 	        	break;
 			}
+		}
+	}
+
+	void DeferredActivation(IEntity owner)
+	{
+		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm) {
+				bcm.RegisterTransmissionComponent(this);
+			}
+			SetTransmissionActive(true);
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
+		}
+		else
+		{
+			// Keep retrying until master
+			GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
 		}
 	}
 }

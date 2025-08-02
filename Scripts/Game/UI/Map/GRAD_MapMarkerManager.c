@@ -322,14 +322,21 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 ref LineDrawCommand outlineCmd = new LineDrawCommand();
                 outlineCmd.m_Vertices = new array<float>();
                 
-                // Use the SAME coordinates and radius as calculated above for consistency
-                // This prevents floating because we reuse the exact same screen position
-                float useRadius = transmissionRadius; // Use the full 1000m radius already calculated
+                // Recalculate coordinates for static markers every frame to ensure they stick to world position
+                float staticScreenX, staticScreenY;
+                m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], staticScreenX, staticScreenY, true);
+                
+                // Recalculate radius for static markers to ensure they scale with zoom
+                float staticRadiusWorldX = entry.m_Position[0] + entry.m_Radius;
+                float staticRadiusWorldY = entry.m_Position[2];
+                float staticRadiusScreenX, staticRadiusScreenY;
+                m_MapEntity.WorldToScreen(staticRadiusWorldX, staticRadiusWorldY, staticRadiusScreenX, staticRadiusScreenY, true);
+                float recalculatedRadius = Math.AbsFloat(staticRadiusScreenX - staticScreenX);
                 
                 for (int i = 0; i <= 32; i++) {
                     float angle = twoPi * i / 32;
-                    float x = screenX + Math.Cos(angle) * useRadius;
-                    float y = screenY + Math.Sin(angle) * useRadius;
+                    float x = staticScreenX + Math.Cos(angle) * recalculatedRadius;
+                    float y = staticScreenY + Math.Sin(angle) * recalculatedRadius;
                     fillCmd.m_Vertices.Insert(x);
                     fillCmd.m_Vertices.Insert(y);
                     outlineCmd.m_Vertices.Insert(x);
@@ -342,14 +349,14 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     outlineCmd.m_fWidth = 6.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        screenX, screenY, useRadius, entry.m_Radius);
+                        staticScreenX, staticScreenY, recalculatedRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DONE) {
                     fillCmd.m_iColor = ARGB(150,0,255,0); // Semi-transparent green
                     outlineCmd.m_iColor = ARGB(255,0,255,0); // Bright green outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        screenX, screenY, useRadius, entry.m_Radius);
+                        staticScreenX, staticScreenY, recalculatedRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
                     fillCmd.m_iColor = ARGB(150,255,0,0); // Semi-transparent red
                     outlineCmd.m_iColor = ARGB(255,255,0,0); // Bright red outline

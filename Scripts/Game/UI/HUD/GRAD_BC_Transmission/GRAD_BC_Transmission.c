@@ -33,6 +33,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 	}
 	
 	void showTransmissionHint(string faction, ETransmissionState state) {
+		Print(string.Format("BC Transmission UI - showTransmissionHint called: faction=%1, state=%2", faction, state), LogLevel.NORMAL);
+		
 		if (!m_infoImage) {
 			PrintFormat("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.ERROR);
 			return;
@@ -68,7 +70,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					}
 					
 					// Play transmission established sound
-					SCR_UISoundEntity.SoundEvent("{3550A48D94380CC2}sounds/beep2.wav");
+					Print("BC Transmission UI - Playing transmission established sound", LogLevel.NORMAL);
+					AudioSystem.PlaySound("{3550A48D94380CC2}sounds/beep2.wav");
 					
 					break;
 				}
@@ -81,8 +84,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
 					}
 				
-					// Play transmission established sound
-					SCR_UISoundEntity.SoundEvent("{2F13E941825B650F}sounds/signal_lost.wav");
+					// Play transmission interrupted sound
+					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
 				
 					break;
 				}
@@ -94,6 +98,11 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					} else {
 						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
 					}
+				
+					// Play transmission interrupted sound
+					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
+				
 					break;
 				}
 
@@ -104,6 +113,11 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					} else {
 						m_infoImage.LoadImageTexture(0, "{8BE8C2B40DACD244}UI/Transmission/rus_done.edds");	
 					}
+					
+					// Play transmission interrupted sound
+					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
+				
 					break;
 				}
 

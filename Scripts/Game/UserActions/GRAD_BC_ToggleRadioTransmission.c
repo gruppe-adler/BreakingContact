@@ -42,7 +42,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		if (currentPhase != EBreakingContactPhase.GAME)
 			return false;
 
-		// If radio truck is currently transmitting, check if that specific transmission is DONE
+		// If radio truck is currently transmitting, allow stopping it
 		if (m_radioTruckComponent && m_radioTruckComponent.GetTransmissionActive()) {
 			// Get the currently active transmission to check its state
 			IEntity radioTruck = m_radioTruckComponent.GetOwner();
@@ -52,8 +52,37 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 					return false; // Don't allow stopping a DONE transmission
 				}
 			}
+			return true; // Allow stopping active transmission
 		}
-		// Always allow starting new transmissions at different locations
+		
+		// If radio truck is not transmitting, check distance to existing transmission points
+		if (m_radioTruckComponent) {
+			IEntity radioTruck = m_radioTruckComponent.GetOwner();
+			if (radioTruck) {
+				// Check if there's any transmission point within 1000m
+				vector truckPos = radioTruck.GetOrigin();
+				array<GRAD_BC_TransmissionComponent> allTransmissions = bcm.GetTransmissionPoints();
+				if (allTransmissions) {
+					for (int i = 0; i < allTransmissions.Count(); i++) {
+						GRAD_BC_TransmissionComponent tpc = allTransmissions[i];
+						if (tpc) {
+							vector transmissionPos = tpc.GetOwner().GetOrigin();
+							float distance = vector.Distance(truckPos, transmissionPos);
+							ETransmissionState state = tpc.GetTransmissionState();
+							
+							// Prevent starting new transmission if within 1000m of any existing transmission point
+							// This includes OFF state (stopped transmissions) to prevent immediate restart
+							if (distance <= 1000.0) {
+								Print(string.Format("BC Debug - Cannot start transmission: Too close to existing transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
+								return false;
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		// Allow starting new transmission if no nearby transmission points
 		return true;
 	}
 	

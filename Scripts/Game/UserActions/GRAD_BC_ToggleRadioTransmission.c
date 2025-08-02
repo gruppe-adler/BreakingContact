@@ -70,10 +70,10 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 							float distance = vector.Distance(truckPos, transmissionPos);
 							ETransmissionState state = tpc.GetTransmissionState();
 							
-							// Prevent starting new transmission if within 1000m of any existing transmission point
-							// This includes OFF state (stopped transmissions) to prevent immediate restart
-							if (distance <= 1000.0) {
-								Print(string.Format("BC Debug - Cannot start transmission: Too close to existing transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
+							// Only prevent starting new transmission if within 1000m of DONE or DISABLED transmission points
+							// Allow starting near INTERRUPTED (state 2) or OFF (state 0) transmission points
+							if (distance <= 1000.0 && (state == ETransmissionState.DONE || state == ETransmissionState.DISABLED)) {
+								Print(string.Format("BC Debug - Cannot start transmission: Too close to DONE/DISABLED transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
 								return false;
 							}
 						}

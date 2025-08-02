@@ -1,12 +1,19 @@
-//------------------------------------------------------------------------------------------------
-// Simple helper that holds a transmission point’s position, state, and radius.
-//------------------------------------------------------------------------------------------------
+
 class TransmissionEntry
 {
     vector              m_Position;
     ETransmissionState  m_State;
     int                 m_Radius;
+    
+    // Store map state when static marker was created to detect view changes
+    float               m_StoredMapZoom = -1;
+    vector              m_StoredMapCenter = vector.Zero;
+    float               m_StoredScreenX = -1;
+    float               m_StoredScreenY = -1;
+    float               m_StoredScreenRadius = -1;
+    bool                m_StaticCoordsValid = false;
 }
+
 
 //------------------------------------------------------------------------------------------------
 // GRAD_MapMarkerManager
@@ -226,19 +233,15 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             return; // Canvas not ready
         }
 
-        // Only redraw if state changed or we need animation
-        bool hasTransmitting = false;
+        // Always redraw every frame to handle map movement and zoom for ALL marker types
+        // Static markers need constant redrawing just like pulsing markers to respond to map changes
+        bool hasAnyMarkers = false;
         if (m_AllMarkers) {
-            for (int i = 0; i < m_AllMarkers.Count(); i++) {
-                if (m_AllMarkers[i].m_State == ETransmissionState.TRANSMITTING) {
-                    hasTransmitting = true;
-                    break;
-                }
-            }
+            hasAnyMarkers = m_AllMarkers.Count() > 0;
         }
         
-        // Always redraw if we need it, or if there's a transmitting animation
-        if (m_NeedsRedraw || hasTransmitting) {
+        // Always redraw if we have any markers at all - this ensures static markers respond to map changes
+        if (m_NeedsRedraw || hasAnyMarkers) {
             DrawMarkers();
             m_NeedsRedraw = false; // Reset the flag after drawing
         }
@@ -322,21 +325,22 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 ref LineDrawCommand outlineCmd = new LineDrawCommand();
                 outlineCmd.m_Vertices = new array<float>();
                 
-                // Recalculate coordinates for static markers every frame to ensure they stick to world position
-                float staticScreenX, staticScreenY;
-                m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], staticScreenX, staticScreenY, true);
+                // Use EXACTLY the same coordinates and radius as calculated above for pulsing markers
+                // Don't recalculate - use the exact same screenX, screenY, and transmissionRadius
+                float useScreenX = screenX;
+                float useScreenY = screenY;
+                float useRadius = transmissionRadius;
                 
-                // Recalculate radius for static markers to ensure they scale with zoom
-                float staticRadiusWorldX = entry.m_Position[0] + entry.m_Radius;
-                float staticRadiusWorldY = entry.m_Position[2];
-                float staticRadiusScreenX, staticRadiusScreenY;
-                m_MapEntity.WorldToScreen(staticRadiusWorldX, staticRadiusWorldY, staticRadiusScreenX, staticRadiusScreenY, true);
-                float recalculatedRadius = Math.AbsFloat(staticRadiusScreenX - staticScreenX);
+                // Safety bounds checking to prevent GPU crashes from invalid coordinates
+                if (useScreenX < -10000 || useScreenX > 10000 || useScreenY < -10000 || useScreenY > 10000 || useRadius < 0 || useRadius > 5000) {
+                    PrintFormat("GRAD_MapMarkerManager: Invalid coordinates detected, skipping marker - Screen: %1,%2, Radius: %3", useScreenX, useScreenY, useRadius);
+                    continue; // Skip this marker to prevent GPU issues
+                }
                 
                 for (int i = 0; i <= 32; i++) {
                     float angle = twoPi * i / 32;
-                    float x = staticScreenX + Math.Cos(angle) * recalculatedRadius;
-                    float y = staticScreenY + Math.Sin(angle) * recalculatedRadius;
+                    float x = useScreenX + Math.Cos(angle) * useRadius;
+                    float y = useScreenY + Math.Sin(angle) * useRadius;
                     fillCmd.m_Vertices.Insert(x);
                     fillCmd.m_Vertices.Insert(y);
                     outlineCmd.m_Vertices.Insert(x);
@@ -349,14 +353,14 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     outlineCmd.m_fWidth = 6.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        staticScreenX, staticScreenY, recalculatedRadius, entry.m_Radius);
+                        useScreenX, useScreenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DONE) {
                     fillCmd.m_iColor = ARGB(150,0,255,0); // Semi-transparent green
                     outlineCmd.m_iColor = ARGB(255,0,255,0); // Bright green outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        staticScreenX, staticScreenY, recalculatedRadius, entry.m_Radius);
+                        useScreenX, useScreenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
                     fillCmd.m_iColor = ARGB(150,255,0,0); // Semi-transparent red
                     outlineCmd.m_iColor = ARGB(255,255,0,0); // Bright red outline

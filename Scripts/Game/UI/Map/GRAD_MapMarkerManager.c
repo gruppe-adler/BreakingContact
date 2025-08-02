@@ -260,8 +260,9 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 static int debugCounter = 0;
                 debugCounter++;
                 if (debugCounter % 60 == 0) { // Log every 60 frames (1 second)
-                    PrintFormat("GRAD_MapMarkerManager: ZOOM DEBUG - State=%1, WorldPos=%2,%3, ScreenPos=%4,%5, WorldRadius=%6, ScreenRadius=%7", 
+                    /* PrintFormat("GRAD_MapMarkerManager: ZOOM DEBUG - State=%1, WorldPos=%2,%3, ScreenPos=%4,%5, WorldRadius=%6, ScreenRadius=%7", 
                         entry.m_State, entry.m_Position[0], entry.m_Position[2], screenX, screenY, entry.m_Radius, transmissionRadius);
+					*/
                 }
             }
             
@@ -329,15 +330,15 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     outlineCmd.m_iColor = ARGB(150,255,128,0); // Bright orange outline
                     outlineCmd.m_fWidth = 6.0;
                     outlineCmd.m_bShouldEnclose = true;
-                    PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        useScreenX, useScreenY, useRadius, entry.m_Radius);
+                    /* PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)",  
+                        useScreenX, useScreenY, useRadius, entry.m_Radius); */
                 } else if (entry.m_State == ETransmissionState.DONE) {
                     fillCmd.m_iColor = ARGB(15,0,255,0); // Semi-transparent green
                     outlineCmd.m_iColor = ARGB(150,0,255,0); // Bright green outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
-                    PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
-                        useScreenX, useScreenY, useRadius, entry.m_Radius);
+                    /* PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
+                        useScreenX, useScreenY, useRadius, entry.m_Radius); */
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
                     fillCmd.m_iColor = ARGB(15,255,0,0); // Semi-transparent red
                     outlineCmd.m_iColor = ARGB(150,255,0,0); // Bright red outline
@@ -357,12 +358,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
         
-        // Only update text markers occasionally, not every frame
-        static int textUpdateCounter = 0;
-        textUpdateCounter++;
-        if (textUpdateCounter % 30 == 0) { // Update text every 30 frames (~0.5 seconds)
-            UpdateTransmissionTextMarkers();
-        }
+        // Update text markers every frame to keep them in sync with map movement
+        UpdateTransmissionTextMarkers();
     }
     
     // Update transmission text markers that display percentage on hover
@@ -372,7 +369,14 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             return;
         }
         
-        Print(string.Format("GRAD_MapMarkerManager: UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count()), LogLevel.NORMAL);
+        // Only log occasionally to reduce spam
+        static int debugCounter = 0;
+        debugCounter++;
+        bool shouldLog = (debugCounter % 60 == 0); // Log every 60 calls (~1 second)
+        
+        if (shouldLog) {
+            Print(string.Format("GRAD_MapMarkerManager: UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count()), LogLevel.NORMAL);
+        }
         
         // Remove old text widgets
         foreach (Widget w : m_TransmissionTextWidgets) {
@@ -404,16 +408,22 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
             
-            Print(string.Format("GRAD_MapMarkerManager: Creating text widget for marker %1 at screen pos %2,%3", i, screenX, screenY), LogLevel.NORMAL);
+            if (shouldLog) {
+                Print(string.Format("GRAD_MapMarkerManager: Creating text widget for marker %1 at screen pos %2,%3", i, screenX, screenY), LogLevel.NORMAL);
+            }
             
             // Create text widget from layout
-            Widget textWidget = GetGame().GetWorkspace().CreateWidgets("UI/Layouts/Map/MapDrawText.layout", mapFrame);
+            Widget textWidget = GetGame().GetWorkspace().CreateWidgets("{BF487CF20D30CF50}UI/Layouts/Map/MapDrawText.layout", mapFrame);
             if (!textWidget) {
-                Print(string.Format("GRAD_MapMarkerManager: Failed to create text widget for marker %1", i), LogLevel.NORMAL);
+                if (shouldLog) {
+                    Print(string.Format("GRAD_MapMarkerManager: Failed to create text widget for marker %1", i), LogLevel.NORMAL);
+                }
                 continue;
             }
             
-            Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
+            if (shouldLog) {
+                Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
+            }
             
             // Find the actual TextWidget inside the layout (might be wrapped in a frame)
             TextWidget textComp = TextWidget.Cast(textWidget);
@@ -437,10 +447,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 }
             }
             
-            Print(string.Format("GRAD_MapMarkerManager: Found TextWidget for marker %1", i), LogLevel.NORMAL);
-            
-            // Debug widget properties - only log once per widget creation
-            if (i == 0) {
+            if (shouldLog) {
+                Print(string.Format("GRAD_MapMarkerManager: Found TextWidget for marker %1", i), LogLevel.NORMAL);
+                
+                // Debug widget properties - only log occasionally
                 Print(string.Format("GRAD_MapMarkerManager: TextWidget visible: %1, enabled: %2", textComp.IsVisible(), textComp.IsEnabled()), LogLevel.NORMAL);
             }
             
@@ -475,16 +485,20 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             }
             
             textComp.SetText(progressText);
-            PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
+            if (shouldLog) {
+                PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
+            }
             
             // Position text widget above the marker center
-            // Since the layout uses center alignment (0.5, 0.5), the widget will be centered at the position we set
+            // The layout frame has center alignment (0.5, 0.5), so the frame center will be at the position we set
             float textX = screenX;
-            float textY = screenY - 25; // Position 50 pixels above the marker center
+            float textY = screenY - 60; // Position 60 pixels above the marker center
             
             FrameSlot.SetPos(textWidget, textX, textY);
             
-            PrintFormat("GRAD_MapMarkerManager: Positioned text widget at %1,%2 for marker %3", textX, textY, i);
+            if (shouldLog) {
+                PrintFormat("GRAD_MapMarkerManager: Positioned text widget at %1,%2 for marker %3", textX, textY, i);
+            }
             
             // Add to our tracking array
             m_TransmissionTextWidgets.Insert(textWidget);

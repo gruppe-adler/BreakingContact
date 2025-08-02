@@ -4,6 +4,7 @@ class TransmissionEntry
     vector              m_Position;
     ETransmissionState  m_State;
     int                 m_Radius;
+    GRAD_BC_TransmissionComponent m_Component; // Store reference to get live progress data
     
     // Store map state when static marker was created to detect view changes
     float               m_StoredMapZoom = -1;
@@ -61,6 +62,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
     // Add for progress text widgets
     protected ref array<Widget> m_ProgressTextWidgets;
+    protected ref array<Widget> m_TransmissionTextWidgets; // Text markers for transmission points
     
     // Add state change tracking for instant updates
     protected ref array<ETransmissionState> m_LastStates;
@@ -97,6 +99,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_MarkerDrawCommands = { m_PulsingCircleCmd };
             m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
             m_ProgressTextWidgets = new array<Widget>();
+            m_TransmissionTextWidgets = new array<Widget>();
             m_LastStates = new array<ETransmissionState>();
             m_IsInitialized = true;
         }
@@ -116,6 +119,13 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Initial population
         PopulateMarkers();
         m_NeedsRedraw = true;
+
+        // Auto-dismiss mission description panel on map open
+        DismissMissionDescriptionPanel();
+        
+        // Retry dismissal after a short delay in case panel loads later
+        GetGame().GetCallqueue().CallLater(DismissMissionDescriptionPanel, 100, false);
+        GetGame().GetCallqueue().CallLater(DismissMissionDescriptionPanel, 500, false);
 
         // Register for frame updates (for animation only)
         m_RegisterPostFrame();
@@ -346,10 +356,129 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
 
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
+        
+        // Update transmission text markers
+        UpdateTransmissionTextMarkers();
+        
         static int drawCounter = 0;
         drawCounter++;
         if (drawCounter % 10 == 0) { // Only log every 10th draw to reduce spam
-            PrintFormat("GRAD_MapMarkerManager: Drew %1 markers (draw #%2)", m_MarkerDrawCommands.Count(), drawCounter);
+        }
+    }
+    
+    // Update transmission text markers that display percentage on hover
+    void UpdateTransmissionTextMarkers()
+    {
+        if (!m_AllMarkers || !m_Canvas) {
+            return;
+        }
+        
+        // Remove old text widgets
+        foreach (Widget w : m_TransmissionTextWidgets) {
+            if (w) w.RemoveFromHierarchy();
+        }
+        m_TransmissionTextWidgets.Clear();
+        
+        // Get the map frame to attach text widgets to
+        Widget mapRoot = m_MapEntity.GetMapMenuRoot();
+        if (!mapRoot) return;
+        
+        Widget mapFrame = mapRoot.FindAnyWidget("MapFrame");
+        if (!mapFrame) {
+            // Try alternative name
+            mapFrame = mapRoot.FindAnyWidget("Frame");
+            if (!mapFrame) return;
+        }
+        
+        // Create text markers for each transmission point
+        for (int i = 0; i < m_AllMarkers.Count(); i++)
+        {
+            TransmissionEntry entry = m_AllMarkers[i];
+            if (!entry.m_Component) continue;
+            
+            // Calculate screen position
+            float screenX, screenY;
+            m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
+            
+            // Create text widget from layout
+            Widget textWidget = GetGame().GetWorkspace().CreateWidgets("UI/Layouts/Map/MapDrawText.layout", mapFrame);
+            if (!textWidget) continue;
+            
+            // Find the actual TextWidget inside the layout (might be wrapped in a frame)
+            TextWidget textComp = TextWidget.Cast(textWidget);
+            if (!textComp) {
+                // If root isn't a TextWidget, search for one inside (in case it's wrapped in a frame)
+                textComp = TextWidget.Cast(textWidget.FindAnyWidget("DrawTextWidget"));
+                if (!textComp) {
+                    // Try other common text widget names as fallback
+                    textComp = TextWidget.Cast(textWidget.FindAnyWidget("Text"));
+                    if (!textComp) {
+                        textComp = TextWidget.Cast(textWidget.FindAnyWidget("TextWidget"));
+                        if (!textComp) {
+                            textComp = TextWidget.Cast(textWidget.FindAnyWidget("Label"));
+                            if (!textComp) {
+                                PrintFormat("GRAD_MapMarkerManager: Could not find TextWidget in layout for marker %1", i);
+                                textWidget.RemoveFromHierarchy();
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            PrintFormat("GRAD_MapMarkerManager: Found TextWidget for marker %1", i);
+            
+            // Get transmission progress percentage
+            float progress = entry.m_Component.GetTransmissionDuration() * 100.0;
+            string progressText = "";
+			
+            textComp.SetColor(Color.FromRGBA(255, 255, 255, 255)); // White
+            
+            // Format text based on state
+            switch (entry.m_State) {
+                case ETransmissionState.TRANSMITTING:
+                    progressText = string.Format("%1%%", Math.Floor(progress));
+                    break;
+                case ETransmissionState.INTERRUPTED:
+                    progressText = string.Format("INT %1%%", Math.Floor(progress));
+					textComp.SetColor(Color.FromRGBA(255, 255, 0, 255)); // Yellow
+                    break;
+                case ETransmissionState.DONE:
+                    progressText = "DONE";
+                    textComp.SetColor(Color.FromRGBA(0, 255, 0, 255)); // Green
+                    break;
+                case ETransmissionState.DISABLED:
+                    progressText = string.Format("DIS %1%%", Math.Floor(progress));
+					textComp.SetColor(Color.FromRGBA(255, 0, 0, 255)); // Red
+                    break;
+                case ETransmissionState.OFF:
+                    progressText = "OFF";
+                    textComp.SetColor(Color.FromRGBA(128, 128, 128, 255)); // Gray
+                    break;
+                default:
+                    progressText = "UNK";
+                    textComp.SetColor(Color.FromRGBA(128, 128, 128, 255)); // Gray
+                    break;
+            }
+            
+            textComp.SetText(progressText);
+            PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
+            
+            // Make sure the frame is large enough for the text - set a generous size
+            FrameSlot.SetSize(textWidget, 200, 80); // Width: 200px, Height: 80px
+            
+            // Position the text widget at screen coordinates (offset slightly above the marker)
+            float textX = GetGame().GetWorkspace().DPIUnscale(screenX);
+            float textY = GetGame().GetWorkspace().DPIUnscale(screenY - 60); // Offset 60 pixels above marker
+            FrameSlot.SetPos(textWidget, textX, textY);
+            FrameSlot.SetAnchorMin(textWidget, 0, 0);
+            FrameSlot.SetAnchorMax(textWidget, 0, 0);
+            FrameSlot.SetAlignment(textWidget, 0.5, 1.0); // Center horizontally, bottom align to position
+            
+            PrintFormat("GRAD_MapMarkerManager: Positioned text widget at %1,%2 for marker %3", textX, textY, i);
+            
+            // Add to our tracking array
+            m_TransmissionTextWidgets.Insert(textWidget);
         }
     }
 
@@ -376,6 +505,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             if (w) w.RemoveFromHierarchy();
         }
         m_ProgressTextWidgets.Clear();
+        
+        // Remove transmission text widgets
+        foreach (Widget w : m_TransmissionTextWidgets) {
+            if (w) w.RemoveFromHierarchy();
+        }
+        m_TransmissionTextWidgets.Clear();
 
         m_UnregisterPostFrame();
         // Unsubscribe from event
@@ -411,6 +546,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             entry.m_Position = tpc.GetPosition();
             entry.m_State    = tpc.GetTransmissionState();
             entry.m_Radius   = 1000;
+            entry.m_Component = tpc; // Store reference for live progress data
             m_AllMarkers.Insert(entry);
             markerCount++;
             
@@ -418,6 +554,116 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3", markerCount-1, entry.m_Position, entry.m_State);
         }
         PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", markerCount);
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────────────
+    // DismissMissionDescriptionPanel
+    //
+    // Automatically hide the mission description panel when map opens
+    // ───────────────────────────────────────────────────────────────────────────────
+    void DismissMissionDescriptionPanel()
+    {
+        if (!m_MapEntity) {
+            Print("GRAD_MapMarkerManager: No map entity for mission description dismissal", LogLevel.WARNING);
+            return;
+        }
+        
+        Widget mapRoot = m_MapEntity.GetMapMenuRoot();
+        if (!mapRoot) {
+            Print("GRAD_MapMarkerManager: No map root for mission description dismissal", LogLevel.WARNING);
+            return;
+        }
+        
+        Print("GRAD_MapMarkerManager: Attempting to dismiss mission description panel", LogLevel.NORMAL);
+        
+        // Try to find the mission description panel widget
+        array<string> possibleNames = {
+            "MissionDescriptionListScroll"
+        };
+        
+        bool panelFound = false;
+        foreach (string widgetName : possibleNames) {
+            Widget descriptionPanel = mapRoot.FindAnyWidget(widgetName);
+            if (descriptionPanel) {
+                // Check if it's actually visible before hiding
+                if (descriptionPanel.IsVisible()) {
+                    descriptionPanel.SetVisible(false);
+                    PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' automatically dismissed", widgetName);
+                    panelFound = true;
+                } else {
+                    PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' found but already hidden", widgetName);
+                }
+                break; // Only process the first one found
+            }
+        }
+        
+        if (!panelFound) {
+            // Try a more aggressive search by looking for any widget containing relevant keywords
+            Print("GRAD_MapMarkerManager: Standard mission description panel not found, trying recursive search", LogLevel.NORMAL);
+            SearchAndHideMissionPanel(mapRoot);
+        }
+        
+        // Also try to find and dismiss any modal dialogs or overlays that might be mission-related
+        DismissModalPanels(mapRoot);
+    }
+    
+    // Recursive method to search for mission description panels
+    void SearchAndHideMissionPanel(Widget parent)
+    {
+        if (!parent) return;
+        
+        string widgetName = parent.GetName();
+        if (widgetName.Length() == 0) {
+            // Skip widgets without names
+            Widget child = parent.GetChildren();
+            while (child) {
+                SearchAndHideMissionPanel(child);
+                child = child.GetSibling();
+            }
+            return;
+        }
+        
+        string lowerName = widgetName;
+        lowerName.ToLower();
+        
+        // Check if this widget looks like a mission description panel
+        bool isMissionPanel = (lowerName.Contains("mission") && (lowerName.Contains("description") || lowerName.Contains("brief"))) ||
+                             (lowerName.Contains("task") && lowerName.Contains("list")) ||
+                             (lowerName.Contains("objective") && lowerName.Contains("list")) ||
+                             lowerName.Contains("briefing");
+        
+        if (isMissionPanel && parent.IsVisible()) {
+            parent.SetVisible(false);
+            PrintFormat("GRAD_MapMarkerManager: Found and hid mission panel: '%1'", widgetName);
+            return; // Found and hidden, no need to search children
+        }
+        
+        // Check children recursively
+        Widget child = parent.GetChildren();
+        while (child) {
+            SearchAndHideMissionPanel(child);
+            child = child.GetSibling();
+        }
+    }
+    
+    // Method to dismiss modal panels that might be blocking the map
+    void DismissModalPanels(Widget mapRoot)
+    {
+        array<string> modalNames = {
+            "ModalPanel",
+            "Dialog",
+            "OverlayPanel", 
+            "InfoPanel",
+            "NotificationPanel"
+        };
+        
+        foreach (string modalName : modalNames) {
+            Widget modal = mapRoot.FindAnyWidget(modalName);
+            if (modal && modal.IsVisible()) {
+                modal.SetVisible(false);
+                PrintFormat("GRAD_MapMarkerManager: Dismissed modal panel: '%1'", modalName);
+            }
+        }
     }
 
     // Use higher FPS timer for smooth animation, but only draw when needed

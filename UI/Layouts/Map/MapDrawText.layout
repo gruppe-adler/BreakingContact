@@ -1,12 +1,13 @@
-TextWidgetClass {
- Name "DrawTextWidget"
- Anchor 0 0 0 0
- SizeX 100
- SizeY 30
- Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
- FontSize 18
- Color 0xFFFFFFFF
- OutlineSize 1
- HorizontalAlignment Center
- VerticalAlignment Center
+FrameWidgetClass "{6604D52B4D555738}" {
+ Name "Frame0"
+ Color 0 0 0 0.5875
+ {
+  TextWidgetClass {
+   Name "DrawTextWidget"
+   Slot FrameWidgetSlot "{6604D52B4D5E7631}" {
+   }
+   Color 0 0 0 0
+   "Font Size" 32
+  }
+ }
 }

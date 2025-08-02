@@ -315,27 +315,27 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 }
                 
                 if (entry.m_State == ETransmissionState.INTERRUPTED) {
-                    fillCmd.m_iColor = ARGB(100,255,255,0); // Semi-transparent YELLOW for high visibility
-                    outlineCmd.m_iColor = ARGB(255,255,128,0); // Bright orange outline
+                    fillCmd.m_iColor = ARGB(15,255,255,0); // Semi-transparent YELLOW for high visibility
+                    outlineCmd.m_iColor = ARGB(150,255,128,0); // Bright orange outline
                     outlineCmd.m_fWidth = 6.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)", 
                         useScreenX, useScreenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DONE) {
-                    fillCmd.m_iColor = ARGB(150,0,255,0); // Semi-transparent green
-                    outlineCmd.m_iColor = ARGB(255,0,255,0); // Bright green outline
+                    fillCmd.m_iColor = ARGB(15,0,255,0); // Semi-transparent green
+                    outlineCmd.m_iColor = ARGB(150,0,255,0); // Bright green outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
                     PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
                         useScreenX, useScreenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
-                    fillCmd.m_iColor = ARGB(150,255,0,0); // Semi-transparent red
-                    outlineCmd.m_iColor = ARGB(255,255,0,0); // Bright red outline
+                    fillCmd.m_iColor = ARGB(15,255,0,0); // Semi-transparent red
+                    outlineCmd.m_iColor = ARGB(150,255,0,0); // Bright red outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
                 } else {
-                    fillCmd.m_iColor = ARGB(150,0,100,255); // Semi-transparent blue
-                    outlineCmd.m_iColor = ARGB(255,0,150,255); // Bright blue outline
+                    fillCmd.m_iColor = ARGB(15,0,100,255); // Semi-transparent blue
+                    outlineCmd.m_iColor = ARGB(150,0,150,255); // Bright blue outline
                     outlineCmd.m_fWidth = 4.0;
                     outlineCmd.m_bShouldEnclose = true;
                 }

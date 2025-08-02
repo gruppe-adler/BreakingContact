@@ -357,12 +357,11 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
         
-        // Update transmission text markers
-        UpdateTransmissionTextMarkers();
-        
-        static int drawCounter = 0;
-        drawCounter++;
-        if (drawCounter % 10 == 0) { // Only log every 10th draw to reduce spam
+        // Only update text markers occasionally, not every frame
+        static int textUpdateCounter = 0;
+        textUpdateCounter++;
+        if (textUpdateCounter % 30 == 0) { // Update text every 30 frames (~0.5 seconds)
+            UpdateTransmissionTextMarkers();
         }
     }
     
@@ -372,6 +371,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         if (!m_AllMarkers || !m_Canvas) {
             return;
         }
+        
+        Print(string.Format("GRAD_MapMarkerManager: UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count()), LogLevel.NORMAL);
         
         // Remove old text widgets
         foreach (Widget w : m_TransmissionTextWidgets) {
@@ -394,15 +395,25 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         for (int i = 0; i < m_AllMarkers.Count(); i++)
         {
             TransmissionEntry entry = m_AllMarkers[i];
-            if (!entry.m_Component) continue;
+            if (!entry.m_Component) {
+                Print(string.Format("GRAD_MapMarkerManager: Marker %1 has no component, skipping", i), LogLevel.NORMAL);
+                continue;
+            }
             
             // Calculate screen position
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
             
+            Print(string.Format("GRAD_MapMarkerManager: Creating text widget for marker %1 at screen pos %2,%3", i, screenX, screenY), LogLevel.NORMAL);
+            
             // Create text widget from layout
             Widget textWidget = GetGame().GetWorkspace().CreateWidgets("UI/Layouts/Map/MapDrawText.layout", mapFrame);
-            if (!textWidget) continue;
+            if (!textWidget) {
+                Print(string.Format("GRAD_MapMarkerManager: Failed to create text widget for marker %1", i), LogLevel.NORMAL);
+                continue;
+            }
+            
+            Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
             
             // Find the actual TextWidget inside the layout (might be wrapped in a frame)
             TextWidget textComp = TextWidget.Cast(textWidget);
@@ -426,54 +437,52 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 }
             }
             
-            PrintFormat("GRAD_MapMarkerManager: Found TextWidget for marker %1", i);
+            Print(string.Format("GRAD_MapMarkerManager: Found TextWidget for marker %1", i), LogLevel.NORMAL);
+            
+            // Debug widget properties - only log once per widget creation
+            if (i == 0) {
+                Print(string.Format("GRAD_MapMarkerManager: TextWidget visible: %1, enabled: %2", textComp.IsVisible(), textComp.IsEnabled()), LogLevel.NORMAL);
+            }
             
             // Get transmission progress percentage
             float progress = entry.m_Component.GetTransmissionDuration() * 100.0;
             string progressText = "";
 			
-            textComp.SetColor(Color.FromRGBA(255, 255, 255, 255)); // White
-            
+            // Set base text styling - use layout defaults but ensure visibility
+            textComp.SetColor(Color.FromRGBA(255, 255, 255, 255)); // Cream white from layout
+			
             // Format text based on state
             switch (entry.m_State) {
                 case ETransmissionState.TRANSMITTING:
                     progressText = string.Format("%1%%", Math.Floor(progress));
+                    // Keep default color for transmitting
                     break;
                 case ETransmissionState.INTERRUPTED:
                     progressText = string.Format("INT %1%%", Math.Floor(progress));
-					textComp.SetColor(Color.FromRGBA(255, 255, 0, 255)); // Yellow
                     break;
                 case ETransmissionState.DONE:
                     progressText = "DONE";
-                    textComp.SetColor(Color.FromRGBA(0, 255, 0, 255)); // Green
                     break;
                 case ETransmissionState.DISABLED:
                     progressText = string.Format("DIS %1%%", Math.Floor(progress));
-					textComp.SetColor(Color.FromRGBA(255, 0, 0, 255)); // Red
                     break;
                 case ETransmissionState.OFF:
                     progressText = "OFF";
-                    textComp.SetColor(Color.FromRGBA(128, 128, 128, 255)); // Gray
                     break;
                 default:
-                    progressText = "UNK";
-                    textComp.SetColor(Color.FromRGBA(128, 128, 128, 255)); // Gray
+                    progressText = "UNKNOWN STATE";
                     break;
             }
             
             textComp.SetText(progressText);
             PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
             
-            // Make sure the frame is large enough for the text - set a generous size
-            FrameSlot.SetSize(textWidget, 200, 80); // Width: 200px, Height: 80px
+            // Position text widget above the marker center
+            // Since the layout uses center alignment (0.5, 0.5), the widget will be centered at the position we set
+            float textX = screenX;
+            float textY = screenY - 25; // Position 50 pixels above the marker center
             
-            // Position the text widget at screen coordinates (offset slightly above the marker)
-            float textX = GetGame().GetWorkspace().DPIUnscale(screenX);
-            float textY = GetGame().GetWorkspace().DPIUnscale(screenY - 60); // Offset 60 pixels above marker
             FrameSlot.SetPos(textWidget, textX, textY);
-            FrameSlot.SetAnchorMin(textWidget, 0, 0);
-            FrameSlot.SetAnchorMax(textWidget, 0, 0);
-            FrameSlot.SetAlignment(textWidget, 0.5, 1.0); // Center horizontally, bottom align to position
             
             PrintFormat("GRAD_MapMarkerManager: Positioned text widget at %1,%2 for marker %3", textX, textY, i);
             

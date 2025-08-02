@@ -12,33 +12,49 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 	
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
+		Print("GRAD_BC_Transmission: DisplayInit called", LogLevel.NORMAL);
+	}
+	
+	override protected void DisplayStartDraw(IEntity owner) {
+		super.DisplayStartDraw(owner);
+		
+		Print("GRAD_BC_Transmission: DisplayStartDraw called", LogLevel.NORMAL);
 		
 		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout", null);
 		
 		if (!m_wRoot) {
-			PrintFormat("GRAD_BC_Transmission: no m_wRoot found", LogLevel.ERROR);
+			Print("GRAD_BC_Transmission: no m_wRoot found", LogLevel.NORMAL);
 			return;
 		}
+		
+		Print("GRAD_BC_Transmission: m_wRoot created successfully", LogLevel.NORMAL);
 		
 		Widget w = m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget");
    		m_infoImage = ImageWidget.Cast(w);
 		
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission_Widget: no GRAD_BC_Transmission_Widget found", LogLevel.ERROR);
+			Print("GRAD_BC_Transmission_Widget: no GRAD_BC_Transmission_Widget found", LogLevel.NORMAL);
 			return;
 		}
 		
-		super.Show(false, 0.0, EAnimationCurve.LINEAR);
-		PrintFormat("GRAD_BC_Transmission: Hiding hint", LogLevel.ERROR);
+		Print("GRAD_BC_Transmission: m_infoImage found and initialized", LogLevel.NORMAL);
+		
+		// Ensure the display starts hidden
+		Show(false, 0.0, EAnimationCurve.LINEAR);
+		Print("GRAD_BC_Transmission: Display hidden by default", LogLevel.NORMAL);
+		
+		Print("GRAD_BC_Transmission: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	
 	void showTransmissionHint(string faction, ETransmissionState state) {
 		Print(string.Format("BC Transmission UI - showTransmissionHint called: faction=%1, state=%2", faction, state), LogLevel.NORMAL);
 		
 		if (!m_infoImage) {
-			PrintFormat("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.ERROR);
+			Print("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
 			return;
 		}
+
+		Print("GRAD_BC_Transmission: m_infoImage is valid, proceeding with hint display", LogLevel.NORMAL);
 
 		// Only show for valid states
 		bool shouldShow = false;

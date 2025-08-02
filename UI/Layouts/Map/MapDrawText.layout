@@ -1,13 +1,32 @@
-FrameWidgetClass "{6604D52B4D555738}" {
+FrameWidgetClass "{6605000BD3515E0B}" {
  Name "Frame0"
- Color 0 0 0 0.5875
  {
-  TextWidgetClass {
+  TextWidgetClass "{6604F8077C127898}" {
    Name "DrawTextWidget"
    Slot FrameWidgetSlot "{6604D52B4D5E7631}" {
+    Anchor 0.5 0.5 0.5 0.5
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX 200
+    OffsetRight -200
+    SizeY 80
+    OffsetBottom -80
+    Alignment 0.5 0.5
+    SizeToContent 1
    }
-   Color 0 0 0 0
+   Color 1 0.9698 0.8743 1
    "Font Size" 32
+   "Horizontal Alignment" Center
+   "Vertical Alignment" Center
+   FontProperties FontProperties "{6604F8063D9137EA}" {
+    Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
+    OutlineSize 1
+    ShadowSize 5
+    ShadowOffset 0 5
+    ShadowOpacity 0.25
+   }
   }
  }
 }

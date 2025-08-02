@@ -135,28 +135,80 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     
     void EOnPostFrame(IEntity owner, float timeSlice)
     {
-        // Clear previous draw commands except the persistent pulsing circle
+        // Reduce log spam - only log occasionally
+        static int logCounter = 0;
+        logCounter++;
+        if (logCounter % 50 == 0) { // Log every 5 seconds instead of every 100ms
+            PrintFormat("GRAD_MapMarkerManager: EOnPostFrame called - canvas=%1", m_Canvas != null);
+        }
+        
+        if (!m_Canvas) {
+            if (logCounter % 50 == 0) {
+                PrintFormat("GRAD_MapMarkerManager: Canvas is null, returning");
+            }
+            return; // Canvas not ready
+        }
+
+        // Always repopulate markers to get current states
+        PopulateMarkers();
+        int markerCount = 0;
+        if (m_AllMarkers) {
+            markerCount = m_AllMarkers.Count();
+        }
+        if (logCounter % 50 == 0) {
+            PrintFormat("GRAD_MapMarkerManager: After PopulateMarkers, marker count: %1", markerCount);
+        }
+
+        if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
+            if (logCounter % 50 == 0) {
+                PrintFormat("GRAD_MapMarkerManager: No markers, clearing draw commands");
+            }
+            m_Canvas.SetDrawCommands({});
+            return; // No markers to draw
+        }
+
+        // Initialize draw commands array if needed
+        if (!m_MarkerDrawCommands) {
+            m_MarkerDrawCommands = new array<ref CanvasWidgetCommand>();
+        }
         m_MarkerDrawCommands.Clear();
 
         float twoPi = 6.28318530718;
 
+        // --- Draw marker circles and outlines ---
         for (int markerIdx = 0; markerIdx < m_AllMarkers.Count(); markerIdx++)
         {
             TransmissionEntry entry = m_AllMarkers[markerIdx];
+            if (logCounter % 50 == 0) {
+                PrintFormat("GRAD_MapMarkerManager: Processing marker %1 at %2 with state %3", markerIdx, entry.m_Position, entry.m_State);
+            }
 
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
-            float radius = entry.m_Radius; // or use a conversion if needed for screen units
+            
+            // Convert world radius to screen radius
+            float radiusWorldX = entry.m_Position[0] + entry.m_Radius;
+            float radiusWorldY = entry.m_Position[2];
+            float radiusScreenX, radiusScreenY;
+            m_MapEntity.WorldToScreen(radiusWorldX, radiusWorldY, radiusScreenX, radiusScreenY, true);
+            float radius = Math.AbsFloat(radiusScreenX - screenX);
+            if (logCounter % 50 == 0) {
+                PrintFormat("GRAD_MapMarkerManager: Screen position: %1,%2, radius: %3", screenX, screenY, radius);
+            }
 
+            // --- Pulsing circle for TRANSMITTING ---
             if (entry.m_State == ETransmissionState.TRANSMITTING)
             {
+                if (!m_PulsingCircleCmd) {
+                    m_PulsingCircleCmd = new PolygonDrawCommand();
+                }
                 m_PulsingCircleCmd.m_Vertices = new array<float>();
-                float alpha = Math.Lerp(0.6, 0.0, m_fPulseTime); // 0.3 = 60% opacity
+                
+                float alpha = Math.Lerp(0.6, 0.0, m_fPulseTime);
                 int iAlpha = Math.Round(alpha * 255);
                 m_PulsingCircleCmd.m_iColor = ARGB(iAlpha,255,0,0); // red, fading out
 
-                float pulseRadius = radius * m_fPulseTime; // <-- animate from 0 to full radius
-
+                float pulseRadius = radius * Math.Lerp(0.5, 1.5, m_fPulseTime);
                 for (int i = 0; i < 32; i++) {
                     float angle = twoPi * i / 32;
                     float x = screenX + Math.Cos(angle) * pulseRadius;
@@ -164,103 +216,47 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     m_PulsingCircleCmd.m_Vertices.Insert(x);
                     m_PulsingCircleCmd.m_Vertices.Insert(y);
                 }
-                // Close loop
-                m_PulsingCircleCmd.m_Vertices.Insert(screenX + Math.Cos(0) * pulseRadius);
-                m_PulsingCircleCmd.m_Vertices.Insert(screenY + Math.Sin(0) * pulseRadius);
 
                 m_MarkerDrawCommands.Insert(m_PulsingCircleCmd);
-            }
-            else
-            {
-                m_PulsingCircleCmd.m_Vertices = {};
+                if (logCounter % 50 == 0) {
+                    PrintFormat("GRAD_MapMarkerManager: Added pulsing circle for TRANSMITTING at %1,%2 with alpha %3", screenX, screenY, iAlpha);
+                }
             }
 
-            // Draw static outline for INTERRUPTED (gray) or DONE (green)
-            if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE) {
+            // --- Static outline for INTERRUPTED (gray), DONE (green), OFF (blue), or DISABLED (red) ---
+            if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE || entry.m_State == ETransmissionState.OFF || entry.m_State == ETransmissionState.DISABLED) {
                 ref LineDrawCommand outlineCmd = new LineDrawCommand();
                 outlineCmd.m_Vertices = new array<float>();
-                float outlineRadius = radius; // use calculated screen radius for outline
-                for (int i = 0; i < 32; i++) {
+                
+                for (int i = 0; i <= 32; i++) { // Note: <= to close the circle
                     float angle = twoPi * i / 32;
-                    float x = screenX + Math.Cos(angle) * outlineRadius;
-                    float y = screenY + Math.Sin(angle) * outlineRadius;
+                    float x = screenX + Math.Cos(angle) * radius;
+                    float y = screenY + Math.Sin(angle) * radius;
                     outlineCmd.m_Vertices.Insert(x);
                     outlineCmd.m_Vertices.Insert(y);
                 }
-                // Close loop
-                outlineCmd.m_Vertices.Insert(screenX + Math.Cos(0) * outlineRadius);
-                outlineCmd.m_Vertices.Insert(screenY + Math.Sin(0) * outlineRadius);
+                
                 if (entry.m_State == ETransmissionState.INTERRUPTED) {
                     outlineCmd.m_iColor = ARGB(255,128,128,128); // gray
-                } else {
+                } else if (entry.m_State == ETransmissionState.DONE) {
                     outlineCmd.m_iColor = ARGB(255,0,255,0); // green
+                } else if (entry.m_State == ETransmissionState.DISABLED) {
+                    outlineCmd.m_iColor = ARGB(255,255,0,0); // red for destroyed/disabled antennas
+                } else {
+                    outlineCmd.m_iColor = ARGB(255,0,100,255); // blue for OFF state
                 }
-                outlineCmd.m_fOutlineWidth = 3.0; // 3px outline
+                outlineCmd.m_fOutlineWidth = 3.0;
                 m_MarkerDrawCommands.Insert(outlineCmd);
-            }
-            // --- Draw progress text ---
-            // Find the corresponding TPC for this entry
-            GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-            if (bcm) {
-                array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
-                foreach (GRAD_BC_TransmissionComponent tpc : tpcs) {
-                    if (tpc && tpc.GetPosition() == entry.m_Position) {
-                        float progress = tpc.GetTransmissionDuration(); // Actually returns progress [0..1]
-                        int percent = Math.Round(progress * 100);
-                        string text = string.Format("%1%%", percent);
-                        break;
-                    }
+                if (logCounter % 50 == 0) {
+                    PrintFormat("GRAD_MapMarkerManager: Added outline for state %1 at %2,%3 with color %4", entry.m_State, screenX, screenY, outlineCmd.m_iColor);
                 }
             }
         }
-        // Remove debug rectangle code
+
+        if (logCounter % 50 == 0) {
+            PrintFormat("GRAD_MapMarkerManager: Setting %1 draw commands to canvas", m_MarkerDrawCommands.Count());
+        }
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
-        // Remove debug rectangle code
-        m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
-
-        // Remove any old text widgets if marker count changed
-        while (m_ProgressTextWidgets.Count() > m_AllMarkers.Count()) {
-            Widget w = m_ProgressTextWidgets[m_ProgressTextWidgets.Count()-1];
-            if (w) w.RemoveFromHierarchy();
-            m_ProgressTextWidgets.Remove(m_ProgressTextWidgets.Count()-1);
-        }
-        // Add widgets if needed
-        while (m_ProgressTextWidgets.Count() < m_AllMarkers.Count()) {
-            Widget textWidget = GetGame().GetWorkspace().CreateWidgets("{A6A79ABB08D490BE}UI/Layouts/Map/MapDrawText.layout", m_Widget);
-            m_ProgressTextWidgets.Insert(textWidget);
-        }
-        for (int i = 0; i < m_AllMarkers.Count(); i++) {
-            TransmissionEntry entry = m_AllMarkers[i];
-            float screenX, screenY;
-            m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
-
-            // Find progress for this marker
-            string text = "";
-            GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-            if (bcm) {
-                array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
-                foreach (GRAD_BC_TransmissionComponent tpc : tpcs) {
-                    if (tpc && tpc.GetPosition() == entry.m_Position) {
-                        float progress = tpc.GetTransmissionDuration(); // [0..1]
-                        int percent = Math.Round(progress * 100);
-                        text = string.Format("%1%%", percent);
-                        break;
-                    }
-                }
-            }
-
-            Widget textWidget = m_ProgressTextWidgets[i];
-            TextWidget tw = TextWidget.Cast(textWidget);
-            if (tw) {
-                tw.SetText(text);
-                FrameSlot.SetPos(tw, screenX - 50, screenY - 40); // adjust offset as needed
-            }
-        }
-        // Hide unused widgets
-        for (int i = m_AllMarkers.Count(); i < m_ProgressTextWidgets.Count(); i++) {
-            Widget textWidget = m_ProgressTextWidgets[i];
-            if (textWidget) textWidget.SetVisible(false);
-        }
     }
 
     // --- Smarter marker population ---

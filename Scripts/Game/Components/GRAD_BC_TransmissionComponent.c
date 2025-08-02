@@ -133,22 +133,29 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	private void SetTransmissionState(ETransmissionState transmissionState)
 	{
 		if (m_eTransmissionState != transmissionState) {
+			ETransmissionState oldState = m_eTransmissionState;
 			m_eTransmissionState = transmissionState;
 			Replication.BumpMe();
+			
+			PrintFormat("TPC: State changed from %1 to %2", oldState, transmissionState);
 
-			// Show transmission hint to all players when starting transmission
-			if (transmissionState == ETransmissionState.TRANSMITTING) {
-				PlayerManager playerManager = GetGame().GetPlayerManager();
-				if (playerManager) {
-					array<int> playerIds = {};
-					playerManager.GetAllPlayers(playerIds);
-					foreach (int playerId : playerIds) {
-						PlayerController pc = playerManager.GetPlayerController(playerId);
-						if (!pc) continue;
-						GRAD_PlayerComponent gradPC = GRAD_PlayerComponent.Cast(pc.FindComponent(GRAD_PlayerComponent));
-						if (gradPC) {
-							gradPC.ShowTransmissionHintRPC(ETransmissionState.TRANSMITTING);
-						}
+			// Notify BreakingContactManager of state change for instant map updates
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm) {
+				bcm.NotifyTransmissionPointListeners();
+			}
+
+			// Show transmission hint to all players for all state changes
+			PlayerManager playerManager = GetGame().GetPlayerManager();
+			if (playerManager) {
+				array<int> playerIds = {};
+				playerManager.GetAllPlayers(playerIds);
+				foreach (int playerId : playerIds) {
+					PlayerController pc = playerManager.GetPlayerController(playerId);
+					if (!pc) continue;
+					GRAD_PlayerComponent gradPC = GRAD_PlayerComponent.Cast(pc.FindComponent(GRAD_PlayerComponent));
+					if (gradPC) {
+						gradPC.ShowTransmissionHintRPC(transmissionState);
 					}
 				}
 			}

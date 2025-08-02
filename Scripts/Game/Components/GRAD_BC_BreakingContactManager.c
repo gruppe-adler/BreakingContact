@@ -442,7 +442,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    if (!m_TransmissionPointListeners) return;
 	    m_TransmissionPointListeners.RemoveItem(listener);
 	}
-	protected void NotifyTransmissionPointListeners()
+	void NotifyTransmissionPointListeners()
 	{
 	    if (!m_TransmissionPointListeners) return;
 	    foreach (ScriptInvoker inv : m_TransmissionPointListeners) {
@@ -695,7 +695,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     //------------------------------------------------------------------------------------------------
 	EBreakingContactPhase GetBreakingContactPhase()
 	{
-		Print(string.Format("GetBreakingContactPhase - Phase '%1'", m_iBreakingContactPhase, LogLevel.NORMAL));
+		// Print(string.Format("GetBreakingContactPhase - Phase '%1'", m_iBreakingContactPhase, LogLevel.NORMAL));
 		return m_iBreakingContactPhase;
 	}
 	

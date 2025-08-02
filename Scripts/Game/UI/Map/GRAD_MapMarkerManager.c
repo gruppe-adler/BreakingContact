@@ -54,6 +54,16 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
     // Add for progress text widgets
     protected ref array<Widget> m_ProgressTextWidgets;
+    
+    // Add state change tracking for instant updates
+    protected ref array<ETransmissionState> m_LastStates;
+    protected ref ScriptInvoker m_TransmissionPointInvoker;
+    
+    // Separate rendering timer from state checking
+    protected bool m_NeedsRedraw = false;
+    
+    // Debouncing for event spam prevention
+    protected float m_LastStateChangeTime = 0.0;
 
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapOpen
@@ -80,43 +90,27 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_MarkerDrawCommands = { m_PulsingCircleCmd };
             m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
             m_ProgressTextWidgets = new array<Widget>();
+            m_LastStates = new array<ETransmissionState>();
             m_IsInitialized = true;
         }
 
         // Always start by emptying out any old entries (so we repopulate fresh)
         m_AllMarkers.Clear();
 
-        // Subscribe to transmission point events
+        // Subscribe to transmission point events for instant state updates
         GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
         if (bcm)
         {
             if (!m_TransmissionPointInvoker) m_TransmissionPointInvoker = new ScriptInvoker();
-            m_TransmissionPointInvoker.Insert(this.PopulateMarkers);
+            m_TransmissionPointInvoker.Insert(this.OnTransmissionStateChanged);
             bcm.AddTransmissionPointListener(m_TransmissionPointInvoker);
         }
+        
+        // Initial population
         PopulateMarkers();
+        m_NeedsRedraw = true;
 
-        // ─── Canvas debug: check existence and size ───────────────
-        if (!m_Canvas) {
-            Print("GRAD_MapMarkerManager: m_Canvas is NULL!", LogLevel.ERROR);
-        } else {
-            float w, h;
-            m_Canvas.GetScreenSize(w, h);
-            // PrintFormat("GRAD_MapMarkerManager: m_Canvas size: %1 x %2", w, h);
-            m_Canvas.SetVisible(true);
-            // Print widget hierarchy
-            Widget parent = m_Canvas;
-            while (parent) {
-                // PrintFormat("Widget: %1", parent.GetName());
-                parent = parent.GetParent();
-            }
-        }
-
-        // NOTE: CanvasWidget sizing must be set in the layout file, not in script.
-        // If you see zero or tiny canvas size in debug, fix the anchors and size in MapCanvasLayer.layout.
-        // Remove any SetWidth/SetHeight/SetSize/BringToFront calls from script.
-        // Use debug prints to check canvas size after creation.
-
+        // Register for frame updates (for animation only)
         m_RegisterPostFrame();
     }
 
@@ -133,36 +127,126 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         m_fPulseTime = Math.Mod(dt, m_fPulseDuration) / m_fPulseDuration;
     }
     
-    void EOnPostFrame(IEntity owner, float timeSlice)
+    // Event-driven state change handler for instant updates with debouncing
+    void OnTransmissionStateChanged()
     {
-        // Reduce log spam - only log occasionally
-        static int logCounter = 0;
-        logCounter++;
-        if (logCounter % 50 == 0) { // Log every 5 seconds instead of every 100ms
-            PrintFormat("GRAD_MapMarkerManager: EOnPostFrame called - canvas=%1", m_Canvas != null);
+        float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+        
+        // Debounce rapid events (only process if 100ms has passed since last change)
+        if (currentTime - m_LastStateChangeTime < 0.1) {
+            return;
+        }
+        m_LastStateChangeTime = currentTime;
+        
+        PrintFormat("GRAD_MapMarkerManager: Transmission state changed - triggering instant update");
+        PopulateMarkers();
+        CheckForStateChanges();
+        m_NeedsRedraw = true;
+        DrawMarkers(); // Instant redraw on state change
+    }
+    
+    // Separate method to check for state changes and show hints
+    void CheckForStateChanges()
+    {
+        if (!m_AllMarkers) return;
+        
+        if (!m_LastStates) {
+            m_LastStates = new array<ETransmissionState>();
         }
         
-        if (!m_Canvas) {
-            if (logCounter % 50 == 0) {
-                PrintFormat("GRAD_MapMarkerManager: Canvas is null, returning");
+        int markerCount = m_AllMarkers.Count();
+        bool stateChanged = false;
+        
+        // Resize tracking array if needed
+        if (m_LastStates.Count() != markerCount) {
+            stateChanged = true;
+            PrintFormat("GRAD_MapMarkerManager: Marker count changed from %1 to %2", m_LastStates.Count(), markerCount);
+            m_LastStates.Clear();
+            m_LastStates.Resize(markerCount);
+            // Initialize new states
+            for (int i = 0; i < markerCount; i++) {
+                m_LastStates[i] = m_AllMarkers[i].m_State;
             }
+        } else {
+            // Check for individual state changes
+            for (int i = 0; i < markerCount; i++) {
+                if (m_AllMarkers[i].m_State != m_LastStates[i]) {
+                    stateChanged = true;
+                    ETransmissionState oldState = m_LastStates[i];
+                    ETransmissionState newState = m_AllMarkers[i].m_State;
+                    PrintFormat("GRAD_MapMarkerManager: State changed for marker %1: %2 -> %3", i, oldState, newState);
+                    
+                    // Show instant hint for state change
+                    ShowTransmissionHint(newState);
+                    
+                    m_LastStates[i] = newState;
+                }
+            }
+        }
+    }
+    
+    // Method to show transmission hints
+    void ShowTransmissionHint(ETransmissionState state)
+    {
+        string message = "";
+        string title = "Transmission Update";
+        
+        switch (state) {
+            case ETransmissionState.TRANSMITTING:
+                message = "Transmission started";
+                break;
+            case ETransmissionState.INTERRUPTED:
+                message = "Transmission interrupted!";
+                break;
+            case ETransmissionState.DONE:
+                message = "Transmission completed";
+                break;
+            case ETransmissionState.DISABLED:
+                message = "Transmission disabled";
+                break;
+            case ETransmissionState.OFF:
+                message = "Transmission stopped";
+                break;
+        }
+        
+        if (message != "") {
+            GRAD_PlayerComponent playerComp = GRAD_PlayerComponent.GetInstance();
+            if (playerComp) {
+                playerComp.ShowHint(message, title, 5, false);
+                PrintFormat("GRAD_MapMarkerManager: Showing hint: %1", message);
+            }
+        }
+    }
+
+    // Lightweight frame update - only for animation and rendering when needed
+    void EOnPostFrame(IEntity owner, float timeSlice)
+    {
+        if (!m_Canvas) {
             return; // Canvas not ready
         }
 
-        // Always repopulate markers to get current states
-        PopulateMarkers();
-        int markerCount = 0;
+        // Only redraw if state changed or we need animation
+        bool hasTransmitting = false;
         if (m_AllMarkers) {
-            markerCount = m_AllMarkers.Count();
-        }
-        if (logCounter % 50 == 0) {
-            PrintFormat("GRAD_MapMarkerManager: After PopulateMarkers, marker count: %1", markerCount);
-        }
-
-        if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
-            if (logCounter % 50 == 0) {
-                PrintFormat("GRAD_MapMarkerManager: No markers, clearing draw commands");
+            for (int i = 0; i < m_AllMarkers.Count(); i++) {
+                if (m_AllMarkers[i].m_State == ETransmissionState.TRANSMITTING) {
+                    hasTransmitting = true;
+                    break;
+                }
             }
+        }
+        
+        // Always redraw if we need it, or if there's a transmitting animation
+        if (m_NeedsRedraw || hasTransmitting) {
+            DrawMarkers();
+            m_NeedsRedraw = false; // Reset the flag after drawing
+        }
+    }
+    
+    // Separate drawing method
+    void DrawMarkers()
+    {
+        if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
             m_Canvas.SetDrawCommands({});
             return; // No markers to draw
         }
@@ -179,22 +263,19 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         for (int markerIdx = 0; markerIdx < m_AllMarkers.Count(); markerIdx++)
         {
             TransmissionEntry entry = m_AllMarkers[markerIdx];
-            if (logCounter % 50 == 0) {
-                PrintFormat("GRAD_MapMarkerManager: Processing marker %1 at %2 with state %3", markerIdx, entry.m_Position, entry.m_State);
-            }
 
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
             
-            // Convert world radius to screen radius
+            // Calculate transmission range for pulsing (so it represents real 1000m range)
             float radiusWorldX = entry.m_Position[0] + entry.m_Radius;
             float radiusWorldY = entry.m_Position[2];
             float radiusScreenX, radiusScreenY;
             m_MapEntity.WorldToScreen(radiusWorldX, radiusWorldY, radiusScreenX, radiusScreenY, true);
-            float radius = Math.AbsFloat(radiusScreenX - screenX);
-            if (logCounter % 50 == 0) {
-                PrintFormat("GRAD_MapMarkerManager: Screen position: %1,%2, radius: %3", screenX, screenY, radius);
-            }
+            float transmissionRadius = Math.AbsFloat(radiusScreenX - screenX);
+            
+            // Use smaller fixed size for outlines (for visibility)
+            float outlineRadius = 15.0; // Fixed 15 pixel radius for outline visibility
 
             // --- Pulsing circle for TRANSMITTING ---
             if (entry.m_State == ETransmissionState.TRANSMITTING)
@@ -208,7 +289,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 int iAlpha = Math.Round(alpha * 255);
                 m_PulsingCircleCmd.m_iColor = ARGB(iAlpha,255,0,0); // red, fading out
 
-                float pulseRadius = radius * Math.Lerp(0.5, 1.5, m_fPulseTime);
+                // Pulse from small size to full transmission range (1000m on map)
+                float pulseRadius = transmissionRadius * Math.Lerp(0.1, 1.0, m_fPulseTime);
                 for (int i = 0; i < 32; i++) {
                     float angle = twoPi * i / 32;
                     float x = screenX + Math.Cos(angle) * pulseRadius;
@@ -218,9 +300,6 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 }
 
                 m_MarkerDrawCommands.Insert(m_PulsingCircleCmd);
-                if (logCounter % 50 == 0) {
-                    PrintFormat("GRAD_MapMarkerManager: Added pulsing circle for TRANSMITTING at %1,%2 with alpha %3", screenX, screenY, iAlpha);
-                }
             }
 
             // --- Static outline for INTERRUPTED (gray), DONE (green), OFF (blue), or DISABLED (red) ---
@@ -230,40 +309,34 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 
                 for (int i = 0; i <= 32; i++) { // Note: <= to close the circle
                     float angle = twoPi * i / 32;
-                    float x = screenX + Math.Cos(angle) * radius;
-                    float y = screenY + Math.Sin(angle) * radius;
+                    float x = screenX + Math.Cos(angle) * outlineRadius;
+                    float y = screenY + Math.Sin(angle) * outlineRadius;
                     outlineCmd.m_Vertices.Insert(x);
                     outlineCmd.m_Vertices.Insert(y);
                 }
                 
                 if (entry.m_State == ETransmissionState.INTERRUPTED) {
-                    outlineCmd.m_iColor = ARGB(255,128,128,128); // gray
+                    outlineCmd.m_iColor = ARGB(255,128,128,128); // Make gray visible for interrupted
+                    PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with gray color", screenX, screenY);
                 } else if (entry.m_State == ETransmissionState.DONE) {
-                    outlineCmd.m_iColor = ARGB(255,0,255,0); // green
+                    outlineCmd.m_iColor = ARGB(150,0,255,0); // transparent green for completed
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
-                    outlineCmd.m_iColor = ARGB(255,255,0,0); // red for destroyed/disabled antennas
+                    outlineCmd.m_iColor = ARGB(150,255,0,0); // transparent red for disabled
                 } else {
                     outlineCmd.m_iColor = ARGB(255,0,100,255); // blue for OFF state
                 }
-                outlineCmd.m_fOutlineWidth = 3.0;
+                outlineCmd.m_fOutlineWidth = 4.0; // Increase thickness for better visibility
                 m_MarkerDrawCommands.Insert(outlineCmd);
-                if (logCounter % 50 == 0) {
-                    PrintFormat("GRAD_MapMarkerManager: Added outline for state %1 at %2,%3 with color %4", entry.m_State, screenX, screenY, outlineCmd.m_iColor);
-                }
             }
         }
 
-        if (logCounter % 50 == 0) {
-            PrintFormat("GRAD_MapMarkerManager: Setting %1 draw commands to canvas", m_MarkerDrawCommands.Count());
-        }
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
+        static int drawCounter = 0;
+        drawCounter++;
+        if (drawCounter % 10 == 0) { // Only log every 10th draw to reduce spam
+            PrintFormat("GRAD_MapMarkerManager: Drew %1 markers (draw #%2)", m_MarkerDrawCommands.Count(), drawCounter);
+        }
     }
-
-    // --- Smarter marker population ---
-    // NOTE: The current retry loop is a workaround for late-initialized transmission points.
-    // If you can trigger marker population from an event/callback when a transmission point is registered,
-    // you can remove the retry loop and call m_AttemptPopulateMarkers() only when needed.
-    // For now, the retry loop is a practical solution if no such event is available.
 
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapClose
@@ -325,17 +398,17 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             entry.m_Radius   = 1000;
             m_AllMarkers.Insert(entry);
             markerCount++;
+            
+            // Debug state information
+            PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3", markerCount-1, entry.m_Position, entry.m_State);
         }
         PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", markerCount);
     }
 
-    // Add member for invoker
-    protected ref ScriptInvoker m_TransmissionPointInvoker;
-
-    // Use null for the owner argument in CallLater, since EOnPostFrame expects IEntity and we don't use it
+    // Use higher FPS timer for smooth animation, but only draw when needed
     void m_RegisterPostFrame()
     {
-        GetGame().GetCallqueue().CallLater(this.EOnPostFrame, 0, true, null, 0.0);
+        GetGame().GetCallqueue().CallLater(this.EOnPostFrame, 16, true, null, 0.0); // ~60 FPS for smooth animation
     }
     void m_UnregisterPostFrame()
     {

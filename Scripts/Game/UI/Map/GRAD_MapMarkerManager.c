@@ -495,7 +495,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             string progressText = "";
 			
             // Set base text styling - ensure all properties are applied
-            textComp.SetColor(Color.FromRGBA(255, 255, 0, 255)); // BRIGHT YELLOW text for testing visibility
+            textComp.SetColor(Color.FromRGBA(255, 255, 255, 255)); // BRIGHT WHITE text for testing visibility
             textComp.SetVisible(true);
             textComp.SetOpacity(1.0);
             

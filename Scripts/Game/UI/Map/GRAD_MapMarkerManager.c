@@ -176,10 +176,11 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     ETransmissionState newState = m_AllMarkers[i].m_State;
                     PrintFormat("GRAD_MapMarkerManager: State changed for marker %1: %2 -> %3", i, oldState, newState);
                     
-                    // Show instant hint for state change
-                    ShowTransmissionHint(newState);
-                    
+                    // Update state immediately
                     m_LastStates[i] = newState;
+                    
+                    // Force immediate redraw when state changes
+                    GetGame().GetCallqueue().CallLater(DrawMarkers, 1, false);
                 }
             }
         }
@@ -274,8 +275,16 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_MapEntity.WorldToScreen(radiusWorldX, radiusWorldY, radiusScreenX, radiusScreenY, true);
             float transmissionRadius = Math.AbsFloat(radiusScreenX - screenX);
             
-            // Use smaller fixed size for outlines (for visibility)
-            float outlineRadius = 15.0; // Fixed 15 pixel radius for outline visibility
+            // Use full transmission radius for static markers to show 1000m range
+            float staticRadius = transmissionRadius;
+            // Use smaller fixed size for outlines only when needed for visibility  
+            float outlineRadius = 15.0; // Fixed 15 pixel radius for small outline visibility
+            
+            // Debug logging for radius calculation
+            if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE) {
+                PrintFormat("GRAD_MapMarkerManager: DEBUG - WorldPos=%1,%2 ScreenPos=%3,%4 WorldRadius=%5 ScreenRadius=%6", 
+                    entry.m_Position[0], entry.m_Position[2], screenX, screenY, entry.m_Radius, staticRadius);
+            }
 
             // --- Pulsing circle for TRANSMITTING ---
             if (entry.m_State == ETransmissionState.TRANSMITTING)
@@ -304,28 +313,54 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
             // --- Static outline for INTERRUPTED (gray), DONE (green), OFF (blue), or DISABLED (red) ---
             if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE || entry.m_State == ETransmissionState.OFF || entry.m_State == ETransmissionState.DISABLED) {
+                // Use both PolygonDrawCommand for fill and LineDrawCommand for outline for maximum visibility
+                ref PolygonDrawCommand fillCmd = new PolygonDrawCommand();
+                fillCmd.m_Vertices = new array<float>();
+                
                 ref LineDrawCommand outlineCmd = new LineDrawCommand();
                 outlineCmd.m_Vertices = new array<float>();
                 
-                for (int i = 0; i <= 32; i++) { // Note: <= to close the circle
+                // Use the SAME coordinates and radius as calculated above for consistency
+                // This prevents floating because we reuse the exact same screen position
+                float useRadius = transmissionRadius; // Use the full 1000m radius already calculated
+                
+                for (int i = 0; i <= 32; i++) {
                     float angle = twoPi * i / 32;
-                    float x = screenX + Math.Cos(angle) * outlineRadius;
-                    float y = screenY + Math.Sin(angle) * outlineRadius;
+                    float x = screenX + Math.Cos(angle) * useRadius;
+                    float y = screenY + Math.Sin(angle) * useRadius;
+                    fillCmd.m_Vertices.Insert(x);
+                    fillCmd.m_Vertices.Insert(y);
                     outlineCmd.m_Vertices.Insert(x);
                     outlineCmd.m_Vertices.Insert(y);
                 }
                 
                 if (entry.m_State == ETransmissionState.INTERRUPTED) {
-                    outlineCmd.m_iColor = ARGB(255,128,128,128); // Make gray visible for interrupted
-                    PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with gray color", screenX, screenY);
+                    fillCmd.m_iColor = ARGB(100,255,255,0); // Semi-transparent YELLOW for high visibility
+                    outlineCmd.m_iColor = ARGB(255,255,128,0); // Bright orange outline
+                    outlineCmd.m_fWidth = 6.0;
+                    outlineCmd.m_bShouldEnclose = true;
+                    PrintFormat("GRAD_MapMarkerManager: Drawing INTERRUPTED marker at %1,%2 with radius=%3 (world radius=%4)", 
+                        screenX, screenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DONE) {
-                    outlineCmd.m_iColor = ARGB(150,0,255,0); // transparent green for completed
+                    fillCmd.m_iColor = ARGB(150,0,255,0); // Semi-transparent green
+                    outlineCmd.m_iColor = ARGB(255,0,255,0); // Bright green outline
+                    outlineCmd.m_fWidth = 4.0;
+                    outlineCmd.m_bShouldEnclose = true;
+                    PrintFormat("GRAD_MapMarkerManager: Drawing DONE marker at %1,%2 with radius=%3 (world radius=%4)", 
+                        screenX, screenY, useRadius, entry.m_Radius);
                 } else if (entry.m_State == ETransmissionState.DISABLED) {
-                    outlineCmd.m_iColor = ARGB(150,255,0,0); // transparent red for disabled
+                    fillCmd.m_iColor = ARGB(150,255,0,0); // Semi-transparent red
+                    outlineCmd.m_iColor = ARGB(255,255,0,0); // Bright red outline
+                    outlineCmd.m_fWidth = 4.0;
+                    outlineCmd.m_bShouldEnclose = true;
                 } else {
-                    outlineCmd.m_iColor = ARGB(255,0,100,255); // blue for OFF state
+                    fillCmd.m_iColor = ARGB(150,0,100,255); // Semi-transparent blue
+                    outlineCmd.m_iColor = ARGB(255,0,150,255); // Bright blue outline
+                    outlineCmd.m_fWidth = 4.0;
+                    outlineCmd.m_bShouldEnclose = true;
                 }
-                outlineCmd.m_fOutlineWidth = 4.0; // Increase thickness for better visibility
+                
+                m_MarkerDrawCommands.Insert(fillCmd);
                 m_MarkerDrawCommands.Insert(outlineCmd);
             }
         }

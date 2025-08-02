@@ -42,6 +42,18 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		if (currentPhase != EBreakingContactPhase.GAME)
 			return false;
 
+		// If radio truck is currently transmitting, check if that specific transmission is DONE
+		if (m_radioTruckComponent && m_radioTruckComponent.GetTransmissionActive()) {
+			// Get the currently active transmission to check its state
+			IEntity radioTruck = m_radioTruckComponent.GetOwner();
+			if (radioTruck) {
+				GRAD_BC_TransmissionComponent activeTPC = bcm.GetNearestTransmissionPoint(radioTruck.GetOrigin(), true);
+				if (activeTPC && activeTPC.GetTransmissionState() == ETransmissionState.DONE) {
+					return false; // Don't allow stopping a DONE transmission
+				}
+			}
+		}
+		// Always allow starting new transmissions at different locations
 		return true;
 	}
 	

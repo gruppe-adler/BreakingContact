@@ -163,8 +163,11 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	}
 	
 	void SetTransmissionActive(bool setState) {
+		PrintFormat("TPC SetTransmissionActive called: setState=%1, current m_bTransmissionActive=%2, current state=%3", setState, m_bTransmissionActive, GetTransmissionState());
+		
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
+			PrintFormat("TPC SetTransmissionActive: Changed m_bTransmissionActive to %1", setState);
 			
 			if (m_bTransmissionActive &&
 				(
@@ -172,6 +175,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.INTERRUPTED
 				)
 			) {
+				PrintFormat("TPC SetTransmissionActive: Starting transmission (setState=true, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.TRANSMITTING);
 			};
 
@@ -180,10 +184,13 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.TRANSMITTING
 				)
 			) {
+				PrintFormat("TPC SetTransmissionActive: Interrupting transmission (setState=false, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.INTERRUPTED);
 			};
-			PrintFormat("TPC - SetTransmissionActive : %1", GetTransmissionState());
+			PrintFormat("TPC - SetTransmissionActive final state: %1", GetTransmissionState());
 
+		} else {
+			PrintFormat("TPC SetTransmissionActive: No change needed, setState=%1 equals current m_bTransmissionActive=%2", setState, m_bTransmissionActive);
 		}
 	}
 

@@ -81,6 +81,12 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		
 		Print(string.Format("Breaking Contact RTC -  Setting m_bIsTransmitting to %1", m_bIsTransmitting), LogLevel.NORMAL);
 		
+		// Immediately notify the BreakingContactManager to handle transmission points
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm) {
+			bcm.ManageMarkers(); // Force immediate update instead of waiting for mainLoop
+		}
+		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
 		// disable transmissions for every transmission point

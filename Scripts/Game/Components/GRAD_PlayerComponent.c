@@ -41,6 +41,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	protected void RpcDo_Owner_TeleportPlayer(vector location)
 	{
 		SCR_Global.TeleportLocalPlayer(location, SCR_EPlayerTeleportedReason.DEFAULT);
+		SCR_UISoundEntity.SoundEvent("{543151332DB70405}sounds/beam.wav");
 	}
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;

@@ -66,6 +66,10 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					} else {
 						m_infoImage.LoadImageTexture(0, "{3B1DCBDCE5DA9CEB}UI/Transmission/rus_established.edds");	
 					}
+					
+					// Play transmission established sound
+					SCR_UISoundEntity.SoundEvent("{3550A48D94380CC2}sounds/beep2.wav");
+					
 					break;
 				}
 
@@ -76,6 +80,10 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					} else {
 						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
 					}
+				
+					// Play transmission established sound
+					SCR_UISoundEntity.SoundEvent("{2F13E941825B650F}sounds/signal_lost.wav");
+				
 					break;
 				}
 

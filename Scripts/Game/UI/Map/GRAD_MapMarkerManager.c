@@ -275,16 +275,18 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_MapEntity.WorldToScreen(radiusWorldX, radiusWorldY, radiusScreenX, radiusScreenY, true);
             float transmissionRadius = Math.AbsFloat(radiusScreenX - screenX);
             
+            // Debug zoom-responsive radius calculation
+            if (entry.m_State == ETransmissionState.DONE || entry.m_State == ETransmissionState.INTERRUPTED) {
+                static int debugCounter = 0;
+                debugCounter++;
+                if (debugCounter % 60 == 0) { // Log every 60 frames (1 second)
+                    PrintFormat("GRAD_MapMarkerManager: ZOOM DEBUG - State=%1, WorldPos=%2,%3, ScreenPos=%4,%5, WorldRadius=%6, ScreenRadius=%7", 
+                        entry.m_State, entry.m_Position[0], entry.m_Position[2], screenX, screenY, entry.m_Radius, transmissionRadius);
+                }
+            }
+            
             // Use full transmission radius for static markers to show 1000m range
             float staticRadius = transmissionRadius;
-            // Use smaller fixed size for outlines only when needed for visibility  
-            float outlineRadius = 15.0; // Fixed 15 pixel radius for small outline visibility
-            
-            // Debug logging for radius calculation
-            if (entry.m_State == ETransmissionState.INTERRUPTED || entry.m_State == ETransmissionState.DONE) {
-                PrintFormat("GRAD_MapMarkerManager: DEBUG - WorldPos=%1,%2 ScreenPos=%3,%4 WorldRadius=%5 ScreenRadius=%6", 
-                    entry.m_Position[0], entry.m_Position[2], screenX, screenY, entry.m_Radius, staticRadius);
-            }
 
             // --- Pulsing circle for TRANSMITTING ---
             if (entry.m_State == ETransmissionState.TRANSMITTING)

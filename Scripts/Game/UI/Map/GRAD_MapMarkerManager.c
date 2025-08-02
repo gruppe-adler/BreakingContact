@@ -375,7 +375,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         bool shouldLog = (debugCounter % 60 == 0); // Log every 60 calls (~1 second)
         
         if (shouldLog) {
-            Print(string.Format("GRAD_MapMarkerManager: UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count()), LogLevel.NORMAL);
+            PrintFormat("GRAD_MapMarkerManager: DEBUG V2 - UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count());
         }
         
         // Remove old text widgets
@@ -388,11 +388,29 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         Widget mapRoot = m_MapEntity.GetMapMenuRoot();
         if (!mapRoot) return;
         
-        Widget mapFrame = mapRoot.FindAnyWidget("MapFrame");
+        // Find the actual MAP canvas using the EXACT same method as SCR_MapMarkerEntity
+        // Use SCR_MapConstants.MAP_FRAME_NAME to get the correct parent widget
+        Widget mapFrame = mapRoot.FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
         if (!mapFrame) {
-            // Try alternative name
-            mapFrame = mapRoot.FindAnyWidget("Frame");
-            if (!mapFrame) return;
+            // Fallback to other names if MAP_FRAME_NAME doesn't exist
+            mapFrame = mapRoot.FindAnyWidget("MapFrame");
+            if (!mapFrame) {
+                mapFrame = mapRoot.FindAnyWidget("Canvas");
+            }
+            if (!mapFrame) {
+                mapFrame = mapRoot.FindAnyWidget("Frame");
+            }
+            if (!mapFrame) {
+                mapFrame = mapRoot;
+            }
+        }
+        
+        if (shouldLog) {
+            PrintFormat("GRAD_MapMarkerManager: Using official map frame widget '%1' (same as SCR_MapMarkerEntity)", mapFrame.GetName());
+        }
+        
+        if (shouldLog) {
+            PrintFormat("GRAD_MapMarkerManager: Using widget '%1' as parent for text widgets", mapFrame.GetName());
         }
         
         // Create text markers for each transmission point
@@ -423,6 +441,24 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             
             if (shouldLog) {
                 Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
+                
+                // Debug frame properties
+                Print(string.Format("GRAD_MapMarkerManager: Frame widget type: %1, visible: %2", textWidget.Type().ToString(), textWidget.IsVisible()), LogLevel.NORMAL);
+            }
+            
+            // Ensure frame widget is properly configured for background
+            FrameWidget frameComp = FrameWidget.Cast(textWidget);
+            if (frameComp) {
+                frameComp.SetColor(Color.FromRGBA(255, 0, 0, 255)); // BRIGHT RED background for testing visibility
+                frameComp.SetVisible(true);
+                frameComp.SetOpacity(1.0);
+                if (shouldLog) {
+                    Print(string.Format("GRAD_MapMarkerManager: Frame background configured (RED) for marker %1", i), LogLevel.NORMAL);
+                }
+            } else {
+                if (shouldLog) {
+                    Print(string.Format("GRAD_MapMarkerManager: Warning - Root widget is not a FrameWidget for marker %1", i), LogLevel.NORMAL);
+                }
             }
             
             // Find the actual TextWidget inside the layout (might be wrapped in a frame)
@@ -458,8 +494,13 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             float progress = entry.m_Component.GetTransmissionDuration() * 100.0;
             string progressText = "";
 			
-            // Set base text styling - use layout defaults but ensure visibility
-            textComp.SetColor(Color.FromRGBA(255, 255, 255, 255)); // Cream white from layout
+            // Set base text styling - ensure all properties are applied
+            textComp.SetColor(Color.FromRGBA(255, 255, 0, 255)); // BRIGHT YELLOW text for testing visibility
+            textComp.SetVisible(true);
+            textComp.SetOpacity(1.0);
+            
+            // Font properties should be applied from the layout file
+            // No need to check GetFont() as it doesn't exist in the API
 			
             // Format text based on state
             switch (entry.m_State) {
@@ -489,15 +530,21 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
             }
             
-            // Position text widget above the marker center
-            // The layout frame has center alignment (0.5, 0.5), so the frame center will be at the position we set
-            float textX = screenX;
-            float textY = screenY - 60; // Position 60 pixels above the marker center
+            // Position text widget above the marker center using EXACT same method as SCR_MapMarkerEntity
+            // Key insight: WorldToScreen() returns DPI-scaled coordinates, but widgets need unscaled coordinates!
+            float textX = GetGame().GetWorkspace().DPIUnscale(screenX);
+            float textY = GetGame().GetWorkspace().DPIUnscale(screenY - 40); // 40 pixels above marker
             
+            if (shouldLog) {
+                PrintFormat("GRAD_MapMarkerManager: DPI scaling - Screen: %1,%2 -> Unscaled: %3,%4", screenX, screenY, textX, textY);
+            }
+            
+            // Set widget position using EXACT same method as SCR_MapMarkerEntity
+            // Don't override layout anchoring - just set position
             FrameSlot.SetPos(textWidget, textX, textY);
             
             if (shouldLog) {
-                PrintFormat("GRAD_MapMarkerManager: Positioned text widget at %1,%2 for marker %3", textX, textY, i);
+                PrintFormat("GRAD_MapMarkerManager: Positioned text widget at unscaled %1,%2 for marker %3", textX, textY, i);
             }
             
             // Add to our tracking array

@@ -192,39 +192,6 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             }
         }
     }
-    
-    // Method to show transmission hints
-    void ShowTransmissionHint(ETransmissionState state)
-    {
-        string message = "";
-        string title = "Transmission Update";
-        
-        switch (state) {
-            case ETransmissionState.TRANSMITTING:
-                message = "Transmission started";
-                break;
-            case ETransmissionState.INTERRUPTED:
-                message = "Transmission interrupted!";
-                break;
-            case ETransmissionState.DONE:
-                message = "Transmission completed";
-                break;
-            case ETransmissionState.DISABLED:
-                message = "Transmission disabled";
-                break;
-            case ETransmissionState.OFF:
-                message = "Transmission stopped";
-                break;
-        }
-        
-        if (message != "") {
-            GRAD_PlayerComponent playerComp = GRAD_PlayerComponent.GetInstance();
-            if (playerComp) {
-                playerComp.ShowHint(message, title, 5, false);
-                PrintFormat("GRAD_MapMarkerManager: Showing hint: %1", message);
-            }
-        }
-    }
 
     // Lightweight frame update - only for animation and rendering when needed
     void EOnPostFrame(IEntity owner, float timeSlice)

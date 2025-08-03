@@ -461,6 +461,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 }
             }
             
+            // TODO might not be necessary 
             // Find the actual TextWidget inside the layout (might be wrapped in a frame)
             TextWidget textComp = TextWidget.Cast(textWidget);
             if (!textComp) {

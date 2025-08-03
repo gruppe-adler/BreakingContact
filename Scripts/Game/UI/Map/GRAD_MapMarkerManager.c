@@ -372,7 +372,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Only log occasionally to reduce spam
         static int debugCounter = 0;
         debugCounter++;
-        bool shouldLog = (debugCounter % 60 == 0); // Log every 60 calls (~1 second)
+        bool shouldLog = (debugCounter % 600 == 0); // Log every 60 calls (~1 second)
         
         if (shouldLog) {
             PrintFormat("GRAD_MapMarkerManager: DEBUG V2 - UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count());

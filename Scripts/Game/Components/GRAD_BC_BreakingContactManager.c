@@ -152,6 +152,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			{
 				message = "Blufor will spawn now.";
 				customSound = "{9B5BA41AF2673181}sounds/gong_2.wav";
+				
 				break;
 			}
 			case EBreakingContactPhase.GAME :
@@ -203,10 +204,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	        return;
 	    }
 	
-	    array<BaseInfoDisplay> infoDisplays = {};
-		GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);
+		// BC LOGO
+	    array<BaseInfoDisplay> infoDisplaysLogo = {};
+		GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplaysLogo);
 		GRAD_BC_Logo logoDisplay = null;
-		foreach (BaseInfoDisplay baseDisp : infoDisplays)
+		foreach (BaseInfoDisplay baseDisp : infoDisplaysLogo)
 		{
 		    // Try casting *each* BaseInfoDisplay directly to GRAD_BC_Logo
 		    GRAD_BC_Logo candidate = GRAD_BC_Logo.Cast(baseDisp);
@@ -220,6 +222,28 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	        Print("InfoDisplay found was not a GRAD_BC_Logo!", LogLevel.ERROR);
 	        return;
 	    }
+		
+		// BC GAMESTATE
+		array<BaseInfoDisplay> infoDisplaysGameState = {};
+		GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplaysGameState);
+		GRAD_BC_Gamestate gamestateDisplay = null;
+		foreach (BaseInfoDisplay baseDisp : infoDisplaysGameState)
+		{
+		    // Try casting *each* BaseInfoDisplay directly to gamestateDisplay
+		    GRAD_BC_Gamestate candidate = GRAD_BC_Gamestate.Cast(baseDisp);
+		    if (candidate)
+		    {
+		        gamestateDisplay = candidate;
+		        break;
+		    }
+		}
+	    if (!gamestateDisplay) {
+	        Print("InfoDisplay found was not a gamestateDisplay!", LogLevel.ERROR);
+	        return;
+	    }
+		
+		gamestateDisplay.ShowText(message);
+		
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
@@ -258,6 +282,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		return factionKey;
 	}
+	
+
 	
 	//------------------------------------------------------------------------------------------------
 	void setPhaseInitial() 

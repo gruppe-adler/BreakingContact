@@ -1,0 +1,31 @@
+OverlayWidgetClass {
+ Name "GRAD_BC_Gamestate"
+ Clipping False
+ {
+  ImageWidgetClass "{6606FC361C0D313C}" {
+   Name "Image0"
+   Slot OverlayWidgetSlot "{6606FC36E15BD1FA}" {
+    HorizontalAlign 3
+    VerticalAlign 0
+   }
+   Clipping False
+   Color 0 0 0 0.5882
+   Size 32 96
+  }
+  RichTextWidgetClass "{6606FC350BE2F12E}" {
+   Name "GRAD_BC_Gamestate_text"
+   Slot OverlayWidgetSlot "{6606FC36E15BD1F6}" {
+    VerticalAlign 0
+    Padding 0 16 0 0
+   }
+   "Font Size" 56
+   "Min Font Size" 56
+   "Horizontal Alignment" Center
+   "Vertical Alignment" Center
+   FontProperties FontProperties "{6606FC354C98D3F0}" {
+    Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
+    OutlineSize 2
+   }
+  }
+ }
+}

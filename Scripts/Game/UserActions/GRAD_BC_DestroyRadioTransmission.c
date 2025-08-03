@@ -56,34 +56,53 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		vector currentPos = pOwnerEntity.GetOrigin();
 		vector currentAngles = pOwnerEntity.GetYawPitchRoll();
 		
-		// Unregister the transmission component from the manager first
+		// Set the transmission component to DISABLED state instead of destroying it
+		// This keeps the marker visible during cooldown
+		m_transmissionComponent.SetTransmissionState(ETransmissionState.DISABLED);
+		
+		// Stop any active transmission
+		m_transmissionComponent.SetTransmissionActive(false);
+		
+		// Register destroyed position for additional spawn prevention
 		GRAD_BC_BreakingContactManager bcManager = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcManager)
 		{
-			// Register the destroyed position to prevent immediate respawning
 			Print(string.Format("BC Debug - Registering destroyed transmission at position %1", currentPos.ToString()), LogLevel.NORMAL);
 			bcManager.RegisterDestroyedTransmissionPosition(currentPos);
 			
-			bcManager.UnregisterTransmissionComponent(m_transmissionComponent);
-			Print("BC Debug - Transmission component unregistered from manager", LogLevel.NORMAL);
+			// Also register the disabled component for re-enabling after cooldown
+			bcManager.RegisterDisabledTransmissionComponent(m_transmissionComponent);
 		}
 		else
 		{
 			Print("BC Debug - Could not find Breaking Contact Manager", LogLevel.WARNING);
 		}
 		
-		// Destroy the transmission component
-		m_transmissionComponent.OnDelete(pOwnerEntity);
+		// Hide the antenna model instead of destroying the entity
+		HideAntennaModel(pOwnerEntity);
 		
-		// Spawn the destroyed antenna model at the same position
-		SpawnDestroyedAntenna(currentPos, currentAngles);
+		// Spawn debris pieces around the destroyed antenna
+		SpawnAntennaDebris(currentPos, currentAngles);
 		
-		// Remove the original antenna entity
-		SCR_EntityHelper.DeleteEntityAndChildren(pOwnerEntity);
-		
-		Print("BC Debug - Antenna destroyed and replaced on server", LogLevel.NORMAL);
+		Print("BC Debug - Antenna disabled and hidden on server", LogLevel.NORMAL);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Hide the antenna model by setting its visibility to false
+	private void HideAntennaModel(IEntity antennaEntity)
+	{
+		if (!antennaEntity)
+		{
+			Print("BC Debug - Cannot hide antenna: entity is null", LogLevel.ERROR);
+			return;
+		}
+		
+		// Hide the visual representation of the antenna
+		antennaEntity.ClearFlags(EntityFlags.VISIBLE, false);
+		
+		Print("BC Debug - Antenna model hidden", LogLevel.NORMAL);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	protected void SpawnDestroyedAntenna(vector position, vector angles)
 	{

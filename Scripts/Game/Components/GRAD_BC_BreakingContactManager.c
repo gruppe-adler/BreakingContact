@@ -77,8 +77,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Track destroyed transmission locations to prevent immediate respawning
 	protected ref array<vector> m_aDestroyedTransmissionPositions = {};
 	protected ref array<float> m_aDestroyedTransmissionTimes = {};
-	protected static float DESTROYED_TRANSMISSION_COOLDOWN = 300.0; // 5 minutes in seconds
+	protected static float DESTROYED_TRANSMISSION_COOLDOWN = 300000.0; // 5 minutes in milliseconds (GetWorldTime returns milliseconds)
 	protected static float DESTROYED_TRANSMISSION_MIN_DISTANCE = 1000.0; // Minimum distance from destroyed transmission
+	
+	// Track disabled transmission components for re-enabling after cooldown
+	protected ref array<GRAD_BC_TransmissionComponent> m_aDisabledTransmissionComponents = {};
+	protected ref array<float> m_aDisabledTransmissionTimes = {};
 	
 	protected PlayerManager m_PlayerManager;
 	
@@ -374,6 +378,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// Clean up expired destroyed transmission positions
 		CleanupExpiredDestroyedTransmissions();
 		
+		// Clean up expired disabled transmission components and re-enable them
+		CleanupExpiredDisabledTransmissions();
+		
         // skip win conditions if active
 		if (GameModeStarted() && !(GameModeOver())) {
 			CheckWinConditions();
@@ -549,12 +556,28 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		if (!m_aDestroyedTransmissionTimes)
 			m_aDestroyedTransmissionTimes = {};
 			
+		float currentTime = GetGame().GetWorld().GetWorldTime();
 		m_aDestroyedTransmissionPositions.Insert(position);
-		m_aDestroyedTransmissionTimes.Insert(GetGame().GetWorld().GetWorldTime());
+		m_aDestroyedTransmissionTimes.Insert(currentTime);
 		
-		Print(string.Format("BCM - Registered destroyed transmission at position %1", position.ToString()), LogLevel.NORMAL);
+		Print(string.Format("BCM - Registered destroyed transmission at position %1 at time %2", position.ToString(), currentTime), LogLevel.NORMAL);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	void RegisterDisabledTransmissionComponent(GRAD_BC_TransmissionComponent component)
+	{
+		if (!m_aDisabledTransmissionComponents)
+			m_aDisabledTransmissionComponents = {};
+		if (!m_aDisabledTransmissionTimes)
+			m_aDisabledTransmissionTimes = {};
+			
+		float currentTime = GetGame().GetWorld().GetWorldTime();
+		m_aDisabledTransmissionComponents.Insert(component);
+		m_aDisabledTransmissionTimes.Insert(currentTime);
+		
+		Print(string.Format("BCM - Registered disabled transmission component at time %1", currentTime), LogLevel.NORMAL);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	protected void CleanupExpiredDestroyedTransmissions()
 	{
@@ -565,24 +588,99 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		for (int i = m_aDestroyedTransmissionTimes.Count() - 1; i >= 0; i--)
 		{
-			if (currentTime - m_aDestroyedTransmissionTimes[i] > DESTROYED_TRANSMISSION_COOLDOWN)
+			float destroyedTime = m_aDestroyedTransmissionTimes[i];
+			float timeDiff = currentTime - destroyedTime;
+			Print(string.Format("BCM - Cleanup check: current time %1, destroyed time %2, diff %3, cooldown %4", currentTime, destroyedTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+			
+			if (timeDiff > DESTROYED_TRANSMISSION_COOLDOWN)
 			{
-				Print(string.Format("BCM - Removing expired destroyed transmission at %1", m_aDestroyedTransmissionPositions[i].ToString()), LogLevel.NORMAL);
+				Print(string.Format("BCM - Removing expired destroyed transmission at %1 (time diff: %2 > %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 				m_aDestroyedTransmissionPositions.Remove(i);
 				m_aDestroyedTransmissionTimes.Remove(i);
+			}
+			else
+			{
+				Print(string.Format("BCM - Keeping destroyed transmission at %1 (time diff: %2 < %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 			}
 		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	protected void CleanupExpiredDisabledTransmissions()
+	{
+		if (!m_aDisabledTransmissionComponents || !m_aDisabledTransmissionTimes)
+			return;
+			
+		float currentTime = GetGame().GetWorld().GetWorldTime();
+		
+		for (int i = m_aDisabledTransmissionTimes.Count() - 1; i >= 0; i--)
+		{
+			float disabledTime = m_aDisabledTransmissionTimes[i];
+			float timeDiff = currentTime - disabledTime;
+			Print(string.Format("BCM - Cleanup check for disabled: current time %1, disabled time %2, diff %3, cooldown %4", currentTime, disabledTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+			
+			if (timeDiff > DESTROYED_TRANSMISSION_COOLDOWN)
+			{
+				GRAD_BC_TransmissionComponent component = m_aDisabledTransmissionComponents[i];
+				if (component)
+				{
+					Print(string.Format("BCM - Re-enabling disabled transmission component (time diff: %1 > %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+					
+					// Show the antenna model again
+					ReShowAntennaModel(component);
+					
+					// Reset the transmission state to OFF so it can be activated again
+					component.SetTransmissionState(ETransmissionState.OFF);
+					component.SetTransmissionActive(true);
+				}
+				
+				m_aDisabledTransmissionComponents.Remove(i);
+				m_aDisabledTransmissionTimes.Remove(i);
+			}
+			else
+			{
+				Print(string.Format("BCM - Keeping disabled transmission component (time diff: %1 < %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+			}
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	protected void ReShowAntennaModel(GRAD_BC_TransmissionComponent component)
+	{
+		if (!component)
+		{
+			Print("BCM - Cannot re-show antenna: component is null", LogLevel.ERROR);
+			return;
+		}
+		
+		IEntity owner = component.GetOwner();
+		if (!owner)
+		{
+			Print("BCM - Cannot re-show antenna: owner entity is null", LogLevel.ERROR);
+			return;
+		}
+		
+		// Show the visual representation of the antenna
+		owner.SetFlags(EntityFlags.VISIBLE, true);
+		
+		Print("BCM - Antenna model re-shown", LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	protected bool IsNearDestroyedTransmission(vector position)
 	{
 		if (!m_aDestroyedTransmissionPositions)
+		{
+			Print("BCM - No destroyed transmission positions tracked", LogLevel.NORMAL);
 			return false;
+		}
 			
+		Print(string.Format("BCM - Checking position %1 against %2 destroyed transmissions", position.ToString(), m_aDestroyedTransmissionPositions.Count()), LogLevel.NORMAL);
+		
 		foreach (vector destroyedPos : m_aDestroyedTransmissionPositions)
 		{
 			float distance = vector.Distance(position, destroyedPos);
+			Print(string.Format("BCM - Distance to destroyed transmission at %1: %2m (limit: %3m)", destroyedPos.ToString(), distance, DESTROYED_TRANSMISSION_MIN_DISTANCE), LogLevel.NORMAL);
 			if (distance < DESTROYED_TRANSMISSION_MIN_DISTANCE)
 			{
 				Print(string.Format("BCM - Position %1 is too close to destroyed transmission at %2 (distance: %3)", position.ToString(), destroyedPos.ToString(), distance), LogLevel.NORMAL);
@@ -590,6 +688,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			}
 		}
 		
+		Print("BCM - Position is not near any destroyed transmissions", LogLevel.NORMAL);
 		return false;
 	}
 
@@ -598,12 +697,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	GRAD_BC_TransmissionComponent GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 			auto transmissionPoints = GetTransmissionPoints();
-			// PrintFormat(
-			//   "Breaking Contact GetNearestTransmissionPoint — currently have %1 TPCs in array",
-			//   transmissionPoints.Count()
-			// );
-			
-			// Print(string.Format("Breaking Contact RTC - GetNearestTransmissionPoint"), LogLevel.NORMAL);
+			Print(string.Format("BCM - GetNearestTransmissionPoint called at %1, isTransmitting: %2, existing points: %3", center.ToString(), isTransmitting, transmissionPoints.Count()), LogLevel.NORMAL);
 			
 			GRAD_BC_TransmissionComponent closest;
 
@@ -616,11 +710,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 				foreach (ref GRAD_BC_TransmissionComponent tpc : transmissionPoints)
 				{
 					if (!tpc) {
-						// Print(string.Format("Breaking Contact RTC - tpc is null"), LogLevel.ERROR);
+						Print(string.Format("Breaking Contact RTC - tpc is null"), LogLevel.ERROR);
 						continue;
 					}
 				
 					float distance = vector.Distance(tpc.GetPosition(), center);
+					Print(string.Format("BCM - Found existing transmission at %1, distance: %2m", tpc.GetPosition().ToString(), distance), LogLevel.NORMAL);
 
 					// check if distance is in reach of radiotruck
 					if (distance < bestDist) {
@@ -631,17 +726,22 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			
 				// If we already found an existing TPC within range, return that:
 				if (closest)
-        			return closest;
+				{
+					Print(string.Format("BCM - Returning existing closest transmission at distance %1", bestDist), LogLevel.NORMAL);
+	        		return closest;
+				}
 			
 				if (isTransmitting)
 				{
 				    // cooldown prevents double spawn
 				    if (m_spawnLock > 0)
 				    {
+				        Print(string.Format("BCM - Spawn locked, countdown: %1", m_spawnLock), LogLevel.NORMAL);
 				        m_spawnLock--;
 				        return null;
 				    }
 				
+				    Print(string.Format("BCM - Checking if can spawn new transmission at %1", center.ToString()), LogLevel.NORMAL);
 				    // Check if position is too close to a destroyed transmission
 				    if (IsNearDestroyedTransmission(center))
 				    {
@@ -650,6 +750,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 				    }
 				
 				    // ready to drop a new antenna
+				    Print("BCM - Spawning new transmission point", LogLevel.NORMAL);
 				    SpawnTransmissionPoint(center);
 				    m_spawnLock = 3;        // three main-loop ticks ≈ 3 s
 				}
@@ -658,6 +759,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			// if no TPC exist, create a new
 			if (transmissionPoints.Count() == 0 && isTransmitting)
 	    {
+	    		Print(string.Format("BCM - No existing transmissions, checking if can spawn first at %1", center.ToString()), LogLevel.NORMAL);
 	    		// Check if position is too close to a destroyed transmission
 	    		if (IsNearDestroyedTransmission(center))
 	    		{
@@ -665,12 +767,14 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    			return null;
 	    		}
 	    		
+	    		Print("BCM - Spawning first transmission point", LogLevel.NORMAL);
 				this.SpawnTransmissionPoint(center);
 	        // Print("Breaking Contact RTC - SpawnTransmissionPoint called (no existing points)", LogLevel.NORMAL);
 				// By returning null, we wait one frame for the component to initialize. fixing race condition
 				return null;
 	    }
-			return null;
+	    Print("BCM - No transmission spawning conditions met", LogLevel.NORMAL);
+		return null;
 	}
 
 	

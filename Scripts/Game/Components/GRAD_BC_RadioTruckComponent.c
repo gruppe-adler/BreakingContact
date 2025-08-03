@@ -12,6 +12,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	[RplProp()]
 	protected bool m_bIsTransmitting;
+	
+	[RplProp()]
+	protected bool m_bIsDisabled = false;
 
 	private Vehicle m_radioTruck;
 
@@ -74,8 +77,32 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	{
 		return m_bIsTransmitting;
 	}
+	
+	bool GetIsDisabled()
+	{
+		return m_bIsDisabled;
+	}
+	
+	void SetIsDisabled(bool disabled)
+	{
+		m_bIsDisabled = disabled;
+		if (disabled)
+		{
+			// Stop any active transmission when disabled
+			SetTransmissionActive(false);
+		}
+		Replication.BumpMe();
+		Print(string.Format("Breaking Contact RTC - Radio truck disabled state set to %1", m_bIsDisabled), LogLevel.NORMAL);
+	}
 
 	void SetTransmissionActive(bool setTo) {
+		// Don't allow transmission if the radio truck is disabled
+		if (m_bIsDisabled && setTo)
+		{
+			Print("Breaking Contact RTC - Cannot start transmission: Radio truck is disabled", LogLevel.WARNING);
+			return;
+		}
+		
 		m_bIsTransmitting = setTo;
 		Replication.BumpMe();
 		

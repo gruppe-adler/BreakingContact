@@ -6,6 +6,8 @@ SCR_PlayerController {
   }
   ADM_PlayerShopManagerComponent "{644D68F5C12179D3}" {
   }
+  GRAD_PlayerComponent "{6574C16112F8567A}" {
+  }
   SCR_HUDManagerComponent "{2FDC275D9EBCDB8B}" {
    InfoDisplays {
     GRAD_BC_Logo "{5F3EC92AC9E424F8}" {
@@ -16,9 +18,10 @@ SCR_PlayerController {
      m_LayoutPath "{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout"
      m_eShow 55
     }
+    GRAD_BC_Gamestate "{66072C1C64A76AD9}" {
+     m_eShow 55
+    }
    }
-  }
-  GRAD_PlayerComponent "{6574C16112F8567A}" {
   }
  }
 }

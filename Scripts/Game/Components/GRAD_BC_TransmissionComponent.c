@@ -130,7 +130,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 
 	
 	//------------------------------------------------------------------------------------------------
-	private void SetTransmissionState(ETransmissionState transmissionState)
+	void SetTransmissionState(ETransmissionState transmissionState)
 	{
 		if (m_eTransmissionState != transmissionState) {
 			ETransmissionState oldState = m_eTransmissionState;

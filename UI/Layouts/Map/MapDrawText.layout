@@ -1,12 +1,13 @@
-FrameWidgetClass {
+SizeLayoutWidgetClass {
  Name "Container"
+ Clipping False
  {
   TextWidgetClass "{66069B85185B292C}" {
    Name "Text"
-   Slot FrameWidgetSlot "{66069B85185B297B}" {
-    SizeToContent 1
+   Slot AlignableSlot "{6606F7C6358C8354}" {
    }
    "Font Size" 48
+   "Min Font Size" 48
    FontProperties FontProperties "{66069B84192C73D8}" {
     Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
     OutlineSize 2

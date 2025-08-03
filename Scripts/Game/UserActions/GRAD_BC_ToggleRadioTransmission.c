@@ -41,6 +41,10 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		// Only allow in GAME phase (adjust if your "started" phase is different)
 		if (currentPhase != EBreakingContactPhase.GAME)
 			return false;
+		
+		// Don't allow if radio truck is disabled
+		if (m_radioTruckComponent && m_radioTruckComponent.GetIsDisabled())
+			return false;
 
 		// If radio truck is currently transmitting, allow stopping it
 		if (m_radioTruckComponent && m_radioTruckComponent.GetTransmissionActive()) {
@@ -110,6 +114,12 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		{
 			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
 			return false;
+		}
+		
+		if (m_radioTruckComponent.GetIsDisabled())
+		{
+			outName = "Radio Truck Disabled";
+			return true;
 		}
 		
 		if (m_radioTruckComponent.GetTransmissionActive())

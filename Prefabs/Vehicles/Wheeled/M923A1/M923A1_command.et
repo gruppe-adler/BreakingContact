@@ -47,5 +47,142 @@ Vehicle : "{9A0D72816DFFDB7F}Prefabs/Vehicles/Wheeled/M923A1/M923A1.et" {
     }
    }
   }
+  SCR_CampaignBuildingProviderComponent "{6607025584AEC799}" {
+   m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
+   m_bUserActionActivationOnly 1
+   m_aBudgetsToEvaluate {
+    SCR_CampaignBuildingBudgetToEvaluateData "{660702558FD37E3E}" {
+     m_eBudget CAMPAIGN
+    }
+    SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{66070251808F6E42}" {
+     m_eBudget 2147483647
+     m_aCustomCooldownData {
+      SCR_CooldownData "{5EEEF52515996867}" {
+       m_fDefaultTimeMultiplier 105
+      }
+      SCR_CooldownData "{5EEEF5250BF881BF}" {
+       m_eRank CORPORAL
+       m_fDefaultTimeMultiplier 75
+      }
+      SCR_CooldownData "{5EEEF5250BBA697C}" {
+       m_eRank SERGEANT
+       m_fDefaultTimeMultiplier 50
+      }
+      SCR_CooldownData "{5EEEF5250B54777E}" {
+       m_eRank LIEUTENANT
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF5250B763DE5}" {
+       m_eRank CAPTAIN
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF52574D7AC41}" {
+       m_eRank MAJOR
+       m_fDefaultTimeMultiplier 5
+      }
+      SCR_CooldownData "{5EEEF5256543246C}" {
+       m_eRank COLONEL
+      }
+      SCR_CooldownData "{5EEEF5255ABE05CA}" {
+       m_eRank RENEGADE
+       m_fDefaultTimeMultiplier 1000
+      }
+     }
+    }
+    SCR_CampaignBuildingRankBudgetToEvaluateData "{6607025194A3C08B}" {
+     m_eBudget RANK_PRIVATE
+    }
+   }
+   m_aAvailableTraits {
+    53 54
+   }
+  }
+  SCR_CatalogEntitySpawnerComponent "{66070255B71BE7F0}" {
+   m_fMaxSlotDistance 40
+   m_eType HEAVY_VEHICLE_DEPOT
+   m_eBuildingLabel SERVICE_VEHICLE_DEPOT_HEAVY
+   m_sDelegatePrefab "{D0F4728030717E00}Prefabs/Systems/Services/ServicePointDelegate_VehicleDepotHeavy.et"
+   m_aCatalogTypes {
+    30
+   }
+   m_aAllowedLabels {
+    53 54
+   }
+   m_aIgnoredLabels {
+    280
+   }
+   m_bNeedAllLabels 0
+   m_bSuppliesConsumptionEnabled 1
+  }
+  SCR_ResourceComponent "{6607025EE0629C2C}" {
+   m_aContainers {
+    SCR_ResourceContainer "{6607025C32AA0624}" {
+     m_eResourceRights FACTION
+     m_eStorageType CARGO_VEHICLE
+     m_fResourceValueCurrent 1000
+     m_fResourceValueMax 2000
+    }
+   }
+   m_aConsumers {
+    SCR_ResourceConsumerServicePoint "{6607025EFE928B7B}" {
+     m_sDebugName "Vehicle Spawner - Consumer"
+     m_eResourceRights ALL
+     m_eGeneratorIdentifier DEFAULT
+     m_fResourceRange 135
+     m_fSellMultiplier 0
+     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
+      m_StoragePolicies {
+       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
+        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
+        }
+        m_eStorageType CARGO_VEHICLE
+       }
+      }
+     }
+    }
+   }
+   m_aGenerators {
+    SCR_ResourceGeneratorServicePoint "{6607025F0E801E7A}" {
+     m_sDebugName "Vehicle Spawner - Generator"
+     m_eResourceRights ALL
+     m_fResourceMultiplier 0.333
+     m_fStorageRange 135
+     m_ContainerQueue SCR_ResourceGeneratorContainerQueue "{6607025FD6F1FD00}" {
+      m_StoragePolicies {
+       SCR_ResourceGeneratorStoragePolicy "{6607025FD2968DFF}" {
+        m_StorageQueue SCR_ResourceGeneratorContainerStorageQueueExtended "{6607025FDFA5C74C}" {
+        }
+        m_eStorageType CARGO_VEHICLE
+       }
+       SCR_ResourceGeneratorStoragePolicy "{6607025FDB164A86}" {
+        m_StorageQueue SCR_ResourceGeneratorContainerStorageQueueExtended "{6607025FE7C00FDF}" {
+        }
+       }
+      }
+     }
+     m_aActions {
+      SCR_ResourceGeneratorActionStore "{5E5CC245EF925285}" {
+      }
+      SCR_ResourceGeneratorActionDropContainers "{5E5CC245ECE3A15F}" {
+      }
+     }
+    }
+   }
+  }
+  ActionsManagerComponent "{C97BE5489221AE18}" {
+   additionalActions {
+    SCR_CampaignBuildingStartUserAction "{6607025722D2D19F}" {
+     ParentContextList {
+      "tow_hook"
+     }
+     UIInfo UIInfo "{660702574C5CA279}" {
+      Name "#AR-Action_RequestVehicle"
+     }
+     VisibilityRange 10
+     Duration 0.5
+     m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
+    }
+   }
+  }
  }
 }

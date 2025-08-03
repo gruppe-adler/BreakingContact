@@ -65,8 +65,8 @@ class GRAD_PlayerComponent : ScriptComponent
 		if (gameMode) {
 			if (gameMode.GetState() == SCR_EGameModeState.GAME) {
 				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
-				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 3000, false);
-				GetGame().GetCallqueue().CallLater(ForceOpenMap, 4000, false);
+				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 1000, false);
+				GetGame().GetCallqueue().CallLater(ForceOpenMap, 1500, false);
 				
 				SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 				if (!ch)  {
@@ -82,7 +82,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		}
 		
 		// loop until LobbyMod decides its time to go to GAME
-		GetGame().GetCallqueue().CallLater(EOnInit, 3000, false, owner);
+		GetGame().GetCallqueue().CallLater(EOnInit, 1000, false, owner);
     }
 			
 	bool IsChoosingSpawn() 

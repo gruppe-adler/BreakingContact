@@ -120,8 +120,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			m_iNotificationDuration = 10;
 			
 			// check win conditions every second
-			GetGame().GetCallqueue().CallLater(mainLoop, 10000, true);
-			GetGame().GetCallqueue().CallLater(setPhaseInitial, 11000, false);
+			GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
+			GetGame().GetCallqueue().CallLater(setPhaseInitial, 1100, false);
 		}
     }
 	
@@ -134,6 +134,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase));
 		string message = "Breaking Contact";
+		string customSound = "";
 		
 		switch (m_iBreakingContactPhase) {
 			case EBreakingContactPhase.PREPTIME :
@@ -144,16 +145,19 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			case EBreakingContactPhase.OPFOR :
 			{
 				message = "Opfor has to spawn now.";
+				customSound = "{02451D83EF800011}sounds/gong_1.wav";
 				break;
 			}
 			case EBreakingContactPhase.BLUFOR :
 			{
 				message = "Blufor will spawn now.";
+				customSound = "{9B5BA41AF2673181}sounds/gong_2.wav";
 				break;
 			}
 			case EBreakingContactPhase.GAME :
 			{
 				message = "Blufor spawned, Game begins now.";
+				customSound = "{EC51CC9206C5DEF1}sounds/gong_3.wav";
 				break;
 			}
 			case EBreakingContactPhase.GAMEOVER :
@@ -172,7 +176,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			return;
 		
 		// no rpc needed here, logs already on client
-		SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
+		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
+		if (customSound != "") {
+			AudioSystem.PlaySound(customSound);
+		}
 		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		
 		// close map for opfor
@@ -311,6 +318,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// set opfor phase as soon as players leave lobby
 		PS_GameModeCoop psGameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
 		EBreakingContactPhase currentPhase = GetBreakingContactPhase();
+		
 		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
 		{
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)

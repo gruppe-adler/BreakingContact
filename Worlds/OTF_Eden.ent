@@ -1,3 +1,15 @@
 SubScene {
  Parent "worlds/Eden/Eden.ent"
+ ScriptClass ""
+ LoadingHint ""
+ {
+  SCR_MissionHeader {
+   Name "Breaking Contact - OTF Eden"
+   Author "GRAD"
+   Description "A tactical communication disruption mission on Eden."
+   PreviewImage "{2D8A4578123D8E7E}UI/Textures/EditorPreviews/Auto/E_US_HelmetACH_01_v2.edds"
+   OverviewText "Break enemy communication lines while maintaining your own tactical advantage."
+   OverviewImage "{2D8A4578123D8E7E}UI/Textures/EditorPreviews/Auto/E_US_HelmetACH_01_v2.edds"
+  }
+ }
 }

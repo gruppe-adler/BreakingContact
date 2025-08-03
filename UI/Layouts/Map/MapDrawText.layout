@@ -10,23 +10,23 @@ FrameWidgetClass "{6605000BD3515E0B}" {
     OffsetLeft 0
     PositionY 0
     OffsetTop 0
-    SizeX 240
-    OffsetRight -240
-    SizeY 80
-    OffsetBottom -80
+    SizeX 280
+    OffsetRight -280
+    SizeY 100
+    OffsetBottom -100
     Alignment 0.5 0.5
     SizeToContent 0
    }
    Color 1 0.9698 0.8743 1
-   "Font Size" 48
+   "Font Size" 42
    "Horizontal Alignment" Center
    "Vertical Alignment" Center
    FontProperties FontProperties "{6604F8063D9137EA}" {
     Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
-    OutlineSize 3
-    ShadowSize 4
-    ShadowOffset 2 2
-    ShadowOpacity 0.9
+    OutlineSize 2
+    ShadowSize 3
+    ShadowOffset 1 1
+    ShadowOpacity 0.8
    }
   }
  }

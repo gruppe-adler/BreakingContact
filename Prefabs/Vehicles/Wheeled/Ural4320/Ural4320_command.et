@@ -52,33 +52,5 @@ Vehicle : "{4597626AF36C0858}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320.et" {
   }
   GRAD_BC_RadioTruckComponent "{64735A819DF09558}" {
   }
-  ActionsManagerComponent "{C97BE5489221AE18}" {
-   additionalActions {
-    GRAD_BC_ToggleRadioTransmission "{644ABAE084092DB0}" {
-     ParentContextList {
-      "tow_hook"
-     }
-     UIInfo SCR_ActionUIInfo "{644ABAE0A271F588}" {
-      Name "Toggle Radio Transmission"
-     }
-    }
-    GRAD_BC_GetRadioTransmissionDuration "{644ABAE082E2EB31}" {
-     ParentContextList {
-      "tow_hook"
-     }
-     UIInfo SCR_ActionUIInfo "{644ABAE0B034659F}" {
-      Name "Get Transmission Duration"
-     }
-    }
-    GRAD_BC_DisableRadioTruck "{644ABAE0C5F3A1B2}" {
-     ParentContextList {
-      "tow_hook"
-     }
-     UIInfo SCR_ActionUIInfo "{644ABAE0C8E4D7F3}" {
-      Name "Disable Radio Truck"
-     }
-    }
-   }
-  }
  }
 }

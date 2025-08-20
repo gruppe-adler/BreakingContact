@@ -136,6 +136,11 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
 		IEntity radioTruck = pOwnerEntity.GetParent(); // parent of box is truck itself
+		if (!radioTruck)
+		{
+			Print("BC Debug - no parent for disableradiotruck action", LogLevel.WARNING);
+			return;
+		}
 		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
 	}
 }

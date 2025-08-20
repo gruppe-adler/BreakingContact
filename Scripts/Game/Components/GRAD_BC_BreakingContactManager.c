@@ -38,6 +38,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	protected int m_spawnLock = 0;
 	
 	protected string m_sWinnerSide;
+	
+	// Radio truck destruction tracking
+	protected bool m_bRadioTruckDestroyed = false;
+	protected string m_sRadioTruckDestroyerFaction = "";
 
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
@@ -852,25 +856,28 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
 		
-		if (bluforEliminated) {
+		// Check for radio truck destruction first (highest priority)
+		if (m_bRadioTruckDestroyed) {
+			isOver = true;
+			// m_sWinnerSide already set in SetRadioTruckDestroyed
+			Print(string.Format("Breaking Contact - Radio truck destroyed, winner: %1", m_sWinnerSide), LogLevel.NORMAL);
+		}
+		else if (bluforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
 			Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
 		}
-
-		if (finishedAllTransmissions) {
+		else if (finishedAllTransmissions) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
 			Print(string.Format("Breaking Contact - All transmissions done"), LogLevel.NORMAL);
 		}
-		
-		if (opforEliminated) {
+		else if (opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
 			Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
 		}
-
-		if (m_bluforCaptured) {
+		else if (m_bluforCaptured) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
 			Print(string.Format("Breaking Contact - Blufor captured radio truck"), LogLevel.NORMAL);
@@ -908,6 +915,51 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	void SetRadioTruckDestroyed(string destroyerFaction)
+	{
+		if (GameModeOver())
+			return; // Game already over
+		
+		m_bRadioTruckDestroyed = true;
+		m_sRadioTruckDestroyerFaction = destroyerFaction;
+		
+		Print(string.Format("Breaking Contact - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+		
+		// The faction that destroyed the radio truck loses
+		if (destroyerFaction == "US")
+		{
+			m_sWinnerSide = "opfor";
+			NotifyAllPlayersRadioTruckDestroyed("BLUFOR destroyed the radio truck! OPFOR wins!");
+		}
+		else if (destroyerFaction == "USSR")
+		{
+			m_sWinnerSide = "blufor";
+			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
+		}
+		else
+		{
+			// Unknown or neutral destruction - treat as draw or no effect
+			Print(string.Format("Breaking Contact - Radio truck destroyed by unknown faction: %1", destroyerFaction), LogLevel.WARNING);
+			return;
+		}
+		
+		// Immediately end the game
+		GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	bool IsRadioTruckDestroyed()
+	{
+		return m_bRadioTruckDestroyed;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	string GetRadioTruckDestroyerFaction()
+	{
+		return m_sRadioTruckDestroyerFaction;
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void NotifyAllPlayersRadioTruckDisabled()
 	{
 		array<int> playerIds = {};
@@ -915,6 +967,30 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 		const string title = "Breaking Contact";
 		const string message = "BLUFOR has disabled the OPFOR radio truck! BLUFOR wins!";
+		int duration = m_iNotificationDuration;
+		bool isSilent = false;
+		
+		foreach (int playerId : playerIds)
+		{
+			IEntity playerEntity = GetPlayerManager().GetPlayerControlledEntity(playerId);
+			if (!playerEntity) continue;
+			
+			// Get player component to show hint
+			GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(playerEntity.FindComponent(GRAD_PlayerComponent));
+			if (playerComponent)
+			{
+				playerComponent.ShowHint(message, title, duration, isSilent);
+			}
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void NotifyAllPlayersRadioTruckDestroyed(string message)
+	{
+		array<int> playerIds = {};
+		GetPlayerManager().GetAllPlayers(playerIds);
+
+		const string title = "Breaking Contact";
 		int duration = m_iNotificationDuration;
 		bool isSilent = false;
 		

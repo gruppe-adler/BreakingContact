@@ -1,0 +1,103 @@
+FrameWidgetClass {
+ Name "ReplayControls"
+ Anchors 0 1 0 1
+ Position 10 -120 10 -10
+ Size 400 100
+ Flags 8388608
+ Color 0 0 0 0.8
+ 
+ PanelWidgetClass {
+  Name "ControlPanel"
+  Color 0.1 0.1 0.1 0.9
+  
+  HorizontalLayoutWidgetClass {
+   Name "ButtonsLayout"
+   Anchors 0.1 0.1 0.9 0.9
+   Flags 1048576
+   
+   ButtonWidgetClass {
+    Name "PlayPauseButton"
+    Text "PAUSE"
+    Size 80 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Bold.fnt"
+    FontSize 16
+    BackgroundDefault "{6143DDDDF7A8BBDB}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Default.edds"
+    BackgroundHover "{B3A8C5A25500AFAF}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Hover.edds"
+    BackgroundClicked "{8145A1A2F86D6D85}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Clicked.edds"
+   }
+   
+   SpacerWidgetClass {
+    Size 10 0
+   }
+   
+   TextWidgetClass {
+    Name "SpeedLabel"
+    Text "Speed:"
+    Size 50 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Regular.fnt"
+    FontSize 14
+    HorizontalAlignment 3
+    VerticalAlignment 3
+   }
+   
+   ButtonWidgetClass {
+    Name "SlowButton"
+    Text "0.5x"
+    Size 50 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Regular.fnt"
+    FontSize 12
+    BackgroundDefault "{6143DDDDF7A8BBDB}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Default.edds"
+    BackgroundHover "{B3A8C5A25500AFAF}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Hover.edds"
+    BackgroundClicked "{8145A1A2F86D6D85}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Clicked.edds"
+   }
+   
+   ButtonWidgetClass {
+    Name "NormalButton"
+    Text "1.0x"
+    Size 50 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Bold.fnt"
+    FontSize 12
+    BackgroundDefault "{6143DDDDF7A8BBDB}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Default.edds"
+    BackgroundHover "{B3A8C5A25500AFAF}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Hover.edds"
+    BackgroundClicked "{8145A1A2F86D6D85}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Clicked.edds"
+   }
+   
+   ButtonWidgetClass {
+    Name "FastButton"
+    Text "2.0x"
+    Size 50 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Regular.fnt"
+    FontSize 12
+    BackgroundDefault "{6143DDDDF7A8BBDB}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Default.edds"
+    BackgroundHover "{B3A8C5A25500AFAF}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Hover.edds"
+    BackgroundClicked "{8145A1A2F86D6D85}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Clicked.edds"
+   }
+   
+   SpacerWidgetClass {
+    Size 10 0
+   }
+   
+   ButtonWidgetClass {
+    Name "CloseButton"
+    Text "CLOSE"
+    Size 60 30
+    Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Regular.fnt"
+    FontSize 12
+    BackgroundDefault "{6143DDDDF7A8BBDB}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Default.edds"
+    BackgroundHover "{B3A8C5A25500AFAF}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Hover.edds"
+    BackgroundClicked "{8145A1A2F86D6D85}UI/Textures/WidgetLibrary/Buttons/WLib_Button_Filled_01_Clicked.edds"
+   }
+  }
+  
+  TextWidgetClass {
+   Name "TimeDisplay"
+   Position 10 70
+   Size 380 20
+   Text "Replay: 00:00 / 00:00"
+   Font "{2EFEA2AF1F38E7F0}UI/Fonts/Roboto/Roboto_Regular.fnt"
+   FontSize 12
+   HorizontalAlignment 1
+   Color 1 1 1 1
+  }
+ }
+}

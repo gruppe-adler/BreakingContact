@@ -42,6 +42,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Radio truck destruction tracking
 	protected bool m_bRadioTruckDestroyed = false;
 	protected string m_sRadioTruckDestroyerFaction = "";
+	
+	// Replay system
+	protected GRAD_BC_ReplayManager m_replayManager;
 
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
@@ -117,6 +120,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         }
 
         Print(string.Format("Breaking Contact BCM - m_instance initialized: %1", m_instance), LogLevel.NORMAL);
+        
+        // Initialize replay manager
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+        {
+            Print("Breaking Contact BCM - Warning: No replay manager found", LogLevel.WARNING);
+        }
     }
 
     return m_instance;

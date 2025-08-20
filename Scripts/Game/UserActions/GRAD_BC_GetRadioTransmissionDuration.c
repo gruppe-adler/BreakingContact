@@ -88,7 +88,8 @@ class GRAD_BC_GetRadioTransmissionDuration : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
-		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(pOwnerEntity.FindComponent(GRAD_BC_RadioTruckComponent));
+		IEntity radioTruck = pOwnerEntity.GetParent();
+		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
 		
 		m_RplComponent = RplComponent.Cast(pOwnerEntity.FindComponent(RplComponent));
 	}

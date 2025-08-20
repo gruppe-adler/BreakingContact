@@ -1,0 +1,161 @@
+GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
+ ID "5206D4E7CE97EC05"
+ components {
+  SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
+   m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
+   m_bUserActionActivationOnly 1
+   m_aBudgetsToEvaluate {
+    SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
+     m_eBudget CAMPAIGN
+    }
+    SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39BCAAD8D1A}" {
+     m_eBudget 2147483647
+     m_aCustomCooldownData {
+      SCR_CooldownData "{5EEEF52515996867}" {
+       m_fDefaultTimeMultiplier 105
+      }
+      SCR_CooldownData "{5EEEF5250BF881BF}" {
+       m_eRank CORPORAL
+       m_fDefaultTimeMultiplier 75
+      }
+      SCR_CooldownData "{5EEEF5250BBA697C}" {
+       m_eRank SERGEANT
+       m_fDefaultTimeMultiplier 50
+      }
+      SCR_CooldownData "{5EEEF5250B54777E}" {
+       m_eRank LIEUTENANT
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF5250B763DE5}" {
+       m_eRank CAPTAIN
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF52574D7AC41}" {
+       m_eRank MAJOR
+       m_fDefaultTimeMultiplier 5
+      }
+      SCR_CooldownData "{5EEEF5256543246C}" {
+       m_eRank COLONEL
+      }
+      SCR_CooldownData "{5EEEF5255ABE05CA}" {
+       m_eRank RENEGADE
+       m_fDefaultTimeMultiplier 1000
+      }
+     }
+    }
+    SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39BDCFBC3C2}" {
+     m_eBudget RANK_PRIVATE
+    }
+   }
+   m_aAvailableTraits {
+    50 54 53
+   }
+  }
+  SCR_ResourceComponent "{5D83561F25268587}" {
+   m_aContainers {
+    SCR_ResourceContainer "{5D83561F24437BF2}" {
+     m_fResourceValueCurrent 1000
+     m_fResourceValueMax 1000
+    }
+   }
+   m_aConsumers {
+    SCR_ResourceConsumerServicePoint "{660CB39CAEA826CE}" {
+     m_sDebugName "Vehicle Spawner - Consumer"
+     m_eResourceRights ALL
+     m_eGeneratorIdentifier DEFAULT
+     m_fResourceRange 135
+     m_fSellMultiplier 0
+     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
+      m_StoragePolicies {
+       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
+        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
+        }
+        m_eStorageType CARGO_VEHICLE
+       }
+      }
+     }
+    }
+   }
+  }
+  ActionsManagerComponent "{5DE2DEF025C6CAA0}" {
+   ActionContexts {
+    UserActionContext "{662698ED6105548D}" {
+     UIInfo SCR_ActionContextUIInfo "{662698ED7A49B720}" {
+      Name "BreakingContact"
+     }
+     ContextName "BreakingContactActions"
+     Position PointInfo "{662698ED771F11F4}" {
+      PivotID "v_body_com"
+      Offset -1.403 0.7202 -1.2532
+     }
+     Radius 2
+    }
+   }
+   additionalActions {
+    SCR_ResourceContainerVehicleLoadAction "{5DF54422B388E356}" {
+     ParentContextList {
+     }
+     VisibilityRange 0
+    }
+    SCR_ResourceContainerVehicleUnloadAction "{5EA6CABCDB1C6F85}" {
+     ParentContextList {
+     }
+     VisibilityRange 0
+    }
+    SCR_CampaignBuildingStartUserAction "{660CB39B80D43AF1}" {
+     ParentContextList {
+      "BreakingContactActions"
+     }
+     UIInfo UIInfo "{660702574C5CA279}" {
+      Name "#AR-Action_RequestVehicle"
+     }
+     VisibilityRange 5
+     Duration 0.5
+     m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
+    }
+    GRAD_BC_ToggleRadioTransmission "{662698FE21EB1267}" {
+     ParentContextList {
+      "BreakingContactActions"
+     }
+     UIInfo SCR_ActionContextUIInfo "{662698FE4A97D6D9}" {
+      Name "Toggle Radio Transmission"
+     }
+     VisibilityRange 2
+    }
+    GRAD_BC_DisableRadioTruck "{662698FE3E01E010}" {
+     ParentContextList {
+      "BreakingContactActions"
+     }
+     UIInfo SCR_ActionContextUIInfo "{662698FE47CBF151}" {
+      Name "Disable Radio Truck"
+     }
+     VisibilityRange 2
+    }
+    GRAD_BC_GetRadioTransmissionDuration "{662698FE3B553C09}" {
+     ParentContextList {
+      "BreakingContactActions"
+     }
+     UIInfo SCR_ActionContextUIInfo "{662698FE44908642}" {
+      Name "Get Transmission Duration"
+     }
+     ActionTitle "Get Transmission Duration"
+     VisibilityRange 2
+    }
+   }
+  }
+ }
+ {
+  GenericEntity : "{B17411929589C43C}Prefabs/MP/Campaign/Assets/CampaignHQRadioEast.et" {
+   ID "662698FFAE49E2B5"
+   components {
+    Hierarchy "{6282C081E58E4BE9}" {
+     PivotID "v_root_com"
+     MergePhysics 1
+    }
+   }
+   coords -1.238 1.633 -0.145
+   angleY -90
+   scale 1.981
+  }
+ }
+}

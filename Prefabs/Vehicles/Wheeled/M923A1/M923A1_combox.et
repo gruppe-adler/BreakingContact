@@ -1,0 +1,126 @@
+GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
+ ID "5206D4E7EFE2C051"
+ components {
+  SCR_CampaignBuildingProviderComponent "{660CB39AC4CC6BEE}" {
+   m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
+   m_bUserActionActivationOnly 1
+   m_aBudgetsToEvaluate {
+    SCR_CampaignBuildingBudgetToEvaluateData "{660CB39ADE3BF8BF}" {
+     m_eBudget CAMPAIGN
+    }
+    SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39AECA7F87A}" {
+     m_eBudget 2147483647
+     m_aCustomCooldownData {
+      SCR_CooldownData "{5EEEF52515996867}" {
+       m_fDefaultTimeMultiplier 105
+      }
+      SCR_CooldownData "{5EEEF5250BF881BF}" {
+       m_eRank CORPORAL
+       m_fDefaultTimeMultiplier 75
+      }
+      SCR_CooldownData "{5EEEF5250BBA697C}" {
+       m_eRank SERGEANT
+       m_fDefaultTimeMultiplier 50
+      }
+      SCR_CooldownData "{5EEEF5250B54777E}" {
+       m_eRank LIEUTENANT
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF5250B763DE5}" {
+       m_eRank CAPTAIN
+       m_fDefaultTimeMultiplier 30
+      }
+      SCR_CooldownData "{5EEEF52574D7AC41}" {
+       m_eRank MAJOR
+       m_fDefaultTimeMultiplier 5
+      }
+      SCR_CooldownData "{5EEEF5256543246C}" {
+       m_eRank COLONEL
+      }
+      SCR_CooldownData "{5EEEF5255ABE05CA}" {
+       m_eRank RENEGADE
+       m_fDefaultTimeMultiplier 1000
+      }
+     }
+    }
+    SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39AFF2BE6E9}" {
+     m_eBudget RANK_PRIVATE
+    }
+   }
+   m_aAvailableTraits {
+    50 54 53
+   }
+  }
+  SCR_ResourceComponent "{5D835612EAFE4D27}" {
+   m_aContainers {
+    SCR_ResourceContainer "{5D835612E84434FE}" {
+     m_fResourceValueCurrent 1000
+     m_fResourceValueMax 1000
+    }
+   }
+   m_aConsumers {
+    SCR_ResourceConsumerServicePoint "{660CB39C8E6D88AE}" {
+     m_sDebugName "Vehicle Spawner - Consumer"
+     m_eResourceRights ALL
+     m_eGeneratorIdentifier DEFAULT
+     m_fResourceRange 135
+     m_fSellMultiplier 0
+     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
+      m_StoragePolicies {
+       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
+        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
+        }
+        m_eStorageType CARGO_VEHICLE
+       }
+      }
+     }
+    }
+   }
+  }
+  ActionsManagerComponent "{5DE2DEF025C6CAA0}" {
+   ActionContexts {
+    UserActionContext "{662693AC8CD3BC0D}" {
+     UIInfo SCR_ActionContextUIInfo "{662693AC878D4A4F}" {
+      Name "BreakingContact"
+     }
+     ContextName "BreakingContactActions"
+     Position PointInfo "{662693ACB31AE83F}" {
+      PivotID "v_body_com"
+      Offset -1.4928 0.5423 -2.425
+     }
+    }
+   }
+   additionalActions {
+    SCR_ResourceContainerVehicleLoadAction "{5DF544236D45F23A}" {
+     ParentContextList {
+     }
+     VisibilityRange 0
+    }
+    SCR_ResourceContainerVehicleUnloadAction "{5DF544236CB20844}" {
+     ParentContextList {
+     }
+     VisibilityRange 0
+    }
+    SCR_CampaignBuildingStartUserAction "{660CB39B6231C323}" {
+     ParentContextList {
+      "BreakingContactActions"
+     }
+     UIInfo UIInfo "{660702574C5CA279}" {
+      Name "#AR-Action_RequestVehicle"
+     }
+     VisibilityRange 2
+     Duration 0.5
+     m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
+    }
+   }
+  }
+ }
+ {
+  GenericEntity : "{CCB14E0E5C278B73}Prefabs/MP/Campaign/Assets/CampaignHQRadioWest.et" {
+   ID "662698F9E60BAABC"
+   coords -1.179 1.335 -1.267
+   angleY -90
+   scale 2
+  }
+ }
+}

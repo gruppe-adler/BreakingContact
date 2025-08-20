@@ -35,12 +35,13 @@ class GRAD_BC_ReplayControls : Managed
 		
 		Print("GRAD_BC_ReplayControls: Workspace found, creating widget", LogLevel.NORMAL);
 			
-		m_wRoot = workspace.CreateWidgets("UI/Layouts/HUD/GRAD_BC_ReplayControls/GRAD_BC_ReplayControls.layout");
+		// Try simple layout first (more reliable)
+		m_wRoot = workspace.CreateWidgets("UI/Layouts/HUD/GRAD_BC_ReplayControls.layout");
 		if (!m_wRoot)
 		{
-			Print("GRAD_BC_ReplayControls: Failed to create widget - trying fallback layout", LogLevel.ERROR);
-			// Try fallback layout
-			m_wRoot = workspace.CreateWidgets("UI/Layouts/HUD/GRAD_BC_ReplayControls.layout");
+			Print("GRAD_BC_ReplayControls: Simple layout failed - trying complex layout", LogLevel.ERROR);
+			// Try complex layout as fallback
+			m_wRoot = workspace.CreateWidgets("UI/Layouts/HUD/GRAD_BC_ReplayControls/GRAD_BC_ReplayControls.layout");
 			if (!m_wRoot)
 			{
 				Print("GRAD_BC_ReplayControls: Fallback layout also failed", LogLevel.ERROR);

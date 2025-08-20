@@ -418,6 +418,15 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType
 			);
 			
+			// Debug: Log recording positions for first few frames
+			static int recordLogCount = 0;
+			recordLogCount++;
+			if (recordLogCount <= 10)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5]", 
+					playerId, playerName, position[0], position[1], position[2]));
+			}
+			
 			frame.players.Insert(snapshot);
 		}
 	}

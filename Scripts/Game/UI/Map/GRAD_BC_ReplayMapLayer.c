@@ -1,14 +1,14 @@
 [BaseContainerProps()]
-class GRAD_BC_ReplayMapLayer : SCR_MapModuleBase
+class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven working class
 {
-	protected Widget m_Widget;
-	protected CanvasWidget m_Canvas;
-	
-	protected ResourceName m_Layout = "{A6A79ABB08D490BE}UI/Layouts/Map/MapCanvasLayer.layout";
-	
 	// Replay display state
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_playerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_projectileMarkers = {};
+	
+	// Keep last frame data for persistent display
+	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_lastFramePlayerMarkers = {};
+	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_lastFrameProjectileMarkers = {};
+	protected bool m_hasLastFrame = false;
 	
 	// Colors for different factions
 	protected ref map<string, int> m_factionColors = new map<string, int>();
@@ -31,204 +31,118 @@ class GRAD_BC_ReplayMapLayer : SCR_MapModuleBase
 	//------------------------------------------------------------------------------------------------
 	override void OnMapOpen(MapConfiguration config)
 	{
-		super.OnMapOpen(config);
+		super.OnMapOpen(config); // ✅ This handles widget/canvas creation in parent
 		
-		Print("GRAD_BC_ReplayMapLayer: OnMapOpen called, initializing canvas", LogLevel.NORMAL);
-		
-		// Create the widget and canvas when map opens
-		m_Widget = GetGame().GetWorkspace().CreateWidgets(m_Layout);
-		if (m_Widget)
-		{
-			m_Canvas = CanvasWidget.Cast(m_Widget.FindAnyWidget("Canvas"));
-			if (m_Canvas)
-			{
-				Print("GRAD_BC_ReplayMapLayer: Canvas initialized successfully", LogLevel.NORMAL);
-			}
-			else
-			{
-				Print("GRAD_BC_ReplayMapLayer: Failed to find Canvas widget in layout", LogLevel.ERROR);
-			}
-		}
-		else
-		{
-			Print("GRAD_BC_ReplayMapLayer: Failed to create widget from layout", LogLevel.ERROR);
-		}
+		Print("GRAD_BC_ReplayMapLayer: OnMapOpen called, canvas should be initialized by parent", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	override void OnMapClose(MapConfiguration config)
 	{
 		super.OnMapClose(config);
-		
 		Print("GRAD_BC_ReplayMapLayer: OnMapClose called, cleaning up", LogLevel.NORMAL);
-		
-		// Remove widget from hierarchy when map closes
-		if (m_Widget)
-			m_Widget.RemoveFromHierarchy();
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	override void Update(float timeSlice)
+	// ✅ Use the proven Draw() pattern from GRAD_MapMarkerManager
+	override void Draw()
 	{
-		if (!m_Canvas)
-			return;
-			
-		// Draw replay markers on the map
+		// Clear previous commands (inherited from GRAD_MapMarkerLayer)
+		m_Commands.Clear();
+		
+		// Check if we should draw anything
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+		bool shouldDraw = false;
+		array<ref GRAD_BC_ReplayPlayerMarker> markersToRender = {};
+		
 		if (replayManager && replayManager.IsPlayingBack())
 		{
-			UpdateReplayMarkerDrawCommands();
-		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void UpdateReplayMarkerDrawCommands()
-	{
-		if (!m_Canvas)
-		{
-			Print("GRAD_BC_ReplayMapLayer: Canvas is null, cannot draw markers", LogLevel.ERROR);
-			return;
-		}
+			// During playback - use current markers
+			shouldDraw = m_playerMarkers.Count() > 0;
+			markersToRender = m_playerMarkers;
 			
-		// Create draw commands array
-		array<ref CanvasWidgetCommand> drawCommands = {};
+			static int drawCallCounter = 0;
+			drawCallCounter++;
+			if (drawCallCounter % 50 == 0)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() during playback - %1 markers", markersToRender.Count()));
+			}
+		}
+		else if (m_hasLastFrame)
+		{
+			// After replay - use saved last frame
+			shouldDraw = m_lastFramePlayerMarkers.Count() > 0;
+			markersToRender = m_lastFramePlayerMarkers;
+			
+			static int persistentDrawCounter = 0;
+			persistentDrawCounter++;
+			if (persistentDrawCounter % 100 == 0)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() persistent mode - %1 saved markers", markersToRender.Count()));
+			}
+		}
 		
-		// Get map entity for coordinate conversion
-		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
-		if (!mapEntity)
+		if (!shouldDraw || !m_MapEntity)
 		{
-			Print("GRAD_BC_ReplayMapLayer: Map entity is null, cannot convert coordinates", LogLevel.ERROR);
-			return;
+			return; // Nothing to draw or no map entity
 		}
-			
-		// Create draw commands for player markers
-		foreach (GRAD_BC_ReplayPlayerMarker marker : m_playerMarkers)
+		
+		// ✅ Use the proven DrawCircle method from GRAD_MapMarkerLayer parent class
+		foreach (GRAD_BC_ReplayPlayerMarker marker : markersToRender)
 		{
 			if (!marker.isVisible)
-			{
-				Print("GRAD_BC_ReplayMapLayer: Skipping invisible marker");
 				continue;
-			}
 				
-			// Convert world position to screen coordinates
-			float screenX, screenY;
-			mapEntity.WorldToScreen(marker.position[0], marker.position[2], screenX, screenY, true);
-			
-			// Always log first few conversions for debugging
-			static int debugConversionCount = 0;
-			debugConversionCount++;
-			if (debugConversionCount <= 5)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Converting world pos [%1, %2, %3] -> screen [%4, %5]", 
-					marker.position[0], marker.position[1], marker.position[2], screenX, screenY));
-			}
-			
-			// Debug: Log coordinate conversion (only occasionally)
-			static int coordLogCounter = 0;
-			coordLogCounter++;
-			if (coordLogCounter % 100 == 0) // Only log every 100th marker
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Player at world pos [%1, %2, %3] -> screen [%4, %5]", 
-					marker.position[0], marker.position[1], marker.position[2], screenX, screenY));
-			}
-			
-			// Check if marker is within visible bounds (skip if way off screen)
-			if (screenX < -100 || screenX > 2000 || screenY < -100 || screenY > 2000)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Marker at [%1, %2] is outside visible bounds, skipping", screenX, screenY));
-				continue;
-			}
-			
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Creating circle for player at screen [%1, %2]", screenX, screenY));
-			
-			// Create circle draw command for player
-			PolygonDrawCommand playerCircle = new PolygonDrawCommand();
-			
 			// Get faction color
 			int color = m_factionColors.Get(marker.factionKey);
 			if (color == 0)
-				color = Color.WHITE;
+				color = 0xFFFFFFFF; // White as integer
 				
-			// Set up circle properties
-			float markerSize = 6.0; // radius in pixels
-			int numPoints = 12; // circle resolution
-			
-			// Create circle vertices (flat array of x,y coordinates)
-			playerCircle.m_Vertices = new array<float>();
-			for (int i = 0; i < numPoints; i++)
-			{
-				float angle = (i * Math.PI * 2) / numPoints;
-				float x = screenX + Math.Cos(angle) * markerSize;
-				float y = screenY + Math.Sin(angle) * markerSize;
-				playerCircle.m_Vertices.Insert(x);
-				playerCircle.m_Vertices.Insert(y);
-			}
-			
-			if (marker.isAlive)
-			{
-				// Set faction color based on team
-				if (marker.factionKey == "US")
-					playerCircle.m_iColor = Color.FromInt(0xC8006CFF); // Blue with alpha 200
-				else if (marker.factionKey == "USSR") 
-					playerCircle.m_iColor = Color.FromInt(0xC8FF0000); // Red with alpha 200
-				else
-					playerCircle.m_iColor = Color.FromInt(0xC8FFFFFF); // White with alpha 200
-			}
+			// Make colors brighter with full alpha
+			if (marker.factionKey == "US")
+				color = 0xFF0080FF; // Bright blue as integer
+			else if (marker.factionKey == "USSR") 
+				color = 0xFFFF4040; // Bright red as integer
 			else
-			{
-				// Dead players - semi-transparent red
-				playerCircle.m_iColor = Color.FromInt(0x64FF0000); // Semi-transparent red (alpha 100)
-			}
+				color = 0xFFFFFF40; // Bright yellow as integer
+				
+			if (!marker.isAlive)
+				color = 0x80FF0000; // Semi-transparent red for dead as integer
 			
-			// Debug: Log color and vertices (only occasionally)
-			if (coordLogCounter % 100 == 0) // Use same counter as above
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Created circle with color %1, %2 vertices at [%3, %4]", 
-					playerCircle.m_iColor, playerCircle.m_Vertices.Count(), screenX, screenY));
-			}
+			// ✅ Use proven DrawCircle method - draws at world position with range in world units
+			DrawCircle(marker.position, 30.0, color, 16); // 30m radius, 16 segments for smooth circle
 			
-			drawCommands.Insert(playerCircle);
+			static int markerLogCounter = 0;
+			markerLogCounter++;
+			if (markerLogCounter % 25 == 0)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing player %1 at world [%2, %3, %4] with color %5", 
+					marker.playerName, marker.position[0], marker.position[1], marker.position[2], color));
+			}
 		}
 		
-		// Create draw commands for projectile markers
-		foreach (GRAD_BC_ReplayProjectileMarker marker : m_projectileMarkers)
+		// Draw projectiles as smaller circles
+		array<ref GRAD_BC_ReplayProjectileMarker> projectilesToRender = {};
+		if (replayManager && replayManager.IsPlayingBack())
 		{
-			if (!marker.isVisible)
+			projectilesToRender = m_projectileMarkers;
+		}
+		else if (m_hasLastFrame)
+		{
+			projectilesToRender = m_lastFrameProjectileMarkers;
+		}
+		
+		foreach (GRAD_BC_ReplayProjectileMarker projMarker : projectilesToRender)
+		{
+			if (!projMarker.isVisible)
 				continue;
 				
-			// Convert world position to screen coordinates
-			float screenX, screenY;
-			mapEntity.WorldToScreen(marker.position[0], marker.position[2], screenX, screenY, true);
-			
-			// Create small circle for projectile
-			PolygonDrawCommand projectileCircle = new PolygonDrawCommand();
-			
-			float markerSize = 2.0; // Small radius for projectiles
-			int numPoints = 8;
-			
-			projectileCircle.m_Vertices = new array<float>();
-			for (int i = 0; i < numPoints; i++)
-			{
-				float angle = (i * Math.PI * 2) / numPoints;
-				float x = screenX + Math.Cos(angle) * markerSize;
-				float y = screenY + Math.Sin(angle) * markerSize;
-				projectileCircle.m_Vertices.Insert(x);
-				projectileCircle.m_Vertices.Insert(y);
-			}
-			
-			projectileCircle.m_iColor = Color.FromInt(0xFFFFFF00); // Bright yellow
-			drawCommands.Insert(projectileCircle);
+			// Small bright yellow circles for projectiles
+			DrawCircle(projMarker.position, 5.0, 0xFFFFFF00, 8); // 5m radius, yellow as integer
 		}
 		
-		// Apply all draw commands to canvas
-		m_Canvas.SetDrawCommands(drawCommands);
-		
-		// Always log drawing operations for debugging
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Applied %1 draw commands to canvas", drawCommands.Count()));
-		
-		// Status logging - always for debugging
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Drew %1 players, %2 projectiles on map", 
-			m_playerMarkers.Count(), m_projectileMarkers.Count()), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
+			markersToRender.Count(), projectilesToRender.Count(), m_Commands.Count()));
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -255,6 +169,15 @@ class GRAD_BC_ReplayMapLayer : SCR_MapModuleBase
 			marker.isInVehicle = playerSnapshot.isInVehicle;
 			marker.isVisible = true;
 			
+			// Debug: Log position data for first few frames
+			static int positionLogCount = 0;
+			positionLogCount++;
+			if (positionLogCount <= 10)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) position: [%3, %4, %5]", 
+					marker.playerId, marker.playerName, marker.position[0], marker.position[1], marker.position[2]));
+			}
+			
 			m_playerMarkers.Insert(marker);
 		}
 		
@@ -269,6 +192,39 @@ class GRAD_BC_ReplayMapLayer : SCR_MapModuleBase
 			
 			m_projectileMarkers.Insert(marker);
 		}
+		
+		// Save this frame as the last frame for persistent display
+		m_lastFramePlayerMarkers.Clear();
+		m_lastFrameProjectileMarkers.Clear();
+		
+		// Deep copy current markers to last frame
+		foreach (GRAD_BC_ReplayPlayerMarker playerMarker : m_playerMarkers)
+		{
+			GRAD_BC_ReplayPlayerMarker lastMarker = new GRAD_BC_ReplayPlayerMarker();
+			lastMarker.playerId = playerMarker.playerId;
+			lastMarker.playerName = playerMarker.playerName;
+			lastMarker.factionKey = playerMarker.factionKey;
+			lastMarker.position = playerMarker.position;
+			lastMarker.direction = playerMarker.direction;
+			lastMarker.isAlive = playerMarker.isAlive;
+			lastMarker.isInVehicle = playerMarker.isInVehicle;
+			lastMarker.isVisible = playerMarker.isVisible;
+			m_lastFramePlayerMarkers.Insert(lastMarker);
+		}
+		
+		foreach (GRAD_BC_ReplayProjectileMarker projMarker : m_projectileMarkers)
+		{
+			GRAD_BC_ReplayProjectileMarker lastMarker = new GRAD_BC_ReplayProjectileMarker();
+			lastMarker.projectileType = projMarker.projectileType;
+			lastMarker.position = projMarker.position;
+			lastMarker.velocity = projMarker.velocity;
+			lastMarker.isVisible = projMarker.isVisible;
+			m_lastFrameProjectileMarkers.Insert(lastMarker);
+		}
+		
+		m_hasLastFrame = true;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles for persistent display", 
+			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count()));
 		
 		// Log frame update for debugging
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles", 

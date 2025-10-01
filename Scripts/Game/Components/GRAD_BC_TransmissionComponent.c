@@ -15,16 +15,13 @@ enum ETransmissionState
 // entity to be able to work without spawning an actual antenna
 class GRAD_BC_TransmissionComponent : ScriptComponent
 {
-	[Attribute(defvalue: "1000", uiwidget: UIWidgets.EditBox, desc: "MinDistance", params: "", category: "Breaking Contact - Transmission Point")];
-	protected int m_TransmissionPointMinDistance;
-
 	[RplProp()]
 	protected ETransmissionState m_eTransmissionState;
 
 	[RplProp()]
 	protected float m_iTransmissionProgress;
 
-	static float m_iTransmissionDuration = 30.0; // todo make param, 120s for debug
+	static float m_iTransmissionDuration = 30.0; // gets overriden in init
 	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
 	private RplComponent m_RplComponent;
@@ -58,6 +55,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 				if (bcm) {
 					bcm.RegisterTransmissionComponent(this);
 					PrintFormat("TPC Registered with BCM: %1", bcm);
+					m_iTransmissionDuration = bcm.GetTransmissionDuration();
+					m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 				} else {
 					Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
 				}

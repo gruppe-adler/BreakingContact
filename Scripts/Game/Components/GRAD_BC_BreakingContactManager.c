@@ -18,10 +18,10 @@ class GRAD_BC_BreakingContactManagerClass : ScriptComponentClass
 
 class GRAD_BC_BreakingContactManager : ScriptComponent
 {
-    [Attribute(defvalue: "3", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
+    [Attribute(defvalue: "2", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
 	
-	[Attribute(defvalue: "600", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
+	[Attribute(defvalue: "60", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
 	protected int m_TransmissionDuration;
 	
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "700 3000 1000")]
@@ -61,7 +61,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	[RplProp(onRplName: "OnBreakingContactPhaseChanged")]
     protected EBreakingContactPhase m_iBreakingContactPhase = EBreakingContactPhase.LOADING;	
 
-	static float m_iMaxTransmissionDistance = 500.0;
+	static float m_iMaxTransmissionDistance = 1000.0;
 
     protected ref array<GRAD_BC_TransmissionComponent> m_aTransmissionComps = {};
 	
@@ -99,6 +99,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			m_PlayerManager = GetGame().GetPlayerManager();
 		
 		return m_PlayerManager;
+	}
+	
+	int GetTransmissionDuration() {
+		return m_TransmissionDuration;
 	}
 	
 	protected static GRAD_BC_BreakingContactManager m_instance;
@@ -799,7 +803,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         params.Transform[3] = m_vBluforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
 		
-        // create antenna that serves as component holder for transmission point
+        // create spawn vehicle
         Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
         m_westCommandVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 	    m_westCommandVehicle.SetYawPitchRoll(m_vBluforSpawnDir.VectorToAngles());

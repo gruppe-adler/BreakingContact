@@ -525,7 +525,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		Rpc(RpcAsk_StartReplayPlayback, m_replayData.totalDuration, m_replayData.missionName, m_replayData.mapName, m_replayData.startTime);
 		
 		// Send frames in chunks to avoid network limits
-		int chunkSize = 10; // Send 10 frames at a time
+		const int chunkSize = 10; // Send 10 frames at a time
 		for (int i = 0; i < m_replayData.frames.Count(); i += chunkSize)
 		{
 			int endIndex = Math.Min(i + chunkSize, m_replayData.frames.Count());

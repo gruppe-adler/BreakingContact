@@ -238,7 +238,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
         m_MarkerDrawCommands.Clear();
 
-        float twoPi = 6.28318530718;
+        const float twoPi = 6.28318530718;
 
         // --- Draw marker circles and outlines ---
         for (int markerIdx = 0; markerIdx < m_AllMarkers.Count(); markerIdx++)

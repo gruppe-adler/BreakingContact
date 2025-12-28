@@ -836,7 +836,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		params.Transform[3] = m_vOpforSpawnPos + Vector(0, 0.5, 0); // lift it 0.5m
 		
         // create radiotruck
-        Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
+        // Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
+		Resource ressource = Resource.Load("{924B84AA3252B2DB}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command_armored.et");
+		
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
 		Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);

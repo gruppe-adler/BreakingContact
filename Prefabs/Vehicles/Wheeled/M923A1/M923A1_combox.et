@@ -48,7 +48,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    m_aAvailableTraits {
-    50 54 53
+    VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
   SCR_ResourceComponent "{5D835612EAFE4D27}" {
@@ -108,7 +108,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo UIInfo "{660702574C5CA279}" {
       Name "#AR-Action_RequestVehicle"
      }
-     VisibilityRange 2
+     VisibilityRange 0.5
      Duration 0.5
      m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
     }
@@ -119,7 +119,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
   GenericEntity : "{CCB14E0E5C278B73}Prefabs/MP/Campaign/Assets/CampaignHQRadioWest.et" {
    ID "662698F9E60BAABC"
    coords -1.179 1.335 -1.267
-   angleY -90
+   angles 0 -90 0
    scale 2
   }
  }

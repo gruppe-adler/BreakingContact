@@ -172,9 +172,9 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			
 			// Debris parameters
 			float debrisMass = Math.RandomFloatInclusive(2.0, 8.0);
-			float debrisLifetime = 30.0; // 30 seconds lifetime
-			float debrisMaxDist = 500.0; // Visible up to 500m
-			int debrisPriority = 3; // Medium priority
+			const float debrisLifetime = 30.0; // 30 seconds lifetime
+			const float debrisMaxDist = 500.0; // Visible up to 500m
+			const int debrisPriority = 3; // Medium priority
 			
 			// Spawn the debris using the proper system
 			SCR_DebrisSmallEntity debris = SCR_DebrisSmallEntity.SpawnDebris(

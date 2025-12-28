@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{5E1C968239C8BA00}Worlds/OTF_Eden.ent"
+ Name "{3A921F8CAD8546E8}Worlds/BC_kolgujev.ent"
  Configurations {
   ENTResourceClass PC {
   }
@@ -8,6 +8,8 @@ MetaFileClass {
   ENTResourceClass XBOX_SERIES : PC {
   }
   ENTResourceClass PS4 : PC {
+  }
+  ENTResourceClass PS5 : PC {
   }
   ENTResourceClass HEADLESS : PC {
   }

@@ -1,0 +1,88 @@
+SCR_MapEntity MapEntity : "{731564B66F91B107}Prefabs/World/Game/MapEntity.et" {
+ coords 7114.537 103.319 6281.017
+ "Map Geometry Data" "{359EA48189CB27F2}worlds/Cain/Cain.topo"
+ "Satellite background image" "{98696504473AE49E}UI/Textures/Map/worlds/Cain/CainRasterized.edds"
+ {
+  CommentEntity {
+   coords 0 1 0
+   m_Comment "MapEntity: "\
+   "Set up map textures"
+   m_Color 0 0 0
+   m_FaceCamera 1
+   m_TextBackground 1
+   m_BackgroundColor 1 0.6 0
+   m_BackgroundTransparency 0
+  }
+ }
+}
+SCR_AIWorld : "{E0A05C76552E7F58}Prefabs/AI/SCR_AIWorld.et" {
+ coords 4623.2 0 11159.424
+}
+PerceptionManager PerceptionManager : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
+ coords 7114.537 103.567 6279.017
+}
+PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
+ components {
+  GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
+   m_iTransmissionCount 2
+   m_TransmissionDuration 60
+  }
+  GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
+  }
+  SCR_GameModeHealthSettings "{5A22E11F9ACBB1DF}" {
+   m_bKillIndefinitelyUnconsciousPlayers 1
+  }
+ }
+ m_iFreezeTime 0
+ m_bDisableGarbageSystem 1
+ {
+  RadioManagerEntity {
+   ID "5ED9088735FF2DEE"
+   coords 0 0 0
+  }
+  ScriptedChatEntity {
+   ID "5ED9088735FF2DC2"
+   coords 0 0 0
+  }
+  SCR_FactionManager "627A8E3665FD18AE" {
+   ID "5ED9088735FF2D8B"
+   Factions {
+    SCR_Faction "{56DEAC40D2DBC8B1}" {
+    }
+    SCR_Faction "{56DEAC40D3C2E623}" {
+     m_bIsPlayable 1
+    }
+   }
+  }
+  ItemPreviewManagerEntity "6606868E98488DD2" {
+   ID "5ED9088735FF2DD5"
+   coords 0 1 0
+  }
+ }
+}
+SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
+ coords 6643.517 423.01 6301.586
+ m_aUnitPrefabSlots {
+  "{E74FC9AB1A057CB1}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF_Commander.et"
+  "{9514A265A2DA2F44}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_AR_P_OTF.et"
+  "{89A3DCE5DF48C2F3}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_LAT_P_OTF.et"
+  "{E58AC2E6219C4C2C}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_RTO_P_OTF.et"
+  "{A08547804C2EE90F}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Medic_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+ }
+}
+SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
+ coords 6633.683 463.116 6512.069
+ m_aUnitPrefabSlots {
+  "{E370BE864F610A10}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF_Commander.et"
+  "{48234F1A339309A4}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AR_P_OTF.et"
+  "{C9C30D515FAA0D2A}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AT_P_OTF.et"
+  "{C1B74B81CBE57612}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AAT_P_OTF.et"
+  "{B6010E4F7B9E5A64}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Medic_P_OTF.et"
+  "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
+  "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
+ }
+}

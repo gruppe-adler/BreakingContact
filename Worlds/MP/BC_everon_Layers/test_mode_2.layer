@@ -98,12 +98,26 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
 SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
  coords 4948.442 28.29 11942.487
  m_aUnitPrefabSlots {
-  "{E74FC9AB1A057CB1}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF_Commander.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et" "{F5992A97DDF00417}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_TL_P_OTF.et"
+  "{E74FC9AB1A057CB1}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF_Commander.et"
+  "{9514A265A2DA2F44}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_AR_P_OTF.et"
+  "{89A3DCE5DF48C2F3}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_LAT_P_OTF.et"
+  "{E58AC2E6219C4C2C}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_RTO_P_OTF.et"
+  "{A08547804C2EE90F}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Medic_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
+  "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
  }
 }
 SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
  coords 4645.186 28.718 11142.504
  m_aUnitPrefabSlots {
-  "{E370BE864F610A10}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF_Commander.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et" "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
+  "{E370BE864F610A10}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF_Commander.et"
+  "{48234F1A339309A4}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AR_P_OTF.et"
+  "{C9C30D515FAA0D2A}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AT_P_OTF.et"
+  "{C1B74B81CBE57612}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AAT_P_OTF.et"
+  "{B6010E4F7B9E5A64}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Medic_P_OTF.et"
+  "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
+  "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
  }
 }

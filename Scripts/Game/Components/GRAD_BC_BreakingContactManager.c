@@ -1241,9 +1241,31 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	array<GRAD_BC_TransmissionComponent> GetTransmissionPoints()
 	{
-		// Print(string.Format("BCM - GetTransmissionPoints '%1'.", m_aTransmissionComps.Count()), LogLevel.NORMAL); 	
-        return m_aTransmissionComps; 		
-    }
+		// On server, return the direct array
+		if (Replication.IsServer())
+		{
+			return m_aTransmissionComps;
+		}
+		
+		// On clients, resolve from replicated RplIds
+		array<GRAD_BC_TransmissionComponent> clientComps = new array<GRAD_BC_TransmissionComponent>();
+		
+		foreach (RplId rplId : m_aTransmissionIds)
+		{
+			RplComponent rpl = RplComponent.Cast(Replication.FindItem(rplId));
+			if (!rpl) continue;
+			
+			IEntity entity = rpl.GetEntity();
+			if (!entity) continue;
+			
+			GRAD_BC_TransmissionComponent comp = GRAD_BC_TransmissionComponent.Cast(entity.FindComponent(GRAD_BC_TransmissionComponent));
+			if (comp)
+				clientComps.Insert(comp);
+		}
+		
+		PrintFormat("BCM - GetTransmissionPoints (client): Found %1 transmission points from %2 RplIds", clientComps.Count(), m_aTransmissionIds.Count());
+		return clientComps;
+	}
 
 
     //------------------------------------------------------------------------------------------------

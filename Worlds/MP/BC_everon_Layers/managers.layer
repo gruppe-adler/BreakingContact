@@ -1,3 +1,6 @@
+SCR_AIWorld : "{70CCCF16487C927F}Prefabs/AI/SCR_AIWorld_Eden.et" {
+ coords 4664.486 27.617 11133.012
+}
 SCR_MapLocator {
  coords 4664.372 27.611 11133.005
 }

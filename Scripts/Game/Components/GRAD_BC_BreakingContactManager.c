@@ -21,7 +21,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     [Attribute(defvalue: "2", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
 	
-	[Attribute(defvalue: "60", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
+	[Attribute(defvalue: "900", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
 	protected int m_TransmissionDuration;
 	
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "700 3000 1000")]
@@ -33,7 +33,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
-	protected bool m_debug = true;
+	protected bool m_debug = false;
 	
 	protected int m_spawnLock = 0;
 	

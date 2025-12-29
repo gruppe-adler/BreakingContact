@@ -87,7 +87,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					
 					// Play transmission established sound
 					Print("BC Transmission UI - Playing transmission established sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{3550A48D94380CC2}sounds/beep2.wav");
+					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:beep2");
 					
 					break;
 				}
@@ -102,7 +102,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 				
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
+					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
 				
 					break;
 				}
@@ -117,7 +117,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 				
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
+					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
 				
 					break;
 				}
@@ -132,7 +132,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{2F13E941825B650F}sounds/signal_lost.wav");
+					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
 				
 					break;
 				}

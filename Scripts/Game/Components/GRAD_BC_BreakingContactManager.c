@@ -173,25 +173,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			case EBreakingContactPhase.OPFOR :
 			{
 				message = "Opfor has to spawn now.";
-				customSound = "{02451D83EF800011}sounds/gong_1.wav";
+				customSound = "gong_1";
 				break;
 			}
 			case EBreakingContactPhase.BLUFOR :
 			{
 				message = "Blufor will spawn now.";
-				customSound = "{9B5BA41AF2673181}sounds/gong_2.wav";
+				customSound = "gong_2";
 				
 				break;
 			}
 			case EBreakingContactPhase.GAME :
 			{
 				message = "Blufor spawned, Game begins now.";
-				customSound = "{EC51CC9206C5DEF1}sounds/gong_3.wav";
+				customSound = "gong_3";
 				break;
 			}
 			case EBreakingContactPhase.GAMEOVER :
 			{
 				message = "Game is over.";
+				customSound = "gong_3";
 				break;
 			}
 		}
@@ -207,7 +208,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// no rpc needed here, logs already on client
 		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 		if (customSound != "") {
-			AudioSystem.PlaySound(customSound);
+			vector location = playerComponent.GetOwner().GetOrigin();
+			AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds.acp", customSound, location);
 		}
 		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		

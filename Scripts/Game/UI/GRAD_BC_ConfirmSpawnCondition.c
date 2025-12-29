@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------------------------
 //! Condition for showing the confirm spawn button
 //! Only shows for USSR faction and while choosing spawn
+[BaseContainerProps()]
 class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
 {
 	//------------------------------------------------------------------------------------------------

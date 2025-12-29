@@ -21,8 +21,6 @@ PerceptionManager PerceptionManager : "{028DAEAD63E056BE}Prefabs/World/Game/Perc
 PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
  components {
   GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
-   m_iTransmissionCount 2
-   m_TransmissionDuration 60
   }
   GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
   }

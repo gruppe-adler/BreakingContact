@@ -500,18 +500,18 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		Print(string.Format("GRAD_BC_ReplayManager: Starting replay transmission, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 		Print("GRAD_BC_ReplayManager: VERSION CHECK - Single-player detection code is active", LogLevel.NORMAL);
 		
-		// Check if this is single-player mode (no real clients)
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-		bool isSinglePlayer = (playerIds.Count() <= 1);
-		
-		if (isSinglePlayer)
-		{
-			Print("GRAD_BC_ReplayManager: Single-player mode detected, starting direct local playback", LogLevel.NORMAL);
-			// Start local playback directly without RPCs
-			StartLocalReplayPlayback();
-			return;
-		}
+	// Check if running on dedicated server
+	bool isDedicatedServer = Replication.IsServer() && !Replication.IsClient();
+	
+	if (isDedicatedServer)
+	{
+		Print("GRAD_BC_ReplayManager: Dedicated server detected, using RPC to send replay to clients", LogLevel.NORMAL);
+		// Continue to RPC logic below
+	}
+	else
+	{
+		// Single-player or listen server - use local playback
+		Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
 		
 		// Check if we have RPC component for multiplayer
 		if (!m_RplComponent)

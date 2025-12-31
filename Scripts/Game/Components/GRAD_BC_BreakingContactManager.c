@@ -273,6 +273,19 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		gamestateDisplay.ShowText(message);
 		
+	// For ALL JIP players who join as spectators (no controlled entity)
+	// Hide UI elements after brief delay to prevent them showing forever
+	SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+	if (playerController)
+	{
+		IEntity controlledEntity = playerController.GetControlledEntity();
+		// If no controlled entity, player is in spectator mode
+		if (!controlledEntity)
+		{
+			Print("GRAD_BC: JIP spectator detected, scheduling UI hide", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(HideUIForSpectators, 5000, false, logoDisplay, gamestateDisplay);
+			return; // Don't show the logos/text for spectators
+		
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
@@ -290,6 +303,20 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			logoDisplay.ShowLogo();
 		}
 
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void HideUIForSpectators(GRAD_BC_Logo logoDisplay, GRAD_BC_Gamestate gamestateDisplay)
+	{
+		Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
+		if (logoDisplay)
+		{
+			logoDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
+		}
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

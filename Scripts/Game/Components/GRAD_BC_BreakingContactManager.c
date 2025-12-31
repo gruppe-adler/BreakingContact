@@ -65,7 +65,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
     protected ref array<GRAD_BC_TransmissionComponent> m_aTransmissionComps = {};
 	
-	[RplProp()]
+	[RplProp(onRplName: "OnTransmissionIdsChanged")]
 	protected ref array<RplId> m_aTransmissionIds = {};
 	
 	protected IEntity m_radioTruck;
@@ -152,7 +152,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			GetGame().GetCallqueue().CallLater(setPhaseInitial, 1100, false);
 		}
     }
-	
 	
 	void OnBreakingContactPhaseChanged()
 	{
@@ -291,6 +290,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			logoDisplay.ShowLogo();
 		}
 
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when m_aTransmissionIds is replicated from server
+	void OnTransmissionIdsChanged()
+	{
+		Print(string.Format("Client: Transmission IDs changed, count: %1", m_aTransmissionIds.Count()), LogLevel.NORMAL);
+		
+		// Notify all listeners (e.g., map marker manager) that transmission points have changed
+		NotifyTransmissionPointListeners();
 	}
 	
 	//-----
@@ -533,14 +542,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		RplComponent rpl = RplComponent.Cast(comp.GetOwner().FindComponent(RplComponent));
 		if (rpl)
 		{
-			m_aTransmissionIds.Insert(Replication.FindId(rpl));
-			Replication.BumpMe(); // replicate the updated array
-		}
-		NotifyTransmissionPointListeners();
+		RplId transmissionRplId = Replication.FindId(rpl);
+		PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
+		m_aTransmissionIds.Insert(transmissionRplId);
+		Replication.BumpMe(); // replicate the updated array
 	}
-	
-	
-	void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
+	NotifyTransmissionPointListeners();
+}
+
+
+void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		// Remove the strong pointer
 		int idx = m_aTransmissionComps.Find(comp);
@@ -1096,6 +1107,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
 		
+		// Force replication to clients
+		RplComponent rpl = RplComponent.Cast(transmissionPoint.FindComponent(RplComponent));
+		if (rpl) {
+			Replication.BumpMe();
+			Print("BCM - Transmission Point entity marked for replication to clients", LogLevel.NORMAL);
+		}
 		
 		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(transmissionPoint.FindComponent(GRAD_BC_TransmissionComponent));
 	    if (tpc) {
@@ -1254,11 +1271,18 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		foreach (RplId rplId : m_aTransmissionIds)
 		{
+			PrintFormat("BCM - GetTransmissionPoints (client): Trying to resolve RplId %1", rplId);
 			RplComponent rpl = RplComponent.Cast(Replication.FindItem(rplId));
-			if (!rpl) continue;
+			if (!rpl) {
+				PrintFormat("BCM - GetTransmissionPoints (client): FindItem returned null for RplId %1", rplId);
+				continue;
+			}
 			
 			IEntity entity = rpl.GetEntity();
-			if (!entity) continue;
+			if (!entity) {
+				PrintFormat("BCM - GetTransmissionPoints (client): RplComponent has no entity for RplId %1", rplId);
+				continue;
+			}
 			
 			GRAD_BC_TransmissionComponent comp = GRAD_BC_TransmissionComponent.Cast(entity.FindComponent(GRAD_BC_TransmissionComponent));
 			if (comp)

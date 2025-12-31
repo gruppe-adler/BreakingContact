@@ -51,19 +51,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
 			if (m_RplComponent.IsMaster())
 			{
-				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-				if (bcm) {
-					bcm.RegisterTransmissionComponent(this);
-					PrintFormat("TPC Registered with BCM: %1", bcm);
-					m_iTransmissionDuration = bcm.GetTransmissionDuration();
-					m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
-				} else {
-					Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
-				}
-				// Start transmission immediately
-				SetTransmissionActive(true);
-				// State machine tick (server only)
-				GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
+				// Defer registration until next frame to allow RplId to be assigned
+				GetGame().GetCallqueue().CallLater(DeferredRegistration, 100, false, owner);
 			}
 			else
 			{
@@ -74,6 +63,25 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		else
 		{
 			Print("TPC RplComponent is null!", LogLevel.ERROR);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void DeferredRegistration(IEntity owner)
+	{
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm) {
+			bcm.RegisterTransmissionComponent(this);
+			PrintFormat("TPC Registered with BCM (deferred): %1, RplId=%2", bcm, Replication.FindItemId(owner));
+			m_iTransmissionDuration = bcm.GetTransmissionDuration();
+			m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
+			
+			// Start transmission immediately
+			SetTransmissionActive(true);
+			// State machine tick (server only)
+			GetGame().GetCallqueue().CallLater(MainLoop, 1000, true, owner);
+		} else {
+			Print("TPC Registration failed: BCM is null!", LogLevel.ERROR);
 		}
 	}
 	

@@ -503,45 +503,46 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Check if running on dedicated server
 	bool isDedicatedServer = Replication.IsServer() && !Replication.IsClient();
 	
-	if (isDedicatedServer)
-	{
-		Print("GRAD_BC_ReplayManager: Dedicated server detected, using RPC to send replay to clients", LogLevel.NORMAL);
-		// Continue to RPC logic below
-	}
-	else
+	if (!isDedicatedServer)
 	{
 		// Single-player or listen server - use local playback
 		Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
-		
-		// Check if we have RPC component for multiplayer
-		if (!m_RplComponent)
-		{
-			Print("GRAD_BC_ReplayManager: No RPC component available for transmission", LogLevel.ERROR);
-			return;
-		}
-		
-		// Send basic replay info first
-		Print("GRAD_BC_ReplayManager: Sending replay initialization RPC", LogLevel.NORMAL);
-		Rpc(RpcAsk_StartReplayPlayback, m_replayData.totalDuration, m_replayData.missionName, m_replayData.mapName, m_replayData.startTime);
-		
-		// Send frames in chunks to avoid network limits
-		const int chunkSize = 10; // Send 10 frames at a time
-		for (int i = 0; i < m_replayData.frames.Count(); i += chunkSize)
-		{
-			int endIndex = Math.Min(i + chunkSize, m_replayData.frames.Count());
-			Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2", i, endIndex-1), LogLevel.NORMAL);
-			SendFrameChunk(i, endIndex);
-		}
-		
-		// Send completion signal
-		Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
-		Rpc(RpcAsk_ReplayDataComplete);
+		StartLocalReplayPlayback();
+		return;
 	}
 	
-	//------------------------------------------------------------------------------------------------
-	void StartLocalReplayPlayback()
+	// Dedicated server - use RPC to send replay to clients
+	Print("GRAD_BC_ReplayManager: Dedicated server detected, using RPC to send replay to clients", LogLevel.NORMAL);
+	
+	// Check if we have RPC component for multiplayer
+	if (!m_RplComponent)
 	{
-		Print("GRAD_BC_ReplayManager: Starting local single-player replay playback", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: No RPC component available for transmission", LogLevel.ERROR);
+		return;
+	}
+	
+	// Send basic replay info first
+	Print("GRAD_BC_ReplayManager: Sending replay initialization RPC", LogLevel.NORMAL);
+	Rpc(RpcAsk_StartReplayPlayback, m_replayData.totalDuration, m_replayData.missionName, m_replayData.mapName, m_replayData.startTime);
+	
+	// Send frames in chunks to avoid network limits
+	const int chunkSize = 10; // Send 10 frames at a time
+	for (int i = 0; i < m_replayData.frames.Count(); i += chunkSize)
+	{
+		int endIndex = Math.Min(i + chunkSize, m_replayData.frames.Count());
+		Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2", i, endIndex-1), LogLevel.NORMAL);
+		SendFrameChunk(i, endIndex);
+	}
+	
+	// Send completion signal
+	Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
+	Rpc(RpcAsk_ReplayDataComplete);
+}
+
+//------------------------------------------------------------------------------------------------
+void StartLocalReplayPlayback()
+{
+	Print("GRAD_BC_ReplayManager: Starting local single-player replay playback", LogLevel.NORMAL);
 		
 		// Open map first
 		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 500, false);

@@ -143,6 +143,9 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
   }
+  Hierarchy "{41BAE78C990DC478}" {
+   MergePhysics 1
+  }
  }
  {
   GenericEntity : "{B17411929589C43C}Prefabs/MP/Campaign/Assets/CampaignHQRadioEast.et" {

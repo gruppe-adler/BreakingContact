@@ -506,10 +506,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	bool isDedicatedServer = isServer && !isClient;
 	
 	PrintFormat("GRAD_BC_ReplayManager: IsServer=%1, IsClient=%2, Dedicated=%3", isServer, isClient, isDedicatedServer);
-		Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
-		StartLocalReplayPlayback();
-		return;
-	}
+	Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
+	StartLocalReplayPlayback();
 	
 	// Dedicated server - use RPC to send replay to clients
 	Print("GRAD_BC_ReplayManager: Dedicated server detected, using RPC to send replay to clients", LogLevel.NORMAL);

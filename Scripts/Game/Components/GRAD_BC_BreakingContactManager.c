@@ -285,7 +285,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print("GRAD_BC: JIP spectator detected, scheduling UI hide", LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(HideUIForSpectators, 5000, false, logoDisplay, gamestateDisplay);
 			return; // Don't show the logos/text for spectators
-		
+		}
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
@@ -303,6 +303,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			logoDisplay.ShowLogo();
 		}
 
+	}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -947,12 +948,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		if (isOver) {
-		// Check if we already scheduled game over to prevent multiple calls
-		if (GameModeOver())
-		{
-			return; // Already scheduled or in GAMEOVER phase
+			// Check if we already scheduled game over to prevent multiple calls
+			if (GameModeOver())
+			{
+				return; // Already scheduled or in GAMEOVER phase
+			}
+			
+			// Schedule game over
+			GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
 		}
-		
+	}
+	
 	void SetBluforWin()
 	{
 		if (GameModeOver())

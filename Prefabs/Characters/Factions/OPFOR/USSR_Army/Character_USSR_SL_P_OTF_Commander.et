@@ -5,7 +5,6 @@ SCR_ChimeraCharacter : "{A5F4D7FEBDB57182}Prefabs/Characters/Factions/OPFOR/USSR
    m_sCharacterRole "Opfor Commander"
   }
   PS_PlayableComponent "{5E61249E802F3DC3}" {
-   m_name "Opfor Commander"
   }
   CharacterWeaponSlotComponent "{520EA1D2F659CFAB}" {
    WeaponTemplate "{FA5C25BF66A53DCF}Prefabs/Weapons/Rifles/AK74/Rifle_AK74.et"
@@ -18,7 +17,7 @@ SCR_ChimeraCharacter : "{A5F4D7FEBDB57182}Prefabs/Characters/Factions/OPFOR/USSR
      }
     }
     ItemsInitConfigurationItem "{5F0ABB2A8C9FF1BE}" {
-     TargetStorage "Prefabs/Characters/Uniforms/Jacket_M88.et"
+     TargetStorage "Vest/Vest_Lifchik_GL.et"
      PrefabsToSpawn {
       "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
      }

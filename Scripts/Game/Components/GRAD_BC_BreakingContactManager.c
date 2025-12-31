@@ -920,14 +920,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		if (isOver) {
-			// show game over screen with a 20s delay
-			// local stuff is managed by breaking contact phase handler
-	        GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 20000, false, EBreakingContactPhase.GAMEOVER);
-			Print(string.Format("Breaking Contact - Game Over Screen TODO"), LogLevel.NORMAL);
+		// Check if we already scheduled game over to prevent multiple calls
+		if (GameModeOver())
+		{
+			return; // Already scheduled or in GAMEOVER phase
 		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
+		
 	void SetBluforWin()
 	{
 		if (GameModeOver())

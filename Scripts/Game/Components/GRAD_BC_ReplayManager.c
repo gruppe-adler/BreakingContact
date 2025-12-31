@@ -501,11 +501,11 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		Print("GRAD_BC_ReplayManager: VERSION CHECK - Single-player detection code is active", LogLevel.NORMAL);
 		
 	// Check if running on dedicated server
-	bool isDedicatedServer = Replication.IsServer() && !Replication.IsClient();
+	bool isServer = Replication.IsServer();
+	bool isClient = Replication.IsClient();
+	bool isDedicatedServer = isServer && !isClient;
 	
-	if (!isDedicatedServer)
-	{
-		// Single-player or listen server - use local playback
+	PrintFormat("GRAD_BC_ReplayManager: IsServer=%1, IsClient=%2, Dedicated=%3", isServer, isClient, isDedicatedServer);
 		Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
 		StartLocalReplayPlayback();
 		return;

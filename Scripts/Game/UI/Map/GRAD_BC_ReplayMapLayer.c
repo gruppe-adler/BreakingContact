@@ -294,9 +294,17 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		{
 			// Fallback to white circle if no texture path
 			DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw a directional chevron showing unit facing
+	protected void DrawDirectionalChevron(vector position, float direction, int color, float size)
+	{
+		// Convert yaw angle to radians (direction is in degrees)
+		float angleRad = direction * Math.DEG2RAD;
 		
 		float halfSize = size * 0.5;
-		
 		// Create chevron shape pointing north (0 degrees)
 		array<vector> shapePoints = {};
 		

@@ -52,7 +52,6 @@ class MapIcon
 			return;
 		
 		if (!m_wiconImage) {
-			// todo current error
 			Print(string.Format("PANIC - No m_wiconImage found"), LogLevel.NORMAL);
 			return;
 		};

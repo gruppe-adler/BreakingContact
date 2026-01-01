@@ -239,14 +239,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		{
 			Print("GRAD_BC_ReplayManager: BCM not found during initialization", LogLevel.WARNING);
 		}
-		
-		// Set up projectile event handlers if enabled
-		if (m_bRecordProjectiles)
-		{
-			Print("GRAD_BC_ReplayManager: Projectile recording enabled", LogLevel.NORMAL);
-			// TODO: Set up projectile spawn/destroy event handlers
-			// This would need engine support or world query polling
-		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1062,13 +1054,6 @@ void StartLocalReplayPlayback()
 		GetGame().GetCallqueue().Remove(UpdatePlayback);
 		
 		Print("GRAD_BC_ReplayManager: Playback finished", LogLevel.NORMAL);
-		
-		// Show replay finished notification to all players
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcm)
-		{
-			bcm.ShowHintToAllPlayers("Replay finished. Return to main menu or wait for server restart.", "REPLAY COMPLETE", 15, false);
-		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

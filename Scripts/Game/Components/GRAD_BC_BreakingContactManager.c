@@ -6,7 +6,8 @@ enum EBreakingContactPhase
 	OPFOR,
 	BLUFOR,
 	GAME,
-    GAMEOVER
+    GAMEOVER,
+	GAMEOVERDONE
 }
 
 [EntityEditorProps(category: "Gruppe Adler", description: "Breaking Contact Gamemode Manager")]
@@ -190,7 +191,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			}
 			case EBreakingContactPhase.GAMEOVER :
 			{
-				message = "Game is over.";
+				message = "Game is over. Replay loading.";
+				customSound = "gong_3";
+				break;
+			}
+			case EBreakingContactPhase.GAMEOVERDONE :
+			{
+				message = string.Format("Replay is over. %1 wins.", m_sWinnerSide);
 				customSound = "gong_3";
 				break;
 			}

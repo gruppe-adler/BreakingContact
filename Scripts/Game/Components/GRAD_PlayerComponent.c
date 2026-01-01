@@ -142,6 +142,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		
 		if (characterRole == "Opfor Commander")
 		{
+			m_faction = "USSR";
 			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
@@ -150,6 +151,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
+			m_faction = "US";
 			m_bChoosingSpawn = true;
 		}
 		

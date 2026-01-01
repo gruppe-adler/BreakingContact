@@ -85,9 +85,15 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 						m_infoImage.LoadImageTexture(0, "{3B1DCBDCE5DA9CEB}UI/Transmission/rus_established.edds");	
 					}
 					
+					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+					if (playerComponent == null)
+						return;
+					
+					vector location = playerComponent.GetOwner().GetOrigin();
+					
 					// Play transmission established sound
 					Print("BC Transmission UI - Playing transmission established sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:beep2");
+					AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds", "beep", location);
 					
 					break;
 				}
@@ -100,9 +106,15 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
 					}
 				
+					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+					if (playerComponent == null)
+						return;
+					
+					vector location = playerComponent.GetOwner().GetOrigin();
+				
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
+					AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds", "signal_lost", location);
 				
 					break;
 				}
@@ -115,9 +127,15 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 						m_infoImage.LoadImageTexture(0, "{85D0D3AA68675C00}UI/Transmission/rus_cutoff.edds");	
 					}
 				
+					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+					if (playerComponent == null)
+						return;
+					
+					vector location = playerComponent.GetOwner().GetOrigin();
+				
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
+					AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds", "signal_lost", location);
 				
 					break;
 				}
@@ -129,10 +147,16 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					} else {
 						m_infoImage.LoadImageTexture(0, "{8BE8C2B40DACD244}UI/Transmission/rus_done.edds");	
 					}
+				
+					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+					if (playerComponent == null)
+						return;
+					
+					vector location = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission interrupted sound
 					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
-					AudioSystem.PlaySound("{937A60765465B47D}sounds/BC_sounds:signal_lost");
+					AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds", "signal_lost", location);
 				
 					break;
 				}

@@ -1142,6 +1142,24 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
         m_iBreakingContactPhase = phase;
         Replication.BumpMe();
 		
+		// Interrupt all running transmissions when game ends
+		if (phase == EBreakingContactPhase.GAMEOVER && Replication.IsServer())
+		{
+			Print("BCM: GAMEOVER phase - interrupting all running transmissions", LogLevel.NORMAL);
+			array<GRAD_BC_TransmissionComponent> transmissions = GetTransmissionPoints();
+			if (transmissions)
+			{
+				foreach (GRAD_BC_TransmissionComponent tpc : transmissions)
+				{
+					if (tpc && tpc.GetTransmissionState() == ETransmissionState.TRANSMITTING)
+					{
+						Print(string.Format("BCM: Interrupting transmission at %1", tpc.GetPosition()), LogLevel.NORMAL);
+						tpc.SetTransmissionActive(false);
+					}
+				}
+			}
+		}
+		
 		OnBreakingContactPhaseChanged(); // call on server too for debug in SP test
 
         Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);

@@ -424,9 +424,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			InitiateBluforSpawn();
 		};
 		
-		if (m_skipWinConditions || !(GameModeStarted()))
+		// Skip mainLoop during LOADING/PREPTIME or if game is over
+		if (m_skipWinConditions || currentPhase == EBreakingContactPhase.LOADING || currentPhase == EBreakingContactPhase.PREPTIME)
         {
 			Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
+			return;
+		};
+		
+		// Skip win conditions and marker management during GAMEOVER
+		if (currentPhase == EBreakingContactPhase.GAMEOVER)
+		{
 			return;
 		};
 		

@@ -5,6 +5,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_playerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_projectileMarkers = {};
 	
+	// Replay mode flag - true when actively viewing replay, false for normal map use
+	protected bool m_bIsInReplayMode = false;
+	
 	// Keep last frame data for persistent display
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_lastFramePlayerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_lastFrameProjectileMarkers = {};
@@ -214,6 +217,23 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Draw an image with a specific color tint
+	void DrawImageColor(vector center, int width, int height, SharedItemRef tex, int color)
+	{
+		ImageDrawCommand cmd = new ImageDrawCommand();
+		
+		int xcp, ycp;		
+		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
+		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
+		cmd.m_pTexture = tex;
+		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_iColor = color;
+		
+		m_Commands.Insert(cmd);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	// Draw a unit marker with icon and directional chevron
 	protected void DrawUnitMarker(vector position, float direction, string unitType, int color, bool isVehicle, bool isAlive)
 	{
@@ -224,6 +244,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		else
 			iconSize = 35.0;
 		
+		// Draw faction-colored background circle
+		float circleRadius = iconSize * 0.6;
+		DrawCircle(position, circleRadius, color, 16);
+		
+		// Draw smaller direction arrow attached to circle, in faction color
+		float arrowSize = iconSize * 0.4; // Smaller arrow (40% of icon size)
+		DrawDirectionalChevron(position, direction, color, arrowSize);
+		
 		// Get the appropriate texture
 		string texturePath = m_unitTypeTextures.Get(unitType);
 		if (texturePath == "")
@@ -233,17 +261,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		if (!isAlive)
 			texturePath = m_unitTypeTextures.Get("Dead");
 		
-		// Draw direction chevron underneath icon
-		DrawDirectionalChevron(position, direction, color, iconSize * 1.5);
-		
-		// Load and draw the unit icon texture
+		// Load and draw the unit icon texture in WHITE on top of colored circle
 		if (texturePath != "")
 		{
 			int iconPixelSize;
 			if (isVehicle)
-				iconPixelSize = 40;
+				iconPixelSize = 36;
 			else
-				iconPixelSize = 32;
+				iconPixelSize = 28;
 			
 			// Check if texture is already loaded, otherwise load and cache it
 			SharedItemRef texture = m_loadedTextures.Get(texturePath);
@@ -256,29 +281,19 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			
 			if (texture)
 			{
-				DrawImage(position, iconPixelSize, iconPixelSize, texture);
+				// Draw icon in WHITE color (overlays on faction-colored circle)
+				DrawImageColor(position, iconPixelSize, iconPixelSize, texture, 0xFFFFFFFF);
 			}
 			else
 			{
-				// Fallback to circles if texture fails to load
-				DrawCircle(position, iconSize * 0.5, color, 12);
-				DrawCircle(position, iconSize * 0.2, color, 8);
+				// Fallback to white circle if texture fails to load
+				DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
 			}
 		}
 		else
 		{
-			// Fallback to circles if no texture path
-			DrawCircle(position, iconSize * 0.5, color, 12);
-			DrawCircle(position, iconSize * 0.2, color, 8);
-		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// Draw a directional chevron showing unit facing
-	protected void DrawDirectionalChevron(vector position, float direction, int color, float size)
-	{
-		// Convert yaw angle to radians (direction is in degrees)
-		float angleRad = direction * Math.DEG2RAD;
+			// Fallback to white circle if no texture path
+			DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
 		
 		float halfSize = size * 0.5;
 		
@@ -395,6 +410,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		}
 		
 		m_hasLastFrame = true;
+		m_bIsInReplayMode = true; // Mark that we're in replay mode
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles for persistent display", 
 			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count()));
 		

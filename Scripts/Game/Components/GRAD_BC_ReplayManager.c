@@ -134,7 +134,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	protected float m_fCurrentPlaybackTime = 0;
 	protected int m_iCurrentFrameIndex = 0;
 	protected bool m_bPlaybackPaused = false;
-	protected float m_fPlaybackSpeed = 1.0; // 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed
+	protected float m_fPlaybackSpeed = 5.0; // 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed, 5.0 = 5x speed
 	
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
@@ -275,7 +275,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		{
 			Print("GRAD_BC_ReplayManager: GAMEOVER phase detected, stopping recording", LogLevel.NORMAL);
 			StopRecording();
-			GetGame().GetCallqueue().CallLater(StartPlaybackForAllClients, 3000, false); // 3 second delay
+			GetGame().GetCallqueue().CallLater(StartPlaybackForAllClients, 500, false); // Reduced from 3000ms to 500ms
 		}
 	}
 	
@@ -591,17 +591,14 @@ void StartLocalReplayPlayback()
 	Print("GRAD_BC_ReplayManager: Starting local single-player replay playback", LogLevel.NORMAL);
 		
 		// Open map first
-		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 500, false);
-		
-		// Initialize playback state (but don't start immediately)
-		m_bIsPlayingBack = true;
+		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 100, false); // Reduced from 500ms to 100ms
 		m_fPlaybackStartTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		m_bPlaybackPaused = false;
 		
 		// Start playback after map opens
-		GetGame().GetCallqueue().CallLater(StartActualPlayback, 2000, false);
+		GetGame().GetCallqueue().CallLater(StartActualPlayback, 800, false); // Reduced from 2000ms to 800ms
 		
 		Print("GRAD_BC_ReplayManager: Local playback initialized", LogLevel.NORMAL);
 	}
@@ -881,7 +878,25 @@ void StartLocalReplayPlayback()
 	void UpdatePlayback()
 	{
 		if (!m_bIsPlayingBack || !m_replayData || m_bPlaybackPaused)
+		{
+			static int updatePlaybackSkipCounter = 0;
+			updatePlaybackSkipCounter++;
+			if (updatePlaybackSkipCounter % 50 == 0)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback skipped - IsPlayingBack: %1, HasData: %2, IsPaused: %3", 
+					m_bIsPlayingBack, m_replayData != null, m_bPlaybackPaused), LogLevel.WARNING);
+			}
 			return;
+		}
+		
+		// Debug: Log that UpdatePlayback is running
+		static int updatePlaybackCallCounter = 0;
+		updatePlaybackCallCounter++;
+		if (updatePlaybackCallCounter <= 5 || updatePlaybackCallCounter % 50 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback called (#%1) - Current frame: %2/%3", 
+				updatePlaybackCallCounter, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
+		}
 			
 		// Calculate elapsed time since playback started (in seconds)
 		float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0; // Convert to seconds
@@ -908,6 +923,7 @@ void StartLocalReplayPlayback()
 		// Check if playback finished
 		if (m_fCurrentPlaybackTime >= m_replayData.totalDuration)
 		{
+			Print("GRAD_BC_ReplayManager: Playback finished, stopping", LogLevel.NORMAL);
 			StopPlayback();
 		}
 	}
@@ -929,11 +945,22 @@ void StartLocalReplayPlayback()
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity)
 		{
+			// Debug: Log map entity found
+			if (frameLogCounter <= 3)
+			{
+				Print("GRAD_BC_ReplayManager: Map entity found, searching for replay layer...", LogLevel.NORMAL);
+			}
+			
 			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
 			if (replayLayer)
 			{
+				// Debug: Confirm replay layer found
+				if (frameLogCounter <= 3)
+				{
+					Print(string.Format("GRAD_BC_ReplayManager: Replay layer found! Sending frame with %1 players", 
+						frame.players.Count()), LogLevel.NORMAL);
+				}
 				replayLayer.UpdateReplayFrame(frame);
-				// Remove verbose logging for successful frame updates
 			}
 			else
 			{
@@ -942,13 +969,20 @@ void StartLocalReplayPlayback()
 				warningCounter++;
 				if (warningCounter % 20 == 0)
 				{
-					Print("GRAD_BC_ReplayManager: No replay map layer found in map entity", LogLevel.WARNING);
+					Print(string.Format("GRAD_BC_ReplayManager: No replay map layer found in map entity (warning #%1)", 
+						warningCounter), LogLevel.WARNING);
 				}
 			}
 		}
 		else
 		{
-			Print("GRAD_BC_ReplayManager: No map entity found", LogLevel.WARNING);
+			static int noMapCounter = 0;
+			noMapCounter++;
+			if (noMapCounter % 20 == 0)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: No map entity found (warning #%1)", 
+					noMapCounter), LogLevel.WARNING);
+			}
 		}
 	}
 	
@@ -1029,7 +1063,12 @@ void StartLocalReplayPlayback()
 		
 		Print("GRAD_BC_ReplayManager: Playback finished", LogLevel.NORMAL);
 		
-		// TODO: Show "replay finished" message and options
+		// Show replay finished notification to all players
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+		{
+			bcm.ShowHintToAllPlayers("Replay finished. Return to main menu or wait for server restart.", "REPLAY COMPLETE", 15, false);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

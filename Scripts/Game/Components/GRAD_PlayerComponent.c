@@ -87,6 +87,17 @@ class GRAD_PlayerComponent : ScriptComponent
 			
 	bool IsChoosingSpawn() 
 	{
+		// Don't allow spawn selection during GAMEOVER phase (replay mode)
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		if (BCM)
+		{
+			EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
+			if (phase == EBreakingContactPhase.GAMEOVER)
+			{
+				return false; // Disable spawn selection during replay
+			}
+		}
+		
 		Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
 	}

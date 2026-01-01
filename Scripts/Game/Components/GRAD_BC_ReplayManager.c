@@ -580,34 +580,84 @@ class GRAD_BC_ReplayManager : ScriptComponent
 //------------------------------------------------------------------------------------------------
 void StartLocalReplayPlayback()
 {
-	Print("GRAD_BC_ReplayManager: Starting local single-player replay playback", LogLevel.NORMAL);
+	Print("GRAD_BC_ReplayManager: ========== Starting local single-player replay playback ==========", LogLevel.NORMAL);
+		
+		if (!m_replayData)
+		{
+			Print("GRAD_BC_ReplayManager: CRITICAL ERROR - No replay data available!", LogLevel.ERROR);
+			return;
+		}
+		
+		Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
+			m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
 		
 		// Open map first
+		Print("GRAD_BC_ReplayManager: Scheduling map open in 100ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 100, false); // Reduced from 500ms to 100ms
-		m_fPlaybackStartTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+		
+		// Initialize playback state
+		BaseWorld world = GetGame().GetWorld();
+		if (world)
+		{
+			m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
+			Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: WARNING - World not available yet, will initialize timing later", LogLevel.WARNING);
+			m_fPlaybackStartTime = 0;
+		}
+		
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		m_bPlaybackPaused = false;
 		
 		// Start playback after map opens
+		Print("GRAD_BC_ReplayManager: Scheduling actual playback start in 800ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartActualPlayback, 800, false); // Reduced from 2000ms to 800ms
 		
-		Print("GRAD_BC_ReplayManager: Local playback initialized", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	void StartActualPlayback()
 	{
+		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback CALLED =====", LogLevel.NORMAL);
 		Print("GRAD_BC_ReplayManager: Starting actual playback sequence", LogLevel.NORMAL);
 		
+		// Verify world is available
+		Print("GRAD_BC_ReplayManager: Checking if world is available...", LogLevel.NORMAL);
+		BaseWorld world = GetGame().GetWorld();
+		if (!world)
+		{
+			Print("GRAD_BC_ReplayManager: World not available for playback, retrying in 500ms", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(StartActualPlayback, 500, false);
+			return;
+		}
+		
+		Print("GRAD_BC_ReplayManager: World is available, proceeding...", LogLevel.NORMAL);
+		
 		// Reset timing
-		m_fPlaybackStartTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
+		Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to: %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+		
+		// Enable playback flag - CRITICAL for UpdatePlayback to run
+		Print("GRAD_BC_ReplayManager: Setting m_bIsPlayingBack to TRUE", LogLevel.NORMAL);
+		m_bIsPlayingBack = true;
+		Print(string.Format("GRAD_BC_ReplayManager: m_bIsPlayingBack is now: %1", m_bIsPlayingBack), LogLevel.NORMAL);
+		
+		Print("GRAD_BC_ReplayManager: About to start playback loop", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		
 		// Start playback loop
+		Print("GRAD_BC_ReplayManager: Calling GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true)", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
+		Print("GRAD_BC_ReplayManager: CallLater executed successfully", LogLevel.NORMAL);
 		
 		// Show replay controls
+		Print("GRAD_BC_ReplayManager: About to show replay controls", LogLevel.NORMAL);
 		ShowReplayControls();
+		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback COMPLETE =====", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -851,9 +901,17 @@ void StartLocalReplayPlayback()
 		// Wait longer for map to fully initialize
 		GetGame().GetCallqueue().CallLater(VerifyMapIsOpen, 2000, false);
 		
+		// Verify world is available before starting playback
+		BaseWorld world = GetGame().GetWorld();
+		if (!world)
+		{
+			Print("GRAD_BC_ReplayManager: World not available in StartClientReplayPlayback", LogLevel.ERROR);
+			return;
+		}
+		
 		// Start playback
 		m_bIsPlayingBack = true;
-		m_fPlaybackStartTime = GetGame().GetWorld().GetWorldTime();
+		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		
@@ -869,6 +927,7 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	void UpdatePlayback()
 	{
+		// Enhanced logging to diagnose playback issues
 		if (!m_bIsPlayingBack || !m_replayData || m_bPlaybackPaused)
 		{
 			static int updatePlaybackSkipCounter = 0;
@@ -877,6 +936,10 @@ void StartLocalReplayPlayback()
 			{
 				Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback skipped - IsPlayingBack: %1, HasData: %2, IsPaused: %3", 
 					m_bIsPlayingBack, m_replayData != null, m_bPlaybackPaused), LogLevel.WARNING);
+				if (m_replayData)
+				{
+					Print(string.Format("GRAD_BC_ReplayManager: Replay data exists with %1 frames", m_replayData.frames.Count()), LogLevel.WARNING);
+				}
 			}
 			return;
 		}
@@ -891,25 +954,57 @@ void StartLocalReplayPlayback()
 		}
 			
 		// Calculate elapsed time since playback started (in seconds)
-		float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0; // Convert to seconds
+		BaseWorld world = GetGame().GetWorld();
+		if (!world)
+		{
+			Print("GRAD_BC_ReplayManager: World not available in UpdatePlayback, stopping playback", LogLevel.ERROR);
+			m_bIsPlayingBack = false;
+			GetGame().GetCallqueue().Remove(UpdatePlayback);
+			return;
+		}
+		
+		float currentWorldTime = world.GetWorldTime() / 1000.0; // Convert to seconds
 		m_fCurrentPlaybackTime = (currentWorldTime - m_fPlaybackStartTime) * m_fPlaybackSpeed;
 		
+		if (updatePlaybackCallCounter <= 5 || updatePlaybackCallCounter % 50 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Playback time: %.2f, Speed: %.2f, Frame: %3/%4", 
+				m_fCurrentPlaybackTime, m_fPlaybackSpeed, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
+		}
+		
 		// Find current frame to display
+		int framesProcessedThisUpdate = 0;
 		while (m_iCurrentFrameIndex < m_replayData.frames.Count())
 		{
 			GRAD_BC_ReplayFrame frame = m_replayData.frames[m_iCurrentFrameIndex];
+			framesProcessedThisUpdate++;
 			float frameTimeFromStart = frame.timestamp - m_replayData.startTime;
 			
 			if (frameTimeFromStart <= m_fCurrentPlaybackTime)
 			{
 				// Display this frame
+				if (updatePlaybackCallCounter <= 10 || m_iCurrentFrameIndex % 20 == 0)
+				{
+					Print(string.Format("GRAD_BC_ReplayManager: Displaying frame %1 (time: %.2f vs %.2f)", 
+						m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
+				}
 				DisplayReplayFrame(frame);
 				m_iCurrentFrameIndex++;
 			}
 			else
 			{
+				if (updatePlaybackCallCounter <= 5)
+				{
+					Print(string.Format("GRAD_BC_ReplayManager: Waiting for frame %1 (time: %.2f, current: %.2f)", 
+						m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
+				}
 				break; // Wait for next update
 			}
+		}
+		
+		if (framesProcessedThisUpdate > 0 && (updatePlaybackCallCounter <= 10 || updatePlaybackCallCounter % 25 == 0))
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Processed %1 frames in this update cycle", framesProcessedThisUpdate), LogLevel.NORMAL);
 		}
 		
 		// Check if playback finished
@@ -956,7 +1051,11 @@ void StartLocalReplayPlayback()
 			}
 			else
 			{
-				// Only log warning every 20th time to reduce spam
+				// Only log warning periodically to reduce spam
+				if (frameLogCounter % 20 == 0)
+				{
+					Print("GRAD_BC_ReplayManager: WARNING - Replay layer not found on map entity", LogLevel.WARNING);
+				}
 				static int warningCounter = 0;
 				warningCounter++;
 				if (warningCounter % 20 == 0)
@@ -1053,7 +1152,60 @@ void StartLocalReplayPlayback()
 		m_bPlaybackPaused = false;
 		GetGame().GetCallqueue().Remove(UpdatePlayback);
 		
-		Print("GRAD_BC_ReplayManager: Playback finished", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Playback finished, closing map and setting phase to GAMEOVERDONE", LogLevel.NORMAL);
+		
+		// Close the map
+		CloseMap();
+		
+		// Set phase to GAMEOVERDONE to end the game
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm && Replication.IsServer())
+		{
+			Print("GRAD_BC_ReplayManager: Setting phase to GAMEOVERDONE", LogLevel.NORMAL);
+			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
+		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: Cannot set phase - BCM not found or not on server", LogLevel.WARNING);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void CloseMap()
+	{
+		Print("GRAD_BC_ReplayManager: Attempting to close map", LogLevel.NORMAL);
+		
+		PlayerController playerController = GetGame().GetPlayerController();
+		if (!playerController)
+		{
+			Print("GRAD_BC_ReplayManager: No player controller found to close map", LogLevel.WARNING);
+			return;
+		}
+		
+		IEntity playerEntity = playerController.GetControlledEntity();
+		if (!playerEntity)
+		{
+			Print("GRAD_BC_ReplayManager: No player entity found to close map", LogLevel.WARNING);
+			return;
+		}
+		
+		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(playerEntity.FindComponent(SCR_GadgetManagerComponent));
+		if (!gadgetManager)
+		{
+			Print("GRAD_BC_ReplayManager: No gadget manager found to close map", LogLevel.WARNING);
+			return;
+		}
+		
+		IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+		if (!mapGadget)
+		{
+			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.WARNING);
+			return;
+		}
+		
+		// Put map back into inventory
+		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
+		Print("GRAD_BC_ReplayManager: Map closed successfully", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

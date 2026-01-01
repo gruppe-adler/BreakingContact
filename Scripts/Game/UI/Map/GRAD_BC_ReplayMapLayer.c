@@ -13,9 +13,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_lastFrameProjectileMarkers = {};
 	protected bool m_hasLastFrame = false;
 	
-	// Colors for different factions
-	protected ref map<string, int> m_factionColors = new map<string, int>();
-	
 	// Unit type icon textures
 	protected ref map<string, string> m_unitTypeTextures = new map<string, string>();
 	
@@ -29,29 +26,35 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		
 		Print("GRAD_BC_ReplayMapLayer: Initializing replay map layer", LogLevel.NORMAL);
 		
-		// Initialize faction colors
-		m_factionColors.Set("US", Color.BLUE);
-		m_factionColors.Set("USSR", Color.RED);
-		m_factionColors.Set("", Color.WHITE); // Default/unknown
+		// Initialize unit type textures with game icons
+		m_unitTypeTextures.Set("AntiTank", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
+		m_unitTypeTextures.Set("AT", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
+		m_unitTypeTextures.Set("AAT", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
+		m_unitTypeTextures.Set("Engineer", "{DB2B78344402FFB6}UI/Textures/Icons/iconmanengineer_ca.edds");
+		m_unitTypeTextures.Set("Grenadier", "{46E164B39CEAF539}UI/Textures/Icons/iconmanexplosive_ca.edds");
+		m_unitTypeTextures.Set("Leader", "{27462C23B18E544B}UI/Textures/Icons/iconmanleader_ca.edds");
+		m_unitTypeTextures.Set("SL", "{27462C23B18E544B}UI/Textures/Icons/iconmanleader_ca.edds");
+		m_unitTypeTextures.Set("Officer", "{5C5BA790ABB84C51}UI/Textures/Icons/iconmanofficer_ca.edds");
+		m_unitTypeTextures.Set("Medic", "{82BA31D8DF0720DB}UI/Textures/Icons/iconmanmedic_ca.edds");
+		m_unitTypeTextures.Set("MachineGunner", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
+		m_unitTypeTextures.Set("AR", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
+		m_unitTypeTextures.Set("AutomaticRifleman", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
+		m_unitTypeTextures.Set("Sharpshooter", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
+		m_unitTypeTextures.Set("Recon", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
+		m_unitTypeTextures.Set("Spotter", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
+		m_unitTypeTextures.Set("Rifleman", "{9731965B995D0B76}UI/Textures/Icons/iconman_ca.edds");
 		
-		// Initialize unit type textures
-		m_unitTypeTextures.Set("AmmoBearer", "{FB48FAD32DA8BC91}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_AmmoBearer.edds");
-		m_unitTypeTextures.Set("AntiTank", "{00B30C29FAF85E1C}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_AntiTank.edds");
-		m_unitTypeTextures.Set("Custom", "{A489F552FB7489C3}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Custom.edds");
-		m_unitTypeTextures.Set("Dead", "{54B61CF30B644B48}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Dead.edds");
-		m_unitTypeTextures.Set("Grenadier", "{DDAEEF112BEBCF94}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Grenadier.edds");
-		m_unitTypeTextures.Set("Leader", "{A26C465A6AE2AA17}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Leader.edds");
-		m_unitTypeTextures.Set("MachineGunner", "{EF1F445746A3391A}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_MachineGunner.edds");
-		m_unitTypeTextures.Set("Medic", "{F3FCC3B9732551D9}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Medic.edds");
-		m_unitTypeTextures.Set("Player", "{9F4D0043E24255E8}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Player.edds");
-		m_unitTypeTextures.Set("RadioOperator", "{B9F0BD39FF1881A3}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_RadioOperator.edds");
-		m_unitTypeTextures.Set("Rifleman", "{AE53796BC5D21A08}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Rifleman.edds");
-		m_unitTypeTextures.Set("Sharpshooter", "{0A78405E73C36477}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Sharpshooter.edds");
-		m_unitTypeTextures.Set("Spotter", "{9A61AD7EADB131FD}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Spotter.edds");
-		m_unitTypeTextures.Set("Unarmed", "{9164E45B9A237FE9}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Unarmed.edds");
+		// Vehicle icons
+		m_unitTypeTextures.Set("ArmedCar", "{EB7C826CD3D2BE53}UI/Textures/Icons/iconarmedcar_ca.edds");
+		m_unitTypeTextures.Set("Car", "{AAEC4011C3FAAE79}UI/Textures/Icons/iconcar_ca.edds");
+		m_unitTypeTextures.Set("Helicopter", "{7F728098B42A124F}UI/Textures/Icons/iconheli_ca.edds");
+		m_unitTypeTextures.Set("HelicopterArmed", "{0729FDD4F156F1DD}UI/Textures/Icons/iconheliarmed_ca.edds");
+		m_unitTypeTextures.Set("Truck", "{DDACA1439DB45633}UI/Textures/Icons/icontruck_ca.edds");
+		m_unitTypeTextures.Set("Tank", "{CAC18FF5CC2A427D}UI/Textures/Icons/icontank_ca.edds");
+		m_unitTypeTextures.Set("Plane", "{D9861CB8FECEC812}UI/Textures/Icons/iconplane_ca.edds");
 		
-		// Default fallback
-		m_unitTypeTextures.Set("Default", "{AE53796BC5D21A08}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Rifleman.edds");
+		// Default fallback for unknown unit types
+		m_unitTypeTextures.Set("Default", "{9731965B995D0B76}UI/Textures/Icons/iconman_ca.edds");
 		
 		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with unit type textures", LogLevel.NORMAL);
 	}
@@ -121,18 +124,38 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			if (!marker.isVisible)
 				continue;
 				
-			// Get faction color
-			int color = m_factionColors.Get(marker.factionKey);
-			if (color == 0)
-				color = 0xFFFFFFFF;
-				
-			// Make colors brighter with full alpha
-			if (marker.factionKey == "US")
-				color = 0xFF0080FF; // Bright blue
-			else if (marker.factionKey == "USSR") 
-				color = 0xFFFF4040; // Bright red
-			else
-				color = 0xFFFFFF40; // Bright yellow
+			// Get faction color from Faction API
+			int color = 0xFFFFFFFF; // Default white
+			
+			// Get the faction using FactionManager
+			FactionManager factionManager = GetGame().GetFactionManager();
+			if (factionManager)
+			{
+				Faction faction = factionManager.GetFactionByKey(marker.factionKey);
+				if (faction)
+				{
+					Color factionColor = faction.GetFactionColor();
+					color = factionColor.PackToInt();
+					
+					// Debug: Log color assignment for first few markers
+					static int colorLogCount = 0;
+					colorLogCount++;
+					if (colorLogCount <= 5)
+					{
+						Print(string.Format("GRAD_BC_ReplayMapLayer: Faction '%1' color from API: 0x%2", 
+							marker.factionKey, color.ToString(16)), LogLevel.NORMAL);
+					}
+				}
+				else
+				{
+					static int noFactionCount = 0;
+					noFactionCount++;
+					if (noFactionCount <= 3)
+					{
+						Print(string.Format("GRAD_BC_ReplayMapLayer: Faction '%1' not found in FactionManager", marker.factionKey), LogLevel.WARNING);
+					}
+				}
+			}
 				
 			if (!marker.isAlive)
 				color = 0x80808080; // Gray for dead
@@ -360,13 +383,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			marker.unitType = playerSnapshot.unitRole; // Use role from snapshot
 			marker.isVisible = true;
 			
-			// Debug: Log position data for first few frames
+			// Debug: Log position and faction data for first few frames
 			static int positionLogCount = 0;
 			positionLogCount++;
 			if (positionLogCount <= 10)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) position: [%3, %4, %5], direction: %6, type: %7", 
-					marker.playerId, marker.playerName, marker.position[0], marker.position[1], marker.position[2], 
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7, type: %8", 
+					marker.playerId, marker.playerName, marker.factionKey, marker.position[0], marker.position[1], marker.position[2], 
 					marker.direction, marker.unitType));
 			}
 			

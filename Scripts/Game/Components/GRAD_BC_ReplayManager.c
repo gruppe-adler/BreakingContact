@@ -28,8 +28,9 @@ class GRAD_BC_PlayerSnapshot : Managed
 	bool isAlive;
 	bool isInVehicle;
 	string vehicleType; // for vehicles
+	string unitRole; // detected role based on equipment
 	
-	static GRAD_BC_PlayerSnapshot Create(int id, string name, string faction, vector pos, vector ang, bool alive, bool inVeh = false, string vehType = "")
+	static GRAD_BC_PlayerSnapshot Create(int id, string name, string faction, vector pos, vector ang, bool alive, bool inVeh = false, string vehType = "", string role = "Rifleman")
 	{
 		GRAD_BC_PlayerSnapshot snapshot = new GRAD_BC_PlayerSnapshot();
 		snapshot.playerId = id;
@@ -40,6 +41,7 @@ class GRAD_BC_PlayerSnapshot : Managed
 		snapshot.isAlive = alive;
 		snapshot.isInVehicle = inVeh;
 		snapshot.vehicleType = vehType;
+		snapshot.unitRole = role;
 		return snapshot;
 	}
 }
@@ -414,8 +416,11 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				}
 			}
 			
+			// Determine unit role based on equipment
+			string unitRole = DetermineUnitRole(character);
+			
 			GRAD_BC_PlayerSnapshot snapshot = GRAD_BC_PlayerSnapshot.Create(
-				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType
+				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole
 			);
 			
 			// Debug: Log recording positions for first few frames
@@ -429,6 +434,67 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			
 			frame.players.Insert(snapshot);
 		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Determine unit role based on equipment and components
+	string DetermineUnitRole(SCR_ChimeraCharacter character)
+	{
+		if (!character)
+			return "Rifleman";
+			
+		// Check for medic role - has medical supplies
+		InventoryStorageManagerComponent inventoryManager = InventoryStorageManagerComponent.Cast(character.FindComponent(InventoryStorageManagerComponent));
+		if (inventoryManager)
+		{
+			array<IEntity> items = {};
+			inventoryManager.GetItems(items);
+			foreach (IEntity item : items)
+			{
+				// Check for medical items
+				SCR_ConsumableItemComponent consumable = SCR_ConsumableItemComponent.Cast(item.FindComponent(SCR_ConsumableItemComponent));
+				if (consumable)
+				{
+					SCR_ConsumableEffectHealthItems healthEffect = SCR_ConsumableEffectHealthItems.Cast(consumable.GetConsumableEffect());
+					if (healthEffect)
+						return "Medic";
+				}
+			}
+		}
+		
+		// Check weapon type using CharacterControllerComponent
+		CharacterControllerComponent controller = character.GetCharacterController();
+		if (controller)
+		{
+			BaseWeaponManagerComponent weaponManager = controller.GetWeaponManagerComponent();
+			if (weaponManager)
+			{
+				BaseWeaponComponent currentWeapon = weaponManager.GetCurrentWeapon();
+				if (currentWeapon)
+				{
+					// Get weapon entity to check type
+					IEntity weaponEntity = currentWeapon.GetOwner();
+					if (weaponEntity)
+					{
+						string weaponName = weaponEntity.GetPrefabData().GetPrefabName();
+						weaponName.ToLower();
+						
+						// Check weapon type based on name patterns
+						if (weaponName.Contains("m249") || weaponName.Contains("mg") || weaponName.Contains("pkm") || weaponName.Contains("machinegun"))
+							return "MachineGunner";
+						if (weaponName.Contains("m72") || weaponName.Contains("rpg") || weaponName.Contains("at4") || weaponName.Contains("law") || weaponName.Contains("rocket"))
+							return "AntiTank";
+						if (weaponName.Contains("m21") || weaponName.Contains("svd") || weaponName.Contains("sniper"))
+							return "Sharpshooter";
+						if (weaponName.Contains("m203") || weaponName.Contains("gp25") || weaponName.Contains("grenade"))
+							return "Grenadier";
+					}
+				}
+			}
+		}
+		
+		// Default to rifleman
+		return "Rifleman";
 	}
 	
 	//------------------------------------------------------------------------------------------------

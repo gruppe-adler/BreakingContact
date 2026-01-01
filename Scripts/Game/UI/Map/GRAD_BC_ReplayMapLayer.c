@@ -13,6 +13,12 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	// Colors for different factions
 	protected ref map<string, int> m_factionColors = new map<string, int>();
 	
+	// Unit type icon textures
+	protected ref map<string, string> m_unitTypeTextures = new map<string, string>();
+	
+	// Cached loaded textures
+	protected ref map<string, ref SharedItemRef> m_loadedTextures = new map<string, ref SharedItemRef>();
+	
 	//------------------------------------------------------------------------------------------------
 	override void Init()
 	{
@@ -25,7 +31,26 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		m_factionColors.Set("USSR", Color.RED);
 		m_factionColors.Set("", Color.WHITE); // Default/unknown
 		
-		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready", LogLevel.NORMAL);
+		// Initialize unit type textures
+		m_unitTypeTextures.Set("AmmoBearer", "{FB48FAD32DA8BC91}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_AmmoBearer.edds");
+		m_unitTypeTextures.Set("AntiTank", "{00B30C29FAF85E1C}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_AntiTank.edds");
+		m_unitTypeTextures.Set("Custom", "{A489F552FB7489C3}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Custom.edds");
+		m_unitTypeTextures.Set("Dead", "{54B61CF30B644B48}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Dead.edds");
+		m_unitTypeTextures.Set("Grenadier", "{DDAEEF112BEBCF94}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Grenadier.edds");
+		m_unitTypeTextures.Set("Leader", "{A26C465A6AE2AA17}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Leader.edds");
+		m_unitTypeTextures.Set("MachineGunner", "{EF1F445746A3391A}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_MachineGunner.edds");
+		m_unitTypeTextures.Set("Medic", "{F3FCC3B9732551D9}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Medic.edds");
+		m_unitTypeTextures.Set("Player", "{9F4D0043E24255E8}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Player.edds");
+		m_unitTypeTextures.Set("RadioOperator", "{B9F0BD39FF1881A3}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_RadioOperator.edds");
+		m_unitTypeTextures.Set("Rifleman", "{AE53796BC5D21A08}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Rifleman.edds");
+		m_unitTypeTextures.Set("Sharpshooter", "{0A78405E73C36477}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Sharpshooter.edds");
+		m_unitTypeTextures.Set("Spotter", "{9A61AD7EADB131FD}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Spotter.edds");
+		m_unitTypeTextures.Set("Unarmed", "{9164E45B9A237FE9}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Unarmed.edds");
+		
+		// Default fallback
+		m_unitTypeTextures.Set("Default", "{AE53796BC5D21A08}UI/Textures/Editor/EditableEntities/Characters/EditableEntity_Character_Rifleman.edds");
+		
+		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with unit type textures", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -87,7 +112,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			return; // Nothing to draw or no map entity
 		}
 		
-		// ✅ Use the proven DrawCircle method from GRAD_MapMarkerLayer parent class
+		// Draw player markers with unit type icons and directional indicators
 		foreach (GRAD_BC_ReplayPlayerMarker marker : markersToRender)
 		{
 			if (!marker.isVisible)
@@ -96,29 +121,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			// Get faction color
 			int color = m_factionColors.Get(marker.factionKey);
 			if (color == 0)
-				color = 0xFFFFFFFF; // White as integer
+				color = 0xFFFFFFFF;
 				
 			// Make colors brighter with full alpha
 			if (marker.factionKey == "US")
-				color = 0xFF0080FF; // Bright blue as integer
+				color = 0xFF0080FF; // Bright blue
 			else if (marker.factionKey == "USSR") 
-				color = 0xFFFF4040; // Bright red as integer
+				color = 0xFFFF4040; // Bright red
 			else
-				color = 0xFFFFFF40; // Bright yellow as integer
+				color = 0xFFFFFF40; // Bright yellow
 				
 			if (!marker.isAlive)
-				color = 0x80FF0000; // Semi-transparent red for dead as integer
+				color = 0x80808080; // Gray for dead
 			
-			// ✅ Use proven DrawCircle method - draws at world position with range in world units
-			DrawCircle(marker.position, 30.0, color, 16); // 30m radius, 16 segments for smooth circle
-			
-			static int markerLogCounter = 0;
-			markerLogCounter++;
-			if (markerLogCounter % 25 == 0)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing player %1 at world [%2, %3, %4] with color %5", 
-					marker.playerName, marker.position[0], marker.position[1], marker.position[2], color));
-			}
+			// Draw unit icon with directional chevron
+			DrawUnitMarker(marker.position, marker.direction, marker.unitType, color, marker.isInVehicle, marker.isAlive);
 		}
 		
 		// Draw projectiles as lines from firing position to impact position
@@ -181,6 +198,121 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Draw an image texture at a world position
+	override void DrawImage(vector center, int width, int height, SharedItemRef tex)
+	{
+		ImageDrawCommand cmd = new ImageDrawCommand();
+		
+		int xcp, ycp;		
+		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
+		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
+		cmd.m_pTexture = tex;
+		cmd.m_Size = Vector(width, height, 0);
+		
+		m_Commands.Insert(cmd);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw a unit marker with icon and directional chevron
+	protected void DrawUnitMarker(vector position, float direction, string unitType, int color, bool isVehicle, bool isAlive)
+	{
+		// Icon size in world units (meters)
+		float iconSize;
+		if (isVehicle)
+			iconSize = 50.0;
+		else
+			iconSize = 35.0;
+		
+		// Get the appropriate texture
+		string texturePath = m_unitTypeTextures.Get(unitType);
+		if (texturePath == "")
+			texturePath = m_unitTypeTextures.Get("Default");
+		
+		// If unit is dead, use dead icon
+		if (!isAlive)
+			texturePath = m_unitTypeTextures.Get("Dead");
+		
+		// Draw direction chevron underneath icon
+		DrawDirectionalChevron(position, direction, color, iconSize * 1.5);
+		
+		// Load and draw the unit icon texture
+		if (texturePath != "")
+		{
+			int iconPixelSize;
+			if (isVehicle)
+				iconPixelSize = 40;
+			else
+				iconPixelSize = 32;
+			
+			// Check if texture is already loaded, otherwise load and cache it
+			SharedItemRef texture = m_loadedTextures.Get(texturePath);
+			if (!texture && m_Canvas)
+			{
+				texture = m_Canvas.LoadTexture(texturePath);
+				if (texture)
+					m_loadedTextures.Set(texturePath, texture);
+			}
+			
+			if (texture)
+			{
+				DrawImage(position, iconPixelSize, iconPixelSize, texture);
+			}
+			else
+			{
+				// Fallback to circles if texture fails to load
+				DrawCircle(position, iconSize * 0.5, color, 12);
+				DrawCircle(position, iconSize * 0.2, color, 8);
+			}
+		}
+		else
+		{
+			// Fallback to circles if no texture path
+			DrawCircle(position, iconSize * 0.5, color, 12);
+			DrawCircle(position, iconSize * 0.2, color, 8);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw a directional chevron showing unit facing
+	protected void DrawDirectionalChevron(vector position, float direction, int color, float size)
+	{
+		// Convert yaw angle to radians (direction is in degrees)
+		float angleRad = direction * Math.DEG2RAD;
+		
+		float halfSize = size * 0.5;
+		
+		// Create chevron shape pointing north (0 degrees)
+		array<vector> shapePoints = {};
+		
+		// Chevron shape (V pointing up/north initially)
+		// Tip
+		shapePoints.Insert(Vector(0, 0, -halfSize));
+		// Left wing
+		shapePoints.Insert(Vector(-halfSize * 0.5, 0, 0));
+		// Back indent (makes it look like chevron)
+		shapePoints.Insert(Vector(0, 0, -halfSize * 0.2));
+		// Right wing  
+		shapePoints.Insert(Vector(halfSize * 0.5, 0, 0));
+		
+		// Rotate all points by the direction angle
+		array<vector> rotatedPoints = {};
+		foreach (vector point : shapePoints)
+		{
+			float rotatedX = point[0] * Math.Cos(angleRad) - point[2] * Math.Sin(angleRad);
+			float rotatedZ = point[0] * Math.Sin(angleRad) + point[2] * Math.Cos(angleRad);
+			rotatedPoints.Insert(position + Vector(rotatedX, 0, rotatedZ));
+		}
+		
+		// Draw the chevron outline
+		for (int i = 0; i < rotatedPoints.Count(); i++)
+		{
+			int nextIdx = (i + 1) % rotatedPoints.Count();
+			DrawLine(rotatedPoints[i], rotatedPoints[nextIdx], 2, color);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	// Called by replay manager to update marker positions
 	void UpdateReplayFrame(GRAD_BC_ReplayFrame frame)
 	{
@@ -202,6 +334,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			marker.direction = playerSnapshot.angles[0]; // Yaw
 			marker.isAlive = playerSnapshot.isAlive;
 			marker.isInVehicle = playerSnapshot.isInVehicle;
+			marker.unitType = playerSnapshot.unitRole; // Use role from snapshot
 			marker.isVisible = true;
 			
 			// Debug: Log position data for first few frames
@@ -209,8 +342,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			positionLogCount++;
 			if (positionLogCount <= 10)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) position: [%3, %4, %5]", 
-					marker.playerId, marker.playerName, marker.position[0], marker.position[1], marker.position[2]));
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) position: [%3, %4, %5], direction: %6, type: %7", 
+					marker.playerId, marker.playerName, marker.position[0], marker.position[1], marker.position[2], 
+					marker.direction, marker.unitType));
 			}
 			
 			m_playerMarkers.Insert(marker);
@@ -244,6 +378,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			lastMarker.direction = playerMarker.direction;
 			lastMarker.isAlive = playerMarker.isAlive;
 			lastMarker.isInVehicle = playerMarker.isInVehicle;
+			lastMarker.unitType = playerMarker.unitType;
 			lastMarker.isVisible = playerMarker.isVisible;
 			m_lastFramePlayerMarkers.Insert(lastMarker);
 		}
@@ -279,6 +414,7 @@ class GRAD_BC_ReplayPlayerMarker : Managed
 	float direction;
 	bool isAlive;
 	bool isInVehicle;
+	string unitType; // Added unit type
 	bool isVisible;
 }
 

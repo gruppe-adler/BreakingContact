@@ -121,24 +121,59 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			}
 		}
 		
-		// Draw projectiles as smaller circles
+		// Draw projectiles as lines from firing position to impact position
 		array<ref GRAD_BC_ReplayProjectileMarker> projectilesToRender = {};
+		bool isLiveReplay = false;
 		if (replayManager && replayManager.IsPlayingBack())
 		{
 			projectilesToRender = m_projectileMarkers;
+			isLiveReplay = true;
 		}
 		else if (m_hasLastFrame)
 		{
 			projectilesToRender = m_lastFrameProjectileMarkers;
 		}
 		
+		// Debug: Log projectile rendering details
+		if (projectilesToRender.Count() > 0)
+		{
+			string source;
+			if (isLiveReplay)
+				source = "live replay";
+			else
+				source = "last frame";
+			
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing %1 projectiles (source: %2)", 
+				projectilesToRender.Count(), 
+				source), LogLevel.NORMAL);
+		}
+		
+		int visibleCount = 0;
 		foreach (GRAD_BC_ReplayProjectileMarker projMarker : projectilesToRender)
 		{
 			if (!projMarker.isVisible)
 				continue;
+			
+			visibleCount++;
+			
+			// Debug: Log first few projectile lines being drawn
+			if (visibleCount <= 3)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing projectile line - Type: %1, From: [%2, %3, %4] To: [%5, %6, %7]",
+					projMarker.projectileType,
+					projMarker.position[0], projMarker.position[1], projMarker.position[2],
+					projMarker.impactPosition[0], projMarker.impactPosition[1], projMarker.impactPosition[2]), LogLevel.NORMAL);
+			}
 				
-			// Small bright yellow circles for projectiles
-			DrawCircle(projMarker.position, 5.0, 0xFFFFFF00, 8); // 5m radius, yellow as integer
+			// Draw line from firing position to impact position (bright red for visibility)
+			DrawLine(projMarker.position, projMarker.impactPosition, 2, Color.RED);
+		}
+		
+		// Debug: Summary of what was drawn
+		if (visibleCount > 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Drew %1 visible projectile lines (out of %2 total projectiles)",
+				visibleCount, projectilesToRender.Count()), LogLevel.NORMAL);
 		}
 		
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
@@ -186,7 +221,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		{
 			GRAD_BC_ReplayProjectileMarker marker = new GRAD_BC_ReplayProjectileMarker();
 			marker.projectileType = projSnapshot.projectileType;
-			marker.position = projSnapshot.position;
+			marker.position = projSnapshot.position; // firing position
+			marker.impactPosition = projSnapshot.impactPosition; // impact position
 			marker.velocity = projSnapshot.velocity;
 			marker.isVisible = true;
 			
@@ -217,6 +253,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			GRAD_BC_ReplayProjectileMarker lastMarker = new GRAD_BC_ReplayProjectileMarker();
 			lastMarker.projectileType = projMarker.projectileType;
 			lastMarker.position = projMarker.position;
+			lastMarker.impactPosition = projMarker.impactPosition;
 			lastMarker.velocity = projMarker.velocity;
 			lastMarker.isVisible = projMarker.isVisible;
 			m_lastFrameProjectileMarkers.Insert(lastMarker);
@@ -248,7 +285,8 @@ class GRAD_BC_ReplayPlayerMarker : Managed
 class GRAD_BC_ReplayProjectileMarker : Managed
 {
 	string projectileType;
-	vector position;
+	vector position; // firing position
+	vector impactPosition; // impact/endpoint position
 	vector velocity;
 	bool isVisible;
 }

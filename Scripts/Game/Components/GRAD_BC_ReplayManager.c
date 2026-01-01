@@ -47,15 +47,17 @@ class GRAD_BC_PlayerSnapshot : Managed
 class GRAD_BC_ProjectileSnapshot : Managed
 {
 	string projectileType;
-	vector position;
+	vector position; // firing position
+	vector impactPosition; // where projectile will impact/last known position
 	vector velocity;
 	float timeToLive; // remaining lifetime for optimization
 	
-	static GRAD_BC_ProjectileSnapshot Create(string type, vector pos, vector vel, float ttl)
+	static GRAD_BC_ProjectileSnapshot Create(string type, vector pos, vector impactPos, vector vel, float ttl)
 	{
 		GRAD_BC_ProjectileSnapshot snapshot = new GRAD_BC_ProjectileSnapshot();
 		snapshot.projectileType = type;
 		snapshot.position = pos;
+		snapshot.impactPosition = impactPos;
 		snapshot.velocity = vel;
 		snapshot.timeToLive = ttl;
 		return snapshot;
@@ -66,7 +68,7 @@ class GRAD_BC_ProjectileSnapshot : Managed
 // Temporary data structure for projectiles fired between recording frames
 class GRAD_BC_ProjectileData : Managed
 {
-	vector position;
+	vector position; // firing position
 	vector velocity;
 	string ammoType;
 	float fireTime;
@@ -132,9 +134,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	protected bool m_bPlaybackPaused = false;
 	protected float m_fPlaybackSpeed = 1.0; // 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed
 	
-	// Projectile tracking for optimization
-	protected ref array<IEntity> m_trackedProjectiles = {};
-	protected ref map<IEntity, float> m_projectileStartTimes = new map<IEntity, float>();
+	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
 	
 	// RPC for client communication
@@ -443,15 +443,19 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			float deltaTime = frame.timestamp - projData.fireTime;
 			if (deltaTime < 0) deltaTime = 0; // Safety check
 			
-			// Simple ballistic calculation (assuming no air resistance for now)
+			// Calculate current position and velocity
 			vector currentPos = projData.position + (projData.velocity * deltaTime);
-			currentPos[1] = currentPos[1] - (9.81 * deltaTime * deltaTime * 0.5); // Apply gravity
+			currentPos[1] = currentPos[1] - (9.81 * deltaTime * deltaTime * 0.5);
 			
-			// Create projectile snapshot
+			vector currentVel = projData.velocity;
+			currentVel[1] = currentVel[1] - (9.81 * deltaTime);
+			
+			// Create projectile snapshot with firing position and current/impact position
 			GRAD_BC_ProjectileSnapshot snapshot = GRAD_BC_ProjectileSnapshot.Create(
 				projData.ammoType, 
-				currentPos, 
-				projData.velocity, 
+				projData.position, // firing position
+				currentPos, // current/impact position
+				currentVel,
 				10.0 - deltaTime // Approximate TTL
 			);
 			
@@ -461,28 +465,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Clear pending projectiles after processing
 		m_pendingProjectiles.Clear();
 		
-		// Legacy entity-based tracking (keep for backwards compatibility)
-		// Clean up expired projectiles from tracking
-		for (int i = m_trackedProjectiles.Count() - 1; i >= 0; i--)
-		{
-			IEntity projectile = m_trackedProjectiles[i];
-			if (!projectile)
-			{
-				m_trackedProjectiles.RemoveOrdered(i);
-				continue;
-			}
-			
-			// Check if projectile is too old
-			float startTime = m_projectileStartTimes.Get(projectile);
-			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0; // Convert to seconds
-			
-			if (currentTime - startTime > 30.0) // 30 second max tracking
-			{
-				m_trackedProjectiles.RemoveOrdered(i);
-				m_projectileStartTimes.Remove(projectile);
-				continue;
-			}
-		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1054,17 +1036,6 @@ void StartLocalReplayPlayback()
 		
 		Print(string.Format("GRAD_BC_ReplayManager: Queued projectile for recording - %1 at %2", 
 			ammoType, position.ToString()), LogLevel.VERBOSE);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// Method to add projectile to tracking (called externally when projectiles spawn)
-	void TrackProjectile(IEntity projectile)
-	{
-		if (!m_bRecordProjectiles || !projectile)
-			return;
-			
-		m_trackedProjectiles.Insert(projectile);
-		m_projectileStartTimes.Set(projectile, GetGame().GetWorld().GetWorldTime());
 	}
 	
 	//------------------------------------------------------------------------------------------------

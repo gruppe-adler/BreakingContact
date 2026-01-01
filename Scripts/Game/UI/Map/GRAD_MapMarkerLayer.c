@@ -61,6 +61,45 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 		m_Commands.Insert(cmd);
 	}
 	
+	void DrawLine(vector startPos, vector endPos, float width, int color)
+	{
+		PolygonDrawCommand cmd = new PolygonDrawCommand();
+		cmd.m_iColor = color;
+		
+		cmd.m_Vertices = new array<float>;
+		
+		int x1, y1, x2, y2;
+		m_MapEntity.WorldToScreen(startPos[0], startPos[2], x1, y1, true);
+		m_MapEntity.WorldToScreen(endPos[0], endPos[2], x2, y2, true);
+		
+		// Create a thick line by drawing a rectangle
+		float dx = x2 - x1;
+		float dy = y2 - y1;
+		float length = Math.Sqrt(dx * dx + dy * dy);
+		
+		if (length > 0)
+		{
+			// Perpendicular offset for width
+			float offsetX = (-dy / length) * (width / 2.0);
+			float offsetY = (dx / length) * (width / 2.0);
+			
+			// Four corners of the rectangle
+			cmd.m_Vertices.Insert(x1 + offsetX);
+			cmd.m_Vertices.Insert(y1 + offsetY);
+			
+			cmd.m_Vertices.Insert(x2 + offsetX);
+			cmd.m_Vertices.Insert(y2 + offsetY);
+			
+			cmd.m_Vertices.Insert(x2 - offsetX);
+			cmd.m_Vertices.Insert(y2 - offsetY);
+			
+			cmd.m_Vertices.Insert(x1 - offsetX);
+			cmd.m_Vertices.Insert(y1 - offsetY);
+		}
+		
+		m_Commands.Insert(cmd);
+	}
+	
 	override void OnMapOpen(MapConfiguration config)
 	{
 		// Print("GRAD GRAD_MapMarkerLayer: OnMapOpen called", LogLevel.NORMAL);

@@ -1,6 +1,8 @@
 SCR_ChimeraCharacter {
  ID "520EC961A090B1EE"
  components {
+  GRAD_BC_WeaponFireTracker "{6842CA381356440F}" {
+  }
   GRAD_CharacterRoleComponent "{607F64131E3AB5D2}" {
    m_sCharacterRole "none"
   }

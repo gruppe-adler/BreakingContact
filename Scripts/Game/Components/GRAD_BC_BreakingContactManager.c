@@ -33,7 +33,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
-	protected bool m_debug = false;
+	protected bool m_debug = true;
 	
 	protected int m_spawnLock = 0;
 	
@@ -906,12 +906,36 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
     //------------------------------------------------------------------------------------------------
 	void CheckWinConditions()
 	{
+		// Prevent win conditions if spawns not properly set up (timing/race condition protection)
+		// This can happen when phases advance too quickly in local playtest before spawn markers are processed
+		if (m_vOpforSpawnPos == vector.Zero || m_vBluforSpawnPos == vector.Zero)
+		{
+			Print(string.Format("Breaking Contact - Spawn positions not set yet (OPFOR: %1, BLUFOR: %2), skipping win conditions", 
+				m_vOpforSpawnPos != vector.Zero, m_vBluforSpawnPos != vector.Zero), LogLevel.WARNING);
+			return;
+		}
+		
 		// in debug mode we want to test alone without ending the game
 		bool bluforEliminated = factionEliminated("US") && !m_debug;
 		bool opforEliminated = factionEliminated("USSR") && !m_debug;
         bool isOver;
 
 		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
+		
+		// Validate transmission count - if set to 0, transmissions are disabled/infinite
+		// Prevent instant game over when transmission count is misconfigured
+		if (m_iTransmissionCount <= 0)
+		{
+			finishedAllTransmissions = false;
+			if (m_iTransmissionCount == 0)
+			{
+				Print("Breaking Contact - WARNING: Transmission count is 0! Transmissions disabled. Set to 1-3 in gamemode prefab.", LogLevel.WARNING);
+			}
+		}
+		
+		// Debug logging for transmission tracking
+		Print(string.Format("Breaking Contact - Win condition check: transmissions done=%1/%2, BLUFOR eliminated=%3, OPFOR eliminated=%4", 
+			GetTransmissionsDoneCount(), m_iTransmissionCount, bluforEliminated, opforEliminated), LogLevel.VERBOSE);
 		
 		// Check for radio truck destruction first (highest priority)
 		if (m_bRadioTruckDestroyed) {

@@ -211,11 +211,43 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Finalize replay data
 		if (m_replayData && m_replayData.frames.Count() > 0)
 		{
+			// Remove empty frames (frames with no players/markers)
+			CleanupEmptyFrames();
+			
 			GRAD_BC_ReplayFrame lastFrame = m_replayData.frames[m_replayData.frames.Count() - 1];
 			m_replayData.totalDuration = lastFrame.timestamp - m_replayData.startTime;
 			
 			Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds", 
 				m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void CleanupEmptyFrames()
+	{
+		if (!m_replayData || m_replayData.frames.Count() == 0)
+			return;
+		
+		int originalCount = m_replayData.frames.Count();
+		array<ref GRAD_BC_ReplayFrame> cleanedFrames = new array<ref GRAD_BC_ReplayFrame>();
+		
+		foreach (GRAD_BC_ReplayFrame frame : m_replayData.frames)
+		{
+			// Keep frame if it has any data
+			if (frame.players.Count() > 0 || frame.projectiles.Count() > 0 || frame.transmissions.Count() > 0)
+			{
+				cleanedFrames.Insert(frame);
+			}
+		}
+		
+		// Replace with cleaned frames
+		m_replayData.frames = cleanedFrames;
+		
+		int removedCount = originalCount - cleanedFrames.Count();
+		if (removedCount > 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Removed %1 empty frames (%2 -> %3)", 
+				removedCount, originalCount, cleanedFrames.Count()), LogLevel.NORMAL);
 		}
 	}
 	
@@ -1199,6 +1231,9 @@ void StartLocalReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Showing replay controls", LogLevel.NORMAL);
 		
+		// Replay controls disabled - using only progress bar on map for now
+		// The controls layout has visibility issues, progress bar works fine
+		/*
 		// Create and show replay controls UI
 		WorkspaceWidget workspace = GetGame().GetWorkspace();
 		if (workspace)
@@ -1213,6 +1248,7 @@ void StartLocalReplayPlayback()
 			// Retry after a short delay
 			GetGame().GetCallqueue().CallLater(ShowReplayControls, 1000, false);
 		}
+		*/
 	}
 	
 	//------------------------------------------------------------------------------------------------

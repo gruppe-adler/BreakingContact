@@ -611,40 +611,55 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		float barHeight = 25;
 		float barX = 50; // Left margin
 		float barY = 20; // Top margin
+		float cornerRadius = 12; // Rounded corner size
 		
-		// Draw background (dark semi-transparent)
+		// Draw background with rounded corners (dark semi-transparent)
+		// Main background rectangle
 		PolygonDrawCommand bgBar = new PolygonDrawCommand();
-		bgBar.m_iColor = 0xCC000000; // Semi-transparent black
+		bgBar.m_iColor = 0xCC1A1A1A; // Dark gray semi-transparent
 		bgBar.m_Vertices = new array<float>;
-		bgBar.m_Vertices.Insert(barX);
+		bgBar.m_Vertices.Insert(barX + cornerRadius);
 		bgBar.m_Vertices.Insert(barY);
-		bgBar.m_Vertices.Insert(barX + barWidth);
+		bgBar.m_Vertices.Insert(barX + barWidth - cornerRadius);
 		bgBar.m_Vertices.Insert(barY);
-		bgBar.m_Vertices.Insert(barX + barWidth);
+		bgBar.m_Vertices.Insert(barX + barWidth - cornerRadius);
 		bgBar.m_Vertices.Insert(barY + barHeight);
-		bgBar.m_Vertices.Insert(barX);
+		bgBar.m_Vertices.Insert(barX + cornerRadius);
 		bgBar.m_Vertices.Insert(barY + barHeight);
 		m_Commands.Insert(bgBar);
 		
-		// Draw progress fill (bright green)
+		// Draw progress fill with rounded corners (blue)
 		int fillWidth = barWidth * progress;
-		if (fillWidth > 0)
+		if (fillWidth > cornerRadius * 2) // Only draw if there's enough space for corners
 		{
 			PolygonDrawCommand fillBar = new PolygonDrawCommand();
-			fillBar.m_iColor = 0xFF00FF00; // Bright green
+			fillBar.m_iColor = 0xFFD18D1F; // Blue color for active tint
 			fillBar.m_Vertices = new array<float>;
-			fillBar.m_Vertices.Insert(barX);
+			fillBar.m_Vertices.Insert(barX + cornerRadius);
 			fillBar.m_Vertices.Insert(barY);
-			fillBar.m_Vertices.Insert(barX + fillWidth);
+			fillBar.m_Vertices.Insert(barX + fillWidth - cornerRadius);
 			fillBar.m_Vertices.Insert(barY);
-			fillBar.m_Vertices.Insert(barX + fillWidth);
+			fillBar.m_Vertices.Insert(barX + fillWidth - cornerRadius);
 			fillBar.m_Vertices.Insert(barY + barHeight);
-			fillBar.m_Vertices.Insert(barX);
+			fillBar.m_Vertices.Insert(barX + cornerRadius);
 			fillBar.m_Vertices.Insert(barY + barHeight);
 			m_Commands.Insert(fillBar);
+			
+			// Draw rounded left edge of fill
+			DrawCircle(Vector(barX + cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xFF3A7FD5, 8);
+			
+			// Draw rounded right edge of fill if progress is not complete
+			if (progress < 0.99)
+			{
+				DrawCircle(Vector(barX + fillWidth - cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xFF3A7FD5, 8);
+			}
 		}
 		
-		// Draw border (white)
+		// Draw rounded corners for background using circles
+		DrawCircle(Vector(barX + cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xCC1A1A1A, 8);
+		DrawCircle(Vector(barX + barWidth - cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xCC1A1A1A, 8);
+		
+		// Draw border (white) with rounded effect
 		LineDrawCommand border = new LineDrawCommand();
 		border.m_iColor = 0xFFFFFFFF;
 		border.m_fWidth = 2;

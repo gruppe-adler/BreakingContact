@@ -1169,6 +1169,19 @@ void StartLocalReplayPlayback()
 		{
 			Print("GRAD_BC_ReplayManager: Cannot set phase - BCM not found or not on server", LogLevel.WARNING);
 		}
+		
+		// End the game mode to show endscreen
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
+		if (gameMode && Replication.IsServer())
+		{
+			Print("GRAD_BC_ReplayManager: Ending game mode", LogLevel.NORMAL);
+			SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+			gameMode.EndGameMode(endData);
+		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: Cannot end game - gamemode not found or not on server", LogLevel.WARNING);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

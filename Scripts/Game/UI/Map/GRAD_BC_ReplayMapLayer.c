@@ -258,6 +258,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	
 	//------------------------------------------------------------------------------------------------
 	// Draw an image with rotation and color tint
+	// Rotation happens around top-left corner, so we need to adjust position to rotate around center
 	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, int color, float rotationDegrees)
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
@@ -265,7 +266,26 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		int xcp, ycp;		
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
 		
-		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
+		// We want the CENTER of the image to be at (xcp, ycp)
+		// But ImageDrawCommand rotates around its top-left corner
+		// So we need to calculate where the top-left should be positioned
+		
+		float halfWidth = width / 2.0;
+		float halfHeight = height / 2.0;
+		
+		// Convert rotation to radians
+		float rotRad = rotationDegrees * Math.DEG2RAD;
+		float cosRot = Math.Cos(rotRad);
+		float sinRot = Math.Sin(rotRad);
+		
+		// The top-left corner is at offset (-halfWidth, -halfHeight) from center
+		// After rotation by θ around the center point, the top-left corner moves to:
+		// x = center_x + (-halfWidth * cos(θ) - (-halfHeight) * sin(θ))
+		// y = center_y + (-halfWidth * sin(θ) + (-halfHeight) * cos(θ))
+		float topLeftX = xcp - halfWidth * cosRot + halfHeight * sinRot;
+		float topLeftY = ycp - halfWidth * sinRot - halfHeight * cosRot;
+		
+		cmd.m_Position = Vector(topLeftX, topLeftY, 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_iColor = color;
@@ -319,7 +339,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 				float circleRadius = (iconPixelSize * 0.65); // Circle 30% larger than icon in screen space
 				DrawCircle(position, circleRadius, color, 16);
 				
-				// Draw icon rotated to show direction, in WHITE color on top of faction-colored circle
+				// Draw icon rotated to show direction
+				// Use 0xFFFFFFFF for proper alpha blending - the texture's alpha channel will determine transparency
+				// If you see black squares, the .edds files need to have proper alpha channel:
+				// - In Photoshop/GIMP: Save with transparency
+				// - In ImageToPAA: Use -noalpha flag or ensure source PNG has proper alpha
 				DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, 0xFFFFFFFF, direction);
 			}
 			else

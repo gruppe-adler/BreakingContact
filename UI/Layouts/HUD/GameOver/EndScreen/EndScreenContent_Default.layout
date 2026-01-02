@@ -1,4 +1,5 @@
 SizeLayoutWidgetClass {
+ scriptclass "GRAD_BC_EndScreenComponent"
  {
   VerticalLayoutWidgetClass "{5892DABA6FF653EF}" {
    Prefab "{5892DABA6FF653EF}"
@@ -52,7 +53,7 @@ SizeLayoutWidgetClass {
                Name "Image0"
                Slot AlignableSlot "{68440C4B126BC6EF}" {
                }
-               Texture "{7D7CBE98CC4732D0}UI/Logo/512x512.edds"
+               Texture "{76958DC30C3FE807}UI/Logo/bc_logo.edds"
                Size 512 512
               }
              }
@@ -61,11 +62,18 @@ SizeLayoutWidgetClass {
              Prefab "{625A6EC4807C16F5}"
              {
               TextWidgetClass "{5864EB695C60EB77}" {
+               Name "TitleText"
                Prefab "{5864EB695C60EB77}"
+               Text "Victory"
                Color 1 1 1 1
                FontProperties FontProperties "{546AF489DFD25402}" {
                 Bold 1
                }
+              }
+              TextWidgetClass "{5864EB695C60EB78}" {
+               Name "SubtitleText"
+               Text "Game Over"
+               Color 1 1 1 0.8
               }
              }
             }

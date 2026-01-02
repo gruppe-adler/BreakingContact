@@ -736,9 +736,9 @@ void StartLocalReplayPlayback()
 			Rpc(RpcAsk_SetupReplayVoN);
 		}
 		
-		// Open debriefing menu (has embedded map in layout, not fullscreen)
-		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.DebriefingMenu);
-		Print("GRAD_BC_ReplayManager: Debriefing menu opened for replay", LogLevel.NORMAL);
+		// Open map fullscreen for replay visualization
+		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
+		Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
 		
 		// Verify map is ready for replay markers
 		GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);

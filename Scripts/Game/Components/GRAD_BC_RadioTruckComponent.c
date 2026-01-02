@@ -107,7 +107,16 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				
 				string destroyerFaction = GetInstigatorFactionFromEntity(lastInstigator);
 				
-				Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+				// If no instigator (truck disabled/immobilized without direct damage), BLUFOR wins
+				if (destroyerFaction == "")
+				{
+					destroyerFaction = "DISABLED";
+					Print("BC Debug - MAINLOOP: Radio truck disabled (no damage instigator) - BLUFOR wins", LogLevel.NORMAL);
+				}
+				else
+				{
+					Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+				}
 				
 				// Notify the Breaking Contact Manager
 				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();

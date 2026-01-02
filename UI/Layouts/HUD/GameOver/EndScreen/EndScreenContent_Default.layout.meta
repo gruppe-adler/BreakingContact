@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{E04021BC742BE432}UI/layouts/HUD/GameOver/EndScreen/EndScreenContent_Default.layout"
+ Name "{E04021BC742BE432}UI/Layouts/HUD/GameOver/EndScreen/EndScreenContent_Default.layout"
  Configurations {
   LayoutResourceClass PC {
   }

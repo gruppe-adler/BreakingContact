@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{DB2B78344402FFB6}UI/Textures/Icons/iconmanengineer_ca.edds"
+ Name "{006D16DA16E7904C}UI/Textures/Icons/iconapc_ca.edds"
  Configurations {
   PNGResourceClass PC : "{EAB5DE3219F9CBA8}Configs/System/ResourceTypes/PC/TextureColorMap.conf" {
    Conversion DXTCompression

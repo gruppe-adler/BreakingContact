@@ -94,6 +94,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	protected PlayerManager m_PlayerManager;
 	
+	// Endscreen text storage
+	protected string m_sLastEndscreenTitle;
+	protected string m_sLastEndscreenSubtitle;
+	
 	protected PlayerManager GetPlayerManager()
 	{
 		if (m_PlayerManager == null)
@@ -1059,6 +1063,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
 		}
+		else if (destroyerFaction == "DISABLED")
+		{
+			// Truck disabled/immobilized - BLUFOR wins
+			m_sWinnerSide = "blufor";
+			NotifyAllPlayersRadioTruckDestroyed("Radio truck disabled! BLUFOR wins!");
+		}
 		else
 		{
 			// Unknown or neutral destruction - treat as draw or no effect
@@ -1261,9 +1271,13 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
 		
-		// End the game - the game mode will show default endscreen
-		// TODO: Integrate custom endscreen content when API is properly understood
+		// Store endscreen text for retrieval
+		m_sLastEndscreenTitle = title;
+		m_sLastEndscreenSubtitle = subtitle;
+		
+		// Create endscreen data
 		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+		
 		gameMode.EndGameMode(endData);
 		
 		Print("BCM - Game ended, endscreen should show", LogLevel.NORMAL);
@@ -1868,6 +1882,13 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			m_vOpforSpawnPos[2] + 500.0,
 			-1,
 			true);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void GetEndscreenText(out string title, out string subtitle)
+	{
+		title = m_sLastEndscreenTitle;
+		subtitle = m_sLastEndscreenSubtitle;
 	}
 	
 	//------------------------------------------------------------------------------------------------

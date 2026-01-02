@@ -435,16 +435,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			
 			if (texture)
 			{
-				// Draw faction-colored circle slightly larger than icon
-				float circleRadius = (iconPixelSize * 0.65); // Circle 30% larger than icon in screen space
-				DrawCircle(position, circleRadius, color, 16);
-				
-				// Draw icon rotated to show direction
-				// Use 0xFFFFFFFF for proper alpha blending - the texture's alpha channel will determine transparency
-				// If you see black squares, the .edds files need to have proper alpha channel:
-				// - In Photoshop/GIMP: Save with transparency
-				// - In ImageToPAA: Use -noalpha flag or ensure source PNG has proper alpha
-				DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, 0xFFFFFFFF, direction);
+				// Draw icon rotated to show direction, colored with faction color
+				// The texture will be tinted with the faction color
+				// For dead units, this will apply gray tint
+				DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, color, direction);
 			}
 			else
 			{

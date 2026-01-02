@@ -285,10 +285,12 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			vector position = controlledEntity.GetOrigin();
 			vector angles = controlledEntity.GetYawPitchRoll();
 			bool isAlive = !character.GetCharacterController().IsDead();
+			
+			// Use ChimeraCharacter's native IsInVehicle() function
 			bool isInVehicle = character.IsInVehicle();
 			string vehicleType = "";
 			
-			// Get vehicle info if in vehicle
+			// Get vehicle details if in vehicle
 			if (isInVehicle)
 			{
 				CompartmentAccessComponent compartmentAccess = character.GetCompartmentAccessComponent();
@@ -304,6 +306,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 							// Use vehicle position/rotation instead of character
 							position = vehicle.GetOrigin();
 							angles = vehicle.GetYawPitchRoll();
+							
+							Print(string.Format("GRAD_BC_ReplayManager: Player %1 is in vehicle: %2", playerName, vehicleType), LogLevel.NORMAL);
 						}
 					}
 				}
@@ -316,13 +320,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole
 			);
 			
-// Debug: Log recording positions and angles for first few frames
-		static int recordLogCount = 0;
-		recordLogCount++;
-		if (recordLogCount <= 10)
-		{
-			Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5], yaw=%6°", 
-				playerId, playerName, position[0], position[1], position[2], angles[0]));
+			// Debug: Log recording positions and angles for first few frames
+			static int recordLogCount = 0;
+			recordLogCount++;
+			if (recordLogCount <= 10)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5], yaw=%6°", 
+					playerId, playerName, position[0], position[1], position[2], angles[0]));
 			}
 			
 			frame.players.Insert(snapshot);

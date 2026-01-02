@@ -1431,23 +1431,33 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	// Method to find the second closest road position for e.g. road direction
-	protected vector FindNextSpawnPointOnRoad(vector position)
+	protected vector FindNextSpawnPointOnRoad(vector position, vector excludePos = vector.Zero, float minDistanceFromExclude = 0)
 	{
 	    array<vector> roadPoints = GetNearestRoadPos(position,100);
 	    if (roadPoints.IsEmpty())
 	        return position; // no road points at all
-	
+
 	    // Track best and runner-up
 	    float   bestDist    = float.MAX;
 	    float   secondDist  = float.MAX;
 	    vector  bestPos     = position;
 	    vector  secondPos   = position;
-	
+
 	    foreach (vector roadPoint : roadPoints)
 	    {
 	        float d = vector.Distance(position, roadPoint);
 			Print("d: %1" + d);
-	
+			
+			// Skip road points too close to exclusion position (e.g., OPFOR spawn)
+			if (excludePos != vector.Zero && minDistanceFromExclude > 0)
+			{
+				float distToExclude = vector.Distance(roadPoint, excludePos);
+				if (distToExclude < minDistanceFromExclude)
+				{
+					Print("BCM - Skipping road point too close to exclusion zone: " + distToExclude + "m");
+					continue;
+				}
+			}
 	        if (d < bestDist)
 	        {
 	            // shift best → second, then update best
@@ -1627,29 +1637,74 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	            if (!SurfaceIsWater(roadPosition) && 
 	                distanceToOpfor >= minDistance && 
 	                distanceToOpfor <= maxDistance) {
-	                Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2 - pos: %3 - opfor: %4 - degrees: %5", 
-	                    loopCount, distanceToOpfor, roadPosition, opforPosition, degrees), LogLevel.NORMAL);
-	                foundPositionOnLand = true;
+	                
+					// Get direction point for vehicle orientation (exclude nearby OPFOR roads)
+					vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition, opforPosition, minDistance * 0.8);
+					vector finalSpawnPos = roadPosition; // Use validated road position directly
+					
+					// Final safety check: verify distance from OPFOR is still valid
+					float finalDistance = vector.Distance(finalSpawnPos, opforPosition);
+					
+					// Basic collision check using surface query (checks for buildings/objects)
+					bool hasCollision = false;
+					if (GetGame().GetWorld())
+					{
+						autoptr TraceParam trace = new TraceParam();
+						trace.Start = finalSpawnPos + Vector(0, 5, 0); // Start 5m above ground
+						trace.End = finalSpawnPos + Vector(0, -2, 0);   // End 2m below ground
+						trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
+						trace.LayerMask = EPhysicsLayerPresets.Projectile; // Check solid objects
+						
+						float traceResult = GetGame().GetWorld().TraceMove(trace, null);
+						// If trace is less than 1.0, something is blocking
+						if (traceResult < 0.95)
+						{
+							hasCollision = true;
+							Print(string.Format("BCM - Position has collision, trace: %1", traceResult), LogLevel.WARNING);
+						}
+					}
+					
+					if (!hasCollision && finalDistance >= minDistance && finalDistance <= maxDistance)
+					{
+						Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2 - pos: %3 - opfor: %4 - degrees: %5", 
+							loopCount, finalDistance, finalSpawnPos, opforPosition, degrees), LogLevel.NORMAL);
+						
+						vector direction = vector.Direction(roadPosition, roadPosition2);
+						
+						array<vector> output = new array<vector>();
+						output.Insert(finalSpawnPos);
+						output.Insert(direction);
+						
+						return output;
+					}
+					else
+					{
+						Print(string.Format("BCM - Position failed final validation - collision: %1, distance: %2m (need %3-%4m)",
+							hasCollision, finalDistance, minDistance, maxDistance), LogLevel.WARNING);
+					}
 	            }
 	        }
 	        
 	        if (!foundPositionOnLand && loopCount >= 100) {
 	            Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
-	            // roadPosition to original position if no valid road position found
-	            roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, degrees);
-	            foundPositionOnLand = true;
+	            // Fallback to original position if no valid road position found
+	            roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
+				vector fallbackDir = Vector(1, 0, 0);
+				
+				array<vector> output = new array<vector>();
+				output.Insert(roadPosition);
+				output.Insert(fallbackDir);
+				
+				return output;
 	        }
 	    }
 		
-		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		
-		vector direction = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
-		
+		// Should never reach here, but return safe fallback
+		Print("BCM - Unexpected fallthrough in findBluforPosition", LogLevel.ERROR);
+		vector safeFallback = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
 		array<vector> output = new array<vector>();
-		output.Insert(midpoint);
-		output.Insert(direction);
-		
+		output.Insert(safeFallback);
+		output.Insert(Vector(1, 0, 0));
 		return output;
 	}
 	
@@ -1861,16 +1916,37 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			roadPosition = spawnPos; // Ultimate fallback to player-selected position
 		}
 		
+		// Get next road point for direction (no exclusion needed for OPFOR)
 		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		
 		vector direction = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
+		
+		// Use the validated road position directly, not midpoint
+		vector finalPosition = roadPosition;
+		
+		// Basic collision check
+		bool hasCollision = false;
+		if (GetGame().GetWorld())
+		{
+			autoptr TraceParam trace = new TraceParam();
+			trace.Start = finalPosition + Vector(0, 5, 0); // Start 5m above ground
+			trace.End = finalPosition + Vector(0, -2, 0);   // End 2m below ground
+			trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
+			trace.LayerMask = EPhysicsLayerPresets.Projectile;
+			
+			float traceResult = GetGame().GetWorld().TraceMove(trace, null);
+			if (traceResult < 0.95)
+			{
+				hasCollision = true;
+				Print(string.Format("BCM - OPFOR position has collision (trace: %1), using anyway as fallback", traceResult), LogLevel.WARNING);
+				// For OPFOR, we still use it but log the warning
+			}
+		}
 		
 		array<vector> output = new array<vector>();
-		output.Insert(midpoint);
+		output.Insert(finalPosition);
 		output.Insert(direction);
 		
-		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", midpoint.ToString(), direction.ToString()), LogLevel.NORMAL);
+		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", finalPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
 		return output;
 	}
 

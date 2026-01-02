@@ -5,6 +5,7 @@ class GRAD_BC_ReplayFrame : Managed
 	ref array<ref GRAD_BC_PlayerSnapshot> players = {};
 	ref array<ref GRAD_BC_ProjectileSnapshot> projectiles = {};
 	ref array<ref GRAD_BC_TransmissionSnapshot> transmissions = {};
+	ref array<ref GRAD_BC_RadioTruckSnapshot> radioTrucks = {};
 	
 	static GRAD_BC_ReplayFrame Create(float time)
 	{
@@ -74,6 +75,24 @@ class GRAD_BC_TransmissionSnapshot : Managed
 		snapshot.position = pos;
 		snapshot.state = transmissionState;
 		snapshot.progress = transmissionProgress;
+		return snapshot;
+	}
+};
+
+class GRAD_BC_RadioTruckSnapshot : Managed
+{
+	vector position;
+	vector angles;
+	bool isActive; // whether transmitting
+	bool isDestroyed;
+	
+	static GRAD_BC_RadioTruckSnapshot Create(vector pos, vector ang, bool active, bool destroyed)
+	{
+		GRAD_BC_RadioTruckSnapshot snapshot = new GRAD_BC_RadioTruckSnapshot();
+		snapshot.position = pos;
+		snapshot.angles = ang;
+		snapshot.isActive = active;
+		snapshot.isDestroyed = destroyed;
 		return snapshot;
 	}
 };

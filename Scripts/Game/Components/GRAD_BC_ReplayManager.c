@@ -287,6 +287,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Record transmission states
 		RecordTransmissions(frame);
 		
+		// Record radio truck
+		RecordRadioTruck(frame);
+		
 		// Add frame to replay data
 		m_replayData.frames.Insert(frame);
 		m_fLastRecordTime = currentTime;
@@ -495,6 +498,42 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			
 			frame.transmissions.Insert(snapshot);
 		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void RecordRadioTruck(GRAD_BC_ReplayFrame frame)
+	{
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!bcm)
+			return;
+			
+		IEntity radioTruck = bcm.GetRadioTruck();
+		if (!radioTruck)
+			return;
+			
+		// Get radio truck component to check if transmitting
+		GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		bool isActive = false;
+		bool isDestroyed = false;
+		
+		if (rtc)
+		{
+			isActive = rtc.GetTransmissionActive();
+			isDestroyed = rtc.GetIsDisabled();
+		}
+		
+		// Get position and orientation
+		vector position = radioTruck.GetOrigin();
+		vector angles = radioTruck.GetAngles();
+		
+		GRAD_BC_RadioTruckSnapshot snapshot = GRAD_BC_RadioTruckSnapshot.Create(
+			position,
+			angles,
+			isActive,
+			isDestroyed
+		);
+		
+		frame.radioTrucks.Insert(snapshot);
 	}
 	
 	//------------------------------------------------------------------------------------------------

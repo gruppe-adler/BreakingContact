@@ -45,6 +45,8 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39ADE3BF8BF}" {
      m_eBudget CAMPAIGN
+     m_bUseMasterProviderBudget 1
+     m_bShowBudgetInUI 1
     }
     SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39AECA7F87A}" {
      m_eBudget 2147483647
@@ -92,8 +94,8 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
   SCR_ResourceComponent "{5D835612EAFE4D27}" {
    m_aContainers {
     SCR_ResourceContainer "{5D835612E84434FE}" {
-     m_fResourceValueCurrent 1000
-     m_fResourceValueMax 1000
+     m_fResourceValueCurrent 0
+     m_fResourceValueMax 999999
     }
    }
    m_aConsumers {

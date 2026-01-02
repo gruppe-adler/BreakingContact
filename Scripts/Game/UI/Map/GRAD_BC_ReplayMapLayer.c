@@ -365,7 +365,12 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			positionLogCount++;
 			if (positionLogCount <= 10)
 			{
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7°, type: %8", 
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7°, type: %8", 
+					marker.playerId, marker.playerName, marker.factionKey, marker.position[0], marker.position[1], marker.position[2], 
+					marker.direction, marker.unitType));
+			}
+			
+			m_playerMarkers.Insert(marker);
 		}
 		
 		// Create projectile markers

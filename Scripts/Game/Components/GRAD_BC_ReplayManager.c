@@ -812,6 +812,19 @@ void StartLocalReplayPlayback()
 		ref array<bool> inVehicles = {};
 		ref array<string> playerNames = {};
 		
+		// Projectile data arrays
+		ref array<float> projTimestamps = {};
+		ref array<string> projTypes = {};
+		ref array<vector> projFiringPos = {};
+		ref array<vector> projImpactPos = {};
+		ref array<vector> projVelocities = {};
+		
+		// Transmission data arrays
+		ref array<float> transTimestamps = {};
+		ref array<vector> transPositions = {};
+		ref array<int> transStates = {};
+		ref array<float> transProgress = {};
+		
 		for (int i = startIndex; i < endIndex; i++)
 		{
 			GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
@@ -826,9 +839,37 @@ void StartLocalReplayPlayback()
 				inVehicles.Insert(playerData.isInVehicle);
 				playerNames.Insert(playerData.playerName);
 			}
+			
+			// Add projectile data
+			foreach (GRAD_BC_ProjectileSnapshot projData : frame.projectiles)
+			{
+				projTimestamps.Insert(frame.timestamp);
+				projTypes.Insert(projData.projectileType);
+				projFiringPos.Insert(projData.position);
+				projImpactPos.Insert(projData.impactPosition);
+				projVelocities.Insert(projData.velocity);
+			}
+			
+			// Add transmission data
+			foreach (GRAD_BC_TransmissionSnapshot transData : frame.transmissions)
+			{
+				transTimestamps.Insert(frame.timestamp);
+				transPositions.Insert(transData.position);
+				transStates.Insert(transData.state);
+				transProgress.Insert(transData.progress);
+			}
 		}
 		
-		Rpc(RpcAsk_ReceiveFrameChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames);
+		// Send player data
+		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames);
+		
+		// Send projectile data if any
+		if (projTimestamps.Count() > 0)
+			Rpc(RpcAsk_ReceiveProjectileChunk, projTimestamps, projTypes, projFiringPos, projImpactPos, projVelocities);
+		
+		// Send transmission data if any
+		if (transTimestamps.Count() > 0)
+			Rpc(RpcAsk_ReceiveTransmissionChunk, transTimestamps, transPositions, transStates, transProgress);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -857,13 +898,12 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_ReceiveFrameChunk(array<float> timestamps, array<string> playerIds, array<vector> positions, 
+	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions, 
 		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<string> playerNames)
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveFrameChunk on %1", isServer), LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_ReceiveFrameChunk received - Server: %1, Data points: %2", Replication.IsServer(), timestamps.Count()), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceivePlayerChunk on %1", isServer), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return;
@@ -874,25 +914,18 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		// Reconstruct frames from the chunk data
-		// Use simple arrays instead of complex maps
-		ref array<float> uniqueTimestamps = {};
-		ref array<ref GRAD_BC_ReplayFrame> newFrames = {};
-		
+		// Process player data
 		for (int i = 0; i < timestamps.Count(); i++)
 		{
 			float timestamp = timestamps[i];
 			
 			// Find or create frame for this timestamp
 			GRAD_BC_ReplayFrame frame = null;
-			int frameIndex = -1;
-			
-			for (int j = 0; j < uniqueTimestamps.Count(); j++)
+			for (int j = 0; j < m_replayData.frames.Count(); j++)
 			{
-				if (uniqueTimestamps[j] == timestamp)
+				if (m_replayData.frames[j].timestamp == timestamp)
 				{
-					frameIndex = j;
-					frame = newFrames[j];
+					frame = m_replayData.frames[j];
 					break;
 				}
 			}
@@ -901,31 +934,131 @@ void StartLocalReplayPlayback()
 			{
 				frame = new GRAD_BC_ReplayFrame();
 				frame.timestamp = timestamp;
-				uniqueTimestamps.Insert(timestamp);
-				newFrames.Insert(frame);
+				m_replayData.frames.Insert(frame);
 			}
 			
-			// Add player data to frame
 			GRAD_BC_PlayerSnapshot playerData = GRAD_BC_PlayerSnapshot.Create(
-				playerIds[i].ToInt(), // Convert string back to int
+				playerIds[i].ToInt(),
 				playerNames[i],
 				factions[i],
 				positions[i],
 				rotations[i],
-				true, // Assume alive for now
+				true,
 				inVehicles[i]
 			);
 			
 			frame.players.Insert(playerData);
 		}
 		
-		// Add all frames to replay data
-		for (int i = 0; i < newFrames.Count(); i++)
+		Print(string.Format("GRAD_BC_ReplayManager: Received player chunk with %1 players", timestamps.Count()), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_ReceiveProjectileChunk(array<float> projTimestamps, array<string> projTypes, 
+		array<vector> projFiringPos, array<vector> projImpactPos, array<vector> projVelocities)
+	{
+		string isServer = "Client";
+		if (Replication.IsServer()) { isServer = "Server"; }
+		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveProjectileChunk on %1", isServer), LogLevel.NORMAL);
+		
+		if (Replication.IsServer())
+			return;
+			
+		if (!m_replayData)
 		{
-			m_replayData.frames.Insert(newFrames[i]);
+			Print("GRAD_BC_ReplayManager: Replay data not initialized!", LogLevel.ERROR);
+			return;
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Received chunk with %1 data points", timestamps.Count()), LogLevel.NORMAL);
+		// Process projectile data
+		for (int i = 0; i < projTimestamps.Count(); i++)
+		{
+			float timestamp = projTimestamps[i];
+			
+			// Find or create frame for this timestamp
+			GRAD_BC_ReplayFrame frame = null;
+			for (int j = 0; j < m_replayData.frames.Count(); j++)
+			{
+				if (m_replayData.frames[j].timestamp == timestamp)
+				{
+					frame = m_replayData.frames[j];
+					break;
+				}
+			}
+			
+			if (!frame)
+			{
+				frame = new GRAD_BC_ReplayFrame();
+				frame.timestamp = timestamp;
+				m_replayData.frames.Insert(frame);
+			}
+			
+			GRAD_BC_ProjectileSnapshot projData = GRAD_BC_ProjectileSnapshot.Create(
+				projTypes[i],
+				projFiringPos[i],
+				projImpactPos[i],
+				projVelocities[i],
+				10.0
+			);
+			
+			frame.projectiles.Insert(projData);
+		}
+		
+		Print(string.Format("GRAD_BC_ReplayManager: Received projectile chunk with %1 projectiles", projTimestamps.Count()), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_ReceiveTransmissionChunk(array<float> transTimestamps, array<vector> transPositions, 
+		array<int> transStates, array<float> transProgress)
+	{
+		string isServer = "Client";
+		if (Replication.IsServer()) { isServer = "Server"; }
+		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveTransmissionChunk on %1", isServer), LogLevel.NORMAL);
+		
+		if (Replication.IsServer())
+			return;
+			
+		if (!m_replayData)
+		{
+			Print("GRAD_BC_ReplayManager: Replay data not initialized!", LogLevel.ERROR);
+			return;
+		}
+		
+		// Process transmission data
+		for (int i = 0; i < transTimestamps.Count(); i++)
+		{
+			float timestamp = transTimestamps[i];
+			
+			// Find or create frame for this timestamp
+			GRAD_BC_ReplayFrame frame = null;
+			for (int j = 0; j < m_replayData.frames.Count(); j++)
+			{
+				if (m_replayData.frames[j].timestamp == timestamp)
+				{
+					frame = m_replayData.frames[j];
+					break;
+				}
+			}
+			
+			if (!frame)
+			{
+				frame = new GRAD_BC_ReplayFrame();
+				frame.timestamp = timestamp;
+				m_replayData.frames.Insert(frame);
+			}
+			
+			GRAD_BC_TransmissionSnapshot transData = GRAD_BC_TransmissionSnapshot.Create(
+				transPositions[i],
+				transStates[i],
+				transProgress[i]
+			);
+			
+			frame.transmissions.Insert(transData);
+		}
+		
+		Print(string.Format("GRAD_BC_ReplayManager: Received transmission chunk with %1 transmissions", transTimestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1270,7 +1403,26 @@ void StartLocalReplayPlayback()
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RpcAsk_ShowEndscreen()
 	{
-		Print("GRAD_BC_ReplayManager: Server received endscreen request", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Server received endscreen request, broadcasting to all clients", LogLevel.NORMAL);
+		// Broadcast to all clients to show endscreen locally
+		Rpc(RpcDo_ShowEndscreen);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcDo_ShowEndscreen()
+	{
+		string isServer = "Client";
+		if (Replication.IsServer()) { isServer = "Server"; }
+		Print(string.Format("GRAD_BC_ReplayManager: RpcDo_ShowEndscreen received on %1", isServer), LogLevel.NORMAL);
+		
+		// Don't show on dedicated server (no UI)
+		if (Replication.IsServer() && !GetGame().GetPlayerController())
+		{
+			Print("GRAD_BC_ReplayManager: Skipping endscreen on dedicated server", LogLevel.NORMAL);
+			return;
+		}
+		
 		ShowEndscreenOnServer();
 	}
 	

@@ -4,6 +4,44 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
   SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
+   m_aCompositions {
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BE1234567}" {
+     m_sName "GAZ-66"
+     m_sNameUpper "GAZ-66"
+     m_sDescription "Light transport truck"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Truck"
+     m_Prefab "{1BABDA08E7D1C5C3}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_uncovered.et"
+     m_iSupplyCost 50
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BE2234567}" {
+     m_sName "Ural-4320"
+     m_sNameUpper "URAL-4320"
+     m_sDescription "Transport truck"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Truck"
+     m_Prefab "{259EE7B78C4B99BA}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_transport.et"
+     m_iSupplyCost 100
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BE3234567}" {
+     m_sName "UAZ-469"
+     m_sNameUpper "UAZ-469"
+     m_sDescription "Light utility vehicle"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Car"
+     m_Prefab "{2AE7DC0B2501BCFE}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_covered.et"
+     m_iSupplyCost 75
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BE4234567}" {
+     m_sName "BTR-70"
+     m_sNameUpper "BTR-70"
+     m_sDescription "Armored personnel carrier"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "APC"
+     m_Prefab "{0E3A00720C7A6E41}Prefabs/Vehicles/Wheeled/BTR70/BTR70.et"
+     m_iSupplyCost 200
+    }
+   }
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
      m_eBudget CAMPAIGN

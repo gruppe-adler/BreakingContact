@@ -864,10 +864,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
+		Print(string.Format("BCM - SpawnSpawnVehicleWest called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		
 		// Validate spawn position is set - NEVER spawn at 0,0,0
 		if (m_vBluforSpawnPos == vector.Zero)
 		{
 			Print("BCM - ERROR: Cannot spawn West vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			Print(string.Format("BCM - DEBUG: Current phase: %1, m_vOpforSpawnPos: %2", 
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase), m_vOpforSpawnPos.ToString()), LogLevel.ERROR);
 			return;
 		}
 		
@@ -904,10 +908,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleEast()
 	{		
+		Print(string.Format("BCM - SpawnSpawnVehicleEast called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		
 		// Validate spawn position is set - NEVER spawn at 0,0,0
 		if (m_vOpforSpawnPos == vector.Zero)
 		{
 			Print("BCM - ERROR: Cannot spawn East vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			Print(string.Format("BCM - DEBUG: Current phase: %1, m_vBluforSpawnPos: %2", 
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase), m_vBluforSpawnPos.ToString()), LogLevel.ERROR);
 			return;
 		}
 		
@@ -1776,20 +1784,26 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	GRAD_SpawnPointResponse SetSpawnPositions(vector spawnPos)
 	{
+		Print(string.Format("BCM - SetSpawnPositions called with spawnPos: %1 (IsServer: %2)", spawnPos.ToString(), Replication.IsServer()), LogLevel.NORMAL);
+		
 		m_vOpforSpawnPos = vector.Zero;
 		m_vOpforSpawnDir = vector.Zero;
 		m_vBluforSpawnPos = vector.Zero;
 		m_vBluforSpawnDir = vector.Zero;
 		
-		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);		
+		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);
+		Print(string.Format("BCM - GetSpawnPos returned %1 elements for OPFOR", opforSpawnPos.Count()), LogLevel.NORMAL);
 		if (opforSpawnPos.Count() != 2)
 		{
+			Print(string.Format("BCM - ERROR: OPFOR spawn position not found! Count: %1", opforSpawnPos.Count()), LogLevel.ERROR);
 			return GRAD_SpawnPointResponse.OPFOR_NOTFOUND;
 		}
 		
 		array<vector> bluforSpawnPos = findBluforPosition(opforSpawnPos[0]);
+		Print(string.Format("BCM - findBluforPosition returned %1 elements for BLUFOR", bluforSpawnPos.Count()), LogLevel.NORMAL);
 		if (bluforSpawnPos.Count() != 2)
 		{
+			Print(string.Format("BCM - ERROR: BLUFOR spawn position not found! Count: %1", bluforSpawnPos.Count()), LogLevel.ERROR);
 			return GRAD_SpawnPointResponse.BLUFOR_NOTFOUND;
 		}
 		
@@ -1800,11 +1814,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_vBluforSpawnPos = bluforSpawnPos[0];
 		m_vBluforSpawnDir = bluforSpawnPos[1];
 		
+		Print(string.Format("BCM - Spawn positions set successfully - OPFOR: %1, BLUFOR: %2", 
+			m_vOpforSpawnPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		Replication.BumpMe();
 		
 		// Manually call change on the server since replication is not happening there
 		if (Replication.IsServer())
+		{
+			Print("BCM - Server calling OnOpforPositionChanged manually", LogLevel.NORMAL);
 			OnOpforPositionChanged();
+		}
 		
 		return GRAD_SpawnPointResponse.OK;
 	}

@@ -1,15 +1,54 @@
 GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
  ID "5206D4E7CE97EC05"
  components {
+  GRAD_BC_VehicleSupplyComponent "{6626A0000000001}" {
+   m_iCurrentSupplies 1000
+   m_iMaxSupplies 1000
+  }
   SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
-   m_bIsMasterProvider 1
-   m_bUseMasterProvider 1
+   m_aCompositions {
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BB1234567}" {
+     m_sName "UAZ469"
+     m_sNameUpper "UAZ469"
+     m_sDescription "Light utility vehicle"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Car"
+     m_Prefab "{259EE7B78C51B624}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469.et"
+     m_iSupplyCost 75
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BB2234567}" {
+     m_sName "UAZ469 PKM"
+     m_sNameUpper "UAZ469 PKM"
+     m_sDescription "Light vehicle with PKM"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Car"
+     m_Prefab "{0B4DEA8078B78A9B}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM.et"
+     m_iSupplyCost 100
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BB3234567}" {
+     m_sName "Ural-4320"
+     m_sNameUpper "URAL-4320"
+     m_sDescription "Transport truck"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "Truck"
+     m_Prefab "{16A674FE31B0921C}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320.et"
+     m_iSupplyCost 120
+    }
+    SCR_CampaignBuildingCompositionOutpost "{660CB39BB4234567}" {
+     m_sName "BTR-70"
+     m_sNameUpper "BTR-70"
+     m_sDescription "Armored personnel carrier"
+     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
+     m_sIconName "APC"
+     m_Prefab "{C012BB3488BEA0C2}Prefabs/Vehicles/Wheeled/BTR70/BTR70.et"
+     m_iSupplyCost 200
+    }
+   }
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
-     m_eBudget CAMPAIGN
-     m_bUseMasterProviderBudget 1
+     m_eBudget SUPPLIES
      m_bShowBudgetInUI 1
     }
     SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39BCAAD8D1A}" {
@@ -55,32 +94,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
-  SCR_ResourceComponent "{5D83561F25268587}" {
-   m_aContainers {
-    SCR_ResourceContainer "{5D83561F24437BF2}" {
-     m_fResourceValueCurrent 0
-     m_fResourceValueMax 999999
-    }
-   }
-   m_aConsumers {
-    SCR_ResourceConsumerServicePoint "{660CB39CAEA826CE}" {
-     m_sDebugName "Vehicle Spawner - Consumer"
-     m_eResourceRights ALL
-     m_eGeneratorIdentifier DEFAULT
-     m_fResourceRange 135
-     m_fSellMultiplier 0
-     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
-      m_StoragePolicies {
-       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
-        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
-        }
-        m_eStorageType CARGO_VEHICLE
-       }
-      }
-     }
-    }
-   }
-  }
   ActionsManagerComponent "{5DE2DEF025C6CAA0}" {
    ActionContexts {
     UserActionContext "{662698ED6105548D}" {
@@ -96,16 +109,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    additionalActions {
-    SCR_ResourceContainerVehicleLoadAction "{5DF54422B388E356}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
-    SCR_ResourceContainerVehicleUnloadAction "{5EA6CABCDB1C6F85}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
     SCR_CampaignBuildingStartUserAction "{660CB39B80D43AF1}" {
      ParentContextList {
       "BreakingContactActions"

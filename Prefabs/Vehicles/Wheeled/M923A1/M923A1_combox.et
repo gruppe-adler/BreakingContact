@@ -1,51 +1,16 @@
 GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
  ID "5206D4E7EFE2C051"
  components {
+  GRAD_BC_VehicleSupplyComponent "{6626A0000000002}" {
+   m_iCurrentSupplies 1000
+   m_iMaxSupplies 1000
+  }
   SCR_CampaignBuildingProviderComponent "{660CB39AC4CC6BEE}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
-   m_aCompositions {
-    SCR_CampaignBuildingCompositionOutpost "{660CB39AE1234567}" {
-     m_sName "M151A2"
-     m_sNameUpper "M151A2"
-     m_sDescription "Light utility vehicle"
-     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
-     m_sIconName "Car"
-     m_Prefab "{DE2523B1D819A603}Prefabs/Vehicles/Wheeled/M151A2/M151A2_M2HB.et"
-     m_iSupplyCost 75
-    }
-    SCR_CampaignBuildingCompositionOutpost "{660CB39AE2234567}" {
-     m_sName "M998"
-     m_sNameUpper "M998"
-     m_sDescription "HMMWV transport"
-     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
-     m_sIconName "Car"
-     m_Prefab "{09C0690C2E1F5C05}Prefabs/Vehicles/Wheeled/M998/M998.et"
-     m_iSupplyCost 100
-    }
-    SCR_CampaignBuildingCompositionOutpost "{660CB39AE3234567}" {
-     m_sName "M923A1"
-     m_sNameUpper "M923A1"
-     m_sDescription "Transport truck"
-     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
-     m_sIconName "Truck"
-     m_Prefab "{AE7AFEEC3AAC88BE}Prefabs/Vehicles/Wheeled/M923A1/M923A1_transport.et"
-     m_iSupplyCost 120
-    }
-    SCR_CampaignBuildingCompositionOutpost "{660CB39AE4234567}" {
-     m_sName "M113"
-     m_sNameUpper "M113"
-     m_sDescription "Armored personnel carrier"
-     m_sImageSet "{2EFEA2AF1F38E7F0}UI/Textures/Editor/EditableEntities/Vehicles/EditableVehicles.imageset"
-     m_sIconName "APC"
-     m_Prefab "{DDC2C725E000B71C}Prefabs/Vehicles/Tracked/M113/M113_armored.et"
-     m_iSupplyCost 200
-    }
-   }
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39ADE3BF8BF}" {
-     m_eBudget CAMPAIGN
-     m_bUseMasterProviderBudget 1
+     m_eBudget SUPPLIES
      m_bShowBudgetInUI 1
     }
     SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39AECA7F87A}" {
@@ -91,32 +56,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
-  SCR_ResourceComponent "{5D835612EAFE4D27}" {
-   m_aContainers {
-    SCR_ResourceContainer "{5D835612E84434FE}" {
-     m_fResourceValueCurrent 0
-     m_fResourceValueMax 999999
-    }
-   }
-   m_aConsumers {
-    SCR_ResourceConsumerServicePoint "{660CB39C8E6D88AE}" {
-     m_sDebugName "Vehicle Spawner - Consumer"
-     m_eResourceRights ALL
-     m_eGeneratorIdentifier DEFAULT
-     m_fResourceRange 135
-     m_fSellMultiplier 0
-     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
-      m_StoragePolicies {
-       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
-        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
-        }
-        m_eStorageType CARGO_VEHICLE
-       }
-      }
-     }
-    }
-   }
-  }
   ActionsManagerComponent "{5DE2DEF025C6CAA0}" {
    ActionContexts {
     UserActionContext "{662693AC8CD3BC0D}" {
@@ -131,16 +70,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    additionalActions {
-    SCR_ResourceContainerVehicleLoadAction "{5DF544236D45F23A}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
-    SCR_ResourceContainerVehicleUnloadAction "{5DF544236CB20844}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
     SCR_CampaignBuildingStartUserAction "{660CB39B6231C323}" {
      ParentContextList {
       "BreakingContactActions"

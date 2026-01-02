@@ -899,7 +899,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
         }
 		
-		SetVehiclePhysics(m_westCommandVehicle);
+		// Defer physics setup slightly to reduce spawn freeze
+		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_westCommandVehicle);
 		
 		vector finalPos = m_westCommandVehicle.GetOrigin();
 		Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
@@ -948,7 +949,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
              Replication.BumpMe(); // Replicate the RplId
 			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
         }
-		SetVehiclePhysics(m_radioTruck);
+		// Defer physics setup slightly to reduce spawn freeze
+		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_radioTruck);
 	
 		vector finalPos = m_radioTruck.GetOrigin();
 		Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
@@ -1782,8 +1784,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
-		array<PS_PlayableContainer> playables = m_PlayableManager.GetPlayablesSorted();
+		// Cache PlayableManager for performance
+		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
+		if (!playableManager)
+		{
+			Print("Unable to get PS_PlayableManager instance", LogLevel.ERROR);
+			return;
+		}
+		array<PS_PlayableContainer> playables = playableManager.GetPlayablesSorted();
 		
 		int index = 0;
 		foreach (int idx, PS_PlayableContainer playableCont : playables)
@@ -1806,7 +1814,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 					return;
 				}
 				
-				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000, false, availablePositions[index]);
+				// Stagger teleports by 100ms each to reduce load spike
+				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000 + (index * 100), false, availablePositions[index]);
 				
 				index = index + 1;
 				
@@ -1824,7 +1833,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		array<vector> availablePositions = new array<vector>();
 		int range = 200;
 		
-		while (availablePositions.Count() <= minCount || range < 1000)
+		while (availablePositions.Count() <= minCount && range < 1000)
 		{
 			SCR_WorldTools.FindAllEmptyTerrainPositions(availablePositions, location, range, 3, 5, 100);
 			range = range + 100;

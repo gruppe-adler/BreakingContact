@@ -85,6 +85,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		
 		// Check if we should draw anything
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+		
+		// Draw progress bar at top of screen during replay
+		if (replayManager && replayManager.IsPlayingBack() && m_MapEntity)
+		{
+			DrawProgressBar(replayManager);
+		}
+		
 		bool shouldDraw = false;
 		array<ref GRAD_BC_ReplayPlayerMarker> markersToRender = {};
 		
@@ -584,6 +591,103 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		// Log frame update for debugging
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles, %3 transmissions", 
 			m_playerMarkers.Count(), m_projectileMarkers.Count(), m_transmissionMarkers.Count()), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw progress bar showing replay progress at top of map
+	void DrawProgressBar(GRAD_BC_ReplayManager replayManager)
+	{
+		if (!replayManager || !m_MapEntity)
+			return;
+			
+		float progress = replayManager.GetReplayProgress();
+		float currentTime = replayManager.GetCurrentReplayTime();
+		float totalTime = replayManager.GetTotalReplayDuration();
+		float playbackSpeed = replayManager.GetPlaybackSpeed();
+		
+		// Get screen dimensions
+		float screenW, screenH;
+		m_MapEntity.GetMapWidget().GetScreenSize(screenW, screenH);
+		
+		// Progress bar dimensions and position
+		float barWidth = screenW - 100; // Leave margins
+		float barHeight = 25;
+		float barX = 50; // Left margin
+		float barY = 20; // Top margin
+		
+		// Draw background (dark semi-transparent)
+		PolygonDrawCommand bgBar = new PolygonDrawCommand();
+		bgBar.m_iColor = 0xCC000000; // Semi-transparent black
+		bgBar.m_Vertices = new array<float>;
+		bgBar.m_Vertices.Insert(barX);
+		bgBar.m_Vertices.Insert(barY);
+		bgBar.m_Vertices.Insert(barX + barWidth);
+		bgBar.m_Vertices.Insert(barY);
+		bgBar.m_Vertices.Insert(barX + barWidth);
+		bgBar.m_Vertices.Insert(barY + barHeight);
+		bgBar.m_Vertices.Insert(barX);
+		bgBar.m_Vertices.Insert(barY + barHeight);
+		m_Commands.Insert(bgBar);
+		
+		// Draw progress fill (bright green)
+		int fillWidth = barWidth * progress;
+		if (fillWidth > 0)
+		{
+			PolygonDrawCommand fillBar = new PolygonDrawCommand();
+			fillBar.m_iColor = 0xFF00FF00; // Bright green
+			fillBar.m_Vertices = new array<float>;
+			fillBar.m_Vertices.Insert(barX);
+			fillBar.m_Vertices.Insert(barY);
+			fillBar.m_Vertices.Insert(barX + fillWidth);
+			fillBar.m_Vertices.Insert(barY);
+			fillBar.m_Vertices.Insert(barX + fillWidth);
+			fillBar.m_Vertices.Insert(barY + barHeight);
+			fillBar.m_Vertices.Insert(barX);
+			fillBar.m_Vertices.Insert(barY + barHeight);
+			m_Commands.Insert(fillBar);
+		}
+		
+		// Draw border (white)
+		LineDrawCommand border = new LineDrawCommand();
+		border.m_iColor = 0xFFFFFFFF;
+		border.m_fWidth = 2;
+		border.m_Vertices = new array<float>;
+		border.m_Vertices.Insert(barX);
+		border.m_Vertices.Insert(barY);
+		border.m_Vertices.Insert(barX + barWidth);
+		border.m_Vertices.Insert(barY);
+		border.m_Vertices.Insert(barX + barWidth);
+		border.m_Vertices.Insert(barY + barHeight);
+		border.m_Vertices.Insert(barX);
+		border.m_Vertices.Insert(barY + barHeight);
+		border.m_bShouldEnclose = true;
+		m_Commands.Insert(border);
+		
+		// Add text display (time and speed)
+		// Format time as MM:SS
+		int currentMin = Math.Floor(currentTime / 60);
+		int currentSec = Math.Floor(currentTime - (currentMin * 60));
+		int totalMin = Math.Floor(totalTime / 60);
+		int totalSec = Math.Floor(totalTime - (totalMin * 60));
+		
+		// Create formatted time strings
+		string currentMinStr = currentMin.ToString();
+		if (currentMin < 10) currentMinStr = "0" + currentMinStr;
+		string currentSecStr = currentSec.ToString();
+		if (currentSec < 10) currentSecStr = "0" + currentSecStr;
+		string totalMinStr = totalMin.ToString();
+		if (totalMin < 10) totalMinStr = "0" + totalMinStr;
+		string totalSecStr = totalSec.ToString();
+		if (totalSec < 10) totalSecStr = "0" + totalSecStr;
+		
+		string timeText = string.Format("REPLAY: %1:%2 / %3:%4 (%.1fx speed)", 
+			currentMinStr, currentSecStr, totalMinStr, totalSecStr, playbackSpeed);
+		
+		// Note: Text rendering in map layers is limited, so we'll use the progress bar as the primary indicator
+		// The time display will be in the replay controls widget
+		
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
+			progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
 	}
 }
 

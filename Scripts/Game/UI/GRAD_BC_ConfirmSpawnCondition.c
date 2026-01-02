@@ -31,6 +31,14 @@ class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
 		if (factionKey != "USSR")
 			return false;
 		
+		// Only enable button if spawn position calculation is complete
+		if (!playerComponent.IsSpawnPositionReady())
+		{
+			// Still return true to show the button, but it will be visually disabled
+			// and the ConfirmSpawn() method will block execution
+			return true;
+		}
+		
 		return true;
 	}
 }

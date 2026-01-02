@@ -1912,6 +1912,41 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Called by replay manager to show end screen after replay finishes
+	void ShowPostReplayGameOverScreen()
+	{
+		Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
+		
+		// The endscreen was already set up in mainLoop when game ended
+		// We just need to trigger it to show again after replay
+		// The existing endscreen data should already be set
+		
+		// If endscreen text wasn't set, fall back to generic message
+		if (m_sLastEndscreenTitle.IsEmpty())
+		{
+			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
+			m_sLastEndscreenTitle = "Game Over";
+			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
+		}
+		
+		Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
+		
+		// Show the game over screen using the standard Arma Reforger method
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
+		if (!gameMode)
+		{
+			Print("BCM: Cannot show endscreen - no game mode found", LogLevel.ERROR);
+			return;
+		}
+		
+		// Create endscreen data
+		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+		gameMode.EndGameMode(endData);
+		
+		Print("BCM: Endscreen shown successfully", LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		SetEventMask(owner, EntityEvent.INIT);

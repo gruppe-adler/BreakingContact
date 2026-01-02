@@ -48,6 +48,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
 	
 	protected bool m_bChoosingSpawn;
+	protected bool m_bSpawnPositionReady = false; // Track if spawn calculation is complete
 	
 	protected string m_faction;
 	
@@ -102,8 +103,28 @@ class GRAD_PlayerComponent : ScriptComponent
 		return m_bChoosingSpawn;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	bool IsSpawnPositionReady()
+	{
+		return m_bSpawnPositionReady;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetSpawnPositionReady(bool ready)
+	{
+		m_bSpawnPositionReady = ready;
+		Print(string.Format("PlayerComponent: Spawn position ready set to %1", ready), LogLevel.NORMAL);
+	}
+	
 	void setChoosingSpawn(bool choosing) {
 		m_bChoosingSpawn = choosing;
+		
+		// Reset spawn ready flag when starting to choose spawn
+		if (choosing)
+		{
+			m_bSpawnPositionReady = false;
+			Print("PlayerComponent: Started choosing spawn, resetting spawn ready flag", LogLevel.NORMAL);
+		}
 	}
 	
 	//------
@@ -172,6 +193,14 @@ class GRAD_PlayerComponent : ScriptComponent
 			return;
 		}
 		
+		// Check if spawn position calculation is complete
+		if (!m_bSpawnPositionReady)
+		{
+			Print("ConfirmSpawn: Spawn position not ready yet, please wait for calculation to complete", LogLevel.WARNING);
+			SCR_HintManagerComponent.GetInstance().ShowCustomHint("Calculating spawn positions, please wait...", "Spawn Not Ready", 3, false);
+			return;
+		}
+		
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) {
 			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
@@ -181,7 +210,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
 		
 		
-		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", m_faction, phase), LogLevel.NORMAL);
+		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2 - SpawnReady: %3", m_faction, phase, m_bSpawnPositionReady), LogLevel.NORMAL);
 		
 		if (m_faction == "USSR") {
 			if (phase != EBreakingContactPhase.OPFOR) {
@@ -210,6 +239,10 @@ class GRAD_PlayerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SetOpforSpawn(vector worldPos)
 	{
+		// Reset spawn ready flag when new position is being calculated
+		m_bSpawnPositionReady = false;
+		Print("PlayerComponent: Setting new spawn position, marking as not ready", LogLevel.NORMAL);
+		
 		int playerId = GetGame().GetPlayerController().GetPlayerId();
 		Rpc(RpcDo_SetOpforSpawn, worldPos, playerId);
 	}
@@ -230,13 +263,18 @@ class GRAD_PlayerComponent : ScriptComponent
 		switch(result)
 		{
 			case GRAD_SpawnPointResponse.OK:
-				text = "OK";
+				text = "OK - Spawn ready";
+				// Mark spawn position as ready when calculation succeeds
+				m_bSpawnPositionReady = true;
+				Print("PlayerComponent: Spawn position calculation complete and READY", LogLevel.NORMAL);
 				break;
 			case GRAD_SpawnPointResponse.OPFOR_NOTFOUND:
 				text = "Couldn't find suitable OPFOR spawn pos";
+				m_bSpawnPositionReady = false;
 				break;
 			case GRAD_SpawnPointResponse.BLUFOR_NOTFOUND:
 				text = "Couldn't find suitable BLUFOR spawn pos";
+				m_bSpawnPositionReady = false;
 				break;
 		}
 		

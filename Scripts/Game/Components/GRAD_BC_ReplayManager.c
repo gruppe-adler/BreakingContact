@@ -3,141 +3,18 @@ class GRAD_BC_ReplayManagerClass : ScriptComponentClass
 {
 }
 
-// Replay data structures
-class GRAD_BC_ReplayFrame : Managed
-{
-	float timestamp;
-	ref array<ref GRAD_BC_PlayerSnapshot> players = {};
-	ref array<ref GRAD_BC_ProjectileSnapshot> projectiles = {};
-	ref array<ref GRAD_BC_TransmissionSnapshot> transmissions = {};
-	
-	static GRAD_BC_ReplayFrame Create(float time)
-	{
-		GRAD_BC_ReplayFrame frame = new GRAD_BC_ReplayFrame();
-		frame.timestamp = time; // Time should already be in seconds
-		return frame;
-	}
-}
-
-class GRAD_BC_PlayerSnapshot : Managed
-{
-	int playerId;
-	string playerName;
-	string factionKey;
-	vector position;
-	vector angles;
-	bool isAlive;
-	bool isInVehicle;
-	string vehicleType; // for vehicles
-	string unitRole; // detected role based on equipment
-	
-	static GRAD_BC_PlayerSnapshot Create(int id, string name, string faction, vector pos, vector ang, bool alive, bool inVeh = false, string vehType = "", string role = "Rifleman")
-	{
-		GRAD_BC_PlayerSnapshot snapshot = new GRAD_BC_PlayerSnapshot();
-		snapshot.playerId = id;
-		snapshot.playerName = name;
-		snapshot.factionKey = faction;
-		snapshot.position = pos;
-		snapshot.angles = ang;
-		snapshot.isAlive = alive;
-		snapshot.isInVehicle = inVeh;
-		snapshot.vehicleType = vehType;
-		snapshot.unitRole = role;
-		return snapshot;
-	}
-}
-
-class GRAD_BC_ProjectileSnapshot : Managed
-{
-	string projectileType;
-	vector position; // firing position
-	vector impactPosition; // where projectile will impact/last known position
-	vector velocity;
-	float timeToLive; // remaining lifetime for optimization
-	
-	static GRAD_BC_ProjectileSnapshot Create(string type, vector pos, vector impactPos, vector vel, float ttl)
-	{
-		GRAD_BC_ProjectileSnapshot snapshot = new GRAD_BC_ProjectileSnapshot();
-		snapshot.projectileType = type;
-		snapshot.position = pos;
-		snapshot.impactPosition = impactPos;
-		snapshot.velocity = vel;
-		snapshot.timeToLive = ttl;
-		return snapshot;
-	}
-}
-
-class GRAD_BC_TransmissionSnapshot : Managed
-{
-	vector position;
-	ETransmissionState state;
-	float progress; // 0.0 to 1.0
-	
-	static GRAD_BC_TransmissionSnapshot Create(vector pos, ETransmissionState transmissionState, float transmissionProgress)
-	{
-		GRAD_BC_TransmissionSnapshot snapshot = new GRAD_BC_TransmissionSnapshot();
-		snapshot.position = pos;
-		snapshot.state = transmissionState;
-		snapshot.progress = transmissionProgress;
-		return snapshot;
-	}
-}
-
-//------------------------------------------------------------------------------------------------
-// Temporary data structure for projectiles fired between recording frames
-class GRAD_BC_ProjectileData : Managed
-{
-	vector position; // firing position
-	vector velocity;
-	string ammoType;
-	float fireTime;
-}
-
-//------------------------------------------------------------------------------------------------
-class GRAD_BC_ReplayData : Managed
-{
-	ref array<ref GRAD_BC_ReplayFrame> frames = {};
-	float totalDuration;
-	string missionName;
-	string mapName;
-	float startTime;
-	
-	static GRAD_BC_ReplayData Create()
-	{
-		GRAD_BC_ReplayData data = new GRAD_BC_ReplayData();
-		
-		// Use safe world time access
-		BaseWorld world = GetGame().GetWorld();
-		if (world)
-		{
-			data.startTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
-		}
-		else
-		{
-			data.startTime = 0; // Fallback if world not ready
-		}
-		
-		MissionHeader header = GetGame().GetMissionHeader();
-		if (header)
-		{
-			data.missionName = "Breaking Contact"; // MissionHeader.GetMissionName() doesn't exist
-			data.mapName = header.GetWorldPath();
-		}
-		
-		return data;
-	}
-}
+// Replay data structures moved to GRAD_BC_ReplayData.c
 
 // Main replay manager component
 class GRAD_BC_ReplayManager : ScriptComponent
 {
-	[Attribute("1.0", desc: "Recording interval in seconds")]
+	[Attribute("1.0", UIWidgets.EditBox, "Recording interval in seconds")]
 	protected float m_fRecordingInterval;
 	
-	[Attribute("true", desc: "Record projectiles")]
+	[Attribute("1", UIWidgets.CheckBox, "Record projectiles")]
 	protected bool m_bRecordProjectiles;
 	
-	[Attribute("500.0", desc: "Max projectile recording distance")]
+	[Attribute("500.0", UIWidgets.EditBox, "Max projectile recording distance")]
 	protected float m_fMaxProjectileDistance;
 	
 	// Recording state
@@ -152,6 +29,10 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	protected int m_iCurrentFrameIndex = 0;
 	protected bool m_bPlaybackPaused = false;
 	protected float m_fPlaybackSpeed = 5.0; // 1.0 = normal speed, 0.5 = half speed, 2.0 = double speed, 5.0 = 5x speed
+	
+	// Adaptive replay settings - max 2 minutes replay time
+	protected float m_fAdaptiveSpeed = 1.0; // Calculated speed to fit in max duration
+	protected float m_fMaxReplayDuration = 120.0; // 2 minutes max replay time
 	
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
@@ -649,6 +530,9 @@ void StartLocalReplayPlayback()
 		
 		Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
 			m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
+		
+		// Calculate adaptive playback speed to fit within 2 minutes
+		CalculateAdaptiveSpeed();
 		
 		// Open debriefing screen with global VoN (cross-faction voice)
 		Print("GRAD_BC_ReplayManager: Scheduling debriefing screen open in 100ms", LogLevel.NORMAL);
@@ -1434,7 +1318,7 @@ void StartLocalReplayPlayback()
 		{
 			Print("GRAD_BC_ReplayManager: Triggering endscreen via BCM", LogLevel.NORMAL);
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
-			bcm.ShowGameOverScreen();
+			bcm.ShowPostReplayGameOverScreen();
 		}
 		else
 		{
@@ -1625,6 +1509,63 @@ void StartLocalReplayPlayback()
 		// Start the playback update loop
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
 		
-		Print("GRAD_BC_ReplayManager: Test replay UI should now be visible", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: === DEBUG TEST REPLAY INITIALIZATION COMPLETE ===", LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Calculate adaptive playback speed to fit replay into max duration
+	void CalculateAdaptiveSpeed()
+	{
+		if (!m_replayData)
+		{
+			m_fAdaptiveSpeed = 1.0;
+			return;
+		}
+		
+		float actualDuration = m_replayData.totalDuration;
+		
+		// If replay is longer than max duration, speed it up
+		if (actualDuration > m_fMaxReplayDuration)
+		{
+			m_fAdaptiveSpeed = actualDuration / m_fMaxReplayDuration;
+			Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs exceeds max %.1fs, using adaptive speed %.2fx", 
+				actualDuration, m_fMaxReplayDuration, m_fAdaptiveSpeed), LogLevel.NORMAL);
+		}
+		else
+		{
+			m_fAdaptiveSpeed = 1.0;
+			Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs fits within max %.1fs, using normal speed", 
+				actualDuration, m_fMaxReplayDuration), LogLevel.NORMAL);
+		}
+		
+		// Set the playback speed to the adaptive speed
+		m_fPlaybackSpeed = m_fAdaptiveSpeed;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Get replay progress as percentage (0.0 to 1.0) for progress bar
+	float GetReplayProgress()
+	{
+		if (!m_replayData || m_replayData.totalDuration <= 0)
+			return 0.0;
+			
+		return Math.Clamp(m_fCurrentPlaybackTime / m_replayData.totalDuration, 0.0, 1.0);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Get current replay time in seconds
+	float GetCurrentReplayTime()
+	{
+		return m_fCurrentPlaybackTime;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Get total replay duration in seconds
+	float GetTotalReplayDuration()
+	{
+		if (!m_replayData)
+			return 0.0;
+			
+		return m_replayData.totalDuration;
 	}
 }

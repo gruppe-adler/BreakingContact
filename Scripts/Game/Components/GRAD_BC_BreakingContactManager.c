@@ -1531,8 +1531,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    }
 	    
 		// in case we dont find return null
-		PrintFormat("BCM - Unable to determine spawn pos for position %1 and search radius", center, searchRadius, level: LogLevel.WARNING);
-	    return new array<vector>();
+		PrintFormat("BCM - Unable to determine spawn pos for position %1 and search radius %2", center, searchRadius);
+		return null;
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1594,12 +1594,32 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        // Get initial point on circle
 	        vector candidatePos = GetPointOnCircle(opforPosition, randomDistance, degrees);
 	        
-	        // Find nearest road position within a reasonable search radius
-	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 200); // 200m search radius
+	        // Find nearest road position with progressive search radius expansion
+	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 200); // Start with 200m search radius
+	        
+	        // If no roads found nearby, try expanding search radius
+	        if (roadPositions.IsEmpty()) {
+	            roadPositions = GetNearestRoadPos(candidatePos, 500); // Try 500m
+	        }
+	        
+	        if (roadPositions.IsEmpty()) {
+	            roadPositions = GetNearestRoadPos(candidatePos, 1000); // Try 1000m
+	        }
 	        
 	        if (roadPositions && !roadPositions.IsEmpty()) {
-	            // Use the closest road position
-	            roadPosition = roadPositions[0];
+	            // Find the closest road position to the candidate position
+	            float closestDist = float.MAX;
+	            vector closestRoadPos = roadPositions[0];
+	            
+	            foreach (vector roadPoint : roadPositions) {
+	                float dist = vector.Distance(candidatePos, roadPoint);
+	                if (dist < closestDist) {
+	                    closestDist = dist;
+	                    closestRoadPos = roadPoint;
+	                }
+	            }
+	            
+	            roadPosition = closestRoadPos;
 	            
 	            // Verify the position meets distance requirements and is on land
 	            float distanceToOpfor = vector.Distance(roadPosition, opforPosition);

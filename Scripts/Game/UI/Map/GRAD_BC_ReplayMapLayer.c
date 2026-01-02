@@ -332,6 +332,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		
 		m_Commands.Insert(cmd);
 	}
@@ -349,6 +350,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_iColor = color;
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		
 		m_Commands.Insert(cmd);
 	}
@@ -387,6 +389,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_iColor = color;
 		cmd.m_fRotation = rotationDegrees;
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		
 		m_Commands.Insert(cmd);
 	}

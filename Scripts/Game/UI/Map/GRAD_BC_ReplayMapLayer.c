@@ -4,6 +4,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	// Replay display state
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_playerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_projectileMarkers = {};
+	protected ref array<ref GRAD_BC_ReplayTransmissionMarker> m_transmissionMarkers = {};
 	
 	// Replay mode flag - true when actively viewing replay, false for normal map use
 	protected bool m_bIsInReplayMode = false;
@@ -11,6 +12,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	// Keep last frame data for persistent display
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_lastFramePlayerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_lastFrameProjectileMarkers = {};
+	protected ref array<ref GRAD_BC_ReplayTransmissionMarker> m_lastFrameTransmissionMarkers = {};
 	protected bool m_hasLastFrame = false;
 	
 	// Unit type icon textures
@@ -219,8 +221,96 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 				visibleCount, projectilesToRender.Count()), LogLevel.NORMAL);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
-			markersToRender.Count(), projectilesToRender.Count(), m_Commands.Count()));
+		// Draw transmissions with state indicators and progress bars
+		array<ref GRAD_BC_ReplayTransmissionMarker> transmissionsToRender = {};
+		if (replayManager && replayManager.IsPlayingBack())
+		{
+			transmissionsToRender = m_transmissionMarkers;
+		}
+		else if (m_hasLastFrame)
+		{
+			transmissionsToRender = m_lastFrameTransmissionMarkers;
+		}
+		
+		foreach (GRAD_BC_ReplayTransmissionMarker transMarker : transmissionsToRender)
+		{
+			if (!transMarker.isVisible)
+				continue;
+			
+			// Choose color based on transmission state
+			int stateColor;
+			switch (transMarker.state)
+			{
+				case ETransmissionState.OFF:
+					stateColor = 0xFF808080; // Gray - inactive
+					break;
+				case ETransmissionState.TRANSMITTING:
+					stateColor = 0xFF00FF00; // Green - active
+					break;
+				case ETransmissionState.INTERRUPTED:
+					stateColor = 0xFFFF8800; // Orange - interrupted
+					break;
+				case ETransmissionState.DISABLED:
+					stateColor = 0xFFFF0000; // Red - disabled
+					break;
+				case ETransmissionState.DONE:
+					stateColor = 0xFF0088FF; // Blue - completed
+					break;
+				default:
+					stateColor = 0xFFFFFFFF; // White fallback
+			}
+			
+			// Draw transmission point as a circle
+			DrawCircle(transMarker.position, 20, stateColor, 16);
+			
+			// Draw progress bar if transmitting
+			if (transMarker.state == ETransmissionState.TRANSMITTING || transMarker.progress > 0)
+			{
+				// Draw progress bar beneath the transmission marker
+				int xcp, ycp;
+				m_MapEntity.WorldToScreen(transMarker.position[0], transMarker.position[2], xcp, ycp, true);
+				
+				int barWidth = 60;
+				int barHeight = 8;
+				int barX = xcp - barWidth / 2;
+				int barY = ycp + 30; // Below the circle
+				
+				// Draw background bar (dark gray) using PolygonDrawCommand
+				PolygonDrawCommand bgBar = new PolygonDrawCommand();
+				bgBar.m_iColor = 0xFF303030;
+				bgBar.m_Vertices = new array<float>;
+				bgBar.m_Vertices.Insert(barX);
+				bgBar.m_Vertices.Insert(barY);
+				bgBar.m_Vertices.Insert(barX + barWidth);
+				bgBar.m_Vertices.Insert(barY);
+				bgBar.m_Vertices.Insert(barX + barWidth);
+				bgBar.m_Vertices.Insert(barY + barHeight);
+				bgBar.m_Vertices.Insert(barX);
+				bgBar.m_Vertices.Insert(barY + barHeight);
+				m_Commands.Insert(bgBar);
+				
+				// Draw progress fill
+				int fillWidth = barWidth * transMarker.progress;
+				if (fillWidth > 0)
+				{
+					PolygonDrawCommand fillBar = new PolygonDrawCommand();
+					fillBar.m_iColor = stateColor;
+					fillBar.m_Vertices = new array<float>;
+					fillBar.m_Vertices.Insert(barX);
+					fillBar.m_Vertices.Insert(barY);
+					fillBar.m_Vertices.Insert(barX + fillWidth);
+					fillBar.m_Vertices.Insert(barY);
+					fillBar.m_Vertices.Insert(barX + fillWidth);
+					fillBar.m_Vertices.Insert(barY + barHeight);
+					fillBar.m_Vertices.Insert(barX);
+					fillBar.m_Vertices.Insert(barY + barHeight);
+					m_Commands.Insert(fillBar);
+				}
+			}
+		}
+		
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 transmission markers, %4 total commands", 
+			markersToRender.Count(), projectilesToRender.Count(), transmissionsToRender.Count(), m_Commands.Count()));
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -363,12 +453,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	// Called by replay manager to update marker positions
 	void UpdateReplayFrame(GRAD_BC_ReplayFrame frame)
 	{
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles", 
-			frame.players.Count(), frame.projectiles.Count()), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions", 
+			frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count()), LogLevel.NORMAL);
 		
 		// Clear existing markers
 		m_playerMarkers.Clear();
 		m_projectileMarkers.Clear();
+		m_transmissionMarkers.Clear();
 		
 		// Create player markers
 		foreach (GRAD_BC_PlayerSnapshot playerSnapshot : frame.players)
@@ -421,9 +512,32 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			m_projectileMarkers.Insert(marker);
 		}
 		
+		// Create transmission markers
+		foreach (GRAD_BC_TransmissionSnapshot transSnapshot : frame.transmissions)
+		{
+			GRAD_BC_ReplayTransmissionMarker marker = new GRAD_BC_ReplayTransmissionMarker();
+			marker.position = transSnapshot.position;
+			marker.state = transSnapshot.state;
+			marker.progress = transSnapshot.progress;
+			marker.isVisible = true;
+			
+			// Debug log for first few transmissions
+			static int transLogCount = 0;
+			transLogCount++;
+			if (transLogCount <= 5)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Transmission %1 - State: %2, Progress: %3%%, Position: [%4, %5, %6]",
+					transLogCount, marker.state, marker.progress * 100,
+					marker.position[0], marker.position[1], marker.position[2]));
+			}
+			
+			m_transmissionMarkers.Insert(marker);
+		}
+		
 		// Save this frame as the last frame for persistent display
 		m_lastFramePlayerMarkers.Clear();
 		m_lastFrameProjectileMarkers.Clear();
+		m_lastFrameTransmissionMarkers.Clear();
 		
 		// Deep copy current markers to last frame
 		foreach (GRAD_BC_ReplayPlayerMarker playerMarker : m_playerMarkers)
@@ -452,14 +566,24 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			m_lastFrameProjectileMarkers.Insert(lastMarker);
 		}
 		
+		foreach (GRAD_BC_ReplayTransmissionMarker transMarker : m_transmissionMarkers)
+		{
+			GRAD_BC_ReplayTransmissionMarker lastMarker = new GRAD_BC_ReplayTransmissionMarker();
+			lastMarker.position = transMarker.position;
+			lastMarker.state = transMarker.state;
+			lastMarker.progress = transMarker.progress;
+			lastMarker.isVisible = transMarker.isVisible;
+			m_lastFrameTransmissionMarkers.Insert(lastMarker);
+		}
+		
 		m_hasLastFrame = true;
 		m_bIsInReplayMode = true; // Mark that we're in replay mode
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles for persistent display", 
-			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count()));
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles, %3 transmissions for persistent display", 
+			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count(), m_lastFrameTransmissionMarkers.Count()));
 		
 		// Log frame update for debugging
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles", 
-			m_playerMarkers.Count(), m_projectileMarkers.Count()), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles, %3 transmissions", 
+			m_playerMarkers.Count(), m_projectileMarkers.Count(), m_transmissionMarkers.Count()), LogLevel.NORMAL);
 	}
 }
 
@@ -483,5 +607,13 @@ class GRAD_BC_ReplayProjectileMarker : Managed
 	vector position; // firing position
 	vector impactPosition; // impact/endpoint position
 	vector velocity;
+	bool isVisible;
+}
+
+class GRAD_BC_ReplayTransmissionMarker : Managed
+{
+	vector position;
+	ETransmissionState state;
+	float progress; // 0.0 to 1.0
 	bool isVisible;
 }

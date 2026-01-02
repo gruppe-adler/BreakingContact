@@ -1,0 +1,63 @@
+AudioClass {
+ sounds {
+  SoundClass "15369" {
+   id 15369
+   name "gong_3"
+   version 5
+   tl -56 702.5
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "16388:65" {
+       id 16388
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "16388" {
+   id 16388
+   name "Bank 1"
+   version 7
+   tl -408 715.5
+   Samples {
+    AudioBankSampleClass "beam.wav" {
+     Filename "{543151332DB70405}sounds/beam.wav"
+     Probability 100
+     Index 0
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "beep2.wav" {
+     Filename "{3550A48D94380CC2}sounds/beep2.wav"
+     Probability 100
+     Index 1
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "gong_1.wav" {
+     Filename "{02451D83EF800011}sounds/gong_1.wav"
+     Probability 100
+     Index 2
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "gong_2.wav" {
+     Filename "{9B5BA41AF2673181}sounds/gong_2.wav"
+     Probability 100
+     Index 3
+     SampleMetadata ""
+    }
+    AudioBankSampleClass "gong_3.wav" {
+     Filename "{EC51CC9206C5DEF1}sounds/gong_3.wav"
+     Probability 100
+     Index 4
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

@@ -9,6 +9,7 @@ class GRAD_BC_ReplayFrame : Managed
 	float timestamp;
 	ref array<ref GRAD_BC_PlayerSnapshot> players = {};
 	ref array<ref GRAD_BC_ProjectileSnapshot> projectiles = {};
+	ref array<ref GRAD_BC_TransmissionSnapshot> transmissions = {};
 	
 	static GRAD_BC_ReplayFrame Create(float time)
 	{
@@ -62,6 +63,22 @@ class GRAD_BC_ProjectileSnapshot : Managed
 		snapshot.impactPosition = impactPos;
 		snapshot.velocity = vel;
 		snapshot.timeToLive = ttl;
+		return snapshot;
+	}
+}
+
+class GRAD_BC_TransmissionSnapshot : Managed
+{
+	vector position;
+	ETransmissionState state;
+	float progress; // 0.0 to 1.0
+	
+	static GRAD_BC_TransmissionSnapshot Create(vector pos, ETransmissionState transmissionState, float transmissionProgress)
+	{
+		GRAD_BC_TransmissionSnapshot snapshot = new GRAD_BC_TransmissionSnapshot();
+		snapshot.position = pos;
+		snapshot.state = transmissionState;
+		snapshot.progress = transmissionProgress;
 		return snapshot;
 	}
 }
@@ -354,6 +371,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			RecordProjectiles(frame);
 		}
 		
+		// Record transmission states
+		RecordTransmissions(frame);
+		
 		// Add frame to replay data
 		m_replayData.frames.Insert(frame);
 		m_fLastRecordTime = currentTime;
@@ -526,6 +546,41 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	void RecordTransmissions(GRAD_BC_ReplayFrame frame)
+	{
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!bcm)
+			return;
+			
+		// Get all transmission points from the game mode
+		array<GRAD_BC_TransmissionComponent> transmissionPoints = bcm.GetTransmissionPoints();
+		if (!transmissionPoints || transmissionPoints.Count() == 0)
+			return;
+			
+		foreach (GRAD_BC_TransmissionComponent transmission : transmissionPoints)
+		{
+			if (!transmission)
+				continue;
+				
+			IEntity owner = transmission.GetOwner();
+			if (!owner)
+				continue;
+				
+			vector position = owner.GetOrigin();
+			ETransmissionState state = transmission.GetTransmissionState();
+			float progress = transmission.GetTransmissionDuration(); // actually returns progress
+			
+			GRAD_BC_TransmissionSnapshot snapshot = GRAD_BC_TransmissionSnapshot.Create(
+				position,
+				state,
+				progress
+			);
+			
+			frame.transmissions.Insert(snapshot);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void StartPlaybackForAllClients()
 	{
 		if (!Replication.IsServer())
@@ -669,18 +724,54 @@ void StartLocalReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
 		
-		// Setup global VoN room for cross-faction voice
+		// Trigger server-side VoN setup via RPC
 		if (Replication.IsServer())
 		{
+			Print("GRAD_BC_ReplayManager: Server detected, setting up VoN directly", LogLevel.NORMAL);
 			SetAllPlayersToGlobalVoN();
 		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: Client detected, requesting server to setup VoN", LogLevel.NORMAL);
+			Rpc(RpcAsk_SetupReplayVoN);
+		}
 		
-		// Open debriefing menu (which includes map overlay)
+		// Open debriefing menu (has embedded map in layout, not fullscreen)
 		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.DebriefingMenu);
 		Print("GRAD_BC_ReplayManager: Debriefing menu opened for replay", LogLevel.NORMAL);
 		
-		// The debriefing menu has built-in map, so our markers will work on it
-		// No need to manually open map gadget
+		// Verify map is ready for replay markers
+		GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void VerifyReplayMapReady()
+	{
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (!mapEntity)
+		{
+			Print("GRAD_BC_ReplayManager: Map entity not ready yet, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
+			return;
+		}
+		
+		GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
+		if (!replayLayer)
+		{
+			Print("GRAD_BC_ReplayManager: Replay map layer not found yet, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
+			return;
+		}
+		
+		Print("GRAD_BC_ReplayManager: Map and replay layer verified ready for playback", LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	void RpcAsk_SetupReplayVoN()
+	{
+		Print("GRAD_BC_ReplayManager: Server received VoN setup request", LogLevel.NORMAL);
+		SetAllPlayersToGlobalVoN();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1162,19 +1253,40 @@ void StartLocalReplayPlayback()
 		// Close the map
 		CloseMap();
 		
-		// Tell the BCM to show the endscreen with faction-specific content
+		// Request server to show endscreen
+		if (Replication.IsServer())
+		{
+			Print("GRAD_BC_ReplayManager: Server - showing endscreen directly", LogLevel.NORMAL);
+			ShowEndscreenOnServer();
+		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: Client - requesting server to show endscreen", LogLevel.NORMAL);
+			Rpc(RpcAsk_ShowEndscreen);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	void RpcAsk_ShowEndscreen()
+	{
+		Print("GRAD_BC_ReplayManager: Server received endscreen request", LogLevel.NORMAL);
+		ShowEndscreenOnServer();
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void ShowEndscreenOnServer()
+	{
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcm && Replication.IsServer())
+		if (bcm)
 		{
 			Print("GRAD_BC_ReplayManager: Triggering endscreen via BCM", LogLevel.NORMAL);
-			// Set phase to GAMEOVERDONE first
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
-			// Then show the endscreen with proper victory condition explanations
 			bcm.ShowGameOverScreen();
 		}
 		else
 		{
-			Print("GRAD_BC_ReplayManager: Cannot show endscreen - BCM not found or not on server", LogLevel.WARNING);
+			Print("GRAD_BC_ReplayManager: ERROR - BCM not found!", LogLevel.ERROR);
 		}
 	}
 	
@@ -1272,8 +1384,20 @@ void StartLocalReplayPlayback()
 	// New method for recording projectile firing events
 	void RecordProjectileFired(vector position, vector velocity, string ammoType)
 	{
-		if (!m_bIsRecording || !m_bRecordProjectiles)
+		Print(string.Format("GRAD_BC_ReplayManager: RecordProjectileFired called - Recording=%1, RecordProj=%2, AmmoType=%3", 
+			m_bIsRecording, m_bRecordProjectiles, ammoType), LogLevel.NORMAL);
+		
+		if (!m_bIsRecording)
+		{
+			Print("GRAD_BC_ReplayManager: Not recording - ignoring projectile", LogLevel.WARNING);
 			return;
+		}
+		
+		if (!m_bRecordProjectiles)
+		{
+			Print("GRAD_BC_ReplayManager: Projectile recording disabled - ignoring projectile", LogLevel.WARNING);
+			return;
+		}
 			
 		// Store the projectile data for the next recording frame
 		GRAD_BC_ProjectileData projData = new GRAD_BC_ProjectileData();
@@ -1284,8 +1408,8 @@ void StartLocalReplayPlayback()
 		
 		m_pendingProjectiles.Insert(projData);
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Queued projectile for recording - %1 at %2", 
-			ammoType, position.ToString()), LogLevel.VERBOSE);
+		Print(string.Format("GRAD_BC_ReplayManager: Successfully queued projectile - %1 at %2 (pending count: %3)", 
+			ammoType, position.ToString(), m_pendingProjectiles.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

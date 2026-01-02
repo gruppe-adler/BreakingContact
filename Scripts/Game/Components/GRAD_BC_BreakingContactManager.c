@@ -163,6 +163,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase));
 		string message = "Breaking Contact";
 		string customSound = "";
+		string customSoundGUID = "";
 		
 		switch (m_iBreakingContactPhase) {
 			case EBreakingContactPhase.PREPTIME :
@@ -174,12 +175,14 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			{
 				message = "Opfor has to spawn now.";
 				customSound = "gong_1";
+				customSoundGUID = "{0A59B476EEEDFA86}sounds/BC_gong_1.acp";
 				break;
 			}
 			case EBreakingContactPhase.BLUFOR :
 			{
 				message = "Blufor will spawn now.";
 				customSound = "gong_2";
+				customSoundGUID = "{93470DEFF30ACB16}sounds/BC_gong_2.acp";
 				
 				break;
 			}
@@ -187,18 +190,21 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			{
 				message = "Blufor spawned, Game begins now.";
 				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
 			}
 			case EBreakingContactPhase.GAMEOVER :
 			{
 				message = "Game is over. Replay loading.";
 				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
 			}
 			case EBreakingContactPhase.GAMEOVERDONE :
 			{
 				message = string.Format("Replay is over. %1 wins.", m_sWinnerSide);
 				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
 			}
 		}
@@ -215,7 +221,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 		if (customSound != "") {
 			vector location = playerComponent.GetOwner().GetOrigin();
-			AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_sounds.acp", customSound, location);
+			AudioSystem.PlayEvent(customSoundGUID, customSound, location);
 		}
 		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		

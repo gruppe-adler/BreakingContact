@@ -257,6 +257,24 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Draw an image with rotation and color tint
+	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, int color, float rotationDegrees)
+	{
+		ImageDrawCommand cmd = new ImageDrawCommand();
+		
+		int xcp, ycp;		
+		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
+		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
+		cmd.m_pTexture = tex;
+		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_iColor = color;
+		cmd.m_fRotation = rotationDegrees;
+		
+		m_Commands.Insert(cmd);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	// Draw a unit marker with icon and directional chevron
 	protected void DrawUnitMarker(vector position, float direction, string unitType, int color, bool isVehicle, bool isAlive)
 	{
@@ -267,14 +285,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		else
 			iconSize = 35.0;
 		
-		// Draw faction-colored background circle
-		float circleRadius = iconSize * 0.6;
-		DrawCircle(position, circleRadius, color, 16);
-		
-		// Draw smaller direction arrow attached to circle, in faction color
-		float arrowSize = iconSize * 0.4; // Smaller arrow (40% of icon size)
-		DrawDirectionalChevron(position, direction, color, arrowSize);
-		
+
 		// Get the appropriate texture
 		string texturePath = m_unitTypeTextures.Get(unitType);
 		if (texturePath == "")
@@ -284,7 +295,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		if (!isAlive)
 			texturePath = m_unitTypeTextures.Get("Dead");
 		
-		// Load and draw the unit icon texture in WHITE on top of colored circle
+		// Load and draw the unit icon texture
 		if (texturePath != "")
 		{
 			int iconPixelSize;
@@ -304,8 +315,12 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			
 			if (texture)
 			{
-				// Draw icon in WHITE color (overlays on faction-colored circle)
-				DrawImageColor(position, iconPixelSize, iconPixelSize, texture, 0xFFFFFFFF);
+				// Draw faction-colored circle slightly larger than icon
+				float circleRadius = (iconPixelSize * 0.65); // Circle 30% larger than icon in screen space
+				DrawCircle(position, circleRadius, color, 16);
+				
+				// Draw icon rotated to show direction, in WHITE color on top of faction-colored circle
+				DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, 0xFFFFFFFF, direction);
 			}
 			else
 			{
@@ -317,44 +332,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		{
 			// Fallback to white circle if no texture path
 			DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
-		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// Draw a directional chevron showing unit facing
-	protected void DrawDirectionalChevron(vector position, float direction, int color, float size)
-	{
-		// Convert yaw angle to radians (direction is in degrees)
-		float angleRad = direction * Math.DEG2RAD;
-		
-		float halfSize = size * 0.5;
-		// Create chevron shape pointing north (0 degrees)
-		array<vector> shapePoints = {};
-		
-		// Chevron shape (V pointing up/north initially)
-		// Tip
-		shapePoints.Insert(Vector(0, 0, -halfSize));
-		// Left wing
-		shapePoints.Insert(Vector(-halfSize * 0.5, 0, 0));
-		// Back indent (makes it look like chevron)
-		shapePoints.Insert(Vector(0, 0, -halfSize * 0.2));
-		// Right wing  
-		shapePoints.Insert(Vector(halfSize * 0.5, 0, 0));
-		
-		// Rotate all points by the direction angle
-		array<vector> rotatedPoints = {};
-		foreach (vector point : shapePoints)
-		{
-			float rotatedX = point[0] * Math.Cos(angleRad) - point[2] * Math.Sin(angleRad);
-			float rotatedZ = point[0] * Math.Sin(angleRad) + point[2] * Math.Cos(angleRad);
-			rotatedPoints.Insert(position + Vector(rotatedX, 0, rotatedZ));
-		}
-		
-		// Draw the chevron outline
-		for (int i = 0; i < rotatedPoints.Count(); i++)
-		{
-			int nextIdx = (i + 1) % rotatedPoints.Count();
-			DrawLine(rotatedPoints[i], rotatedPoints[nextIdx], 2, color);
 		}
 	}
 	
@@ -388,12 +365,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			positionLogCount++;
 			if (positionLogCount <= 10)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7, type: %8", 
-					marker.playerId, marker.playerName, marker.factionKey, marker.position[0], marker.position[1], marker.position[2], 
-					marker.direction, marker.unitType));
-			}
-			
-			m_playerMarkers.Insert(marker);
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7°, type: %8", 
 		}
 		
 		// Create projectile markers
@@ -405,6 +377,17 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			marker.impactPosition = projSnapshot.impactPosition; // impact position
 			marker.velocity = projSnapshot.velocity;
 			marker.isVisible = true;
+			
+			// Debug log for first few projectiles
+			static int projLogCount = 0;
+			projLogCount++;
+			if (projLogCount <= 5)
+			{
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Projectile %1 - Type: %2, From: [%3, %4, %5], To: [%6, %7, %8]",
+					projLogCount, marker.projectileType,
+					marker.position[0], marker.position[1], marker.position[2],
+					marker.impactPosition[0], marker.impactPosition[1], marker.impactPosition[2]));
+			}
 			
 			m_projectileMarkers.Insert(marker);
 		}

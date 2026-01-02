@@ -415,13 +415,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole
 			);
 			
-			// Debug: Log recording positions for first few frames
-			static int recordLogCount = 0;
-			recordLogCount++;
-			if (recordLogCount <= 10)
-			{
-				Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5]", 
-					playerId, playerName, position[0], position[1], position[2]));
+// Debug: Log recording positions and angles for first few frames
+		static int recordLogCount = 0;
+		recordLogCount++;
+		if (recordLogCount <= 10)
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5], yaw=%6°", 
+				playerId, playerName, position[0], position[1], position[2], angles[0]));
 			}
 			
 			frame.players.Insert(snapshot);
@@ -538,25 +538,22 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		}
 		
 		Print(string.Format("GRAD_BC_ReplayManager: Starting replay transmission, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
-		Print("GRAD_BC_ReplayManager: VERSION CHECK - Single-player detection code is active", LogLevel.NORMAL);
-		
-		// Check if running on dedicated server
-		bool isServer = Replication.IsServer();
-		bool isClient = Replication.IsClient();
-		bool isDedicatedServer = isServer && !isClient;
-		
-		PrintFormat("GRAD_BC_ReplayManager: IsServer=%1, IsClient=%2, Dedicated=%3", isServer, isClient, isDedicatedServer);
-		
-		if (!isDedicatedServer)
-		{
-			// Single-player or listen server - use direct local playback
-			Print("GRAD_BC_ReplayManager: Single-player/listen server detected, starting direct local playback", LogLevel.NORMAL);
-			StartLocalReplayPlayback();
-		}
-		else
-		{
-			// Dedicated server - use RPC to send replay to clients
-			Print("GRAD_BC_ReplayManager: Dedicated server detected, using RPC to send replay to clients", LogLevel.NORMAL);
+	
+	// Check if we have a local player controller (null on dedicated server)
+	PlayerController playerController = GetGame().GetPlayerController();
+	bool isDedicatedServer = (playerController == null);
+	
+	PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
+	
+	if (!isDedicatedServer)
+	{
+		// We have a local player - use direct local playback
+		Print("GRAD_BC_ReplayManager: Local player detected, starting direct local playback", LogLevel.NORMAL);
+		StartLocalReplayPlayback();
+	}
+	else
+	{
+		// No local player - dedicated server - use RPC to send replay to clients
 			
 			// Check if we have RPC component for multiplayer
 			if (!m_RplComponent)
@@ -905,9 +902,6 @@ void StartLocalReplayPlayback()
 		gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_HAND, true);
 		Print("GRAD_BC_ReplayManager: Map opened successfully", LogLevel.NORMAL);
 		
-		// Wait longer for map to fully initialize
-		GetGame().GetCallqueue().CallLater(VerifyMapIsOpen, 2000, false);
-		
 		// Verify world is available before starting playback
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
@@ -923,12 +917,12 @@ void StartLocalReplayPlayback()
 		m_iCurrentFrameIndex = 0;
 		
 		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
-		// Start playback loop with slower update for better visibility
-		GetGame().GetCallqueue().CallLater(UpdatePlayback, 200, true); // 5 FPS playback updates
+		// Start playback loop
+		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
 		
-		// Show replay controls - add delay to ensure everything is ready
+		// Show replay controls
 		Print("GRAD_BC_ReplayManager: Scheduling UI creation", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(ShowReplayControls, 1000, false); // Longer delay for UI
+		GetGame().GetCallqueue().CallLater(ShowReplayControls, 500, false);
 	}
 	
 	//------------------------------------------------------------------------------------------------

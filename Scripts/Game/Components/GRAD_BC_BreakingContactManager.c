@@ -854,6 +854,15 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
+		// Validate spawn position is set - NEVER spawn at 0,0,0
+		if (m_vBluforSpawnPos == vector.Zero)
+		{
+			Print("BCM - ERROR: Cannot spawn West vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			return;
+		}
+		
+		Print(string.Format("BCM - Spawning West vehicle at validated position: %1", m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = m_vBluforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
@@ -878,13 +887,22 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		SetVehiclePhysics(m_westCommandVehicle);
 		
-		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", m_westCommandVehicle, params), LogLevel.NORMAL);
+		vector finalPos = m_westCommandVehicle.GetOrigin();
+		Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void SpawnSpawnVehicleEast()
 	{		
+		// Validate spawn position is set - NEVER spawn at 0,0,0
+		if (m_vOpforSpawnPos == vector.Zero)
+		{
+			Print("BCM - ERROR: Cannot spawn East vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			return;
+		}
+		
+		Print(string.Format("BCM - Spawning East vehicle at validated position: %1", m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		EntitySpawnParams params = new EntitySpawnParams();
 		params.TransformMode = ETransformMode.WORLD;
 		
@@ -912,9 +930,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
              Replication.BumpMe(); // Replicate the RplId
 			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
         }
-		// SetVehiclePhysics(m_radioTruck);
+		SetVehiclePhysics(m_radioTruck);
 	
-		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", m_radioTruck, params), LogLevel.NORMAL);
+		vector finalPos = m_radioTruck.GetOrigin();
+		Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -1120,6 +1139,130 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
     }
 
 
+	//------------------------------------------------------------------------------------------------
+	// Show the game over screen with faction-specific content
+	void ShowGameOverScreen()
+	{
+		if (!Replication.IsServer())
+		{
+			Print("BCM - ShowGameOverScreen called on client, ignoring", LogLevel.WARNING);
+			return;
+		}
+			
+		Print("BCM - Showing game over screen", LogLevel.NORMAL);
+		
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
+		if (!gameMode)
+		{
+			Print("BCM - Cannot show endscreen - no game mode found", LogLevel.ERROR);
+			return;
+		}
+		
+		// Determine title and description based on victory condition
+		string title = "";
+		string subtitle = "";
+		string description = "";
+		
+		// Get first player's faction to determine which message to show
+		array<int> playerIds = {};
+		GetPlayerManager().GetAllPlayers(playerIds);
+		string playerFactionKey = "USSR"; // default
+		
+		if (playerIds.Count() > 0)
+		{
+			Faction playerFaction = SCR_FactionManager.SGetPlayerFaction(playerIds[0]);
+			if (playerFaction)
+				playerFactionKey = playerFaction.GetFactionKey();
+		}
+		
+		// Determine if player's faction won
+		bool playerWon = false;
+		if ((m_sWinnerSide == "opfor" && playerFactionKey == "USSR") ||
+		    (m_sWinnerSide == "blufor" && playerFactionKey == "US"))
+		{
+			playerWon = true;
+		}
+		
+		// Set title based on win/loss
+		if (m_sWinnerSide == "draw")
+		{
+			title = "#AR-GameOver_Title_Draw";
+		}
+		else if (playerWon)
+		{
+			title = "#AR-GameOver_Title_Victory";
+		}
+		else
+		{
+			title = "#AR-GameOver_Title_Defeat";
+		}
+		
+		// Set subtitle and description based on how the game ended
+		if (m_bRadioTruckDestroyed)
+		{
+			subtitle = "Radio Truck Destroyed";
+			string destroyerFaction = m_sRadioTruckDestroyerFaction;
+			
+			if (destroyerFaction == "USSR")
+			{
+				if (playerFactionKey == "USSR")
+					description = "Your team accidentally destroyed the radio truck. BLUFOR wins by default.";
+				else
+					description = "OPFOR accidentally destroyed their own radio truck. Your team wins by default.";
+			}
+			else if (destroyerFaction == "US")
+			{
+				if (playerFactionKey == "US")
+					description = "Your team destroyed the radio truck. OPFOR wins by default.";
+				else
+					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
+			}
+		}
+		else if (m_bluforCaptured)
+		{
+			subtitle = "Radio Truck Disabled";
+			if (playerFactionKey == "US")
+				description = "Your team successfully disabled the OPFOR radio truck before all transmissions were completed.";
+			else
+				description = "BLUFOR disabled your radio truck before all transmissions were completed.";
+		}
+		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		{
+			subtitle = "All Transmissions Completed";
+			if (playerFactionKey == "USSR")
+				description = string.Format("Your team successfully completed all %1 transmissions.", m_iTransmissionCount);
+			else
+				description = string.Format("OPFOR completed all %1 transmissions before you could stop them.", m_iTransmissionCount);
+		}
+		else if (factionEliminated("US"))
+		{
+			subtitle = "Enemy Eliminated";
+			if (playerFactionKey == "USSR")
+				description = "All BLUFOR forces have been eliminated.";
+			else
+				description = "All your forces have been eliminated.";
+		}
+		else if (factionEliminated("USSR"))
+		{
+			subtitle = "Enemy Eliminated";
+			if (playerFactionKey == "US")
+				description = "All OPFOR forces have been eliminated.";
+			else
+				description = "All your forces have been eliminated.";
+		}
+		
+		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		
+		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		
+		// End the game - the game mode will show default endscreen
+		// TODO: Integrate custom endscreen content when API is properly understood
+		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+		gameMode.EndGameMode(endData);
+		
+		Print("BCM - Game ended, endscreen should show", LogLevel.NORMAL);
+	}
+
     //------------------------------------------------------------------------------------------------
 	EBreakingContactPhase GetBreakingContactPhase()
 	{
@@ -1219,8 +1362,27 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	protected vector FindSpawnPointOnRoad(vector position)
 	{
 	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
+	    
+	    // Fallback: If initial search fails, try with expanded radius
 	    if (roadPoints.IsEmpty())
-	        return vector.Zero; // No suitable spawn found
+	    {
+	        Print(string.Format("BCM - Initial road search failed at %1, trying expanded radius (50m)", position.ToString()), LogLevel.WARNING);
+	        roadPoints = GetNearestRoadPos(position, 50);
+	    }
+	    
+	    // Final fallback: If still no road found, try very large radius
+	    if (roadPoints.IsEmpty())
+	    {
+	        Print(string.Format("BCM - Expanded road search failed at %1, trying maximum radius (200m)", position.ToString()), LogLevel.WARNING);
+	        roadPoints = GetNearestRoadPos(position, 200);
+	    }
+	    
+	    // If no road found at all, return the original position as last resort (don't return vector.Zero)
+	    if (roadPoints.IsEmpty())
+	    {
+	        Print(string.Format("BCM - No road found near %1 even with 200m radius, using original position", position.ToString()), LogLevel.ERROR);
+	        return position; // Use player-selected position as absolute fallback
+	    }
 	    
 	    // Find the closest point from the road points
 	    vector closestPos = position;
@@ -1236,6 +1398,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        }
 	    }
 	    
+	    Print(string.Format("BCM - Found road position at %1 (distance: %2m from original %3)", closestPos.ToString(), vector.Distance(position, closestPos), position.ToString()), LogLevel.NORMAL);
 	    return closestPos;
 	}
 	
@@ -1629,9 +1792,13 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	protected array<vector> GetSpawnPos(vector spawnPos)
 	{
 		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		
+		// NEVER return empty array - always provide a valid spawn position
+		// FindSpawnPointOnRoad now returns original position if no road found
 		if (roadPosition == vector.Zero)
 		{
-			return new array<vector>();
+			Print(string.Format("BCM - WARNING: roadPosition is vector.Zero, using original spawn position %1 as fallback", spawnPos.ToString()), LogLevel.ERROR);
+			roadPosition = spawnPos; // Ultimate fallback to player-selected position
 		}
 		
 		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
@@ -1643,6 +1810,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		output.Insert(midpoint);
 		output.Insert(direction);
 		
+		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", midpoint.ToString(), direction.ToString()), LogLevel.NORMAL);
 		return output;
 	}
 

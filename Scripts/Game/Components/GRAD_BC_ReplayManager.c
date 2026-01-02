@@ -595,9 +595,9 @@ void StartLocalReplayPlayback()
 		Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
 			m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
 		
-		// Open map first
-		Print("GRAD_BC_ReplayManager: Scheduling map open in 100ms", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 100, false); // Reduced from 500ms to 100ms
+		// Open debriefing screen with global VoN (cross-faction voice)
+		Print("GRAD_BC_ReplayManager: Scheduling debriefing screen open in 100ms", LogLevel.NORMAL);
+		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 100, false);
 		
 		// Initialize playback state
 		BaseWorld world = GetGame().GetWorld();
@@ -667,42 +667,46 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	void OpenMapForLocalPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: Opening map for local playback", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
 		
-		// Try to open map using player controller
-		PlayerController playerController = GetGame().GetPlayerController();
-		if (playerController)
+		// Setup global VoN room for cross-faction voice
+		if (Replication.IsServer())
 		{
-			IEntity playerEntity = playerController.GetControlledEntity();
-			if (playerEntity)
-			{
-				// Try to find gadget manager component
-				SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(playerEntity.FindComponent(SCR_GadgetManagerComponent));
-				if (gadgetManager)
-				{
-					// Try to get map gadget directly
-					IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-					if (mapGadget)
-					{
-						gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND);
-						Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
-						return;
-					}
-				}
-			}
+			SetAllPlayersToGlobalVoN();
 		}
 		
-		// Fallback: try Breaking Contact player component
-		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
-		if (playerComponent)
+		// Open debriefing menu (which includes map overlay)
+		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.DebriefingMenu);
+		Print("GRAD_BC_ReplayManager: Debriefing menu opened for replay", LogLevel.NORMAL);
+		
+		// The debriefing menu has built-in map, so our markers will work on it
+		// No need to manually open map gadget
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetAllPlayersToGlobalVoN()
+	{
+		Print("GRAD_BC_ReplayManager: Moving all players to global VoN room", LogLevel.NORMAL);
+		
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		
+		// Try to get VoN manager from PSCore
+		PS_VoNRoomsManager vonManager = PS_VoNRoomsManager.GetInstance();
+		if (!vonManager)
 		{
-			playerComponent.ToggleMap(true);
-			Print("GRAD_BC_ReplayManager: Map opened via Breaking Contact player component", LogLevel.NORMAL);
+			Print("GRAD_BC_ReplayManager: VoN manager not found - cross-faction voice may not work", LogLevel.WARNING);
+			return;
 		}
-		else
+		
+		// Move each player to global room (empty strings = everyone can hear)
+		foreach (int playerId : playerIds)
 		{
-			Print("GRAD_BC_ReplayManager: Failed to open map - no suitable method found", LogLevel.ERROR);
+			vonManager.MoveToRoom(playerId, "", ""); // Empty faction + room = global
+			Print(string.Format("GRAD_BC_ReplayManager: Player %1 moved to global voice room", playerId), LogLevel.NORMAL);
 		}
+		
+		Print(string.Format("GRAD_BC_ReplayManager: %1 players in global voice room for replay", playerIds.Count()), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -1153,34 +1157,24 @@ void StartLocalReplayPlayback()
 		m_bPlaybackPaused = false;
 		GetGame().GetCallqueue().Remove(UpdatePlayback);
 		
-		Print("GRAD_BC_ReplayManager: Playback finished, closing map and setting phase to GAMEOVERDONE", LogLevel.NORMAL);
+		Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
 		
 		// Close the map
 		CloseMap();
 		
-		// Set phase to GAMEOVERDONE to end the game
+		// Tell the BCM to show the endscreen with faction-specific content
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm && Replication.IsServer())
 		{
-			Print("GRAD_BC_ReplayManager: Setting phase to GAMEOVERDONE", LogLevel.NORMAL);
+			Print("GRAD_BC_ReplayManager: Triggering endscreen via BCM", LogLevel.NORMAL);
+			// Set phase to GAMEOVERDONE first
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
+			// Then show the endscreen with proper victory condition explanations
+			bcm.ShowGameOverScreen();
 		}
 		else
 		{
-			Print("GRAD_BC_ReplayManager: Cannot set phase - BCM not found or not on server", LogLevel.WARNING);
-		}
-		
-		// End the game mode to show endscreen
-		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
-		if (gameMode && Replication.IsServer())
-		{
-			Print("GRAD_BC_ReplayManager: Ending game mode", LogLevel.NORMAL);
-			SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
-			gameMode.EndGameMode(endData);
-		}
-		else
-		{
-			Print("GRAD_BC_ReplayManager: Cannot end game - gamemode not found or not on server", LogLevel.WARNING);
+			Print("GRAD_BC_ReplayManager: Cannot show endscreen - BCM not found or not on server", LogLevel.WARNING);
 		}
 	}
 	

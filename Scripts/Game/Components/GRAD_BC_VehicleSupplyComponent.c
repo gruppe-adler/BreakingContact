@@ -72,4 +72,30 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 	{
 		m_iCurrentSupplies = Math.Clamp(amount, 0, m_iMaxSupplies);
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Building budget methods for GRAD_BC_CampaignBuildingProviderComponent integration
+	//------------------------------------------------------------------------------------------------
+	int GetCurrentBuildingBudget()
+	{
+		return m_iCurrentSupplies;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	int GetMaxBuildingBudget()
+	{
+		return m_iMaxSupplies;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetCurrentBuildingBudget(int value)
+	{
+		SetSupplies(value);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void AddBuildingBudget(int amount)
+	{
+		AddSupplies(amount);
+	}
 }

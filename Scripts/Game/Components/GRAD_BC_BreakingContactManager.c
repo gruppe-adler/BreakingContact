@@ -6,7 +6,7 @@ enum EBreakingContactPhase
 	OPFOR,
 	BLUFOR,
 	GAME,
-    GAMEOVER,
+	GAMEOVER,
 	GAMEOVERDONE
 }
 
@@ -46,6 +46,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	// Replay system
 	protected GRAD_BC_ReplayManager m_replayManager;
+	
+	// Debounce phase change notifications
+	protected float m_fLastPhaseNotification = 0;
 
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
@@ -306,6 +309,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
+			// Debounce to prevent multiple calls
+			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+			if (currentTime - m_fLastPhaseNotification < 2.0)
+				return;
+			m_fLastPhaseNotification = currentTime;
+			
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 		
 		    // Now bump the counter on the server so that all clients show it.
@@ -316,6 +325,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
+			// Debounce to prevent multiple calls
+			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+			if (currentTime - m_fLastPhaseNotification < 2.0)
+				return;
+			m_fLastPhaseNotification = currentTime;
+			
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 			logoDisplay.ShowLogo();
 		}
@@ -1304,6 +1319,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	void Rpc_RequestInitiateOpforSpawn()
 	{
 		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		SpawnSpawnVehicleEast();
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -1341,6 +1357,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void InitiateBluforSpawn() 
 	{
+		SpawnSpawnVehicleWest();
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
         TeleportFactionToMapPos("US");
 	}
@@ -1391,44 +1408,31 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	// Method to find the closest road position
 	protected vector FindSpawnPointOnRoad(vector position)
 	{
-	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
+	    // Single search with larger radius instead of progressive expansion
+	    array<vector> roadPoints = GetNearestRoadPos(position, 200);
 	    
-	    // Fallback: If initial search fails, try with expanded radius
-	    if (roadPoints.IsEmpty())
+	    // If no road found, return the original position as last resort (don't return vector.Zero)
+	    if (!roadPoints || roadPoints.IsEmpty())
 	    {
-	        Print(string.Format("BCM - Initial road search failed at %1, trying expanded radius (50m)", position.ToString()), LogLevel.WARNING);
-	        roadPoints = GetNearestRoadPos(position, 50);
-	    }
-	    
-	    // Final fallback: If still no road found, try very large radius
-	    if (roadPoints.IsEmpty())
-	    {
-	        Print(string.Format("BCM - Expanded road search failed at %1, trying maximum radius (200m)", position.ToString()), LogLevel.WARNING);
-	        roadPoints = GetNearestRoadPos(position, 200);
-	    }
-	    
-	    // If no road found at all, return the original position as last resort (don't return vector.Zero)
-	    if (roadPoints.IsEmpty())
-	    {
-	        Print(string.Format("BCM - No road found near %1 even with 200m radius, using original position", position.ToString()), LogLevel.ERROR);
+	        Print(string.Format("BCM - No road found near %1, using original position", position.ToString()), LogLevel.WARNING);
 	        return position; // Use player-selected position as absolute fallback
 	    }
 	    
-	    // Find the closest point from the road points
-	    vector closestPos = position;
-	    float minDistance = float.MAX;
+	    // Find the closest point from the road points (optimized single pass)
+	    vector closestPos = roadPoints[0];
+	    float minDistance = vector.Distance(position, closestPos);
 	    
-	    foreach (vector roadPoint : roadPoints)
+	    for (int i = 1, count = roadPoints.Count(); i < count; i++)
 	    {
-	        float distance = vector.Distance(position, roadPoint);
+	        float distance = vector.Distance(position, roadPoints[i]);
 	        if (distance < minDistance)
 	        {
 	            minDistance = distance;
-	            closestPos = roadPoint;
+	            closestPos = roadPoints[i];
 	        }
 	    }
 	    
-	    Print(string.Format("BCM - Found road position at %1 (distance: %2m from original %3)", closestPos.ToString(), vector.Distance(position, closestPos), position.ToString()), LogLevel.NORMAL);
+	    Print(string.Format("BCM - Found road position %1m from original", minDistance), LogLevel.VERBOSE);
 	    return closestPos;
 	}
 	
@@ -1448,17 +1452,13 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    foreach (vector roadPoint : roadPoints)
 	    {
 	        float d = vector.Distance(position, roadPoint);
-			Print("d: %1" + d);
 			
 			// Skip road points too close to exclusion position (e.g., OPFOR spawn)
 			if (excludePos != vector.Zero && minDistanceFromExclude > 0)
 			{
 				float distToExclude = vector.Distance(roadPoint, excludePos);
 				if (distToExclude < minDistanceFromExclude)
-				{
-					Print("BCM - Skipping road point too close to exclusion zone: " + distToExclude + "m");
 					continue;
-				}
 			}
 	        if (d < bestDist)
 	        {
@@ -1468,29 +1468,20 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	            bestDist   = d;
 	            bestPos    = roadPoint;
-				Print("secondDist: %1" + secondDist);
-				Print("bestDist: %1" + bestDist);
 	        }
 	        else if (d < secondDist)
 	        {
 	            // it's worse than best but better than current second
 	            secondDist = d;
 	            secondPos  = roadPoint;
-				Print("secondDist: %1" + secondDist);
 	        }
 	    }
 	
 	    // If we never found a true second, fall back to the nearest
 	    if (secondDist < float.MAX)
-	    {
-			Print("secondDist found! %1" + secondPos);
 	        return secondPos;
-	    }
 	    else
-	    {
-			Print("no second best found! %1" + bestPos);
 	        return bestPos;
-	    }
 	}
 
 	
@@ -1521,29 +1512,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    auto emptyRoads = new array<BaseRoad>();
 	    int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
 	    
-	    // Debug outputs
-	    Print("BCM - Center: " + center.ToString());
-	    Print("BCM - aabbMin: " + aabbMin.ToString());
-	    Print("BCM - aabbMax: " + aabbMax.ToString());
-	    Print("BCM - Result Code: " + result);
-	    
-	    // Output the retrieved roads
-	    for (int i = 0; i < emptyRoads.Count(); i++)
-	    {
-	        Print("Road " + i + ": " + emptyRoads[i].ToString());
-	    }
-	    
 	    if (result > 0)
 	    {
 	        BaseRoad emptyRoad = emptyRoads[0];
 	        emptyRoad.GetPoints(outPoints);
-	        PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
-	        
 	        return outPoints;
 	    }
 	    
 		// in case we dont find return null
-		PrintFormat("BCM - Unable to determine spawn pos for position %1 and search radius %2", center, searchRadius);
 		return null;
 	}
 	
@@ -1594,120 +1570,92 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    float minDistance = m_iBluforSpawnDistance - 100;
 	    float maxDistance = m_iBluforSpawnDistance + 100;
 	    
+	    // Max 100 iterations to find valid position
 	    while (!foundPositionOnLand && loopCount < 100) {
 	        loopCount++;
 	        
-	        // Generate random direction
+	        // Generate random direction and distance
 	        int degrees = Math.RandomIntInclusive(0, 360);
-	        
-	        // Generate random distance within bounds
 	        float randomDistance = Math.RandomFloatInclusive(minDistance, maxDistance);
 	        
 	        // Get initial point on circle
 	        vector candidatePos = GetPointOnCircle(opforPosition, randomDistance, degrees);
 	        
-	        // Find nearest road position with progressive search radius expansion
-	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 200); // Start with 200m search radius
+	        // Single road search with 500m radius instead of progressive expansion
+	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 500);
 	        
-	        // If no roads found nearby, try expanding search radius
-	        if (roadPositions.IsEmpty()) {
-	            roadPositions = GetNearestRoadPos(candidatePos, 500); // Try 500m
-	        }
+	        // Skip this iteration if no roads found
+	        if (!roadPositions || roadPositions.IsEmpty())
+	            continue;
 	        
-	        if (roadPositions.IsEmpty()) {
-	            roadPositions = GetNearestRoadPos(candidatePos, 1000); // Try 1000m
-	        }
+	        // Find the closest road position to the candidate position (optimized single pass)
+	        float closestDist = vector.Distance(candidatePos, roadPositions[0]);
+	        vector closestRoadPos = roadPositions[0];
 	        
-	        if (roadPositions && !roadPositions.IsEmpty()) {
-	            // Find the closest road position to the candidate position
-	            float closestDist = float.MAX;
-	            vector closestRoadPos = roadPositions[0];
-	            
-	            foreach (vector roadPoint : roadPositions) {
-	                float dist = vector.Distance(candidatePos, roadPoint);
-	                if (dist < closestDist) {
-	                    closestDist = dist;
-	                    closestRoadPos = roadPoint;
-	                }
-	            }
-	            
-	            roadPosition = closestRoadPos;
-	            
-	            // Verify the position meets distance requirements and is on land
-	            float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
-	            
-	            if (!SurfaceIsWater(roadPosition) && 
-	                distanceToOpfor >= minDistance && 
-	                distanceToOpfor <= maxDistance) {
-	                
-					// Get direction point for vehicle orientation (exclude nearby OPFOR roads)
-					vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition, opforPosition, minDistance * 0.8);
-					vector finalSpawnPos = roadPosition; // Use validated road position directly
-					
-					// Final safety check: verify distance from OPFOR is still valid
-					float finalDistance = vector.Distance(finalSpawnPos, opforPosition);
-					
-					// Basic collision check using surface query (checks for buildings/objects)
-					bool hasCollision = false;
-					if (GetGame().GetWorld())
-					{
-						autoptr TraceParam trace = new TraceParam();
-						trace.Start = finalSpawnPos + Vector(0, 5, 0); // Start 5m above ground
-						trace.End = finalSpawnPos + Vector(0, -2, 0);   // End 2m below ground
-						trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
-						trace.LayerMask = EPhysicsLayerPresets.Projectile; // Check solid objects
-						
-						float traceResult = GetGame().GetWorld().TraceMove(trace, null);
-						// If trace is less than 1.0, something is blocking
-						if (traceResult < 0.95)
-						{
-							hasCollision = true;
-							Print(string.Format("BCM - Position has collision, trace: %1", traceResult), LogLevel.WARNING);
-						}
-					}
-					
-					if (!hasCollision && finalDistance >= minDistance && finalDistance <= maxDistance)
-					{
-						Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2 - pos: %3 - opfor: %4 - degrees: %5", 
-							loopCount, finalDistance, finalSpawnPos, opforPosition, degrees), LogLevel.NORMAL);
-						
-						vector direction = vector.Direction(roadPosition, roadPosition2);
-						
-						array<vector> output = new array<vector>();
-						output.Insert(finalSpawnPos);
-						output.Insert(direction);
-						
-						return output;
-					}
-					else
-					{
-						Print(string.Format("BCM - Position failed final validation - collision: %1, distance: %2m (need %3-%4m)",
-							hasCollision, finalDistance, minDistance, maxDistance), LogLevel.WARNING);
-					}
+	        for (int i = 1, count = roadPositions.Count(); i < count; i++) {
+	            float dist = vector.Distance(candidatePos, roadPositions[i]);
+	            if (dist < closestDist) {
+	                closestDist = dist;
+	                closestRoadPos = roadPositions[i];
 	            }
 	        }
 	        
-	        if (!foundPositionOnLand && loopCount >= 100) {
-	            Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
-	            // Fallback to original position if no valid road position found
-	            roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
-				vector fallbackDir = Vector(1, 0, 0);
-				
-				array<vector> output = new array<vector>();
-				output.Insert(roadPosition);
-				output.Insert(fallbackDir);
-				
-				return output;
+	        roadPosition = closestRoadPos;
+	        
+	        // Quick checks first (cheaper operations)
+	        float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
+	        if (distanceToOpfor < minDistance || distanceToOpfor > maxDistance)
+	            continue;
+	        
+	        // Water check (more expensive)
+	        if (SurfaceIsWater(roadPosition))
+	            continue;
+	        
+	        // Get direction point for vehicle orientation (exclude nearby OPFOR roads)
+	        vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition, opforPosition, minDistance * 0.8);
+	        vector finalSpawnPos = roadPosition;
+	        
+	        // Basic collision check using trace
+	        bool hasCollision = false;
+	        if (GetGame().GetWorld())
+	        {
+	            autoptr TraceParam trace = new TraceParam();
+	            trace.Start = finalSpawnPos + Vector(0, 5, 0);
+	            trace.End = finalSpawnPos + Vector(0, -2, 0);
+	            trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
+	            trace.LayerMask = EPhysicsLayerPresets.Projectile;
+	            
+	            float traceResult = GetGame().GetWorld().TraceMove(trace, null);
+	            hasCollision = (traceResult < 0.95);
+	        }
+	        
+	        if (!hasCollision)
+	        {
+	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m", 
+	                loopCount, distanceToOpfor), LogLevel.NORMAL);
+	            
+	            vector direction = vector.Direction(roadPosition, roadPosition2);
+	            
+	            array<vector> output = new array<vector>();
+	            output.Insert(finalSpawnPos);
+	            output.Insert(direction);
+	            
+	            return output;
 	        }
 	    }
-		
-		// Should never reach here, but return safe fallback
-		Print("BCM - Unexpected fallthrough in findBluforPosition", LogLevel.ERROR);
-		vector safeFallback = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
-		array<vector> output = new array<vector>();
-		output.Insert(safeFallback);
-		output.Insert(Vector(1, 0, 0));
-		return output;
+	    
+	    // Failed to find valid position after max iterations
+	    Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
+	    
+	    // Fallback to original position if no valid road position found
+	    roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
+	    vector fallbackDir = Vector(1, 0, 0);
+	    
+	    array<vector> output = new array<vector>();
+	    output.Insert(roadPosition);
+	    output.Insert(fallbackDir);
+	    
+	    return output;
 	}
 	
 	// helper to find point on circle
@@ -1728,63 +1676,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void NotifyPlayerWrongRole(int playerId, string neededRole)
-	{
-
-		const string title = "Breaking Contact";
-		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-	
-		GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
-	}
-
-
-    //------------------------------------------------------------------------------------------------
-	void NotifyFactionWrongPhaseForMarker(Faction faction)
-	{
-		array<int> playerIds = {};
-		GetPlayerManager().GetAllPlayers(playerIds);
-
-		const string title = "Breaking Contact";
-		const string message = "You can't create the marker in this phase.";
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-		
-		foreach (int playerId : playerIds)
-		{
-			if (SCR_FactionManager.SGetPlayerFaction(playerId) == faction)
-			{			
-				GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
-			}
-		}
-	}
-
-
-    //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
-		array<vector> availablePositions = new array<vector>();
-		
-		if (factionName == "USSR")
-		{	
-			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
-			SpawnSpawnVehicleEast();
-			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos);
-		}
-		
-		if (factionName == "US") {	
-			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
-			SpawnSpawnVehicleWest();
-			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos);
-		}
-		
-		if (factionName != "US" && factionName != "USSR") {
-			Print(string.Format("Breaking Contact - PANIC, faction is %1", factionName), LogLevel.NORMAL);
-			return;
-		}
-		
-		// Cache PlayableManager for performance
 		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
 		if (!playableManager)
 		{
@@ -1792,6 +1685,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		array<PS_PlayableContainer> playables = playableManager.GetPlayablesSorted();
+		
+		array<vector> availablePositions = {};
+		
+		if (factionName == "USSR")
+			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos, 25);
+		
+		if (factionName == "US")
+			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos, 25);
 		
 		int index = 0;
 		foreach (int idx, PS_PlayableContainer playableCont : playables)

@@ -1,13 +1,12 @@
 FrameWidgetClass {
  Name "DrawIconRoot"
  Slot FrameWidgetSlot "{6050DBD59AEABB32}" {
+  Anchor 0.5 0.5 0.5 0.5
   OffsetLeft 0
   OffsetTop 0
-  SizeX 256
-  OffsetRight -256
-  SizeY 256
-  OffsetBottom -256
-  SizeToContent 1
+  OffsetRight 0
+  OffsetBottom 0
+  SizeToContent 0
  }
  "Z Order" 70
  Clipping False
@@ -15,14 +14,12 @@ FrameWidgetClass {
   ImageWidgetClass "{60454C504CE75F99}" {
    Name "DrawIconImage"
    Slot FrameWidgetSlot "{60454C504CE75FF2}" {
-    Anchor 0 0 0 0
+    Anchor 0.5 0.5 0.5 0.5
     OffsetLeft 0
     OffsetTop 0
-    SizeX 256
-    OffsetRight -256
-    SizeY 256
-    OffsetBottom -256
-    SizeToContent 1
+    OffsetRight 0
+    OffsetBottom 0
+    SizeToContent 0
    }
    Texture "{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds"
    Size 256 256

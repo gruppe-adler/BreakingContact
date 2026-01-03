@@ -3,6 +3,8 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	// This scripted user action if triggered runs on all clients and server
 	
 	private GRAD_BC_RadioTruckComponent m_radioTruckComponent;
+	protected float m_fStartTime = -1;
+	protected const float ACTION_DURATION = 30.0; // 30 seconds in seconds
 
 	//------------------------------------------------------------------------------------------------
 	override bool HasLocalEffectOnlyScript()
@@ -65,6 +67,21 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	override float GetActionProgressScript(float fProgress, float timeSlice)
+	{
+		if (m_fStartTime < 0)
+		{
+			m_fStartTime = System.GetTickCount();
+			return 0.0;
+		}
+		
+		float elapsed = (System.GetTickCount() - m_fStartTime) / 1000.0; // Convert ms to seconds
+		float progress = Math.Clamp(elapsed / ACTION_DURATION, 0.0, 1.0);
+		
+		return progress;
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
 		Print("BC Debug - PerformAction() DisableRadioTruck", LogLevel.NORMAL);
@@ -76,10 +93,11 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 		}
 		
 		// This runs on server since HasLocalEffectOnlyScript() returns false
+		// This is called when the action completes (progress reaches 100%)
 		
 		// Disable the radio truck permanently
 		m_radioTruckComponent.SetIsDisabled(true);
-		
+	
 		// Notify the player who performed the action
 		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(pUserEntity.FindComponent(GRAD_PlayerComponent));
 		if (playerComponent)
@@ -102,6 +120,9 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 		{
 			Print("BC Debug - Could not find Breaking Contact Manager", LogLevel.WARNING);
 		}
+		
+		// Reset start time for next use
+		m_fStartTime = -1;
 	}
 	
 	//------------------------------------------------------------------------------------------------

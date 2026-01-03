@@ -240,6 +240,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		}
 		
 		// Draw transmissions with state indicators and progress bars
+		// DISABLED DURING REPLAY - transmissions should only show in live mode
+		/*
 		array<ref GRAD_BC_ReplayTransmissionMarker> transmissionsToRender = {};
 		if (replayManager && replayManager.IsPlayingBack())
 		{
@@ -335,8 +337,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 				}
 			}
 		}
+		*/  // END TRANSMISSION MARKERS - DISABLED FOR REPLAY
 		
 		// Draw radio truck markers
+		/* RADIO TRUCK MARKERS ALSO DISABLED FOR REPLAY
 		array<ref GRAD_BC_ReplayRadioTruckMarker> radioTrucksToRender = {};
 		if (replayManager && replayManager.IsPlayingBack())
 		{
@@ -357,9 +361,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			if (truckIconPath)
 				DrawTransmissionIcon(truckMarker.position, 48, 48, truckIconPath);
 		}
+		*/  // END RADIO TRUCK MARKERS - DISABLED FOR REPLAY
 		
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 transmission markers, %4 radio trucks, %5 total commands", 
-			markersToRender.Count(), projectilesToRender.Count(), transmissionsToRender.Count(), radioTrucksToRender.Count(), m_Commands.Count()));
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
+			markersToRender.Count(), projectilesToRender.Count(), m_Commands.Count()));
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -399,7 +404,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	
 	//------------------------------------------------------------------------------------------------
 	// Draw an image with rotation and color tint
-	// Rotation happens around top-left corner, so we need to adjust position to rotate around center
+	// Rotation happens around center of the image
 	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, int color, float rotationDegrees)
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
@@ -407,28 +412,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		int xcp, ycp;		
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
 		
-		// We want the CENTER of the image to be at (xcp, ycp)
-		// But ImageDrawCommand rotates around its top-left corner
-		// So we need to calculate where the top-left should be positioned
+		// Increase bounding box to prevent clipping during rotation
+		// When rotated 45 degrees, diagonal is sqrt(2) times larger, so use 1.5x to be safe
+		int expandedWidth = width * 1.5;
+		int expandedHeight = height * 1.5;
 		
-		float halfWidth = width / 2.0;
-		float halfHeight = height / 2.0;
-		
-		// Convert rotation to radians
-		float rotRad = rotationDegrees * Math.DEG2RAD;
-		float cosRot = Math.Cos(rotRad);
-		float sinRot = Math.Sin(rotRad);
-		
-		// The top-left corner is at offset (-halfWidth, -halfHeight) from center
-		// After rotation by θ around the center point, the top-left corner moves to:
-		// x = center_x + (-halfWidth * cos(θ) - (-halfHeight) * sin(θ))
-		// y = center_y + (-halfWidth * sin(θ) + (-halfHeight) * cos(θ))
-		float topLeftX = xcp - halfWidth * cosRot + halfHeight * sinRot;
-		float topLeftY = ycp - halfWidth * sinRot - halfHeight * cosRot;
-		
-		cmd.m_Position = Vector(topLeftX, topLeftY, 0);
+		// Center the expanded image at the screen position
+		cmd.m_Position = Vector(xcp - (expandedWidth/2), ycp - (expandedHeight/2), 0);
 		cmd.m_pTexture = tex;
-		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_Size = Vector(expandedWidth, expandedHeight, 0);
 		cmd.m_iColor = color;
 		cmd.m_fRotation = rotationDegrees;
 		cmd.m_iFlags = WidgetFlags.BLEND;
@@ -493,9 +485,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 		// Load and draw the unit icon texture
 		if (texturePath != "")
 		{
+			// Icon pixel size - normal size, rotation clipping is handled in DrawImageColorRotated
 			int iconPixelSize;
 			if (isVehicle)
-				iconPixelSize = 36;
+				iconPixelSize = 32;
 			else
 				iconPixelSize = 28;
 			

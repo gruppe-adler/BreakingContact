@@ -664,6 +664,9 @@ void StartLocalReplayPlayback()
 		m_bIsPlayingBack = true;
 		Print(string.Format("GRAD_BC_ReplayManager: m_bIsPlayingBack is now: %1", m_bIsPlayingBack), LogLevel.NORMAL);
 		
+		// Skip empty frames at start
+		SkipEmptyFrames();
+		
 		Print("GRAD_BC_ReplayManager: About to start playback loop", LogLevel.NORMAL);
 		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		
@@ -682,6 +685,24 @@ void StartLocalReplayPlayback()
 	void OpenMapForLocalPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
+		
+		// Clear all live markers before starting replay
+		Print("GRAD_BC_ReplayManager: Clearing live transmission and player markers", LogLevel.NORMAL);
+		
+		// Clear live transmission markers
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (mapEntity)
+		{
+			GRAD_MapMarkerManager markerMgr = GRAD_MapMarkerManager.Cast(mapEntity.GetMapModule(GRAD_MapMarkerManager));
+			if (markerMgr)
+			{
+				markerMgr.SetReplayMode(true);
+				Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
+			}
+			
+			// Note: GRAD_IconMarkerUI is per-player component, not a map module
+			// Player icon markers will be hidden when players are removed/hidden for replay
+		}
 		
 		// Trigger server-side VoN setup via RPC
 		if (Replication.IsServer())
@@ -1103,6 +1124,24 @@ void StartLocalReplayPlayback()
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		
+		// Disable live markers
+		// Note: SCR_MapEntity must be available before disabling markers
+		/*
+		SCR_MapEntity mapEntity2 = SCR_MapEntity.GetMapInstance();
+		if (mapEntity2)
+		{
+			GRAD_MapMarkerManager markerMgr = GRAD_MapMarkerManager.Cast(mapEntity2.GetMapModule(GRAD_MapMarkerManager));
+			if (markerMgr)
+			{
+				markerMgr.SetReplayMode(true);
+				Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
+			}
+		}
+		*/
+		
+		// Skip empty frames at start
+		SkipEmptyFrames();
+		
 		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		// Start playback loop
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
@@ -1344,6 +1383,18 @@ void StartLocalReplayPlayback()
 		m_bPlaybackPaused = false;
 		GetGame().GetCallqueue().Remove(UpdatePlayback);
 		
+		// Re-enable live markers
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (mapEntity)
+		{
+			GRAD_MapMarkerManager markerMgr = GRAD_MapMarkerManager.Cast(mapEntity.GetMapModule(GRAD_MapMarkerManager));
+			if (markerMgr)
+			{
+				markerMgr.SetReplayMode(false);
+				Print("GRAD_BC_ReplayManager: Disabled replay mode on marker manager", LogLevel.NORMAL);
+			}
+		}
+		
 		Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
 		
 		// Close the map
@@ -1366,8 +1417,15 @@ void StartLocalReplayPlayback()
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RpcAsk_ShowEndscreen()
 	{
-		Print("GRAD_BC_ReplayManager: Server received endscreen request, broadcasting to all clients", LogLevel.NORMAL);
-		// Broadcast to all clients to show endscreen locally
+		Print("GRAD_BC_ReplayManager: Server received endscreen request, executing locally and broadcasting to all clients", LogLevel.NORMAL);
+		
+		// Show on server first (if it has a player controller / local player)
+		if (GetGame().GetPlayerController())
+		{
+			ShowEndscreenOnServer();
+		}
+		
+		// Then broadcast to all clients
 		Rpc(RpcDo_ShowEndscreen);
 	}
 	
@@ -1382,11 +1440,15 @@ void StartLocalReplayPlayback()
 		// Don't show on dedicated server (no UI)
 		if (Replication.IsServer() && !GetGame().GetPlayerController())
 		{
-			Print("GRAD_BC_ReplayManager: Skipping endscreen on dedicated server", LogLevel.NORMAL);
+			Print("GRAD_BC_ReplayManager: Skipping endscreen on dedicated server (no player controller)", LogLevel.NORMAL);
 			return;
 		}
 		
-		ShowEndscreenOnServer();
+		// Show endscreen for clients
+		if (!Replication.IsServer())
+		{
+			ShowEndscreenOnServer();
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1646,5 +1708,55 @@ void StartLocalReplayPlayback()
 			return 0.0;
 			
 		return m_replayData.totalDuration;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Skip empty frames at the start of replay
+	void SkipEmptyFrames()
+	{
+		if (!m_replayData || m_replayData.frames.Count() == 0)
+			return;
+			
+		Print("GRAD_BC_ReplayManager: Checking for empty frames to skip...", LogLevel.NORMAL);
+		
+		int skippedCount = 0;
+		int startIndex = m_iCurrentFrameIndex;
+		
+		// Look ahead for the first frame with interesting content
+		for (int i = startIndex; i < m_replayData.frames.Count(); i++)
+		{
+			GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
+			
+			// Check if frame has any content
+			bool hasContent = frame.players.Count() > 0 || 
+							  frame.projectiles.Count() > 0 || 
+							  frame.transmissions.Count() > 0;
+							  
+			if (hasContent)
+			{
+				// Found content!
+				if (i > startIndex)
+				{
+					// Update playback state to this frame
+					m_iCurrentFrameIndex = i;
+					float frameTime = frame.timestamp - m_replayData.startTime;
+					m_fCurrentPlaybackTime = frameTime;
+					
+					// Adjust start time so playback continues from here
+					float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+					m_fPlaybackStartTime = currentWorldTime - (m_fCurrentPlaybackTime / m_fPlaybackSpeed);
+					
+					Print(string.Format("GRAD_BC_ReplayManager: Skipped %1 empty frames. Starting at frame %2 (time: %.2f)", 
+						i - startIndex, i, frameTime), LogLevel.NORMAL);
+				}
+				else
+				{
+					Print("GRAD_BC_ReplayManager: No empty frames to skip.", LogLevel.NORMAL);
+				}
+				return;
+			}
+		}
+		
+		Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
 	}
 }

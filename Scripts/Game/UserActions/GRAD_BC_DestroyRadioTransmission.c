@@ -31,6 +31,10 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBeShownScript(IEntity user)
 	{
+		// Only show for BLUFOR players
+		if (!IsUserBlufor(user))
+			return false;
+		
 		return true;
 	}
 
@@ -39,7 +43,24 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	{
 		if (!m_transmissionComponent)
 			return false;
-		return m_transmissionComponent.GetTransmissionActive();
+		
+		// Only allow for BLUFOR players
+		if (!IsUserBlufor(user))
+			return false;
+		
+		// Check if transmission is in TRANSMITTING state (not just the active flag)
+		return m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected bool IsUserBlufor(IEntity user)
+	{
+		SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(user);
+		if (!character)
+			return false;
+			
+		string factionKey = character.GetFactionKey();
+		return (factionKey == "US");
 	}
 
 	//------------------------------------------------------------------------------------------------

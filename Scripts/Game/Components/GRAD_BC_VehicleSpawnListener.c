@@ -72,18 +72,14 @@ class GRAD_BC_VehicleSpawnListener
 		
 		if (nearestSupply)
 		{
-			int cost = 100;
 			Print(string.Format("[GRAD BC Supply Listener] Found nearby combox (%1m away)", nearestDist), LogLevel.NORMAL);
-			Print(string.Format("[GRAD BC Supply Listener] Deducting %1 supplies...", cost), LogLevel.NORMAL);
-			
-			bool deducted = nearestSupply.DeductSupplies(cost);
-			Print(string.Format("[GRAD BC Supply Listener] Deduction result: %1", deducted), LogLevel.NORMAL);
-			Print(string.Format("[GRAD BC Supply Listener] New balance: %1/%2", 
+			Print("[GRAD BC Supply Listener] Supplies already deducted by PerformAction, skipping duplicate deduction", LogLevel.NORMAL);
+			Print(string.Format("[GRAD BC Supply Listener] Current balance: %1/%2", 
 				nearestSupply.GetCurrentSupplies(), nearestSupply.GetMaxSupplies()), LogLevel.NORMAL);
 		}
 		else
 		{
-			Print("[GRAD BC Supply Listener] No nearby combox found, no deduction", LogLevel.NORMAL);
+			Print("[GRAD BC Supply Listener] No nearby combox found", LogLevel.NORMAL);
 		}
 		
 		Print("========================================", LogLevel.NORMAL);

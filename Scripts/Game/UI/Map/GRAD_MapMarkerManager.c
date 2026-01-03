@@ -73,6 +73,37 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     
     // Debouncing for event spam prevention
     protected float m_LastStateChangeTime = 0.0;
+    
+    // Flag to disable marker drawing during replay
+    protected bool m_bIsReplayMode = false;
+    
+    //------------------------------------------------------------------------------------------------
+    void SetReplayMode(bool enabled)
+    {
+        m_bIsReplayMode = enabled;
+        
+        if (enabled)
+        {
+            // Clear all markers immediately
+            if (m_Canvas)
+                m_Canvas.SetDrawCommands({});
+                
+            if (m_AllMarkers)
+                m_AllMarkers.Clear();
+                
+            // Hide text widgets
+            foreach (Widget w : m_TransmissionTextWidgets) {
+                if (w) w.RemoveFromHierarchy();
+            }
+            m_TransmissionTextWidgets.Clear();
+        }
+        else
+        {
+            // Re-populate markers when disabling replay mode
+            PopulateMarkers();
+            m_NeedsRedraw = true;
+        }
+    }
 
     // ───────────────────────────────────────────────────────────────────────────────
     // OnMapOpen
@@ -147,6 +178,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // Event-driven state change handler for instant updates with debouncing
     void OnTransmissionStateChanged()
     {
+        // Don't update markers during replay mode
+        if (m_bIsReplayMode)
+            return;
+        
         float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
         
         // Debounce rapid events (only process if 100ms has passed since last change)
@@ -206,6 +241,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // Lightweight frame update - only for animation and rendering when needed
     void EOnPostFrame(IEntity owner, float timeSlice)
     {
+        // Don't draw transmission markers during replay mode
+        if (m_bIsReplayMode)
+            return;
+        
         if (!m_Canvas) {
             return; // Canvas not ready
         }
@@ -227,6 +266,14 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // Separate drawing method
     void DrawMarkers()
     {
+        // Don't draw markers during replay mode
+        if (m_bIsReplayMode)
+        {
+            if (m_Canvas)
+                m_Canvas.SetDrawCommands({});
+            return;
+        }
+        
         if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
             m_Canvas.SetDrawCommands({});
             return; // No markers to draw
@@ -588,6 +635,46 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
         if (bcm && m_TransmissionPointInvoker)
             bcm.RemoveTransmissionPointListener(m_TransmissionPointInvoker);
+    }
+    
+    // ───────────────────────────────────────────────────────────────────────────────
+    // ClearAllMarkers
+    //
+    // Clears all live transmission markers (used when starting replay)
+    // ───────────────────────────────────────────────────────────────────────────────
+    void ClearAllMarkers()
+    {
+        Print("GRAD_MapMarkerManager: Clearing all live transmission markers for replay", LogLevel.NORMAL);
+        
+        // Enable replay mode to stop drawing and updating markers
+        m_bIsReplayMode = true;
+        
+        if (m_AllMarkers)
+            m_AllMarkers.Clear();
+        
+        // Remove text widgets
+        if (m_ProgressTextWidgets)
+        {
+            foreach (Widget w : m_ProgressTextWidgets) {
+                if (w) w.RemoveFromHierarchy();
+            }
+            m_ProgressTextWidgets.Clear();
+        }
+        
+        // Remove transmission text widgets
+        if (m_TransmissionTextWidgets)
+        {
+            foreach (Widget w : m_TransmissionTextWidgets) {
+                if (w) w.RemoveFromHierarchy();
+            }
+            m_TransmissionTextWidgets.Clear();
+        }
+        
+        // Clear draw commands
+        if (m_Commands)
+            m_Commands.Clear();
+        
+        Print("GRAD_MapMarkerManager: All live markers cleared", LogLevel.NORMAL);
     }
 
     // Remove retry loop, use only event/callback

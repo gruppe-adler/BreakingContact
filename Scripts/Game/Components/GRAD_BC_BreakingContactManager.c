@@ -1300,8 +1300,35 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_sLastEndscreenTitle = title;
 		m_sLastEndscreenSubtitle = subtitle;
 		
+		// Determine which game over screen to show based on win condition
+		EGameOverTypes gameOverType = EGameOverTypes.END1; // Default
+		
+		if (m_bRadioTruckDestroyed)
+		{
+			if (m_sRadioTruckDestroyerFaction == "USSR")
+				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
+			else if (m_sRadioTruckDestroyerFaction == "US")
+				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
+		}
+		else if (m_bluforCaptured)
+		{
+			gameOverType = EGameOverTypes.END2; // Blufor wins by disabling the radio truck
+		}
+		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		{
+			gameOverType = EGameOverTypes.END6; // Opfor wins by completing all transmissions
+		}
+		else if (factionEliminated("US"))
+		{
+			gameOverType = EGameOverTypes.END3; // Opfor wins by elimination
+		}
+		else if (factionEliminated("USSR"))
+		{
+			gameOverType = EGameOverTypes.END1; // Blufor wins by elimination
+		}
+		
 		// Create endscreen data
-		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(gameOverType);
 		
 		gameMode.EndGameMode(endData);
 		

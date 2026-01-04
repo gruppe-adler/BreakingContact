@@ -6,7 +6,7 @@ Vehicle : "{1B8EB269EECA2DF9}Prefabs/Vehicles/Wheeled/LAV25/LAV25_base.et" {
     m_EntityBudgetCost {
      SCR_EntityBudgetValue "{5EDC86E4AF8908B6}" {
       m_BudgetType CAMPAIGN
-      m_Value 975
+      m_Value 850
      }
     }
    }

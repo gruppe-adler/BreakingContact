@@ -24,8 +24,23 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 		Print(string.Format("[GRAD BC Supply Component] Initialized on entity: %1", owner), LogLevel.NORMAL);
 		Print(string.Format("[GRAD BC Supply Component] Supplies: %1/%2", m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
 		
-		// Register with global listener
-		GRAD_BC_VehicleSpawnListener.GetInstance().RegisterCombox(owner, this);
+		// Sync with vanilla resource system so budget checking works
+		SyncToVanillaResourceSystem(owner);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void SyncToVanillaResourceSystem(IEntity owner)
+	{
+		SCR_ResourceComponent resourceComp = SCR_ResourceComponent.FindResourceComponent(owner);
+		if (!resourceComp)
+			return;
+		
+		SCR_ResourceContainer container = resourceComp.GetContainer(EResourceType.SUPPLIES);
+		if (container)
+		{
+			container.SetResourceValue(m_iCurrentSupplies);
+			Print(string.Format("[GRAD BC Supply] Synced %1 supplies to vanilla container", m_iCurrentSupplies), LogLevel.NORMAL);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -70,7 +85,14 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SetSupplies(int amount)
 	{
+		int oldValue = m_iCurrentSupplies;
 		m_iCurrentSupplies = Math.Clamp(amount, 0, m_iMaxSupplies);
+		Print(string.Format("[GRAD BC Supply] SetSupplies: %1 -> %2 (requested %3)", oldValue, m_iCurrentSupplies, amount), LogLevel.NORMAL);
+		
+		// Sync to vanilla resource system for budget checking
+		IEntity owner = GetOwner();
+		if (owner)
+			SyncToVanillaResourceSystem(owner);
 	}
 	
 	//------------------------------------------------------------------------------------------------

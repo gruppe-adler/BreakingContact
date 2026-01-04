@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{991E56BBA17E4AD3}UI/layouts/Editor/Toolbar/ModeMenu/Building/ModeMenu_CampaignBuilding.layout"
+ Name "{F1279058C64D2815}UI/layouts/Editor/Modes/Mode_CampaignBuilding.layout"
  Configurations {
   LayoutResourceClass PC {
   }

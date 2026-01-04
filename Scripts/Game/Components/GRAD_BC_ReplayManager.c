@@ -589,6 +589,12 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			// Send completion signal
 			Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
 			Rpc(RpcAsk_ReplayDataComplete);
+			
+			// Schedule automatic endscreen broadcast after replay duration
+			float replayDuration = m_replayData.totalDuration;
+			float waitTime = (replayDuration + 3.0) * 1000; // Add 3 second buffer, convert to milliseconds
+			Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds", waitTime / 1000), LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 		}
 	}
 
@@ -633,6 +639,12 @@ void StartLocalReplayPlayback()
 		// Start playback after map opens
 		Print("GRAD_BC_ReplayManager: Scheduling actual playback start in 800ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartActualPlayback, 800, false); // Reduced from 2000ms to 800ms
+		
+		// Schedule automatic endscreen for local mode
+		float replayDuration = m_replayData.totalDuration;
+		float waitTime = (replayDuration + 3.0) * 1000;
+		Print(string.Format("GRAD_BC_ReplayManager: Scheduling local endscreen in %.1f seconds", waitTime / 1000), LogLevel.NORMAL);
+		GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 		
 		Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
 	}
@@ -1400,67 +1412,28 @@ void StartLocalReplayPlayback()
 		// Close the map
 		CloseMap();
 		
-		// Request server to show endscreen
-		if (Replication.IsServer())
-		{
-			Print("GRAD_BC_ReplayManager: Server - showing endscreen directly", LogLevel.NORMAL);
-			ShowEndscreenOnServer();
-		}
-		else
-		{
-			Print("GRAD_BC_ReplayManager: Client - requesting server to show endscreen", LogLevel.NORMAL);
-			Rpc(RpcAsk_ShowEndscreen);
-		}
+		// Note: Server will automatically trigger endscreen after scheduled time
+		Print("GRAD_BC_ReplayManager: Waiting for server to trigger endscreen", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void RpcAsk_ShowEndscreen()
+	// Server automatically triggers endscreen after replay duration
+	void TriggerEndscreen()
 	{
-		Print("GRAD_BC_ReplayManager: Server received endscreen request, executing locally and broadcasting to all clients", LogLevel.NORMAL);
-		
-		// Always show on server (even dedicated) to ensure phase changes
-		ShowEndscreenOnServer();
-		
-		// Then broadcast to all clients
-		Rpc(RpcDo_ShowEndscreen);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcDo_ShowEndscreen()
-	{
-		string isServer = "Client";
-		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: RpcDo_ShowEndscreen received on %1", isServer), LogLevel.NORMAL);
-		
-		// Don't show on dedicated server (no UI)
-		if (Replication.IsServer() && !GetGame().GetPlayerController())
-		{
-			Print("GRAD_BC_ReplayManager: Skipping endscreen on dedicated server (no player controller)", LogLevel.NORMAL);
-			return;
-		}
-		
-		// Show endscreen for clients
 		if (!Replication.IsServer())
-		{
-			ShowEndscreenOnServer();
-		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void ShowEndscreenOnServer()
-	{
+			return;
+		
+		Print("GRAD_BC_ReplayManager: Server triggering endscreen", LogLevel.NORMAL);
+		
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm)
 		{
-			Print("GRAD_BC_ReplayManager: Triggering endscreen via BCM", LogLevel.NORMAL);
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
 			bcm.ShowPostReplayGameOverScreen();
 		}
 		else
 		{
-			Print("GRAD_BC_ReplayManager: ERROR - BCM not found!", LogLevel.ERROR);
+			Print("GRAD_BC_ReplayManager: ERROR - Could not find BreakingContactManager", LogLevel.ERROR);
 		}
 	}
 	

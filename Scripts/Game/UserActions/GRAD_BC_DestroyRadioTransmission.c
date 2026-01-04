@@ -31,6 +31,10 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBeShownScript(IEntity user)
 	{
+		// Only show for BLUFOR players
+		if (!IsUserBlufor(user))
+			return false;
+		
 		return true;
 	}
 
@@ -39,7 +43,24 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	{
 		if (!m_transmissionComponent)
 			return false;
-		return m_transmissionComponent.GetTransmissionActive();
+		
+		// Only allow for BLUFOR players
+		if (!IsUserBlufor(user))
+			return false;
+		
+		// Check if transmission is in TRANSMITTING state (not just the active flag)
+		return m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected bool IsUserBlufor(IEntity user)
+	{
+		SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(user);
+		if (!character)
+			return false;
+			
+		string factionKey = character.GetFactionKey();
+		return (factionKey == "US");
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -172,9 +193,9 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			
 			// Debris parameters
 			float debrisMass = Math.RandomFloatInclusive(2.0, 8.0);
-			float debrisLifetime = 30.0; // 30 seconds lifetime
-			float debrisMaxDist = 500.0; // Visible up to 500m
-			int debrisPriority = 3; // Medium priority
+			const float debrisLifetime = 30.0; // 30 seconds lifetime
+			const float debrisMaxDist = 500.0; // Visible up to 500m
+			const int debrisPriority = 3; // Medium priority
 			
 			// Spawn the debris using the proper system
 			SCR_DebrisSmallEntity debris = SCR_DebrisSmallEntity.SpawnDebris(

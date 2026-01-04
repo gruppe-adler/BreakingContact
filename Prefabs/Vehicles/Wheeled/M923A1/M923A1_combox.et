@@ -1,12 +1,17 @@
 GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
  ID "5206D4E7EFE2C051"
  components {
+  GRAD_BC_VehicleSupplyComponent "{06626A0000000002}" {
+   m_iCurrentSupplies 1000
+   m_iMaxSupplies 1000
+  }
   SCR_CampaignBuildingProviderComponent "{660CB39AC4CC6BEE}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39ADE3BF8BF}" {
      m_eBudget CAMPAIGN
+     m_bShowBudgetInUI 1
     }
     SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39AECA7F87A}" {
      m_eBudget 2147483647
@@ -48,7 +53,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    m_aAvailableTraits {
-    50 54 53
+    VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
   SCR_ResourceComponent "{5D835612EAFE4D27}" {
@@ -56,24 +61,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     SCR_ResourceContainer "{5D835612E84434FE}" {
      m_fResourceValueCurrent 1000
      m_fResourceValueMax 1000
-    }
-   }
-   m_aConsumers {
-    SCR_ResourceConsumerServicePoint "{660CB39C8E6D88AE}" {
-     m_sDebugName "Vehicle Spawner - Consumer"
-     m_eResourceRights ALL
-     m_eGeneratorIdentifier DEFAULT
-     m_fResourceRange 135
-     m_fSellMultiplier 0
-     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
-      m_StoragePolicies {
-       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
-        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
-        }
-        m_eStorageType CARGO_VEHICLE
-       }
-      }
-     }
     }
    }
   }
@@ -91,16 +78,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    additionalActions {
-    SCR_ResourceContainerVehicleLoadAction "{5DF544236D45F23A}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
-    SCR_ResourceContainerVehicleUnloadAction "{5DF544236CB20844}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
     SCR_CampaignBuildingStartUserAction "{660CB39B6231C323}" {
      ParentContextList {
       "BreakingContactActions"
@@ -108,7 +85,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo UIInfo "{660702574C5CA279}" {
       Name "#AR-Action_RequestVehicle"
      }
-     VisibilityRange 2
+     VisibilityRange 0.5
      Duration 0.5
      m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
     }
@@ -118,8 +95,13 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
  {
   GenericEntity : "{CCB14E0E5C278B73}Prefabs/MP/Campaign/Assets/CampaignHQRadioWest.et" {
    ID "662698F9E60BAABC"
+   components {
+    Hierarchy "{6282C081E58E4BE9}" {
+     MergePhysics 1
+    }
+   }
    coords -1.179 1.335 -1.267
-   angleY -90
+   angles 0 -90 0
    scale 2
   }
  }

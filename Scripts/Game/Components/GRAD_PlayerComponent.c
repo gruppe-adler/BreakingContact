@@ -41,13 +41,14 @@ class GRAD_PlayerComponent : ScriptComponent
 	protected void RpcDo_Owner_TeleportPlayer(vector location)
 	{
 		SCR_Global.TeleportLocalPlayer(location, SCR_EPlayerTeleportedReason.DEFAULT);
-		AudioSystem.PlaySound("{543151332DB70405}sounds/beam.wav");
+		AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_beam.acp", "beam", location);
 	}
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
 	
 	protected bool m_bChoosingSpawn;
+	protected bool m_bSpawnPositionReady = false; // Track if spawn calculation is complete
 	
 	protected string m_faction;
 	
@@ -87,12 +88,43 @@ class GRAD_PlayerComponent : ScriptComponent
 			
 	bool IsChoosingSpawn() 
 	{
+		// Don't allow spawn selection during GAMEOVER phase (replay mode)
+		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+		if (BCM)
+		{
+			EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
+			if (phase == EBreakingContactPhase.GAMEOVER)
+			{
+				return false; // Disable spawn selection during replay
+			}
+		}
+		
 		Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	bool IsSpawnPositionReady()
+	{
+		return m_bSpawnPositionReady;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SetSpawnPositionReady(bool ready)
+	{
+		m_bSpawnPositionReady = ready;
+		Print(string.Format("PlayerComponent: Spawn position ready set to %1", ready), LogLevel.NORMAL);
+	}
+	
 	void setChoosingSpawn(bool choosing) {
 		m_bChoosingSpawn = choosing;
+		
+		// Reset spawn ready flag when starting to choose spawn
+		if (choosing)
+		{
+			m_bSpawnPositionReady = false;
+			Print("PlayerComponent: Started choosing spawn, resetting spawn ready flag", LogLevel.NORMAL);
+		}
 	}
 	
 	//------
@@ -131,6 +163,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		
 		if (characterRole == "Opfor Commander")
 		{
+			m_faction = "USSR";
 			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
@@ -139,6 +172,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
+			m_faction = "US";
 			m_bChoosingSpawn = true;
 		}
 		
@@ -159,6 +193,14 @@ class GRAD_PlayerComponent : ScriptComponent
 			return;
 		}
 		
+		// Check if spawn position calculation is complete
+		if (!m_bSpawnPositionReady)
+		{
+			Print("ConfirmSpawn: Spawn position not ready yet, please wait for calculation to complete", LogLevel.WARNING);
+			SCR_HintManagerComponent.GetInstance().ShowCustomHint("Calculating spawn positions, please wait...", "Spawn Not Ready", 3, false);
+			return;
+		}
+		
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) {
 			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
@@ -168,7 +210,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
 		
 		
-		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2", m_faction, phase), LogLevel.NORMAL);
+		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2 - SpawnReady: %3", m_faction, phase, m_bSpawnPositionReady), LogLevel.NORMAL);
 		
 		if (m_faction == "USSR") {
 			if (phase != EBreakingContactPhase.OPFOR) {
@@ -197,6 +239,10 @@ class GRAD_PlayerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SetOpforSpawn(vector worldPos)
 	{
+		// Reset spawn ready flag when new position is being calculated
+		m_bSpawnPositionReady = false;
+		Print("PlayerComponent: Setting new spawn position, marking as not ready", LogLevel.NORMAL);
+		
 		int playerId = GetGame().GetPlayerController().GetPlayerId();
 		Rpc(RpcDo_SetOpforSpawn, worldPos, playerId);
 	}
@@ -217,13 +263,18 @@ class GRAD_PlayerComponent : ScriptComponent
 		switch(result)
 		{
 			case GRAD_SpawnPointResponse.OK:
-				text = "OK";
+				text = "OK - Spawn ready";
+				// Mark spawn position as ready when calculation succeeds
+				m_bSpawnPositionReady = true;
+				Print("PlayerComponent: Spawn position calculation complete and READY", LogLevel.NORMAL);
 				break;
 			case GRAD_SpawnPointResponse.OPFOR_NOTFOUND:
 				text = "Couldn't find suitable OPFOR spawn pos";
+				m_bSpawnPositionReady = false;
 				break;
 			case GRAD_SpawnPointResponse.BLUFOR_NOTFOUND:
 				text = "Couldn't find suitable BLUFOR spawn pos";
+				m_bSpawnPositionReady = false;
 				break;
 		}
 		
@@ -445,6 +496,26 @@ class GRAD_PlayerComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     protected void Rpc_ShowTransmissionHint_Local(ETransmissionState state)
     {
+		// Don't show transmission hints during replay or gameover
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+		{
+			EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
+			if (currentPhase == EBreakingContactPhase.GAMEOVER || currentPhase == EBreakingContactPhase.GAMEOVERDONE)
+			{
+				Print("GRAD_PlayerComponent: Skipping transmission hint - in replay/gameover phase", LogLevel.NORMAL);
+				return;
+			}
+		}
+		
+		// Check if replay is active
+		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+		if (replayManager && replayManager.IsPlayingBack())
+		{
+			Print("GRAD_PlayerComponent: Skipping transmission hint - replay is playing", LogLevel.NORMAL);
+			return;
+		}
+		
         // Find the HUD display and call ShowLogo() on it
         array<BaseInfoDisplay> infoDisplays = {};
         GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);

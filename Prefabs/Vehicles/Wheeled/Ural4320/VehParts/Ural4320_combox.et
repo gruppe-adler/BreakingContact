@@ -1,12 +1,17 @@
 GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et" {
  ID "5206D4E7CE97EC05"
  components {
+  GRAD_BC_VehicleSupplyComponent "{06626A0000000001}" {
+   m_iCurrentSupplies 1000
+   m_iMaxSupplies 1000
+  }
   SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
-     m_eBudget CAMPAIGN
+     m_eBudget PROPS
+     m_bShowBudgetInUI 1
     }
     SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39BCAAD8D1A}" {
      m_eBudget 2147483647
@@ -46,9 +51,13 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39BDCFBC3C2}" {
      m_eBudget RANK_PRIVATE
     }
+    SCR_CampaignBuildingBudgetToEvaluateData "{68477D29E9006BE7}" {
+     m_eBudget CAMPAIGN
+     m_bShowBudgetInUI 1
+    }
    }
    m_aAvailableTraits {
-    50 54 53
+    VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
   SCR_ResourceComponent "{5D83561F25268587}" {
@@ -56,24 +65,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     SCR_ResourceContainer "{5D83561F24437BF2}" {
      m_fResourceValueCurrent 1000
      m_fResourceValueMax 1000
-    }
-   }
-   m_aConsumers {
-    SCR_ResourceConsumerServicePoint "{660CB39CAEA826CE}" {
-     m_sDebugName "Vehicle Spawner - Consumer"
-     m_eResourceRights ALL
-     m_eGeneratorIdentifier DEFAULT
-     m_fResourceRange 135
-     m_fSellMultiplier 0
-     m_ContainerQueue SCR_ResourceConsumerContainerQueue "{6607025F725B14EF}" {
-      m_StoragePolicies {
-       SCR_ResourceConsumerStoragePolicy "{6607025F78B64D0B}" {
-        m_StorageQueue SCR_ResourceConsumerContainerStorageQueueExtended "{6607025F90934372}" {
-        }
-        m_eStorageType CARGO_VEHICLE
-       }
-      }
-     }
     }
    }
   }
@@ -92,16 +83,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    additionalActions {
-    SCR_ResourceContainerVehicleLoadAction "{5DF54422B388E356}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
-    SCR_ResourceContainerVehicleUnloadAction "{5EA6CABCDB1C6F85}" {
-     ParentContextList {
-     }
-     VisibilityRange 0
-    }
     SCR_CampaignBuildingStartUserAction "{660CB39B80D43AF1}" {
      ParentContextList {
       "BreakingContactActions"
@@ -109,7 +90,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo UIInfo "{660702574C5CA279}" {
       Name "#AR-Action_RequestVehicle"
      }
-     VisibilityRange 5
+     VisibilityRange 0.5
      Duration 0.5
      m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
     }
@@ -120,7 +101,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo SCR_ActionContextUIInfo "{662698FE4A97D6D9}" {
       Name "Toggle Radio Transmission"
      }
-     VisibilityRange 2
+     VisibilityRange 0.5
     }
     GRAD_BC_DisableRadioTruck "{662698FE3E01E010}" {
      ParentContextList {
@@ -129,7 +110,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo SCR_ActionContextUIInfo "{662698FE47CBF151}" {
       Name "Disable Radio Truck"
      }
-     VisibilityRange 2
+     VisibilityRange 0.5
     }
     GRAD_BC_GetRadioTransmissionDuration "{662698FE3B553C09}" {
      ParentContextList {
@@ -139,9 +120,12 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       Name "Get Transmission Duration"
      }
      ActionTitle "Get Transmission Duration"
-     VisibilityRange 2
+     VisibilityRange 0.5
     }
    }
+  }
+  Hierarchy "{41BAE78C990DC478}" {
+   MergePhysics 1
   }
  }
  {
@@ -154,7 +138,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     }
    }
    coords -1.238 1.633 -0.145
-   angleY -90
+   angles 0 -90 0
    scale 1.981
   }
  }

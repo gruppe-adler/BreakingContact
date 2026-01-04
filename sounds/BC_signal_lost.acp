@@ -1,0 +1,39 @@
+AudioClass {
+ sounds {
+  SoundClass "20489" {
+   id 20489
+   name "signal_lost"
+   version 5
+   tl -57.428 1061.866
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "19460:65" {
+       id 19460
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "19460" {
+   id 19460
+   name "Bank 1"
+   version 7
+   tl -409.428 1074.866
+   Samples {
+    AudioBankSampleClass "signal_lost.wav" {
+     Filename "{2F13E941825B650F}sounds/signal_lost.wav"
+     Probability 100
+     Index 0
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

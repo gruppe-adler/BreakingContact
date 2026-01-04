@@ -1,0 +1,39 @@
+AudioClass {
+ sounds {
+  SoundClass "9225" {
+   id 9225
+   name "beep"
+   version 5
+   tl -58 154.5
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "10244:65" {
+       id 10244
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "10244" {
+   id 10244
+   name "Bank 1"
+   version 7
+   tl -410 167.5
+   Samples {
+    AudioBankSampleClass "beep2.wav" {
+     Filename "{3550A48D94380CC2}sounds/beep2.wav"
+     Probability 100
+     Index 0
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

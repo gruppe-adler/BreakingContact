@@ -1,0 +1,39 @@
+AudioClass {
+ sounds {
+  SoundClass "17417" {
+   id 17417
+   name "signal_distortion"
+   version 5
+   tl -71.829 908.137
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "19460:65" {
+       id 19460
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "19460" {
+   id 19460
+   name "Bank 19"
+   version 7
+   tl -328.589 932.221
+   Samples {
+    AudioBankSampleClass "signal_distortion.wav" {
+     Filename "{BCB408BA1955AEE3}sounds/signal_distortion.wav"
+     Probability 100
+     Index 0
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

@@ -1,0 +1,39 @@
+AudioClass {
+ sounds {
+  SoundClass "15369" {
+   id 15369
+   name "gong_3"
+   version 5
+   tl -56 702.5
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "16388:65" {
+       id 16388
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "16388" {
+   id 16388
+   name "Bank 1"
+   version 7
+   tl -408 715.5
+   Samples {
+    AudioBankSampleClass "gong_3.wav" {
+     Filename "{EC51CC9206C5DEF1}sounds/gong_3.wav"
+     Probability 100
+     Index 0
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

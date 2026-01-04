@@ -6,7 +6,8 @@ enum EBreakingContactPhase
 	OPFOR,
 	BLUFOR,
 	GAME,
-    GAMEOVER
+	GAMEOVER,
+	GAMEOVERDONE
 }
 
 [EntityEditorProps(category: "Gruppe Adler", description: "Breaking Contact Gamemode Manager")]
@@ -18,10 +19,10 @@ class GRAD_BC_BreakingContactManagerClass : ScriptComponentClass
 
 class GRAD_BC_BreakingContactManager : ScriptComponent
 {
-    [Attribute(defvalue: "3", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
+    [Attribute(defvalue: "2", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How many transmissions are needed to win.", category: "Breaking Contact - Parameters", params: "1 3 1")]
 	protected int m_iTransmissionCount;
 	
-	[Attribute(defvalue: "600", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
+	[Attribute(defvalue: "900", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
 	protected int m_TransmissionDuration;
 	
 	[Attribute(defvalue: "1000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "700 3000 1000")]
@@ -37,11 +38,15 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	protected int m_spawnLock = 0;
 	
-	protected string m_sWinnerSide;
-	
 	// Radio truck destruction tracking
 	protected bool m_bRadioTruckDestroyed = false;
 	protected string m_sRadioTruckDestroyerFaction = "";
+	
+	// Replay system
+	protected GRAD_BC_ReplayManager m_replayManager;
+	
+	// Debounce phase change notifications
+	protected float m_fLastPhaseNotification = 0;
 
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
@@ -58,11 +63,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	[RplProp(onRplName: "OnBreakingContactPhaseChanged")]
     protected EBreakingContactPhase m_iBreakingContactPhase = EBreakingContactPhase.LOADING;	
 
-	static float m_iMaxTransmissionDistance = 500.0;
+	static float m_iMaxTransmissionDistance = 1000.0;
 
     protected ref array<GRAD_BC_TransmissionComponent> m_aTransmissionComps = {};
 	
-	[RplProp()]
+	[RplProp(onRplName: "OnTransmissionIdsChanged")]
 	protected ref array<RplId> m_aTransmissionIds = {};
 	
 	protected IEntity m_radioTruck;
@@ -90,12 +95,24 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	protected PlayerManager m_PlayerManager;
 	
+	// Endscreen text storage - replicated to clients
+	[RplProp()]
+	protected string m_sLastEndscreenTitle;
+	[RplProp()]
+	protected string m_sLastEndscreenSubtitle;
+	[RplProp()]
+	protected string m_sWinnerSide;
+	
 	protected PlayerManager GetPlayerManager()
 	{
 		if (m_PlayerManager == null)
 			m_PlayerManager = GetGame().GetPlayerManager();
 		
 		return m_PlayerManager;
+	}
+	
+	int GetTransmissionDuration() {
+		return m_TransmissionDuration;
 	}
 	
 	protected static GRAD_BC_BreakingContactManager m_instance;
@@ -117,6 +134,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         }
 
         Print(string.Format("Breaking Contact BCM - m_instance initialized: %1", m_instance), LogLevel.NORMAL);
+        
+        // Initialize replay manager
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+        {
+            Print("Breaking Contact BCM - Warning: No replay manager found", LogLevel.WARNING);
+        }
     }
 
     return m_instance;
@@ -139,7 +163,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
     }
 	
-	
 	void OnBreakingContactPhaseChanged()
 	{
 		Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase)), LogLevel.NORMAL);
@@ -149,6 +172,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		string title = string.Format("New phase '%1' entered.", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase));
 		string message = "Breaking Contact";
 		string customSound = "";
+		string customSoundGUID = "";
 		
 		switch (m_iBreakingContactPhase) {
 			case EBreakingContactPhase.PREPTIME :
@@ -159,25 +183,37 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			case EBreakingContactPhase.OPFOR :
 			{
 				message = "Opfor has to spawn now.";
-				customSound = "{02451D83EF800011}sounds/gong_1.wav";
+				customSound = "gong_1";
+				customSoundGUID = "{0A59B476EEEDFA86}sounds/BC_gong_1.acp";
 				break;
 			}
 			case EBreakingContactPhase.BLUFOR :
 			{
 				message = "Blufor will spawn now.";
-				customSound = "{9B5BA41AF2673181}sounds/gong_2.wav";
+				customSound = "gong_2";
+				customSoundGUID = "{93470DEFF30ACB16}sounds/BC_gong_2.acp";
 				
 				break;
 			}
 			case EBreakingContactPhase.GAME :
 			{
 				message = "Blufor spawned, Game begins now.";
-				customSound = "{EC51CC9206C5DEF1}sounds/gong_3.wav";
+				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
 			}
 			case EBreakingContactPhase.GAMEOVER :
 			{
-				message = "Game is over.";
+				message = "Game is over. Replay loading.";
+				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
+				break;
+			}
+			case EBreakingContactPhase.GAMEOVERDONE :
+			{
+				message = string.Format("Replay is over. %1 wins.", m_sWinnerSide);
+				customSound = "gong_3";
+				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
 			}
 		}
@@ -193,7 +229,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// no rpc needed here, logs already on client
 		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 		if (customSound != "") {
-			AudioSystem.PlaySound(customSound);
+			vector location = playerComponent.GetOwner().GetOrigin();
+			AudioSystem.PlayEvent(customSoundGUID, customSound, location);
 		}
 		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		
@@ -258,9 +295,28 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		gamestateDisplay.ShowText(message);
 		
+	// For ALL JIP players who join as spectators (no controlled entity)
+	// Hide UI elements after brief delay to prevent them showing forever
+	SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+	if (playerController)
+	{
+		IEntity controlledEntity = playerController.GetControlledEntity();
+		// If no controlled entity, player is in spectator mode
+		if (!controlledEntity)
+		{
+			Print("GRAD_BC: JIP spectator detected, scheduling UI hide", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(HideUIForSpectators, 5000, false, logoDisplay, gamestateDisplay);
+			return; // Don't show the logos/text for spectators
+		}
 		
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
+			// Debounce to prevent multiple calls
+			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+			if (currentTime - m_fLastPhaseNotification < 2.0)
+				return;
+			m_fLastPhaseNotification = currentTime;
+			
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 		
 		    // Now bump the counter on the server so that all clients show it.
@@ -271,10 +327,41 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			
 		// show logo for all
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
+			// Debounce to prevent multiple calls
+			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+			if (currentTime - m_fLastPhaseNotification < 2.0)
+				return;
+			m_fLastPhaseNotification = currentTime;
+			
 			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 			logoDisplay.ShowLogo();
 		}
 
+	}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void HideUIForSpectators(GRAD_BC_Logo logoDisplay, GRAD_BC_Gamestate gamestateDisplay)
+	{
+		Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
+		if (logoDisplay)
+		{
+			logoDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
+		}
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when m_aTransmissionIds is replicated from server
+	void OnTransmissionIdsChanged()
+	{
+		Print(string.Format("Client: Transmission IDs changed, count: %1", m_aTransmissionIds.Count()), LogLevel.NORMAL);
+		
+		// Notify all listeners (e.g., map marker manager) that transmission points have changed
+		NotifyTransmissionPointListeners();
 	}
 	
 	//-----
@@ -371,9 +458,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			InitiateBluforSpawn();
 		};
 		
-		if (m_skipWinConditions || !(GameModeStarted()))
+		// Skip mainLoop during LOADING/PREPTIME or if game is over
+		if (m_skipWinConditions || currentPhase == EBreakingContactPhase.LOADING || currentPhase == EBreakingContactPhase.PREPTIME)
         {
 			Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
+			return;
+		};
+		
+		// Skip win conditions and marker management during GAMEOVER
+		if (currentPhase == EBreakingContactPhase.GAMEOVER)
+		{
 			return;
 		};
 		
@@ -517,14 +611,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		RplComponent rpl = RplComponent.Cast(comp.GetOwner().FindComponent(RplComponent));
 		if (rpl)
 		{
-			m_aTransmissionIds.Insert(Replication.FindId(rpl));
-			Replication.BumpMe(); // replicate the updated array
-		}
-		NotifyTransmissionPointListeners();
+		RplId transmissionRplId = Replication.FindId(rpl);
+		PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
+		m_aTransmissionIds.Insert(transmissionRplId);
+		Replication.BumpMe(); // replicate the updated array
 	}
-	
-	
-	void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
+	NotifyTransmissionPointListeners();
+}
+
+
+void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		// Remove the strong pointer
 		int idx = m_aTransmissionComps.Find(comp);
@@ -785,11 +881,24 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
+		Print(string.Format("BCM - SpawnSpawnVehicleWest called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		
+		// Validate spawn position is set - NEVER spawn at 0,0,0
+		if (m_vBluforSpawnPos == vector.Zero)
+		{
+			Print("BCM - ERROR: Cannot spawn West vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			Print(string.Format("BCM - DEBUG: Current phase: %1, m_vOpforSpawnPos: %2", 
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase), m_vOpforSpawnPos.ToString()), LogLevel.ERROR);
+			return;
+		}
+		
+		Print(string.Format("BCM - Spawning West vehicle at validated position: %1", m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = m_vBluforSpawnPos;
 		params.TransformMode = ETransformMode.WORLD;
 		
-        // create antenna that serves as component holder for transmission point
+        // create spawn vehicle
         Resource ressource = Resource.Load("{36BDCC88B17B3BFA}Prefabs/Vehicles/Wheeled/M923A1/M923A1_command.et");
         m_westCommandVehicle = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 	    m_westCommandVehicle.SetYawPitchRoll(m_vBluforSpawnDir.VectorToAngles());
@@ -807,22 +916,38 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
         }
 		
-		SetVehiclePhysics(m_westCommandVehicle);
+		// Defer physics setup slightly to reduce spawn freeze
+		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_westCommandVehicle);
 		
-		Print(string.Format("BCM - West Command Truck spawned: %1 at %2", m_westCommandVehicle, params), LogLevel.NORMAL);
+		vector finalPos = m_westCommandVehicle.GetOrigin();
+		Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void SpawnSpawnVehicleEast()
 	{		
+		Print(string.Format("BCM - SpawnSpawnVehicleEast called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		
+		// Validate spawn position is set - NEVER spawn at 0,0,0
+		if (m_vOpforSpawnPos == vector.Zero)
+		{
+			Print("BCM - ERROR: Cannot spawn East vehicle at vector.Zero! Spawn position not set!", LogLevel.ERROR);
+			Print(string.Format("BCM - DEBUG: Current phase: %1, m_vBluforSpawnPos: %2", 
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase), m_vBluforSpawnPos.ToString()), LogLevel.ERROR);
+			return;
+		}
+		
+		Print(string.Format("BCM - Spawning East vehicle at validated position: %1", m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		EntitySpawnParams params = new EntitySpawnParams();
 		params.TransformMode = ETransformMode.WORLD;
 		
 		params.Transform[3] = m_vOpforSpawnPos + Vector(0, 0.5, 0); // lift it 0.5m
 		
         // create radiotruck
-        Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
+        // Resource ressource = Resource.Load("{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et");
+		Resource ressource = Resource.Load("{924B84AA3252B2DB}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command_armored.et");
+		
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
 		Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);
@@ -841,20 +966,46 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
              Replication.BumpMe(); // Replicate the RplId
 			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
         }
-		// SetVehiclePhysics(m_radioTruck);
+		// Defer physics setup slightly to reduce spawn freeze
+		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_radioTruck);
 	
-		Print(string.Format("BCM - East Radio Truck spawned: %1 at %2", m_radioTruck, params), LogLevel.NORMAL);
+		vector finalPos = m_radioTruck.GetOrigin();
+		Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
 	}
 	
     //------------------------------------------------------------------------------------------------
 	void CheckWinConditions()
 	{
+		// Prevent win conditions if spawns not properly set up (timing/race condition protection)
+		// This can happen when phases advance too quickly in local playtest before spawn markers are processed
+		if (m_vOpforSpawnPos == vector.Zero || m_vBluforSpawnPos == vector.Zero)
+		{
+			Print(string.Format("Breaking Contact - Spawn positions not set yet (OPFOR: %1, BLUFOR: %2), skipping win conditions", 
+				m_vOpforSpawnPos != vector.Zero, m_vBluforSpawnPos != vector.Zero), LogLevel.WARNING);
+			return;
+		}
+		
 		// in debug mode we want to test alone without ending the game
 		bool bluforEliminated = factionEliminated("US") && !m_debug;
 		bool opforEliminated = factionEliminated("USSR") && !m_debug;
         bool isOver;
 
 		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
+		
+		// Validate transmission count - if set to 0, transmissions are disabled/infinite
+		// Prevent instant game over when transmission count is misconfigured
+		if (m_iTransmissionCount <= 0)
+		{
+			finishedAllTransmissions = false;
+			if (m_iTransmissionCount == 0)
+			{
+				Print("Breaking Contact - WARNING: Transmission count is 0! Transmissions disabled. Set to 1-3 in gamemode prefab.", LogLevel.WARNING);
+			}
+		}
+		
+		// Debug logging for transmission tracking
+		Print(string.Format("Breaking Contact - Win condition check: transmissions done=%1/%2, BLUFOR eliminated=%3, OPFOR eliminated=%4", 
+			GetTransmissionsDoneCount(), m_iTransmissionCount, bluforEliminated, opforEliminated), LogLevel.VERBOSE);
 		
 		// Check for radio truck destruction first (highest priority)
 		if (m_bRadioTruckDestroyed) {
@@ -891,14 +1042,17 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 		
 		if (isOver) {
-			// show game over screen with a 20s delay
-			// local stuff is managed by breaking contact phase handler
-	        GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 20000, false, EBreakingContactPhase.GAMEOVER);
-			Print(string.Format("Breaking Contact - Game Over Screen TODO"), LogLevel.NORMAL);
+			// Check if we already scheduled game over to prevent multiple calls
+			if (GameModeOver())
+			{
+				return; // Already scheduled or in GAMEOVER phase
+			}
+			
+			// Schedule game over
+			GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
 		}
 	}
 	
-	//------------------------------------------------------------------------------------------------
 	void SetBluforWin()
 	{
 		if (GameModeOver())
@@ -935,6 +1089,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		{
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
+		}
+		else if (destroyerFaction == "DISABLED")
+		{
+			// Truck disabled/immobilized - BLUFOR wins
+			m_sWinnerSide = "blufor";
+			NotifyAllPlayersRadioTruckDestroyed("Radio truck disabled! BLUFOR wins!");
 		}
 		else
 		{
@@ -1022,6 +1182,162 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     }
 
 
+	//------------------------------------------------------------------------------------------------
+	// Show the game over screen with faction-specific content
+	void ShowGameOverScreen()
+	{
+		if (!Replication.IsServer())
+		{
+			Print("BCM - ShowGameOverScreen called on client, ignoring", LogLevel.WARNING);
+			return;
+		}
+			
+		Print("BCM - Showing game over screen", LogLevel.NORMAL);
+		
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
+		if (!gameMode)
+		{
+			Print("BCM - Cannot show endscreen - no game mode found", LogLevel.ERROR);
+			return;
+		}
+		
+		// Determine title and description based on victory condition
+		string title = "";
+		string subtitle = "";
+		string description = "";
+		
+		// Get first player's faction to determine which message to show
+		array<int> playerIds = {};
+		GetPlayerManager().GetAllPlayers(playerIds);
+		string playerFactionKey = "USSR"; // default
+		
+		if (playerIds.Count() > 0)
+		{
+			Faction playerFaction = SCR_FactionManager.SGetPlayerFaction(playerIds[0]);
+			if (playerFaction)
+				playerFactionKey = playerFaction.GetFactionKey();
+		}
+		
+		// Determine if player's faction won
+		bool playerWon = false;
+		if ((m_sWinnerSide == "opfor" && playerFactionKey == "USSR") ||
+		    (m_sWinnerSide == "blufor" && playerFactionKey == "US"))
+		{
+			playerWon = true;
+		}
+		
+		// Set title based on win/loss
+		if (m_sWinnerSide == "draw")
+		{
+			title = "#AR-GameOver_Title_Draw";
+		}
+		else if (playerWon)
+		{
+			title = "#AR-GameOver_Title_Victory";
+		}
+		else
+		{
+			title = "#AR-GameOver_Title_Defeat";
+		}
+		
+		// Set subtitle and description based on how the game ended
+		if (m_bRadioTruckDestroyed)
+		{
+			subtitle = "Radio Truck Destroyed";
+			string destroyerFaction = m_sRadioTruckDestroyerFaction;
+			
+			if (destroyerFaction == "USSR")
+			{
+				if (playerFactionKey == "USSR")
+					description = "Your team accidentally destroyed the radio truck. BLUFOR wins by default.";
+				else
+					description = "OPFOR accidentally destroyed their own radio truck. Your team wins by default.";
+			}
+			else if (destroyerFaction == "US")
+			{
+				if (playerFactionKey == "US")
+					description = "Your team destroyed the radio truck. OPFOR wins by default.";
+				else
+					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
+			}
+		}
+		else if (m_bluforCaptured)
+		{
+			subtitle = "Radio Truck Disabled";
+			if (playerFactionKey == "US")
+				description = "Your team successfully disabled the OPFOR radio truck before all transmissions were completed.";
+			else
+				description = "BLUFOR disabled your radio truck before all transmissions were completed.";
+		}
+		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		{
+			subtitle = "All Transmissions Completed";
+			if (playerFactionKey == "USSR")
+				description = string.Format("Your team successfully completed all %1 transmissions.", m_iTransmissionCount);
+			else
+				description = string.Format("OPFOR completed all %1 transmissions before you could stop them.", m_iTransmissionCount);
+		}
+		else if (factionEliminated("US"))
+		{
+			subtitle = "Enemy Eliminated";
+			if (playerFactionKey == "USSR")
+				description = "All BLUFOR forces have been eliminated.";
+			else
+				description = "All your forces have been eliminated.";
+		}
+		else if (factionEliminated("USSR"))
+		{
+			subtitle = "Enemy Eliminated";
+			if (playerFactionKey == "US")
+				description = "All OPFOR forces have been eliminated.";
+			else
+				description = "All your forces have been eliminated.";
+		}
+		
+		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		
+		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		
+		// Store endscreen text for retrieval
+		m_sLastEndscreenTitle = title;
+		m_sLastEndscreenSubtitle = subtitle;
+		Replication.BumpMe(); // Replicate endscreen data to clients
+		
+		// Determine which game over screen to show based on win condition
+		EGameOverTypes gameOverType = EGameOverTypes.END1; // Default
+		
+		if (m_bRadioTruckDestroyed)
+		{
+			if (m_sRadioTruckDestroyerFaction == "USSR")
+				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
+			else if (m_sRadioTruckDestroyerFaction == "US")
+				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
+		}
+		else if (m_bluforCaptured)
+		{
+			gameOverType = EGameOverTypes.END2; // Blufor wins by disabling the radio truck
+		}
+		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		{
+			gameOverType = EGameOverTypes.END6; // Opfor wins by completing all transmissions
+		}
+		else if (factionEliminated("US"))
+		{
+			gameOverType = EGameOverTypes.END3; // Opfor wins by elimination
+		}
+		else if (factionEliminated("USSR"))
+		{
+			gameOverType = EGameOverTypes.END1; // Blufor wins by elimination
+		}
+		
+		// Create endscreen data
+		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(gameOverType);
+		
+		gameMode.EndGameMode(endData);
+		
+		Print("BCM - Game ended, endscreen should show", LogLevel.NORMAL);
+	}
+
     //------------------------------------------------------------------------------------------------
 	EBreakingContactPhase GetBreakingContactPhase()
 	{
@@ -1033,6 +1349,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	void Rpc_RequestInitiateOpforSpawn()
 	{
 		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		SpawnSpawnVehicleEast();
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
 	}
@@ -1044,6 +1361,24 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         m_iBreakingContactPhase = phase;
         Replication.BumpMe();
 		
+		// Interrupt all running transmissions when game ends
+		if (phase == EBreakingContactPhase.GAMEOVER && Replication.IsServer())
+		{
+			Print("BCM: GAMEOVER phase - interrupting all running transmissions", LogLevel.NORMAL);
+			array<GRAD_BC_TransmissionComponent> transmissions = GetTransmissionPoints();
+			if (transmissions)
+			{
+				foreach (GRAD_BC_TransmissionComponent tpc : transmissions)
+				{
+					if (tpc && tpc.GetTransmissionState() == ETransmissionState.TRANSMITTING)
+					{
+						Print(string.Format("BCM: Interrupting transmission at %1", tpc.GetPosition()), LogLevel.NORMAL);
+						tpc.SetTransmissionActive(false);
+					}
+				}
+			}
+		}
+		
 		OnBreakingContactPhaseChanged(); // call on server too for debug in SP test
 
         Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
@@ -1052,6 +1387,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void InitiateBluforSpawn() 
 	{
+		SpawnSpawnVehicleWest();
 		SetBreakingContactPhase(EBreakingContactPhase.GAME);
         TeleportFactionToMapPos("US");
 	}
@@ -1078,6 +1414,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		
 		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
 		
+		// Force replication to clients
+		RplComponent rpl = RplComponent.Cast(transmissionPoint.FindComponent(RplComponent));
+		if (rpl) {
+			Replication.BumpMe();
+			Print("BCM - Transmission Point entity marked for replication to clients", LogLevel.NORMAL);
+		}
 		
 		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(transmissionPoint.FindComponent(GRAD_BC_TransmissionComponent));
 	    if (tpc) {
@@ -1096,45 +1438,58 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Method to find the closest road position
 	protected vector FindSpawnPointOnRoad(vector position)
 	{
-	    array<vector> roadPoints = GetNearestRoadPos(position, 10);
-	    if (roadPoints.IsEmpty())
-	        return vector.Zero; // No suitable spawn found
+	    // Single search with larger radius instead of progressive expansion
+	    array<vector> roadPoints = GetNearestRoadPos(position, 200);
 	    
-	    // Find the closest point from the road points
-	    vector closestPos = position;
-	    float minDistance = float.MAX;
-	    
-	    foreach (vector roadPoint : roadPoints)
+	    // If no road found, return the original position as last resort (don't return vector.Zero)
+	    if (!roadPoints || roadPoints.IsEmpty())
 	    {
-	        float distance = vector.Distance(position, roadPoint);
+	        Print(string.Format("BCM - No road found near %1, using original position", position.ToString()), LogLevel.WARNING);
+	        return position; // Use player-selected position as absolute fallback
+	    }
+	    
+	    // Find the closest point from the road points (optimized single pass)
+	    vector closestPos = roadPoints[0];
+	    float minDistance = vector.Distance(position, closestPos);
+	    
+	    for (int i = 1, count = roadPoints.Count(); i < count; i++)
+	    {
+	        float distance = vector.Distance(position, roadPoints[i]);
 	        if (distance < minDistance)
 	        {
 	            minDistance = distance;
-	            closestPos = roadPoint;
+	            closestPos = roadPoints[i];
 	        }
 	    }
 	    
+	    Print(string.Format("BCM - Found road position %1m from original", minDistance), LogLevel.VERBOSE);
 	    return closestPos;
 	}
 	
 	// Method to find the second closest road position for e.g. road direction
-	protected vector FindNextSpawnPointOnRoad(vector position)
+	protected vector FindNextSpawnPointOnRoad(vector position, vector excludePos = vector.Zero, float minDistanceFromExclude = 0)
 	{
 	    array<vector> roadPoints = GetNearestRoadPos(position,100);
 	    if (roadPoints.IsEmpty())
 	        return position; // no road points at all
-	
+
 	    // Track best and runner-up
 	    float   bestDist    = float.MAX;
 	    float   secondDist  = float.MAX;
 	    vector  bestPos     = position;
 	    vector  secondPos   = position;
-	
+
 	    foreach (vector roadPoint : roadPoints)
 	    {
 	        float d = vector.Distance(position, roadPoint);
-			Print("d: %1" + d);
-	
+			
+			// Skip road points too close to exclusion position (e.g., OPFOR spawn)
+			if (excludePos != vector.Zero && minDistanceFromExclude > 0)
+			{
+				float distToExclude = vector.Distance(roadPoint, excludePos);
+				if (distToExclude < minDistanceFromExclude)
+					continue;
+			}
 	        if (d < bestDist)
 	        {
 	            // shift best → second, then update best
@@ -1143,29 +1498,20 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	            bestDist   = d;
 	            bestPos    = roadPoint;
-				Print("secondDist: %1" + secondDist);
-				Print("bestDist: %1" + bestDist);
 	        }
 	        else if (d < secondDist)
 	        {
 	            // it's worse than best but better than current second
 	            secondDist = d;
 	            secondPos  = roadPoint;
-				Print("secondDist: %1" + secondDist);
 	        }
 	    }
 	
 	    // If we never found a true second, fall back to the nearest
 	    if (secondDist < float.MAX)
-	    {
-			Print("secondDist found! %1" + secondPos);
 	        return secondPos;
-	    }
 	    else
-	    {
-			Print("no second best found! %1" + bestPos);
 	        return bestPos;
-	    }
 	}
 
 	
@@ -1196,38 +1542,52 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    auto emptyRoads = new array<BaseRoad>();
 	    int result = roadNetworkManager.GetRoadsInAABB(aabbMin, aabbMax, emptyRoads);
 	    
-	    // Debug outputs
-	    Print("BCM - Center: " + center.ToString());
-	    Print("BCM - aabbMin: " + aabbMin.ToString());
-	    Print("BCM - aabbMax: " + aabbMax.ToString());
-	    Print("BCM - Result Code: " + result);
-	    
-	    // Output the retrieved roads
-	    for (int i = 0; i < emptyRoads.Count(); i++)
-	    {
-	        Print("Road " + i + ": " + emptyRoads[i].ToString());
-	    }
-	    
 	    if (result > 0)
 	    {
 	        BaseRoad emptyRoad = emptyRoads[0];
 	        emptyRoad.GetPoints(outPoints);
-	        PrintFormat("BCM - found road %1 - outPoints after %2", emptyRoad, outPoints);
-	        
 	        return outPoints;
 	    }
 	    
 		// in case we dont find return null
-		PrintFormat("BCM - Unable to determine spawn pos for position %1 and search radius", center, searchRadius, level: LogLevel.WARNING);
-	    return new array<vector>();
+		return null;
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	array<GRAD_BC_TransmissionComponent> GetTransmissionPoints()
 	{
-		// Print(string.Format("BCM - GetTransmissionPoints '%1'.", m_aTransmissionComps.Count()), LogLevel.NORMAL); 	
-        return m_aTransmissionComps; 		
-    }
+		// On server, return the direct array
+		if (Replication.IsServer())
+		{
+			return m_aTransmissionComps;
+		}
+		
+		// On clients, resolve from replicated RplIds
+		array<GRAD_BC_TransmissionComponent> clientComps = new array<GRAD_BC_TransmissionComponent>();
+		
+		foreach (RplId rplId : m_aTransmissionIds)
+		{
+			PrintFormat("BCM - GetTransmissionPoints (client): Trying to resolve RplId %1", rplId);
+			RplComponent rpl = RplComponent.Cast(Replication.FindItem(rplId));
+			if (!rpl) {
+				PrintFormat("BCM - GetTransmissionPoints (client): FindItem returned null for RplId %1", rplId);
+				continue;
+			}
+			
+			IEntity entity = rpl.GetEntity();
+			if (!entity) {
+				PrintFormat("BCM - GetTransmissionPoints (client): RplComponent has no entity for RplId %1", rplId);
+				continue;
+			}
+			
+			GRAD_BC_TransmissionComponent comp = GRAD_BC_TransmissionComponent.Cast(entity.FindComponent(GRAD_BC_TransmissionComponent));
+			if (comp)
+				clientComps.Insert(comp);
+		}
+		
+		PrintFormat("BCM - GetTransmissionPoints (client): Found %1 transmission points from %2 RplIds", clientComps.Count(), m_aTransmissionIds.Count());
+		return clientComps;
+	}
 
 
     //------------------------------------------------------------------------------------------------
@@ -1240,55 +1600,92 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	    float minDistance = m_iBluforSpawnDistance - 100;
 	    float maxDistance = m_iBluforSpawnDistance + 100;
 	    
+	    // Max 100 iterations to find valid position
 	    while (!foundPositionOnLand && loopCount < 100) {
 	        loopCount++;
 	        
-	        // Generate random direction
+	        // Generate random direction and distance
 	        int degrees = Math.RandomIntInclusive(0, 360);
-	        
-	        // Generate random distance within bounds
 	        float randomDistance = Math.RandomFloatInclusive(minDistance, maxDistance);
 	        
 	        // Get initial point on circle
 	        vector candidatePos = GetPointOnCircle(opforPosition, randomDistance, degrees);
 	        
-	        // Find nearest road position within a reasonable search radius
-	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 200); // 200m search radius
+	        // Single road search with 500m radius instead of progressive expansion
+	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 500);
 	        
-	        if (roadPositions && !roadPositions.IsEmpty()) {
-	            // Use the closest road position
-	            roadPosition = roadPositions[0];
-	            
-	            // Verify the position meets distance requirements and is on land
-	            float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
-	            
-	            if (!SurfaceIsWater(roadPosition) && 
-	                distanceToOpfor >= minDistance && 
-	                distanceToOpfor <= maxDistance) {
-	                Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2 - pos: %3 - opfor: %4 - degrees: %5", 
-	                    loopCount, distanceToOpfor, roadPosition, opforPosition, degrees), LogLevel.NORMAL);
-	                foundPositionOnLand = true;
+	        // Skip this iteration if no roads found
+	        if (!roadPositions || roadPositions.IsEmpty())
+	            continue;
+	        
+	        // Find the closest road position to the candidate position (optimized single pass)
+	        float closestDist = vector.Distance(candidatePos, roadPositions[0]);
+	        vector closestRoadPos = roadPositions[0];
+	        
+	        for (int i = 1, count = roadPositions.Count(); i < count; i++) {
+	            float dist = vector.Distance(candidatePos, roadPositions[i]);
+	            if (dist < closestDist) {
+	                closestDist = dist;
+	                closestRoadPos = roadPositions[i];
 	            }
 	        }
 	        
-	        if (!foundPositionOnLand && loopCount >= 100) {
-	            Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
-	            // roadPosition to original position if no valid road position found
-	            roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, degrees);
-	            foundPositionOnLand = true;
+	        roadPosition = closestRoadPos;
+	        
+	        // Quick checks first (cheaper operations)
+	        float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
+	        if (distanceToOpfor < minDistance || distanceToOpfor > maxDistance)
+	            continue;
+	        
+	        // Water check (more expensive)
+	        if (SurfaceIsWater(roadPosition))
+	            continue;
+	        
+	        // Get direction point for vehicle orientation (exclude nearby OPFOR roads)
+	        vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition, opforPosition, minDistance * 0.8);
+	        vector finalSpawnPos = roadPosition;
+	        
+	        // Basic collision check using trace
+	        bool hasCollision = false;
+	        if (GetGame().GetWorld())
+	        {
+	            autoptr TraceParam trace = new TraceParam();
+	            trace.Start = finalSpawnPos + Vector(0, 5, 0);
+	            trace.End = finalSpawnPos + Vector(0, -2, 0);
+	            trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
+	            trace.LayerMask = EPhysicsLayerPresets.Projectile;
+	            
+	            float traceResult = GetGame().GetWorld().TraceMove(trace, null);
+	            hasCollision = (traceResult < 0.95);
+	        }
+	        
+	        if (!hasCollision)
+	        {
+	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m", 
+	                loopCount, distanceToOpfor), LogLevel.NORMAL);
+	            
+	            vector direction = vector.Direction(roadPosition, roadPosition2);
+	            
+	            array<vector> output = new array<vector>();
+	            output.Insert(finalSpawnPos);
+	            output.Insert(direction);
+	            
+	            return output;
 	        }
 	    }
-		
-		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		
-		vector direction = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
-		
-		array<vector> output = new array<vector>();
-		output.Insert(midpoint);
-		output.Insert(direction);
-		
-		return output;
+	    
+	    // Failed to find valid position after max iterations
+	    Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
+	    
+	    // Fallback to original position if no valid road position found
+	    roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
+	    vector fallbackDir = Vector(1, 0, 0);
+	    
+	    array<vector> output = new array<vector>();
+	    output.Insert(roadPosition);
+	    output.Insert(fallbackDir);
+	    
+	    return output;
 	}
 	
 	// helper to find point on circle
@@ -1309,64 +1706,23 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void NotifyPlayerWrongRole(int playerId, string neededRole)
-	{
-
-		const string title = "Breaking Contact";
-		string message = string.Format("You have the wrong role to create a teleport marker. You need to have the '%1' role.", neededRole);
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-	
-		GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
-	}
-
-
-    //------------------------------------------------------------------------------------------------
-	void NotifyFactionWrongPhaseForMarker(Faction faction)
-	{
-		array<int> playerIds = {};
-		GetPlayerManager().GetAllPlayers(playerIds);
-
-		const string title = "Breaking Contact";
-		const string message = "You can't create the marker in this phase.";
-		int duration = m_iNotificationDuration;
-		bool isSilent = false;
-		
-		foreach (int playerId : playerIds)
-		{
-			if (SCR_FactionManager.SGetPlayerFaction(playerId) == faction)
-			{			
-				GRAD_PlayerComponent.GetInstance().ShowHint(message, title, duration, isSilent);
-			}
-		}
-	}
-
-
-    //------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
-		array<vector> availablePositions = new array<vector>();
-		
-		if (factionName == "USSR")
-		{	
-			Print(string.Format("Breaking Contact - Opfor spawn is done"), LogLevel.NORMAL);	
-			SpawnSpawnVehicleEast();
-			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos);
-		}
-		
-		if (factionName == "US") {	
-			Print(string.Format("Breaking Contact - Blufor spawn is done"), LogLevel.NORMAL);
-			SpawnSpawnVehicleWest();
-			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos);
-		}
-		
-		if (factionName != "US" && factionName != "USSR") {
-			Print(string.Format("Breaking Contact - PANIC, faction is %1", factionName), LogLevel.NORMAL);
+		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
+		if (!playableManager)
+		{
+			Print("Unable to get PS_PlayableManager instance", LogLevel.ERROR);
 			return;
 		}
+		array<PS_PlayableContainer> playables = playableManager.GetPlayablesSorted();
 		
-		PS_PlayableManager m_PlayableManager = PS_PlayableManager.GetInstance();
-		array<PS_PlayableContainer> playables = m_PlayableManager.GetPlayablesSorted();
+		array<vector> availablePositions = {};
+		
+		if (factionName == "USSR")
+			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos, 25);
+		
+		if (factionName == "US")
+			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos, 25);
 		
 		int index = 0;
 		foreach (int idx, PS_PlayableContainer playableCont : playables)
@@ -1389,7 +1745,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 					return;
 				}
 				
-				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000, false, availablePositions[index]);
+				// Stagger teleports by 100ms each to reduce load spike
+				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000 + (index * 100), false, availablePositions[index]);
 				
 				index = index + 1;
 				
@@ -1407,7 +1764,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		array<vector> availablePositions = new array<vector>();
 		int range = 200;
 		
-		while (availablePositions.Count() <= minCount || range < 1000)
+		while (availablePositions.Count() <= minCount && range < 1000)
 		{
 			SCR_WorldTools.FindAllEmptyTerrainPositions(availablePositions, location, range, 3, 5, 100);
 			range = range + 100;
@@ -1442,20 +1799,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	GRAD_SpawnPointResponse SetSpawnPositions(vector spawnPos)
 	{
+		Print(string.Format("BCM - SetSpawnPositions called with spawnPos: %1 (IsServer: %2)", spawnPos.ToString(), Replication.IsServer()), LogLevel.NORMAL);
+		
 		m_vOpforSpawnPos = vector.Zero;
 		m_vOpforSpawnDir = vector.Zero;
 		m_vBluforSpawnPos = vector.Zero;
 		m_vBluforSpawnDir = vector.Zero;
 		
-		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);		
+		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);
+		Print(string.Format("BCM - GetSpawnPos returned %1 elements for OPFOR", opforSpawnPos.Count()), LogLevel.NORMAL);
 		if (opforSpawnPos.Count() != 2)
 		{
+			Print(string.Format("BCM - ERROR: OPFOR spawn position not found! Count: %1", opforSpawnPos.Count()), LogLevel.ERROR);
 			return GRAD_SpawnPointResponse.OPFOR_NOTFOUND;
 		}
 		
 		array<vector> bluforSpawnPos = findBluforPosition(opforSpawnPos[0]);
+		Print(string.Format("BCM - findBluforPosition returned %1 elements for BLUFOR", bluforSpawnPos.Count()), LogLevel.NORMAL);
 		if (bluforSpawnPos.Count() != 2)
 		{
+			Print(string.Format("BCM - ERROR: BLUFOR spawn position not found! Count: %1", bluforSpawnPos.Count()), LogLevel.ERROR);
 			return GRAD_SpawnPointResponse.BLUFOR_NOTFOUND;
 		}
 		
@@ -1466,11 +1829,17 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		m_vBluforSpawnPos = bluforSpawnPos[0];
 		m_vBluforSpawnDir = bluforSpawnPos[1];
 		
+		Print(string.Format("BCM - Spawn positions set successfully - OPFOR: %1, BLUFOR: %2", 
+			m_vOpforSpawnPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		
 		Replication.BumpMe();
 		
 		// Manually call change on the server since replication is not happening there
 		if (Replication.IsServer())
+		{
+			Print("BCM - Server calling OnOpforPositionChanged manually", LogLevel.NORMAL);
 			OnOpforPositionChanged();
+		}
 		
 		return GRAD_SpawnPointResponse.OK;
 	}
@@ -1478,20 +1847,46 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	protected array<vector> GetSpawnPos(vector spawnPos)
 	{
 		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
+		
+		// NEVER return empty array - always provide a valid spawn position
+		// FindSpawnPointOnRoad now returns original position if no road found
 		if (roadPosition == vector.Zero)
 		{
-			return new array<vector>();
+			Print(string.Format("BCM - WARNING: roadPosition is vector.Zero, using original spawn position %1 as fallback", spawnPos.ToString()), LogLevel.ERROR);
+			roadPosition = spawnPos; // Ultimate fallback to player-selected position
 		}
 		
+		// Get next road point for direction (no exclusion needed for OPFOR)
 		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		
 		vector direction = vector.Direction(roadPosition, roadPosition2);
-		vector midpoint = vector.Lerp(roadPosition, roadPosition2, 0.5);
+		
+		// Use the validated road position directly, not midpoint
+		vector finalPosition = roadPosition;
+		
+		// Basic collision check
+		bool hasCollision = false;
+		if (GetGame().GetWorld())
+		{
+			autoptr TraceParam trace = new TraceParam();
+			trace.Start = finalPosition + Vector(0, 5, 0); // Start 5m above ground
+			trace.End = finalPosition + Vector(0, -2, 0);   // End 2m below ground
+			trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
+			trace.LayerMask = EPhysicsLayerPresets.Projectile;
+			
+			float traceResult = GetGame().GetWorld().TraceMove(trace, null);
+			if (traceResult < 0.95)
+			{
+				hasCollision = true;
+				Print(string.Format("BCM - OPFOR position has collision (trace: %1), using anyway as fallback", traceResult), LogLevel.WARNING);
+				// For OPFOR, we still use it but log the warning
+			}
+		}
 		
 		array<vector> output = new array<vector>();
-		output.Insert(midpoint);
+		output.Insert(finalPosition);
 		output.Insert(direction);
 		
+		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", finalPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
 		return output;
 	}
 
@@ -1543,6 +1938,77 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			m_vOpforSpawnPos[2] + 500.0,
 			-1,
 			true);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void GetEndscreenText(out string title, out string subtitle)
+	{
+		title = m_sLastEndscreenTitle;
+		subtitle = m_sLastEndscreenSubtitle;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Called by replay manager to show end screen after replay finishes
+	void ShowPostReplayGameOverScreen()
+	{
+		Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
+		
+		// Only server should initiate the broadcast
+		if (!Replication.IsServer())
+		{
+			Print("BCM: Not server, ignoring call", LogLevel.WARNING);
+			return;
+		}
+		
+		// Ensure endscreen data is set
+		if (m_sLastEndscreenTitle.IsEmpty())
+		{
+			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
+			m_sLastEndscreenTitle = "Game Over";
+			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
+			Replication.BumpMe();
+		}
+		
+		Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
+		
+		// Broadcast to all clients (including server if it has a player)
+		Rpc(RpcDo_ShowGameOverScreen);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcDo_ShowGameOverScreen()
+	{
+		string location;
+		if (Replication.IsServer())
+			location = "Server";
+		else
+			location = "Client";
+		
+		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", location), LogLevel.NORMAL);
+		
+		// Skip on dedicated server (no UI)
+		if (Replication.IsServer() && !GetGame().GetPlayerController())
+		{
+			Print("BCM: Skipping UI on dedicated server (no player controller)", LogLevel.NORMAL);
+			return;
+		}
+		
+		Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2, Winner: %3", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle, m_sWinnerSide), LogLevel.NORMAL);
+		
+		// Show the game over screen using the standard Arma Reforger method
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
+		if (!gameMode)
+		{
+			Print("BCM: Cannot show endscreen - no game mode found", LogLevel.ERROR);
+			return;
+		}
+		
+		// Create endscreen data
+		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
+		gameMode.EndGameMode(endData);
+		
+		Print("BCM: Endscreen shown successfully", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

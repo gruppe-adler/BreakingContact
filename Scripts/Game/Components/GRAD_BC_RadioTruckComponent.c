@@ -17,6 +17,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected bool m_bIsDisabled = false;
 
 	private Vehicle m_radioTruck;
+	
+	protected float m_fSavedFuelRatio = -1.0;
 
 	private SCR_MapDescriptorComponent m_mapDescriptorComponent;
 	private VehicleWheeledSimulation_SA_B m_VehicleWheeledSimulationComponent;
@@ -105,7 +107,16 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				
 				string destroyerFaction = GetInstigatorFactionFromEntity(lastInstigator);
 				
-				Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+				// If no instigator (truck disabled/immobilized without direct damage), BLUFOR wins
+				if (destroyerFaction == "")
+				{
+					destroyerFaction = "DISABLED";
+					Print("BC Debug - MAINLOOP: Radio truck disabled (no damage instigator) - BLUFOR wins", LogLevel.NORMAL);
+				}
+				else
+				{
+					Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+				}
 				
 				// Notify the Breaking Contact Manager
 				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -184,12 +195,27 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// disable transmissions for every transmission point
 		if (!m_bIsTransmitting) {
 			if (VDMC) {
-				// VDMC.SetEngineFunctional(true);
+				EnableVehicleAndRestoreFuel(m_radioTruck);
+				
 				Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
 			}
 		} else {
 			if (VDMC) {
-				// VDMC.SetEngineFunctional(false); // this seems protected now and was not before :/
+				
+				SCR_CarControllerComponent carController = SCR_CarControllerComponent.Cast(m_radioTruck.FindComponent(SCR_CarControllerComponent));
+				if (carController)
+				{
+					
+					
+				    DisableVehicleAndSaveFuel(m_radioTruck);
+				    
+				    // 2. Den Watchdog starten (ruft die Funktion KeepFuelEmpty alle 1000ms auf)
+				    GetGame().GetCallqueue().CallLater(KeepFuelEmpty, 1000, true, m_radioTruck);
+				    
+				    Print("Fahrzeug stillgelegt (Kein Treibstoff).");
+				} else {
+					Print(string.Format("Breaking Contact RTC - No Car Controller found"), LogLevel.NORMAL);
+				}
 				Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
 			}
 		}
@@ -207,10 +233,121 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// ‘false’: I only need the nearest – do **not** spawn a new one.
 		return bcm.GetNearestTransmissionPoint(m_radioTruck.GetOrigin(), false);
 	}
+	
+	
+	void DisableVehicleAndSaveFuel(IEntity vehicleEntity)
+	{
+	    SCR_FuelManagerComponent fuelManager = SCR_FuelManagerComponent.Cast(vehicleEntity.FindComponent(SCR_FuelManagerComponent));
+	    
+	    if (fuelManager)
+	    {
+	        array<BaseFuelNode> fuelNodes = {};
+	        fuelManager.GetFuelNodesList(fuelNodes);
+	        
+	        // Wir speichern den Stand des ersten Tanks. 
+	        // (In Arma leeren sich Tanks meist gleichmäßig, das reicht also für 99% der Fälle)
+	        if (!fuelNodes.IsEmpty() && fuelNodes[0].GetMaxFuel() > 0)
+	        {
+	            m_fSavedFuelRatio = fuelNodes[0].GetFuel() / fuelNodes[0].GetMaxFuel();
+	            Print(string.Format("Fuel gespeichert: %1 Prozent", m_fSavedFuelRatio * 100));
+	        }
+	        else
+	        {
+	            // Fallback, falls irgendwas komisch ist: Gehe von 50% oder voll aus
+	            m_fSavedFuelRatio = 0.5; 
+	        }
+	    }
+	
+	    // Jetzt Motor aus und Loop starten (wie vorher besprochen)
+	    SCR_CarControllerComponent carController = SCR_CarControllerComponent.Cast(vehicleEntity.FindComponent(SCR_CarControllerComponent));
+	    if (carController)
+	    {
+	        carController.StopEngine(true);
+	        GetGame().GetCallqueue().CallLater(KeepFuelEmpty, 1000, true, vehicleEntity);
+	    }
+	}
+	
+	void EnableVehicleAndRestoreFuel(IEntity vehicleEntity)
+	{
+	    // 1. Loop stoppen
+	    GetGame().GetCallqueue().Remove(KeepFuelEmpty);
+		
+		if (!vehicleEntity) return;
+		
+		// Check: Ist das Fahrzeug mittlerweile zerstört worden?
+		SCR_DamageManagerComponent damageManager = SCR_DamageManagerComponent.Cast(vehicleEntity.FindComponent(SCR_DamageManagerComponent));
+	    if (damageManager && damageManager.IsDestroyed())
+	    {
+	        Print("Warnung: Versuch, zerstörtes Fahrzeug wiederherzustellen abgebrochen.");
+	        m_fSavedFuelRatio = -1.0; // Reset
+	        return;
+	    }
+	
+	    // 2. Fuel wiederherstellen
+	    SCR_FuelManagerComponent fuelManager = SCR_FuelManagerComponent.Cast(vehicleEntity.FindComponent(SCR_FuelManagerComponent));
+	
+	    if (fuelManager && m_fSavedFuelRatio >= 0)
+	    {
+	        array<BaseFuelNode> fuelNodes = {};
+	        fuelManager.GetFuelNodesList(fuelNodes);
+	        
+	        foreach (BaseFuelNode node : fuelNodes)
+	        {
+	            if (node)
+	            {
+	                // Setze Fuel basierend auf dem gespeicherten Verhältnis
+	                float fuelToSet = node.GetMaxFuel() * m_fSavedFuelRatio;
+	                node.SetFuel(fuelToSet);
+	            }
+	        }
+	        Print(string.Format("Fuel wiederhergestellt auf %1 Prozent", m_fSavedFuelRatio * 100));
+	        
+	        // Reset der Variable (optional, zur Sicherheit)
+	        m_fSavedFuelRatio = -1.0;
+	    }
+	}
 
 		
+	void KeepFuelEmpty(IEntity vehicleEntity)
+	{
+	    // Sicherheitscheck: Existiert das Fahrzeug noch?
+	    if (!vehicleEntity) 
+	    {
+	        GetGame().GetCallqueue().Remove(KeepFuelEmpty);
+	        return;
+	    }
+		
+		SCR_DamageManagerComponent damageManager = SCR_DamageManagerComponent.Cast(vehicleEntity.FindComponent(SCR_DamageManagerComponent));
+	    if (damageManager && damageManager.IsDestroyed())
+	    {
+	        // Fahrzeug ist Schrott -> Wir brauchen keinen Sprit mehr entziehen.
+	        // Loop stoppen, um Server-Ressourcen zu sparen.
+	        GetGame().GetCallqueue().Remove(KeepFuelEmpty);
+	        Print("Fahrzeug wurde zerstört - Fuel-Lock Script gestoppt.");
+	        return;
+	    }
 	
-	
+	    SCR_FuelManagerComponent fuelManager = SCR_FuelManagerComponent.Cast(vehicleEntity.FindComponent(SCR_FuelManagerComponent));
+	    
+	    if (fuelManager)
+	    {
+	        // Wir holen uns alle Tanks des Fahrzeugs (manche Trucks haben mehrere)
+	        array<BaseFuelNode> fuelNodes = {};
+	        fuelManager.GetFuelNodesList(fuelNodes);
+			
+			Print(string.Format("Breaking Contact RTC - Keeping fuel at zero"), LogLevel.NORMAL);
+	        
+	        foreach (BaseFuelNode node : fuelNodes)
+	        {
+	            // Setze Sprit auf 0. Das wird automatisch repliziert.
+	            if (node.GetFuel() > 0)
+	            {
+	                node.SetFuel(0);
+	            }
+	        }
+	    }
+	}
+		
 
 	//------------------------------------------------------------------------------------------------
 	void SyncVariables()

@@ -1,0 +1,91 @@
+SizeLayoutWidgetClass {
+ scriptclass "GRAD_BC_EndScreenComponent"
+ {
+  VerticalLayoutWidgetClass "{5892DABA6FF653EF}" {
+   Prefab "{5892DABA6FF653EF}"
+   {
+    ScaleWidgetClass "{60DCDEFAE53D54C2}" {
+     Prefab "{60DCDEFAE53D54C2}"
+     {
+      HorizontalLayoutWidgetClass "{625A6EC4A9D85E83}" {
+       Prefab "{625A6EC4A9D85E83}"
+       {
+        SizeLayoutWidgetClass "{5864EB695C60EB73}" {
+         Prefab "{5864EB695C60EB73}"
+         {
+          OverlayWidgetClass "{6672BB043414869B}" {
+           Prefab "{6672BB043414869B}"
+           {
+            SizeLayoutWidgetClass "{6672BB041E7CE655}" {
+             Prefab "{6672BB041E7CE655}"
+             AspectRatioForce 1.5
+             {
+              ImageWidgetClass "{5864EB695C60EB74}" {
+               Prefab "{5864EB695C60EB74}"
+               Slot AlignableSlot "{6672BB041560379F}" {
+                HorizontalAlign 1
+                VerticalAlign 1
+               }
+               Texture "{76958DC30C3FE807}UI/Logo/bc_logo.edds"
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+        SizeLayoutWidgetClass "{625AB4812711DF46}" {
+         Prefab "{625AB4812711DF46}"
+         {
+          OverlayWidgetClass "{625A6EC56200DA49}" {
+           Prefab "{625A6EC56200DA49}"
+           {
+            SizeLayoutWidgetClass "{68440C4B09020C50}" {
+             Name "SizeLayout1"
+             Slot OverlayWidgetSlot {
+              VerticalAlign 2
+             }
+             AllowMaxDesiredHeight 1
+             MaxDesiredHeight 100
+             AllowAspectRatioForce 1
+             {
+              ImageWidgetClass "{68440C4B126BC682}" {
+               Name "Image0"
+               Slot AlignableSlot "{68440C4B126BC6EF}" {
+               }
+               Texture "{76958DC30C3FE807}UI/Logo/bc_logo.edds"
+               Size 512 512
+              }
+             }
+            }
+            VerticalLayoutWidgetClass "{625A6EC4807C16F5}" {
+             Prefab "{625A6EC4807C16F5}"
+             {
+              TextWidgetClass "{5864EB695C60EB77}" {
+               Name "TitleText"
+               Prefab "{5864EB695C60EB77}"
+               Text "Victory"
+               Color 1 1 1 1
+               FontProperties FontProperties "{546AF489DFD25402}" {
+                Bold 1
+               }
+              }
+              TextWidgetClass "{5864EB695C60EB78}" {
+               Name "SubtitleText"
+               Text "Game Over"
+               Color 1 1 1 0.8
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

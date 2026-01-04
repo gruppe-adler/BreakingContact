@@ -1950,9 +1950,46 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
 		
-		// The endscreen was already set up in mainLoop when game ended
-		// We just need to trigger it to show again after replay
-		// The existing endscreen data should already be set
+		// If on server, broadcast to all clients via RPC
+		if (Replication.IsServer())
+		{
+			Print("BCM: Server broadcasting gameover screen to all clients", LogLevel.NORMAL);
+			Rpc(RpcDo_ShowGameOverScreen);
+		}
+		else
+		{
+			// Client should request server to broadcast
+			Print("BCM: Client requesting server to show gameover", LogLevel.NORMAL);
+			Rpc(RpcAsk_ShowGameOverScreen);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	void RpcAsk_ShowGameOverScreen()
+	{
+		Print("BCM: Server received gameover request from client, broadcasting", LogLevel.NORMAL);
+		Rpc(RpcDo_ShowGameOverScreen);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcDo_ShowGameOverScreen()
+	{
+		string isServer;
+		if (Replication.IsServer())
+			isServer = "Server";
+		else
+			isServer = "Client";
+		
+		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", isServer), LogLevel.NORMAL);
+		
+		// Skip on dedicated server (no UI)
+		if (Replication.IsServer() && !GetGame().GetPlayerController())
+		{
+			Print("BCM: Skipping UI on dedicated server", LogLevel.NORMAL);
+			return;
+		}
 		
 		// If endscreen text wasn't set, fall back to generic message
 		if (m_sLastEndscreenTitle.IsEmpty())

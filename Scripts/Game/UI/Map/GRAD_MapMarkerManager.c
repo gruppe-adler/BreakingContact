@@ -274,6 +274,19 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             return;
         }
         
+        // Don't draw markers during GAMEOVER or GAMEOVERDONE phases (replay time)
+        GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+        if (bcm)
+        {
+            EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
+            if (currentPhase == EBreakingContactPhase.GAMEOVER || currentPhase == EBreakingContactPhase.GAMEOVERDONE)
+            {
+                if (m_Canvas)
+                    m_Canvas.SetDrawCommands({});
+                return;
+            }
+        }
+        
         if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
             m_Canvas.SetDrawCommands({});
             return; // No markers to draw

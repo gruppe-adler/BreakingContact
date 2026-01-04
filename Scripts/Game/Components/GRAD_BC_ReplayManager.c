@@ -1419,11 +1419,8 @@ void StartLocalReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Server received endscreen request, executing locally and broadcasting to all clients", LogLevel.NORMAL);
 		
-		// Show on server first (if it has a player controller / local player)
-		if (GetGame().GetPlayerController())
-		{
-			ShowEndscreenOnServer();
-		}
+		// Always show on server (even dedicated) to ensure phase changes
+		ShowEndscreenOnServer();
 		
 		// Then broadcast to all clients
 		Rpc(RpcDo_ShowEndscreen);

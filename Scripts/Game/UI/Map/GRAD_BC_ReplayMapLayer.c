@@ -180,8 +180,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			if (!marker.isAlive)
 				color = 0x80808080; // Gray for dead
 			
-			// Draw unit icon with directional chevron
-			DrawUnitMarker(marker.position, marker.direction, marker.unitType, color, marker.isInVehicle, marker.isAlive);
+			// Draw unit icon with directional chevron (use vehicle type if in vehicle)
+			string iconType;
+			if (marker.isInVehicle)
+				iconType = GetVehicleIconType(marker.vehicleType);
+			else
+				iconType = marker.unitType;
+			DrawUnitMarker(marker.position, marker.direction, iconType, color, marker.isInVehicle, marker.isAlive);
 		}
 		
 		// Draw projectiles as lines from firing position to impact position
@@ -462,6 +467,33 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Map vehicle prefab name to icon type
+	protected string GetVehicleIconType(string vehiclePrefab)
+	{
+		if (vehiclePrefab.IsEmpty())
+			return "Car"; // Default fallback
+		
+		vehiclePrefab.ToLower();
+		
+		// Check for specific vehicle types based on prefab name
+		if (vehiclePrefab.Contains("m1025") || vehiclePrefab.Contains("hmmwv") || vehiclePrefab.Contains("humvee"))
+			return "ArmedCar";
+		if (vehiclePrefab.Contains("uaz") || vehiclePrefab.Contains("gaz"))
+			return "Car";
+		if (vehiclePrefab.Contains("ural") || vehiclePrefab.Contains("m923") || vehiclePrefab.Contains("truck"))
+			return "Truck";
+		if (vehiclePrefab.Contains("uh1") || vehiclePrefab.Contains("mi8") || vehiclePrefab.Contains("helicopter") || vehiclePrefab.Contains("heli"))
+			return "Helicopter";
+		if (vehiclePrefab.Contains("m1a1") || vehiclePrefab.Contains("t72") || vehiclePrefab.Contains("tank"))
+			return "Tank";
+		if (vehiclePrefab.Contains("btr") || vehiclePrefab.Contains("bradley") || vehiclePrefab.Contains("apc"))
+			return "ArmedCar";
+		
+		// Default to Car for unknown vehicles
+		return "Car";
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	// Draw a unit marker with icon and directional chevron
 	protected void DrawUnitMarker(vector position, float direction, string unitType, int color, bool isVehicle, bool isAlive)
 	{
@@ -545,7 +577,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			marker.direction = playerSnapshot.angles[0]; // Yaw
 			marker.isAlive = playerSnapshot.isAlive;
 			marker.isInVehicle = playerSnapshot.isInVehicle;
-			marker.unitType = playerSnapshot.unitRole; // Use role from snapshot
+			marker.unitType = playerSnapshot.unitRole; // Infantry role from snapshot
+			marker.vehicleType = playerSnapshot.vehicleType; // Vehicle type from snapshot
 			marker.isVisible = true;
 			
 			// Debug: Log position and faction data for first few frames
@@ -644,6 +677,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // ✅ Inherit from proven wo
 			lastMarker.isAlive = playerMarker.isAlive;
 			lastMarker.isInVehicle = playerMarker.isInVehicle;
 			lastMarker.unitType = playerMarker.unitType;
+			lastMarker.vehicleType = playerMarker.vehicleType;
 			lastMarker.isVisible = playerMarker.isVisible;
 			m_lastFramePlayerMarkers.Insert(lastMarker);
 		}
@@ -813,7 +847,8 @@ class GRAD_BC_ReplayPlayerMarker : Managed
 	float direction;
 	bool isAlive;
 	bool isInVehicle;
-	string unitType; // Added unit type
+	string unitType; // Infantry unit type (Rifleman, Medic, etc.)
+	string vehicleType; // Vehicle prefab name when in vehicle
 	bool isVisible;
 }
 

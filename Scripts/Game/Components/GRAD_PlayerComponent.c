@@ -496,6 +496,26 @@ class GRAD_PlayerComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Owner)]
     protected void Rpc_ShowTransmissionHint_Local(ETransmissionState state)
     {
+		// Don't show transmission hints during replay or gameover
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+		{
+			EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
+			if (currentPhase == EBreakingContactPhase.GAMEOVER || currentPhase == EBreakingContactPhase.GAMEOVERDONE)
+			{
+				Print("GRAD_PlayerComponent: Skipping transmission hint - in replay/gameover phase", LogLevel.NORMAL);
+				return;
+			}
+		}
+		
+		// Check if replay is active
+		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+		if (replayManager && replayManager.IsPlayingBack())
+		{
+			Print("GRAD_PlayerComponent: Skipping transmission hint - replay is playing", LogLevel.NORMAL);
+			return;
+		}
+		
         // Find the HUD display and call ShowLogo() on it
         array<BaseInfoDisplay> infoDisplays = {};
         GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);

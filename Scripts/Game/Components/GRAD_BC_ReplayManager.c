@@ -592,9 +592,11 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			
 			// Schedule automatic endscreen broadcast after replay duration
 			float replayDuration = m_replayData.totalDuration;
-			float waitTime = (replayDuration + 3.0) * 1000; // Add 3 second buffer, convert to milliseconds
-			Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds", waitTime / 1000), LogLevel.NORMAL);
+			float waitTime = (replayDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
+			Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs, buffer: 2s, total wait: %.2fs", replayDuration, waitTime / 1000), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
+			Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		}
 	}
 
@@ -642,9 +644,11 @@ void StartLocalReplayPlayback()
 		
 		// Schedule automatic endscreen for local mode
 		float replayDuration = m_replayData.totalDuration;
-		float waitTime = (replayDuration + 3.0) * 1000;
-		Print(string.Format("GRAD_BC_ReplayManager: Scheduling local endscreen in %.1f seconds", waitTime / 1000), LogLevel.NORMAL);
+		float waitTime = (replayDuration + 2.0) * 1000;
+		Print(string.Format("GRAD_BC_ReplayManager: LOCAL MODE - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs, buffer: 2s, total wait: %.2fs", replayDuration, waitTime / 1000), LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
+		Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		
 		Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
 	}
@@ -1420,10 +1424,16 @@ void StartLocalReplayPlayback()
 	// Server automatically triggers endscreen after replay duration
 	void TriggerEndscreen()
 	{
-		if (!Replication.IsServer())
-			return;
+		Print("GRAD_BC_ReplayManager: ===== TriggerEndscreen CALLED =====", LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayManager: IsServer: %1", Replication.IsServer()), LogLevel.NORMAL);
 		
-		Print("GRAD_BC_ReplayManager: Server triggering endscreen", LogLevel.NORMAL);
+		if (!Replication.IsServer())
+		{
+			Print("GRAD_BC_ReplayManager: Not server, returning", LogLevel.WARNING);
+			return;
+		}
+		
+		Print("GRAD_BC_ReplayManager: Server triggering endscreen NOW", LogLevel.NORMAL);
 		
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm)

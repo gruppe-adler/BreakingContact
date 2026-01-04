@@ -2004,11 +2004,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		// Create endscreen data
-		SCR_GameModeEndData endData = SCR_GameModeEndData.CreateSimple(EGameOverTypes.END1);
-		gameMode.EndGameMode(endData);
-		
-		Print("BCM: Endscreen shown successfully", LogLevel.NORMAL);
+		ShowGameOverScreen();
 	}
 	
 	//------------------------------------------------------------------------------------------------

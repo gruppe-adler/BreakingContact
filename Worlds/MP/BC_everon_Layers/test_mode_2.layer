@@ -24,6 +24,12 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
   }
   GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
   }
+  SCR_CampaignBuildingManagerComponent "{61B4DDBF56BF1B48}" {
+   m_iCompositionRefundPercentage 0
+   m_iXpRewardTreshold 9999
+   m_iInitialRewardInterval 9999
+   m_fRewardCurveIncrement 9999
+  }
   SCR_GameModeHealthSettings "{5A22E11F9ACBB1DF}" {
    m_bKillIndefinitelyUnconsciousPlayers 1
   }

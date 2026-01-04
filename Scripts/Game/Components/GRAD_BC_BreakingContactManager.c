@@ -38,8 +38,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	protected int m_spawnLock = 0;
 	
-	protected string m_sWinnerSide;
-	
 	// Radio truck destruction tracking
 	protected bool m_bRadioTruckDestroyed = false;
 	protected string m_sRadioTruckDestroyerFaction = "";
@@ -97,9 +95,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	protected PlayerManager m_PlayerManager;
 	
-	// Endscreen text storage
+	// Endscreen text storage - replicated to clients
+	[RplProp()]
 	protected string m_sLastEndscreenTitle;
+	[RplProp()]
 	protected string m_sLastEndscreenSubtitle;
+	[RplProp()]
+	protected string m_sWinnerSide;
 	
 	protected PlayerManager GetPlayerManager()
 	{
@@ -1299,6 +1301,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Store endscreen text for retrieval
 		m_sLastEndscreenTitle = title;
 		m_sLastEndscreenSubtitle = subtitle;
+		Replication.BumpMe(); // Replicate endscreen data to clients
 		
 		// Determine which game over screen to show based on win condition
 		EGameOverTypes gameOverType = EGameOverTypes.END1; // Default
@@ -1950,25 +1953,25 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
 		
-		// If on server, broadcast to all clients via RPC
-		if (Replication.IsServer())
+		// Only server should initiate the broadcast
+		if (!Replication.IsServer())
 		{
-			Print("BCM: Server broadcasting gameover screen to all clients", LogLevel.NORMAL);
-			Rpc(RpcDo_ShowGameOverScreen);
+			Print("BCM: Not server, ignoring call", LogLevel.WARNING);
+			return;
 		}
-		else
+		
+		// Ensure endscreen data is set
+		if (m_sLastEndscreenTitle.IsEmpty())
 		{
-			// Client should request server to broadcast
-			Print("BCM: Client requesting server to show gameover", LogLevel.NORMAL);
-			Rpc(RpcAsk_ShowGameOverScreen);
+			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
+			m_sLastEndscreenTitle = "Game Over";
+			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
+			Replication.BumpMe();
 		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	void RpcAsk_ShowGameOverScreen()
-	{
-		Print("BCM: Server received gameover request from client, broadcasting", LogLevel.NORMAL);
+		
+		Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
+		
+		// Broadcast to all clients (including server if it has a player)
 		Rpc(RpcDo_ShowGameOverScreen);
 	}
 	
@@ -1976,30 +1979,22 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcDo_ShowGameOverScreen()
 	{
-		string isServer;
+		string location;
 		if (Replication.IsServer())
-			isServer = "Server";
+			location = "Server";
 		else
-			isServer = "Client";
+			location = "Client";
 		
-		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", isServer), LogLevel.NORMAL);
+		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", location), LogLevel.NORMAL);
 		
 		// Skip on dedicated server (no UI)
 		if (Replication.IsServer() && !GetGame().GetPlayerController())
 		{
-			Print("BCM: Skipping UI on dedicated server", LogLevel.NORMAL);
+			Print("BCM: Skipping UI on dedicated server (no player controller)", LogLevel.NORMAL);
 			return;
 		}
 		
-		// If endscreen text wasn't set, fall back to generic message
-		if (m_sLastEndscreenTitle.IsEmpty())
-		{
-			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
-			m_sLastEndscreenTitle = "Game Over";
-			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
-		}
-		
-		Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
+		Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2, Winner: %3", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle, m_sWinnerSide), LogLevel.NORMAL);
 		
 		// Show the game over screen using the standard Arma Reforger method
 		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());

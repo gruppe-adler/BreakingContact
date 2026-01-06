@@ -101,10 +101,14 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			return;
 		}
 		
-		if(m_radioTruckComponent.GetTransmissionActive())
+		if(m_radioTruckComponent.GetTransmissionActive()) {
 			m_radioTruckComponent.SetTransmissionActive(false);
-		else
+			ToggleLampState(pOwnerEntity.GetParent(), false); // Turn off lamps
+		}
+		else {
 			m_radioTruckComponent.SetTransmissionActive(true);
+			ToggleLampState(pOwnerEntity.GetParent(), true); // Turn on lamps
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -141,6 +145,86 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			Print("BC Debug - no parent for disableradiotruck action", LogLevel.WARNING);
 			return;
 		}
-		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		GetGame().GetCallqueue().CallLater(InitLamps, 100, false, pOwnerEntity);
+	}
+	
+	void InitLamps(IEntity pOwnerEntity)
+	{
+	    // Check if the SlotManager exists yet (usually yes)
+		IEntity radioTruck = pOwnerEntity.GetParent();
+	    SlotManagerComponent slotManager = SlotManagerComponent.Cast(radioTruck.FindComponent(SlotManagerComponent));
+	    if (!slotManager) return;
+	
+	    // Try to get the slot
+	    EntitySlotInfo slot = slotManager.GetSlotByName("lamp_on");
+	
+	    // 3. Safety Check: Is the slot there AND is the entity attached?
+	    if (slot && slot.GetAttachedEntity())
+	    {
+	        // FOUND IT! Hide it immediately.
+	        // (Assuming you want it off by default)
+	        ToggleLampState(radioTruck, false); 
+	        Print("Lamps initialized and hidden.");
+	    }
+	    else
+	    {
+	        // NOT FOUND YET. 
+	        // The attachment hasn't spawned. Try again in another 100ms.
+	        Print("Lamp not ready yet, retrying...");
+	        GetGame().GetCallqueue().CallLater(InitLamps, 100, false, pOwnerEntity);
+	    }
+	}
+	
+
+	void ToggleLampState(IEntity vehicle, bool state)
+	{
+		SlotManagerComponent slotManager = SlotManagerComponent.Cast(vehicle.FindComponent(SlotManagerComponent));
+		
+		array<EntitySlotInfo> allSlots = {};
+		slotManager.GetSlotInfos(allSlots);
+		
+		Print("------------- DEBUG SLOT NAMES -------------");
+		foreach (EntitySlotInfo slot : allSlots)
+		{
+		    string name = slot.GetSourceName();
+		    IEntity attached = slot.GetAttachedEntity();
+		    string attachedName = "Nothing";
+		    if (attached) attachedName = attached.GetName();
+		    
+		    Print("Slot SourceName: '" + name + "' | Attached Entity: " + attachedName);
+		}
+		Print("--------------------------------------------");
+		
+		if (slotManager)
+		{
+		    // Try to find the slot info directly by string name
+		    EntitySlotInfo slotInfoOn = slotManager.GetSlotByName("lamp_on");
+			EntitySlotInfo slotInfoOff = slotManager.GetSlotByName("lamp_off");
+		
+		    if (slotInfoOn && slotInfoOff)
+		    {
+		        IEntity lamp_on = slotInfoOn.GetAttachedEntity();
+				IEntity lamp_off = slotInfoOff.GetAttachedEntity();
+		        if (lamp_on && lamp_off && state)
+		        {
+		            // Toggle visibility logic here
+		            lamp_on.SetFlags(EntityFlags.VISIBLE, true);  
+					lamp_off.ClearFlags(EntityFlags.VISIBLE, true);
+		            Print("Success: Lamp turned on");
+		        }
+		        else if (lamp_on && lamp_off && !state)
+		        {
+					lamp_off.SetFlags(EntityFlags.VISIBLE, true);  
+					lamp_on.ClearFlags(EntityFlags.VISIBLE, true);
+		             Print("Success: Lamp turned off");
+		        }
+		    }
+		    else
+		    {
+		        Print("Error: Could not find any slot named 'lamp_on' or 'lamp_off'", LogLevel.ERROR);
+		    }
+		}
+
+		
 	}
 }

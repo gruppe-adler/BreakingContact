@@ -1,3 +1,162 @@
 Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.et" {
  ID "5206D4E7C4A16F13"
+ components {
+  BaseSlotComponent "{684D3E0087CCC2A4}" {
+   AttachType EntitySlotInfo Metal {
+    PivotID "Scene_Root"
+    Offset -1.1 1.5 3.8
+    Angles 0 0 90
+    Prefab "{72A74605EEEF1A8D}Prefabs/Structures/BuildingParts/Doors/Door_Metal_01_RIGHT_EXT_COV_B.et"
+    DisablePhysicsInteraction 1
+   }
+   DisablePhysicsInteraction 0
+  }
+  BaseSlotComponent "{684D3E01DE20DBFB}" {
+   AttachType EntitySlotInfo sideskirt1 {
+    PivotID "Scene_Root"
+    Offset 1.25 2.5 -3.8
+    Angles 0 90 180
+    Prefab "{5326C298427D91A3}PrefabLibrary/DefaultLibrary/Walls/Metal/TinWall_01_3m.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0A159D78C6}" {
+   AttachType EntitySlotInfo wheelcover2 {
+    PivotID "v_wheel_L01_rotator"
+    Offset -0.4 0 0
+    Angles 90 90 0
+    Prefab "{1E9C77D99D7F8A15}Prefabs/Structures/Military/Camps/AirfieldMatting_01/AirfieldMatting_US_01_short.et"
+    DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
+   }
+  }
+  BaseSlotComponent "{684D3E0A49C867DA}" {
+   AttachType EntitySlotInfo wheelcover2 {
+    PivotID "Scene_Root"
+    Offset -0.8 1.8 2.7
+    Angles 45 90 -15
+    Prefab "{38830F6F1297670A}Prefabs/Structures/Military/Camps/AirfieldMatting_01/AirfieldMatting_USSR_01_short.et"
+    DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
+   }
+  }
+  BaseSlotComponent "{684D3E0C97A2A9E1}" {
+   AttachType EntitySlotInfo sideleft1 {
+    PivotID "Scene_Root"
+    Offset -1.5 2.4 -4
+    Angles 0 90 180
+    Prefab "{F2D8A2E5B619B82C}PrefabLibrary/CainLibrary/Walls/Metal/TinWall_01_3m_rusty.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0CF53ADA75}" {
+   AttachType EntitySlotInfo belowdingens {
+    PivotID "Scene_Root"
+    Offset -1.3 1.5 1
+    Angles 0 90 90
+    Prefab "{413B033B8B2EBA9F}Prefabs/Structures/BuildingParts/Doors/Door_TinWall_01_Small_LEFT_EXT_COV_B.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0D4DEBDAD7}" {
+   AttachType EntitySlotInfo wheelcover_1 {
+    PivotID "v_wheel_L01_rotator"
+    Offset -0.4 0.5 0
+    Angles 90 90 0
+    MergePhysics 1
+    Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
+    DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
+   }
+  }
+  BaseSlotComponent "{684D3E0E47E3750E}" {
+   AttachType EntitySlotInfo tinwall2 {
+    PivotID "Scene_Root"
+    Offset 1.3 2.4 -2
+    Angles 0 90 180
+    Prefab "{F2D8A2E5B619B82C}PrefabLibrary/CainLibrary/Walls/Metal/TinWall_01_3m_rusty.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0E8669AE74}" {
+   AttachType EntitySlotInfo backoftruck {
+    PivotID "Scene_Root"
+    Offset -0.5 2.3 2
+    Angles 265 0 0
+    Prefab "{70089B3325834C24}Prefabs/Particles/explosion_debris_metal/dst_metal_01.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0F6443EF13}" {
+   AttachType EntitySlotInfo backoftruck {
+    PivotID "Scene_Root"
+    Offset 0 0.4 -3.8
+    Prefab "{0828B7651DDBBA06}Prefabs/Structures/BuildingParts/Doors/Door_MetalGate_USSR_02/Door_MetalGate_USSR_02_small_LEFT_EXT_COV_B_base.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  BaseSlotComponent "{684D3E0FD1196325}" {
+   AttachType EntitySlotInfo backoftruck3 {
+    PivotID "Scene_Root"
+    Offset -1.5 0.5 -4
+    Prefab "{703FE974C4A6572C}Prefabs/Structures/BuildingParts/Doors/Door_WoodenWall_02_LEFT_EXT_COV_B.et"
+    DisablePhysicsInteraction 1
+   }
+  }
+  SlotManagerComponent "{55BCE45E438E4CFF}" {
+   Slots {
+    EntitySlotInfo lamp_off {
+     PivotID "v_root"
+     Offset -1.24 2.72 0.35
+     Angles 0 270 0
+     Prefab "{C853CBEB57B4DD3E}Prefabs/Structures/BuildingParts/Lights/BC_RadioTruck_Light_Off.et"
+     DisablePhysicsInteraction 1
+    }
+    EntitySlotInfo lamp_on {
+     PivotID "v_root"
+     Offset -1.24 2.72 0.35
+     Angles 0 270 0
+     Prefab "{AD5FC1DA77BDA949}Prefabs/Structures/BuildingParts/Lights/BC_RadioTruck_Light_On.et"
+     DisablePhysicsInteraction 1
+    }
+    EntitySlotInfo wheelcover_right_1 {
+     PivotID "v_wheel_R01_link"
+     Offset 0.7 0.5 0.25
+     Angles 90 90 0
+     Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
+     DisablePhysicsInteraction 1
+     DeactivatePhysicsOnAtaching 1
+    }
+    EntitySlotInfo wheelcover_right_2 {
+     PivotID "v_wheel_R01_link"
+     Offset 0.7 0 0.25
+     Angles 90 90 0
+     Prefab "{DBC50A9B639F46E2}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_US_01_short.et"
+     DisablePhysicsInteraction 1
+     DeactivatePhysicsOnAtaching 1
+    }
+    EntitySlotInfo enginecover_2 {
+     PivotID "Scene_Root"
+     Offset 0.8 1.8 2.9
+     Angles -25 90 -25
+     Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
+     DisablePhysicsInteraction 1
+    }
+    EntitySlotInfo enginecover3 {
+     PivotID "Scene_Root"
+     Offset 1.2 1.6 2.85
+     Angles -45 100 -25
+     Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
+     DisablePhysicsInteraction 1
+    }
+    EntitySlotInfo enginecover4 {
+     PivotID "Scene_Root"
+     Offset -1.1 1.65 2.85
+     Angles 35 90 -15
+     Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
+     DisablePhysicsInteraction 1
+    }
+   }
+  }
+ }
 }

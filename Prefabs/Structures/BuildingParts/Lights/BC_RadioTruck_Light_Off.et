@@ -1,0 +1,13 @@
+GenericEntity : "{8F17372BAB5A9CF8}Prefabs/Structures/BuildingParts/Lights/LightIndustrial_02.et" {
+ ID "5111E74D4E7A8DB6"
+ components {
+  MeshObject "{5111E74D5E891458}" {
+   Materials {
+    MaterialAssignClass "{684D5872B6B5B0E9}" {
+     SourceMaterial "Glass"
+     AssignedMaterial "{08D2B2A355691902}Assets/Structures/BuildingsParts/Lights/Data/Glass_red.emat"
+    }
+   }
+  }
+ }
+}

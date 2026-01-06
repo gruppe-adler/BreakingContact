@@ -110,6 +110,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       Name "Disable Radio Truck"
      }
      VisibilityRange 0.5
+     Duration 30
     }
     GRAD_BC_GetRadioTransmissionDuration "{662698FE3B553C09}" {
      ParentContextList {

@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{2C48D5E3D6D4F9D7}Assets/Structures/BuildingsParts/Lights/LampIndustrial_01/Data/Glass_on_red.emat"
+ Configurations {
+  EMATResourceClass PC {
+  }
+  EMATResourceClass XBOX_ONE : PC {
+  }
+  EMATResourceClass XBOX_SERIES : PC {
+  }
+  EMATResourceClass PS4 : PC {
+  }
+  EMATResourceClass PS5 : PC {
+  }
+  EMATResourceClass HEADLESS : PC {
+  }
+ }
+}

@@ -1,0 +1,35 @@
+GenericEntity : "{8F17372BAB5A9CF8}Prefabs/Structures/BuildingParts/Lights/LightIndustrial_02.et" {
+ ID "5111E74D4E7A8DB6"
+ components {
+  MeshObject "{5111E74D5E891458}" {
+   Materials {
+    MaterialAssignClass "{684D58736370F7F8}" {
+     SourceMaterial "Glass"
+     AssignedMaterial "{2C48D5E3D6D4F9D7}Assets/Structures/BuildingsParts/Lights/LampIndustrial_01/Data/Glass_on_red.emat"
+    }
+   }
+  }
+ }
+ {
+  LightEntity : "{3E3419B86DE31E3B}Prefabs/Structures/BuildingParts/Lights/LightPrefabs/LightIndustrial_02_light_spot_interior.et" {
+   ID "684D587281B0F49F"
+   components {
+    StreetLampComponent "{55A0954A909C9109}" {
+     Enabled 1
+     "Emissive Color" 0.6235 0.0035 0.0035 1
+    }
+   }
+   coords -0.008 -0.052 0.12
+   LV 6
+   ProjectionMap "{A67B65819074C16F}Common/Textures/Light_profiles/LightIndustrial_02_Mask.edds"
+   ClipEV -10
+   Radius 6
+   SpotAngle 140
+   ShowSource 1
+   SourceSize 0.6
+   VolLightOffset 0.07
+   VolLightOffsetUp 0.03
+   VolLightIntensity 0.05
+  }
+ }
+}

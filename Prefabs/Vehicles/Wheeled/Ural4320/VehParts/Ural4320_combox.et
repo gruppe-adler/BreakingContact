@@ -79,7 +79,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       PivotID "v_body_com"
       Offset -1.403 0.7202 -1.2532
      }
-     Radius 2
+     Radius 0.7
     }
    }
    additionalActions {
@@ -99,7 +99,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       "BreakingContactActions"
      }
      UIInfo SCR_ActionContextUIInfo "{662698FE4A97D6D9}" {
-      Name "Toggle Radio Transmission"
      }
      VisibilityRange 0.5
     }

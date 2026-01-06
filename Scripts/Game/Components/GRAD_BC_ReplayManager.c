@@ -32,7 +32,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	
 	// Adaptive replay settings - max 2 minutes replay time
 	protected float m_fAdaptiveSpeed = 1.0; // Calculated speed to fit in max duration
-	protected float m_fMaxReplayDuration = 120.0; // 2 minutes max replay time
+	protected float m_fMaxReplayDuration = 60.0; // 2 minutes max replay time
 	
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};

@@ -21,12 +21,15 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBeShownScript(IEntity user)
 	{
+		// get component in regular intervals due to race condition after spawn
+		GRAD_BC_RadioTruckComponent radioComp = GetRadioTruckComponent(GetOwner());
+		
 		// Only show for BLUFOR players
 		if (!IsUserBlufor(user))
 			return false;
 			
 		// Only show if radio truck is not already disabled
-		if (m_radioTruckComponent && m_radioTruckComponent.GetIsDisabled())
+		if (radioComp && radioComp.GetIsDisabled())
 			return false;
 			
 		return CanBePerformedScript(user);
@@ -48,8 +51,11 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 		if (currentPhase != EBreakingContactPhase.GAME)
 			return false;
 
+		// Ensure component is loaded
+		GRAD_BC_RadioTruckComponent radioComp = GetRadioTruckComponent(GetOwner());
+
 		// Only allow if radio truck is not already disabled
-		if (m_radioTruckComponent && m_radioTruckComponent.GetIsDisabled())
+		if (radioComp && radioComp.GetIsDisabled())
 			return false;
 			
 		return true;
@@ -85,6 +91,9 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
 		Print("BC Debug - PerformAction() DisableRadioTruck", LogLevel.NORMAL);
+
+		// Ensure component is loaded
+		GetRadioTruckComponent(pOwnerEntity);
 
 		if (!m_radioTruckComponent)
 		{
@@ -123,6 +132,26 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 		
 		// Reset start time for next use
 		m_fStartTime = -1;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	private GRAD_BC_RadioTruckComponent GetRadioTruckComponent(IEntity owner)
+	{
+	    // If we found it previously, return it
+	    if (m_radioTruckComponent)
+	        return m_radioTruckComponent;
+	
+	    // If not, try to find it again (this fixes the race condition)
+	    IEntity radioTruck = owner.GetParent();
+	    if (!radioTruck) {
+			Print("BC Debug - no radio truck to be found with GetRadioTruckComponent", LogLevel.WARNING);
+	        return null;
+		}
+	
+	    m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		Print("BC Debug - filling radio truck component in GetRadioTruckComponent", LogLevel.NORMAL);
+	    
+	    return m_radioTruckComponent;
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -48,8 +48,12 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		if (!IsUserBlufor(user))
 			return false;
 		
-		// Check if transmission is in TRANSMITTING state (not just the active flag)
-		return m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING;
+		bool canBeDestroyed = (
+			m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING ||
+			m_transmissionComponent.GetTransmissionState() == ETransmissionState.INTERRUPTED
+		);
+		// Check if transmission is in TRANSMITTING or INTERRUPTED state (finished transmissions cannot be destroyed)
+		return canBeDestroyed;
 	}
 	
 	//------------------------------------------------------------------------------------------------

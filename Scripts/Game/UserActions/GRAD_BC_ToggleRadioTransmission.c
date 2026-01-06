@@ -197,23 +197,6 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	{
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(vehicle.FindComponent(SlotManagerComponent));
 		
-		/*
-		array<EntitySlotInfo> allSlots = {};
-		slotManager.GetSlotInfos(allSlots);
-		
-		Print("------------- DEBUG SLOT NAMES -------------");
-		foreach (EntitySlotInfo slot : allSlots)
-		{
-		    string name = slot.GetSourceName();
-		    IEntity attached = slot.GetAttachedEntity();
-		    string attachedName = "Nothing";
-		    if (attached) attachedName = attached.GetName();
-		    
-		    Print("Slot SourceName: '" + name + "' | Attached Entity: " + attachedName);
-		}
-		Print("--------------------------------------------");
-		*/
-		
 		if (slotManager)
 		{
 		    // Try to find the slot info directly by string name
@@ -226,44 +209,46 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 				IEntity lamp_off = slotInfoOff.GetAttachedEntity();
 		        if (lamp_on && lamp_off && state)
 		        {
-		            // Toggle visibility logic here
+		            // Toggle visibility of the lamp models
 		            lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 					lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 		            Print("Success: Lamp turned on");
 
 					IEntity child = lamp_on.GetChildren();
-
-					// 3. Loop through all children to find the light
 					while (child)
 					{
-						// Option A: Check by Name (if you know it specifically)
-						// if (child.GetName() == "LightPoint") 
+						// Find the actual light entity and enable it
+						LightEntity lightEntity = LightEntity.Cast(child);
+						if (lightEntity)
+							lightEntity.SetEnabled(true);
 						
-						// Option B: Just turn off everything inside the lamp
+						// Also ensure the child model is visible
 						child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-						
-						// Move to the next sibling
 						child = child.GetSibling();
 					}
 		        }
 		        else if (lamp_on && lamp_off && !state)
 		        {
+					// Toggle visibility of the lamp models
 					lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 					lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-		             Print("Success: Lamp turned off");
+		            Print("Success: Lamp turned off");
 
 					IEntity child = lamp_on.GetChildren();
-
-					// 3. Loop through all children to find the light
 					while (child)
 					{
-						// Option A: Check by Name (if you know it specifically)
-						// if (child.GetName() == "LightPoint") 
+						// Find the actual light entity and disable it
+						LightEntity lightEntity = LightEntity.Cast(child);
+						if (lightEntity) { lightEntity.SetEnabled(false);
+							Print("Lamp set disabled light entity");
+							
+							Print(string.Format("BC Debug - Lamp set disabled light entity %1", lightEntity.IsEnabled()), LogLevel.NORMAL);
+						} else {
+							Print("Lamp shit cant find light entity");
+						}
 						
-						// Option B: Just turn off everything inside the lamp
+						// Also hide the child model
 						child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-						
-						// Move to the next sibling
 						child = child.GetSibling();
 					}
 		        }
@@ -273,7 +258,5 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		        Print("Error: Could not find any slot named 'lamp_on' or 'lamp_off'", LogLevel.ERROR);
 		    }
 		}
-
-		
 	}
 }

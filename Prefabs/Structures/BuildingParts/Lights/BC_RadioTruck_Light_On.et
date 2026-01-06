@@ -15,7 +15,6 @@ GenericEntity : "{8F17372BAB5A9CF8}Prefabs/Structures/BuildingParts/Lights/Light
    ID "684D587281B0F49F"
    components {
     StreetLampComponent "{55A0954A909C9109}" {
-     Enabled 1
      "Emissive Color" 0.6235 0.0035 0.0035 1
     }
    }

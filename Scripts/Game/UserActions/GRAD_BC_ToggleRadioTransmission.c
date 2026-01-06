@@ -230,12 +230,42 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		            lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 					lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 		            Print("Success: Lamp turned on");
+
+					IEntity child = lamp_on.GetChildren();
+
+					// 3. Loop through all children to find the light
+					while (child)
+					{
+						// Option A: Check by Name (if you know it specifically)
+						// if (child.GetName() == "LightPoint") 
+						
+						// Option B: Just turn off everything inside the lamp
+						child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+						
+						// Move to the next sibling
+						child = child.GetSibling();
+					}
 		        }
 		        else if (lamp_on && lamp_off && !state)
 		        {
 					lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 					lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 		             Print("Success: Lamp turned off");
+
+					IEntity child = lamp_on.GetChildren();
+
+					// 3. Loop through all children to find the light
+					while (child)
+					{
+						// Option A: Check by Name (if you know it specifically)
+						// if (child.GetName() == "LightPoint") 
+						
+						// Option B: Just turn off everything inside the lamp
+						child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+						
+						// Move to the next sibling
+						child = child.GetSibling();
+					}
 		        }
 		    }
 		    else

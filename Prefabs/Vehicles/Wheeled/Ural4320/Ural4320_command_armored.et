@@ -8,8 +8,8 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     Angles 0 0 90
     Prefab "{72A74605EEEF1A8D}Prefabs/Structures/BuildingParts/Doors/Door_Metal_01_RIGHT_EXT_COV_B.et"
     DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
    }
-   DisablePhysicsInteraction 0
   }
   BaseSlotComponent "{684D3E01DE20DBFB}" {
    AttachType EntitySlotInfo sideskirt1 {

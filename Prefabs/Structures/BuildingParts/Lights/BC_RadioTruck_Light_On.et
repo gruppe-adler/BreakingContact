@@ -20,6 +20,7 @@ GenericEntity : "{8F17372BAB5A9CF8}Prefabs/Structures/BuildingParts/Lights/Light
     }
    }
    coords -0.008 -0.052 0.12
+   Color 0.5608 0.0706 0.0706 1
    LV 6
    ProjectionMap "{A67B65819074C16F}Common/Textures/Light_profiles/LightIndustrial_02_Mask.edds"
    ClipEV -10

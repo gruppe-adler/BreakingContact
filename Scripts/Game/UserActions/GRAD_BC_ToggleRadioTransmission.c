@@ -139,40 +139,57 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
-		IEntity radioTruck = pOwnerEntity.GetParent(); // parent of box is truck itself
+		GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+	}
+
+	void InitComponents(IEntity pOwnerEntity)
+	{
+		IEntity radioTruck = pOwnerEntity.GetParent();
 		if (!radioTruck)
 		{
-			Print("BC Debug - no parent for disableradiotruck action", LogLevel.WARNING);
+			Print("BC Debug - no parent for action, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
 			return;
 		}
-		GetGame().GetCallqueue().CallLater(InitLamps, 100, false, pOwnerEntity);
-	}
-	
-	void InitLamps(IEntity pOwnerEntity)
-	{
-	    // Check if the SlotManager exists yet (usually yes)
-		IEntity radioTruck = pOwnerEntity.GetParent();
-	    SlotManagerComponent slotManager = SlotManagerComponent.Cast(radioTruck.FindComponent(SlotManagerComponent));
-	    if (!slotManager) return;
-	
-	    // Try to get the slot
-	    EntitySlotInfo slot = slotManager.GetSlotByName("lamp_on");
-	
-	    // 3. Safety Check: Is the slot there AND is the entity attached?
-	    if (slot && slot.GetAttachedEntity())
-	    {
-	        // FOUND IT! Hide it immediately.
-	        // (Assuming you want it off by default)
-	        ToggleLampState(radioTruck, false); 
-	        Print("Lamps initialized and hidden.");
-	    }
-	    else
-	    {
-	        // NOT FOUND YET. 
-	        // The attachment hasn't spawned. Try again in another 100ms.
-	        Print("Lamp not ready yet, retrying...");
-	        GetGame().GetCallqueue().CallLater(InitLamps, 100, false, pOwnerEntity);
-	    }
+
+		if (!m_radioTruckComponent)
+		{
+			m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+			if (!m_radioTruckComponent)
+			{
+				Print("BC Debug - no radio truck component on parent of action, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+				return;
+			}
+		}
+
+		// Check if the SlotManager exists yet (usually yes)
+		SlotManagerComponent slotManager = SlotManagerComponent.Cast(radioTruck.FindComponent(SlotManagerComponent));
+		if (!slotManager)
+		{
+			Print("BC Debug - no slot manager on parent of action, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			return;
+		}
+
+		// Try to get the slot
+		EntitySlotInfo slot = slotManager.GetSlotByName("lamp_on");
+
+		// 3. Safety Check: Is the slot there AND is the entity attached?
+		if (slot && slot.GetAttachedEntity())
+		{
+			// FOUND IT! Hide it immediately.
+			// (Assuming you want it off by default)
+			ToggleLampState(radioTruck, false);
+			Print("Lamps initialized and hidden.");
+		}
+		else
+		{
+			// NOT FOUND YET.
+			// The attachment hasn't spawned. Try again in another 100ms.
+			Print("Lamp not ready yet, retrying...");
+			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+		}
 	}
 	
 
@@ -180,6 +197,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	{
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(vehicle.FindComponent(SlotManagerComponent));
 		
+		/*
 		array<EntitySlotInfo> allSlots = {};
 		slotManager.GetSlotInfos(allSlots);
 		
@@ -194,6 +212,7 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		    Print("Slot SourceName: '" + name + "' | Attached Entity: " + attachedName);
 		}
 		Print("--------------------------------------------");
+		*/
 		
 		if (slotManager)
 		{
@@ -208,14 +227,14 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		        if (lamp_on && lamp_off && state)
 		        {
 		            // Toggle visibility logic here
-		            lamp_on.SetFlags(EntityFlags.VISIBLE, true);  
-					lamp_off.ClearFlags(EntityFlags.VISIBLE, true);
+		            lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+					lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 		            Print("Success: Lamp turned on");
 		        }
 		        else if (lamp_on && lamp_off && !state)
 		        {
-					lamp_off.SetFlags(EntityFlags.VISIBLE, true);  
-					lamp_on.ClearFlags(EntityFlags.VISIBLE, true);
+					lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+					lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 		             Print("Success: Lamp turned off");
 		        }
 		    }

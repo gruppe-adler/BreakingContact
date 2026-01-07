@@ -6,7 +6,7 @@ Vehicle : "{99F1610551D54D17}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_base.et" {
     m_EntityBudgetCost {
      SCR_EntityBudgetValue "{5EDC86E4AF8908B6}" {
       m_BudgetType CAMPAIGN
-      m_Value 200
+      m_Value 50
      }
     }
    }

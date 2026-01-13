@@ -25,7 +25,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	[Attribute(defvalue: "900", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long one transmission needs to last.", category: "Breaking Contact - Parameters", params: "1 600 1")]
 	protected int m_TransmissionDuration;
 	
-	[Attribute(defvalue: "1000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "700 3000 1000")]
+	[Attribute(defvalue: "3000", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How far away BLUFOR spawns from OPFOR.", category: "Breaking Contact - Parameters", params: "1000 10000 100")]
 	protected int m_iBluforSpawnDistance;
 	
 	[Attribute(defvalue: "10", uiwidget: UIWidgets.Slider, enums: NULL, desc: "How long in seconds the notifications should be displayed", category: "Breaking Contact - Parameters", params: "1 30 1")]
@@ -1438,32 +1438,37 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	// Method to find the closest road position
 	protected vector FindSpawnPointOnRoad(vector position)
 	{
-	    // Single search with larger radius instead of progressive expansion
-	    array<vector> roadPoints = GetNearestRoadPos(position, 200);
-	    
-	    // If no road found, return the original position as last resort (don't return vector.Zero)
-	    if (!roadPoints || roadPoints.IsEmpty())
-	    {
-	        Print(string.Format("BCM - No road found near %1, using original position", position.ToString()), LogLevel.WARNING);
-	        return position; // Use player-selected position as absolute fallback
-	    }
-	    
-	    // Find the closest point from the road points (optimized single pass)
-	    vector closestPos = roadPoints[0];
-	    float minDistance = vector.Distance(position, closestPos);
-	    
-	    for (int i = 1, count = roadPoints.Count(); i < count; i++)
-	    {
-	        float distance = vector.Distance(position, roadPoints[i]);
-	        if (distance < minDistance)
-	        {
-	            minDistance = distance;
-	            closestPos = roadPoints[i];
-	        }
-	    }
-	    
-	    Print(string.Format("BCM - Found road position %1m from original", minDistance), LogLevel.VERBOSE);
-	    return closestPos;
+		// Progressive search to prioritize closer roads
+		// 20m -> 50m -> 100m -> 200m
+		array<int> searchRadii = {20, 50, 100, 200};
+		
+		foreach (int radius : searchRadii)
+		{
+			array<vector> roadPoints = GetNearestRoadPos(position, radius);
+			
+			if (roadPoints && !roadPoints.IsEmpty())
+			{
+				// Find the closest point from the road points
+				vector closestPos = roadPoints[0];
+				float minDistance = vector.Distance(position, closestPos);
+				
+				for (int i = 1, count = roadPoints.Count(); i < count; i++)
+				{
+					float distance = vector.Distance(position, roadPoints[i]);
+					if (distance < minDistance)
+					{
+						minDistance = distance;
+						closestPos = roadPoints[i];
+					}
+				}
+				
+				Print(string.Format("BCM - Found road position %1m from original (Search Radius: %2m)", minDistance, radius), LogLevel.VERBOSE);
+				return closestPos;
+			}
+		}
+		
+		Print(string.Format("BCM - No road found near %1 (Max Radius: 200m), using original position", position.ToString()), LogLevel.WARNING);
+		return position; // Use player-selected position as absolute fallback
 	}
 	
 	// Method to find the second closest road position for e.g. road direction
@@ -1597,12 +1602,22 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    vector roadPosition;
 	    
 	    // Define min and max distance bounds
-	    float minDistance = m_iBluforSpawnDistance - 100;
-	    float maxDistance = m_iBluforSpawnDistance + 100;
+	    // Start with strict adherence to the configured distance (default 3000m)
+	    float minDistance = m_iBluforSpawnDistance - 200;
+	    float maxDistance = m_iBluforSpawnDistance + 200;
 	    
 	    // Max 100 iterations to find valid position
 	    while (!foundPositionOnLand && loopCount < 100) {
 	        loopCount++;
+	        
+	        // If we struggle to find a position, relax the constraints
+	        // User requirement: allow down to 2km or further away if 3km isn't possible
+	        if (loopCount == 25)
+	        {
+	            minDistance = 2000.0; // Minimum 2km
+	            maxDistance = m_iBluforSpawnDistance + 2000.0; // Allow much further away
+	            Print(string.Format("BCM - Relaxing BLUFOR spawn search radius: %1m - %2m", minDistance, maxDistance), LogLevel.NORMAL);
+	        }
 	        
 	        // Generate random direction and distance
 	        int degrees = Math.RandomIntInclusive(0, 360);
@@ -1634,7 +1649,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        
 	        // Quick checks first (cheaper operations)
 	        float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
-	        if (distanceToOpfor < minDistance || distanceToOpfor > maxDistance)
+	        
+	        // Ensure we respect the minimum distance
+	        if (distanceToOpfor < minDistance)
 	            continue;
 	        
 	        // Water check (more expensive)

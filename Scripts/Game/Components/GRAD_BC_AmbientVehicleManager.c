@@ -8,7 +8,7 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	// ------------------------------------------------------------------------------------------------
 	// CONSTANTS (Adjustable)
 	// ------------------------------------------------------------------------------------------------
-	const int TARGET_VEHICLE_COUNT = 20; 		// Total vehicles to spawn
+	const int TARGET_VEHICLE_COUNT = 50; 		// Total vehicles to spawn
 	const int MAX_SPAWN_ATTEMPTS = 500;  		// Safety break for the loop
 	const float BUILDING_SEARCH_RADIUS = 40.0; 	// How close a building must be to the road
 	const float ROAD_SEARCH_RADIUS = 100.0; 	// Radius to find road from random point
@@ -20,7 +20,11 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	// ATTRIBUTES
 	// ------------------------------------------------------------------------------------------------
 	[Attribute(desc: "List of vehicle prefabs to spawn", params: "et")]
-	protected ref array<ResourceName> m_aVehiclePrefabs;
+	protected ref array<ResourceName> m_aVehiclePrefabs = {
+		"{49C909AFD66E90A1}Prefabs/Vehicles/Wheeled/S1203/S1203_transport_randomized.et",
+		"{128253A267BE9424}Prefabs/Vehicles/Wheeled/S105/S105_randomized.et",
+		"{57A441224AC02CF3}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_covered_CIV_Randomized.et"
+	};
 	
 	// ------------------------------------------------------------------------------------------------
 	// MEMBERS
@@ -28,6 +32,7 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	protected int m_iSpawnedCount = 0;
 	protected int m_iTotalAttempts = 0;
 	protected bool m_bBuildingFound = false; // Helper for query callback
+	protected bool m_bCollisionFound = false; // Helper for collision callback
 	
 	// ------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
@@ -139,6 +144,18 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		
 		IEntity vehicle = GetGame().SpawnEntityPrefab(res, GetGame().GetWorld(), params);
 		if (!vehicle) return;
+
+		// --- BC MOD: Register ambient vehicle with replay manager ---
+		Vehicle v = Vehicle.Cast(vehicle);
+		if (v)
+		{
+			GRAD_BC_ReplayManager replayMgr = GRAD_BC_ReplayManager.GetInstance();
+			if (replayMgr)
+			{
+				replayMgr.RegisterTrackedVehicle(v);
+				Print("BC Debug - Registered ambient vehicle with replay manager", LogLevel.NORMAL);
+			}
+		}
 		
 		// Align with road (0 or 180 degrees)
 		vector angles = roadDir.VectorToAngles();
@@ -255,7 +272,29 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		
 		// Check for MapDescriptor with BUILDING type
 		SCR_MapDescriptorComponent mapDesc = SCR_MapDescriptorComponent.Cast(e.FindComponent(SCR_MapDescriptorComponent));
-		if (mapDesc && mapDesc.GetBaseType() == EMapDescriptorType.BUILDING)
+		if (mapDesc)
+		{
+			static const array<EMapDescriptorType> allowedTypes = {
+				EMapDescriptorType.MDT_BUILDING,
+				EMapDescriptorType.MDT_HOUSE,
+				EMapDescriptorType.MDT_FUELSTATION,
+				EMapDescriptorType.MDT_BUSSTOP,
+				EMapDescriptorType.MDT_BUSSTATION,
+				EMapDescriptorType.MDT_HOTEL,
+				EMapDescriptorType.MDT_PARKING,
+				EMapDescriptorType.MDT_PORT,
+				EMapDescriptorType.MDT_AIRPORT
+			};
+			EMapDescriptorType type = mapDesc.GetBaseType();
+			foreach (EMapDescriptorType allowed : allowedTypes)
+			{
+				if (type == allowed)
+				{
+					m_bBuildingFound = true;
+					return false; // Stop query
+				}
+			}
+		}
 		{
 			m_bBuildingFound = true;
 			return false; // Stop query
@@ -272,18 +311,19 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		
 		// Using TraceMove or just QueryEntities
 		// Let's use QueryEntities to check for obstacles
-		bool collision = false;
+		m_bCollisionFound = false;
 		GetGame().GetWorld().QueryEntitiesBySphere(checkPos, CLEARANCE_CHECK_RADIUS, 
-			// Lambda/Callback to detect collision
-			bool (IEntity e) {
-				if (e.GetPhysics()) {
-					collision = true;
-					return false;
-				}
-				return true;
-			}, 
-			null, EQueryEntitiesFlags.ALL);
+			CollisionCheckCallback, null, EQueryEntitiesFlags.ALL);
 			
-		return collision;
+		return m_bCollisionFound;
+	}
+	
+	protected bool CollisionCheckCallback(IEntity e)
+	{
+		if (e.GetPhysics()) {
+			m_bCollisionFound = true;
+			return false; // Stop query
+		}
+		return true; // Continue query
 	}
 }

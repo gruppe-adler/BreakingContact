@@ -6,6 +6,7 @@ class GRAD_BC_ReplayFrame : Managed
 	ref array<ref GRAD_BC_ProjectileSnapshot> projectiles = {};
 	ref array<ref GRAD_BC_TransmissionSnapshot> transmissions = {};
 	ref array<ref GRAD_BC_RadioTruckSnapshot> radioTrucks = {};
+	ref array<ref GRAD_BC_VehicleSnapshot> vehicles = {};
 	
 	static GRAD_BC_ReplayFrame Create(float time)
 	{
@@ -41,6 +42,28 @@ class GRAD_BC_PlayerSnapshot : Managed
 		snapshot.unitRole = role;
 		return snapshot;
 	}
+};
+
+class GRAD_BC_VehicleSnapshot : Managed
+{
+    RplId entityId;
+    string vehicleType;
+    string factionKey;
+    vector position;
+    vector angles;
+	bool isEmpty;
+
+    static GRAD_BC_VehicleSnapshot Create(RplId id, string type, string faction, vector pos, vector ang, bool isEmpty)
+    {
+        GRAD_BC_VehicleSnapshot snapshot = new GRAD_BC_VehicleSnapshot();
+        snapshot.entityId = id;
+        snapshot.vehicleType = type;
+        snapshot.factionKey = faction;
+        snapshot.position = pos;
+        snapshot.angles = ang;
+		snapshot.isEmpty = isEmpty;
+        return snapshot;
+    }
 };
 
 class GRAD_BC_ProjectileSnapshot : Managed

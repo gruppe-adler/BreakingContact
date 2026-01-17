@@ -921,6 +921,21 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		vector finalPos = m_westCommandVehicle.GetOrigin();
 		Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+
+		// --- BC MOD: Register BLUFOR truck with replay manager ---
+		if (m_westCommandVehicle)
+		{
+			Vehicle vehicle = Vehicle.Cast(m_westCommandVehicle);
+			if (vehicle)
+			{
+				GRAD_BC_ReplayManager replayMgr = GRAD_BC_ReplayManager.GetInstance();
+				if (replayMgr)
+				{
+					replayMgr.RegisterTrackedVehicle(vehicle);
+					Print("BC Debug - Registered BLUFOR truck with replay manager", LogLevel.NORMAL);
+				}
+			}
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -971,6 +986,21 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 		vector finalPos = m_radioTruck.GetOrigin();
 		Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
+
+		// --- BC MOD: Register OPFOR radio truck with replay manager ---
+		if (m_radioTruck)
+		{
+			Vehicle vehicle = Vehicle.Cast(m_radioTruck);
+			if (vehicle)
+			{
+				GRAD_BC_ReplayManager replayMgr = GRAD_BC_ReplayManager.GetInstance();
+				if (replayMgr)
+				{
+					replayMgr.RegisterTrackedVehicle(vehicle);
+					Print("BC Debug - Registered OPFOR radio truck with replay manager", LogLevel.NORMAL);
+				}
+			}
+		}
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -1694,15 +1724,24 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	    // Failed to find valid position after max iterations
 	    Print(string.Format("BCM - findBluforPosition failed to find valid road position after %1 loops", loopCount), LogLevel.ERROR);
 	    
-	    // Fallback to original position if no valid road position found
-	    roadPosition = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, 0);
-	    vector fallbackDir = Vector(1, 0, 0);
-	    
-	    array<vector> output = new array<vector>();
-	    output.Insert(roadPosition);
-	    output.Insert(fallbackDir);
-	    
-	    return output;
+			// Fallback to original position if no valid road position found
+			int fallbackAttempts = 0;
+			vector fallbackPos = vector.Zero;
+			while (fallbackAttempts < 20)
+			{
+				fallbackPos = GetPointOnCircle(opforPosition, m_iBluforSpawnDistance, Math.RandomIntInclusive(0, 359));
+				if (!SurfaceIsWater(fallbackPos))
+					break;
+				fallbackAttempts++;
+			}
+
+			// If all attempts fail, use last fallbackPos (may be in water, but we tried)
+			vector fallbackDir = Vector(1, 0, 0);
+			array<vector> output = new array<vector>();
+			output.Insert(fallbackPos);
+			output.Insert(fallbackDir);
+			Print(string.Format("BCM - Fallback BLUFOR spawn position after %1 attempts: %2 (in water: %3)", fallbackAttempts, fallbackPos.ToString(), SurfaceIsWater(fallbackPos)), LogLevel.WARNING);
+			return output;
 	}
 	
 	// helper to find point on circle

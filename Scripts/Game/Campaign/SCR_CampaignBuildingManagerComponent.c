@@ -579,6 +579,22 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 
 		if (m_OnEntitySpawnedByProvider)
 			m_OnEntitySpawnedByProvider.Invoke(prefabID, editableEntity, playerId, provider);
+
+		// --- BC MOD: Register spawned vehicles with replay manager ---
+		IEntity spawnedEntity = editableEntity.GetOwner();
+		if (spawnedEntity)
+		{
+			Vehicle vehicle = Vehicle.Cast(spawnedEntity);
+			if (vehicle)
+			{
+				GRAD_BC_ReplayManager replayMgr = GRAD_BC_ReplayManager.GetInstance();
+				if (replayMgr)
+				{
+					replayMgr.RegisterTrackedVehicle(vehicle);
+					Print("BC Debug - Registered spawned vehicle with replay manager", LogLevel.NORMAL);
+				}
+			}
+		}
 	}
 
 	//------------------------------------------------------------------------------------------------

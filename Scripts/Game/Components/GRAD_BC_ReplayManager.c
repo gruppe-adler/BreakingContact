@@ -37,6 +37,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
 	
+	// Tracked vehicles
+	protected ref array<IEntity> m_trackedVehicles;
+	
 	// RPC for client communication
 	protected RplComponent m_RplComponent;
 	
@@ -47,6 +50,27 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	static GRAD_BC_ReplayManager GetInstance()
 	{
 		return s_Instance;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Public method to register a vehicle for replay tracking
+	void RegisterTrackedVehicle(Vehicle vehicle)
+	{
+		if (!vehicle)
+			return;
+
+		if (!m_trackedVehicles)
+			m_trackedVehicles = new array<IEntity>();
+
+		if (m_trackedVehicles.Find(vehicle) == -1)
+		{
+			m_trackedVehicles.Insert(vehicle);
+			Print(string.Format("GRAD_BC_ReplayManager: Registered vehicle for tracking: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+		}
+		else
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Vehicle already tracked: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.VERBOSE);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -76,6 +100,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		super.OnPostInit(owner);
 		
 		s_Instance = this;
+		
+		m_trackedVehicles = new array<IEntity>();
 		
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
@@ -136,6 +162,43 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		else
 		{
 			Print("GRAD_BC_ReplayManager: BCM not found during initialization", LogLevel.WARNING);
+		}
+		
+		SCR_CampaignBuildingManagerComponent buildingManager = SCR_CampaignBuildingManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_CampaignBuildingManagerComponent));
+		if (buildingManager)
+		{
+			buildingManager.GetOnEntitySpawnedByProvider().Insert(OnVehicleSpawned);
+			Print("GRAD_BC_ReplayManager: Hooked into vehicle spawn event", LogLevel.NORMAL);
+		}
+		else
+		{
+			Print("GRAD_BC_ReplayManager: Building manager not found, cannot track spawned vehicles", LogLevel.WARNING);
+		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void OnVehicleSpawned(int prefabID, SCR_EditableEntityComponent editableEntity, int playerId, SCR_CampaignBuildingProviderComponent provider)
+	{
+		if (!editableEntity)
+			return;
+	
+		IEntity spawnedEntity = editableEntity.GetOwner();
+		if (!spawnedEntity)
+			return;
+
+		Print(string.Format("GRAD_BC_ReplayManager: Entity spawned: %1", spawnedEntity.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
+
+		Vehicle vehicle = Vehicle.Cast(spawnedEntity);
+		if (vehicle)
+		{
+			if (!m_trackedVehicles)
+				m_trackedVehicles = new array<IEntity>();
+			
+			if (m_trackedVehicles.Find(vehicle) == -1)
+			{
+				m_trackedVehicles.Insert(vehicle);
+				Print(string.Format("GRAD_BC_ReplayManager: Tracked new vehicle: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+			}
 		}
 	}
 	
@@ -234,7 +297,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		foreach (GRAD_BC_ReplayFrame frame : m_replayData.frames)
 		{
 			// Keep frame if it has any data
-			if (frame.players.Count() > 0 || frame.projectiles.Count() > 0 || frame.transmissions.Count() > 0)
+			if (frame.players.Count() > 0 || frame.projectiles.Count() > 0 || frame.transmissions.Count() > 0 || frame.vehicles.Count() > 0)
 			{
 				cleanedFrames.Insert(frame);
 			}
@@ -278,6 +341,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Record player positions
 		RecordPlayers(frame);
 		
+		RecordTrackedVehicles(frame);
+		
 		// Record projectiles if enabled
 		if (m_bRecordProjectiles)
 		{
@@ -293,6 +358,99 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Add frame to replay data
 		m_replayData.frames.Insert(frame);
 		m_fLastRecordTime = currentTime;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void RecordTrackedVehicles(GRAD_BC_ReplayFrame frame)
+	{
+		if (!m_trackedVehicles)
+			return;
+			
+		Print(string.Format("GRAD_BC_ReplayManager: Recording %1 tracked vehicles", m_trackedVehicles.Count()), LogLevel.NORMAL);
+			
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		IEntity radioTruck = null;
+		if (bcm)
+			radioTruck = bcm.GetRadioTruck();
+	
+		foreach (IEntity entity : m_trackedVehicles)
+		{
+			if (!entity)
+				continue;
+			
+			Vehicle vehicle = Vehicle.Cast(entity);
+			if (!vehicle)
+				continue;
+			
+			if (vehicle == radioTruck)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: Skipping radio truck, already handled"), LogLevel.NORMAL);
+				continue;
+			}
+	
+			// Check if a player is in this vehicle. If so, it's already recorded by RecordPlayers.
+			bool playerInThisVehicle = false;
+			PlayerManager playerManager = GetGame().GetPlayerManager();
+			if (playerManager)
+			{
+				array<int> playerIds = {};
+				playerManager.GetPlayers(playerIds);
+				foreach (int playerId : playerIds)
+				{
+					IEntity controlledChar = playerManager.GetPlayerControlledEntity(playerId);
+					if (!controlledChar) continue;
+					
+					SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(controlledChar);
+					if (character)
+					{
+						Print(string.Format("[ReplayDebug] Checking playerId=%1, character=%2, IsInVehicle=%3", playerId, character, character.IsInVehicle()), LogLevel.NORMAL);
+						if (character.IsInVehicle())
+						{
+							IEntity parent = character.GetParent();
+							Print(string.Format("[ReplayDebug]   Parent=%1, Vehicle=%2", parent, vehicle), LogLevel.NORMAL);
+							if (parent && parent == vehicle)
+							{
+								Print(string.Format("[ReplayDebug]   Player %1 is in this vehicle!", playerId), LogLevel.NORMAL);
+								playerInThisVehicle = true;
+								break;
+							}
+						}
+					}
+				}
+			}
+			if (playerInThisVehicle)
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: Skipping vehicle %1, player is inside", vehicle.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
+				continue;
+			}
+	
+			// Now we have an empty vehicle. Record it.
+			vector position = vehicle.GetOrigin();
+			vector angles = vehicle.GetYawPitchRoll();
+			string vehicleType = vehicle.GetPrefabData().GetPrefabName();
+			
+			FactionAffiliationComponent factionComponent = FactionAffiliationComponent.Cast(vehicle.FindComponent(FactionAffiliationComponent));
+			string factionKey = "";
+			if (factionComponent)
+				factionKey = factionComponent.GetAffiliatedFaction().GetFactionKey();
+				
+			RplComponent rpl = RplComponent.Cast(vehicle.FindComponent(RplComponent));
+			if (!rpl)
+				continue;
+
+			Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for empty vehicle: %1", vehicleType), LogLevel.NORMAL);
+
+			GRAD_BC_VehicleSnapshot snapshot = GRAD_BC_VehicleSnapshot.Create(
+				rpl.Id(), 
+				vehicleType, 
+				factionKey,
+				position, 
+				angles,
+				!playerInThisVehicle
+			);
+			
+			frame.vehicles.Insert(snapshot);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -354,6 +512,17 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			GRAD_BC_PlayerSnapshot snapshot = GRAD_BC_PlayerSnapshot.Create(
 				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole
 			);
+
+			// Debug: Log vehicle state for each player (first 20 only)
+			static int vehicleRecordDebugCount = 0;
+			vehicleRecordDebugCount++;
+			if (vehicleRecordDebugCount <= 20)
+			{
+				Print(string.Format(
+					"GRAD_BC_ReplayManager: PlayerRecord id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitRole='%5'", 
+					playerId, playerName, isInVehicle, vehicleType, unitRole
+				), LogLevel.NORMAL);
+			}
 			
 			// Debug: Log recording positions and angles for first few frames
 			static int recordLogCount = 0;
@@ -820,6 +989,14 @@ void StartLocalReplayPlayback()
 		ref array<vector> transPositions = {};
 		ref array<int> transStates = {};
 		ref array<float> transProgress = {};
+
+		// Vehicle data arrays
+		ref array<float> vehicleTimestamps = {};
+		ref array<RplId> vehicleIds = {};
+		ref array<string> vehicleTypes = {};
+		ref array<string> vehicleFactions = {};
+		ref array<vector> vehiclePositions = {};
+		ref array<vector> vehicleRotations = {};
 		
 		for (int i = startIndex; i < endIndex; i++)
 		{
@@ -854,6 +1031,17 @@ void StartLocalReplayPlayback()
 				transStates.Insert(transData.state);
 				transProgress.Insert(transData.progress);
 			}
+			
+			// Add vehicle data
+			foreach (GRAD_BC_VehicleSnapshot vehicleData : frame.vehicles)
+			{
+				vehicleTimestamps.Insert(frame.timestamp);
+				vehicleIds.Insert(vehicleData.entityId);
+				vehicleTypes.Insert(vehicleData.vehicleType);
+				vehicleFactions.Insert(vehicleData.factionKey);
+				vehiclePositions.Insert(vehicleData.position);
+				vehicleRotations.Insert(vehicleData.angles);
+			}
 		}
 		
 		// Send player data
@@ -866,6 +1054,10 @@ void StartLocalReplayPlayback()
 		// Send transmission data if any
 		if (transTimestamps.Count() > 0)
 			Rpc(RpcAsk_ReceiveTransmissionChunk, transTimestamps, transPositions, transStates, transProgress);
+
+		// Send vehicle data if any
+		if (vehicleTimestamps.Count() > 0)
+			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -890,6 +1082,55 @@ void StartLocalReplayPlayback()
 		m_replayData.startTime = startTime;
 		
 		Print(string.Format("GRAD_BC_ReplayManager: Client replay data initialized - Duration: %1", totalDuration), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_ReceiveVehicleChunk(array<float> timestamps, array<RplId> vehicleIds, array<string> vehicleTypes, array<string> vehicleFactions, array<vector> vehiclePositions, array<vector> vehicleRotations)
+	{
+		if (Replication.IsServer())
+			return;
+			
+		if (!m_replayData)
+		{
+			Print("GRAD_BC_ReplayManager: Replay data not initialized!", LogLevel.ERROR);
+			return;
+		}
+		
+		for (int i = 0; i < timestamps.Count(); i++)
+		{
+			float timestamp = timestamps[i];
+			
+			GRAD_BC_ReplayFrame frame = null;
+			for (int j = 0; j < m_replayData.frames.Count(); j++)
+			{
+				if (m_replayData.frames[j].timestamp == timestamp)
+				{
+					frame = m_replayData.frames[j];
+					break;
+				}
+			}
+			
+			if (!frame)
+			{
+				frame = new GRAD_BC_ReplayFrame();
+				frame.timestamp = timestamp;
+				m_replayData.frames.Insert(frame);
+			}
+			
+			GRAD_BC_VehicleSnapshot vehicleData = GRAD_BC_VehicleSnapshot.Create(
+				vehicleIds[i],
+				vehicleTypes[i],
+				vehicleFactions[i],
+				vehiclePositions[i],
+				vehicleRotations[i],
+				false
+			);
+			
+			frame.vehicles.Insert(vehicleData);
+		}
+		
+		Print(string.Format("GRAD_BC_ReplayManager: Received vehicle chunk with %1 vehicles", timestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

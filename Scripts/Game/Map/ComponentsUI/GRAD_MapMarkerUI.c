@@ -98,8 +98,14 @@ class MapCircle
 		
 		circleVector = m_MapEntity.GetMapWidget().SizeToPixels(circleVector);
 		m_wCircleImage.SetSize(GetGame().GetWorkspace().DPIUnscale(circleVector.Length()), GetGame().GetWorkspace().DPIUnscale(circleVector.Length()));
+		float size = GetGame().GetWorkspace().DPIUnscale(circleVector.Length());
+		m_wCircleImage.SetSize(size, size);
 		
-		FrameSlot.SetPos(m_wCircle, GetGame().GetWorkspace().DPIUnscale(screenX), GetGame().GetWorkspace().DPIUnscale(screenY));	// needs unscaled coords
+		float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
+		float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
+		
+		FrameSlot.SetAlignment(m_wCircle, 0.5, 0.5);
+		FrameSlot.SetPos(m_wCircle, posX, posY);	// needs unscaled coords
 	}
 	
 	//------------------------------------------------------------------------------------------------

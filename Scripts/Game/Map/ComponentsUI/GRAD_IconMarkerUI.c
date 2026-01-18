@@ -151,6 +151,7 @@ class MapIcon
 		// Simply position at screen coordinates - let layout anchoring handle the rest
 		float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
 		float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
+		FrameSlot.SetAlignment(m_wicon, 0.5, 0.5);
 		FrameSlot.SetPos(m_wicon, posX, posY);
 		
 		Print(string.Format("[ICON DEBUG] Position set to: %.1f, %.1f (screen: %1, %2)", posX, posY, screenX, screenY), LogLevel.NORMAL);

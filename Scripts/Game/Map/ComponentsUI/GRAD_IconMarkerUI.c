@@ -22,19 +22,8 @@ class MapIcon
 	{
 		m_wRootW = rootW;
 		
-		Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
-		if (!mapFrame)
-		{
-			Print("[ICON DEBUG] CreateIcon: Map frame not found!", LogLevel.ERROR);
-			return;
-		}
-		
-		// Log map frame size
-		float frameW, frameH;
-		mapFrame.GetScreenSize(frameW, frameH);
-		Print(string.Format("[ICON DEBUG] CreateIcon: Map frame size: %.1fx%.1f", frameW, frameH), LogLevel.NORMAL);
-		
-		m_wicon = GetGame().GetWorkspace().CreateWidgets("{546311C6714BB3BA}UI/Layouts/Map/MapDrawIcon.layout", mapFrame);
+		// Use the provided root widget (DrawingContainer) which is the correct layer for map markers
+		m_wicon = GetGame().GetWorkspace().CreateWidgets("{546311C6714BB3BA}UI/Layouts/Map/MapDrawIcon.layout", m_wRootW);
 		
 		if (!m_wicon)
 		{
@@ -46,6 +35,10 @@ class MapIcon
 		float widgetW, widgetH;
 		m_wicon.GetScreenSize(widgetW, widgetH);
 		Print(string.Format("[ICON DEBUG] CreateIcon: Initial widget size: %.1fx%.1f", widgetW, widgetH), LogLevel.NORMAL);
+		
+		// Fix for black shapes/shadows: Apply BLEND to all ImageWidgets in the layout
+		// This handles shadows or background images that might be part of the layout
+		ApplyBlendFlagRecursively(m_wicon);
 		
 		m_wiconImage = ImageWidget.Cast(m_wicon.FindAnyWidget("DrawIconImage"));
 		
@@ -59,12 +52,34 @@ class MapIcon
 				// m_wiconImage.LoadImageFromSet(m_iType, "{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds", m_sType);
 				Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success 1"), LogLevel.NORMAL);
 				m_wiconImage.LoadImageTexture (0, m_sType, false, false);
+				// Fix for black icons: Ensure BLEND is set and Color is White
+				m_wiconImage.SetFlags(m_wiconImage.GetFlags() | WidgetFlags.BLEND | WidgetFlags.VISIBLE);
+				m_wiconImage.SetColor(Color.White);
 			} else {
 				Print(string.Format("PANIC - m_wiconImage is empty string"), LogLevel.NORMAL);
 			};
 		} else {
 			Print("[ICON DEBUG] CreateIcon: DrawIconImage widget not found in layout!", LogLevel.ERROR);
 		};
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void ApplyBlendFlagRecursively(Widget w)
+	{
+		if (!w) return;
+		
+		ImageWidget img = ImageWidget.Cast(w);
+		if (img)
+		{
+			img.SetFlags(img.GetFlags() | WidgetFlags.BLEND);
+		}
+		
+		Widget child = w.GetChildren();
+		while (child)
+		{
+			ApplyBlendFlagRecursively(child);
+			child = child.GetSibling();
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -91,6 +106,9 @@ class MapIcon
 			bool textureLoaded = m_wiconImage.LoadImageTexture (0, m_sType, false, false);
 			
 			if (textureLoaded) {
+				// Fix for black icons: Ensure BLEND is set and Color is White
+				m_wiconImage.SetFlags(m_wiconImage.GetFlags() | WidgetFlags.BLEND | WidgetFlags.VISIBLE);
+				m_wiconImage.SetColor(Color.White);
 				// might be false if map is not open (?)
 				m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
 				
@@ -153,6 +171,8 @@ class MapIcon
 		float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
 		FrameSlot.SetAlignment(m_wicon, 0.5, 0.5);
 		FrameSlot.SetPos(m_wicon, posX, posY);
+		
+		m_wicon.SetVisible(true);
 		
 		Print(string.Format("[ICON DEBUG] Position set to: %.1f, %.1f (screen: %1, %2)", posX, posY, screenX, screenY), LogLevel.NORMAL);
 		Print(string.Format("[ICON DEBUG] IsVehicle: %1, Rotation: %.1f degrees", m_bIsVehicle, angles[1]), LogLevel.NORMAL);
@@ -240,6 +260,7 @@ class GRAD_IconMarkerUI
 	{
 		m_MapEntity.GetOnMapPan().Remove(OnMapPan);
 		m_MapEntity.GetOnMapPanEnd().Remove(OnMapPanEnd);
+		m_wDrawingContainer = null;
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -325,6 +346,12 @@ class GRAD_IconMarkerUI
 		Print(string.Format("GRAD IconMarkerUI: SetIcon icon.rplId to %1 , should equal %2", rplId, icon.rplId), LogLevel.WARNING);
 		
 		m_aicons.Insert(icon);
+		
+		if (m_wDrawingContainer)
+		{
+			icon.CreateIcon(m_wDrawingContainer);
+			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
+		}
 	}
 	
 	

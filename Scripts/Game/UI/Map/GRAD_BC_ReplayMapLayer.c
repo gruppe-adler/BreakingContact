@@ -680,6 +680,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		m_Commands.Insert(cmd);
 	}
 	
@@ -696,6 +697,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_iColor = color;
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		m_Commands.Insert(cmd);
 	}
 	
@@ -716,6 +718,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_Pivot = Vector(width * 0.5, height * 0.5, 0);
 		cmd.m_fRotation = rotationDegrees;
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		
 		m_Commands.Insert(cmd);
 	}
@@ -750,6 +753,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		   cmd.m_Size = Vector(width, height, 0);
 		   cmd.m_iColor = 0xFFFFFFFF;
 		   cmd.m_pTexture = texture;
+		   cmd.m_iFlags = WidgetFlags.BLEND;
 		   m_Commands.Insert(cmd);
 	}
 	
@@ -814,7 +818,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		   if (texture)
 		   {
-			   DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, direction);
+			   // Fix rotation: convert world yaw to map icon rotation
+			   float iconRotation = -direction + 90.0; // Map north-up, world yaw=0 east? Adjust as needed
+			   Print(string.Format("BC Debug - DrawUnitMarker: direction=%.2f, iconRotation=%.2f", direction, iconRotation), LogLevel.NORMAL);
+			   DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, iconRotation);
 		   }
 		   else
 		   {

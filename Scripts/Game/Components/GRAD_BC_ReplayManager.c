@@ -682,7 +682,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		
 		// Get position and orientation
 		vector position = radioTruck.GetOrigin();
-		vector angles = radioTruck.GetAngles();
+		vector angles = radioTruck.GetYawPitchRoll();
 		
 		// Check occupancy
 		Vehicle vehicle = Vehicle.Cast(radioTruck);

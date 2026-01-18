@@ -25,10 +25,11 @@ class GRAD_BC_PlayerSnapshot : Managed
 	vector angles;
 	bool isAlive;
 	bool isInVehicle;
+	RplId vehicleId;
 	string vehicleType; // for vehicles
 	string unitRole; // detected role based on equipment
 	
-	static GRAD_BC_PlayerSnapshot Create(int id, string name, string faction, vector pos, vector ang, bool alive, bool inVeh = false, string vehType = "", string role = "Rifleman")
+	static GRAD_BC_PlayerSnapshot Create(int id, string name, string faction, vector pos, vector ang, bool alive, bool inVeh, string vehType, string role, RplId vehId)
 	{
 		GRAD_BC_PlayerSnapshot snapshot = new GRAD_BC_PlayerSnapshot();
 		snapshot.playerId = id;
@@ -38,6 +39,7 @@ class GRAD_BC_PlayerSnapshot : Managed
 		snapshot.angles = ang;
 		snapshot.isAlive = alive;
 		snapshot.isInVehicle = inVeh;
+		snapshot.vehicleId = vehId;
 		snapshot.vehicleType = vehType;
 		snapshot.unitRole = role;
 		return snapshot;

@@ -59,17 +59,43 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (!vehicle)
 			return;
 
-		if (!m_trackedVehicles)
-			m_trackedVehicles = new array<IEntity>();
+		// Wait for RplComponent to be available before registering
+		WaitForVehicleRplComponent(vehicle, 0);
+	}
 
-		if (m_trackedVehicles.Find(vehicle) == -1)
+	// Helper to wait for RplComponent initialization
+	void WaitForVehicleRplComponent(Vehicle vehicle, int attempt)
+	{
+		if (!vehicle)
+			return;
+
+		RplComponent rpl = RplComponent.Cast(vehicle.FindComponent(RplComponent));
+		if (rpl)
 		{
-			m_trackedVehicles.Insert(vehicle);
-			Print(string.Format("GRAD_BC_ReplayManager: Registered vehicle for tracking: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+			if (!m_trackedVehicles)
+				m_trackedVehicles = new array<IEntity>();
+
+			if (m_trackedVehicles.Find(vehicle) == -1)
+			{
+				m_trackedVehicles.Insert(vehicle);
+				Print(string.Format("GRAD_BC_ReplayManager: Registered vehicle for tracking: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+			}
+			else
+			{
+				Print(string.Format("GRAD_BC_ReplayManager: Vehicle already tracked: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.VERBOSE);
+			}
+			return;
+		}
+
+		// Retry up to 20 times (2 seconds total if called every 100ms)
+		if (attempt < 20)
+		{
+			Print(string.Format("GRAD_BC_ReplayManager: Waiting for RplComponent on vehicle %1 (attempt %2)", vehicle.GetPrefabData().GetPrefabName(), attempt+1), LogLevel.VERBOSE);
+			GetGame().GetCallqueue().CallLater(WaitForVehicleRplComponent, 100, false, vehicle, attempt+1);
 		}
 		else
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Vehicle already tracked: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.VERBOSE);
+			Print(string.Format("GRAD_BC_ReplayManager: ERROR - RplComponent not found for vehicle %1 after 2s, not tracking", vehicle.GetPrefabData().GetPrefabName()), LogLevel.ERROR);
 		}
 	}
 	
@@ -388,41 +414,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				continue;
 			}
 	
-			// Check if a player is in this vehicle. If so, it's already recorded by RecordPlayers.
-			bool playerInThisVehicle = false;
-			PlayerManager playerManager = GetGame().GetPlayerManager();
-			if (playerManager)
-			{
-				array<int> playerIds = {};
-				playerManager.GetPlayers(playerIds);
-				foreach (int playerId : playerIds)
-				{
-					IEntity controlledChar = playerManager.GetPlayerControlledEntity(playerId);
-					if (!controlledChar) continue;
-					
-					SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(controlledChar);
-					if (character)
-					{
-						Print(string.Format("[ReplayDebug] Checking playerId=%1, character=%2, IsInVehicle=%3", playerId, character, character.IsInVehicle()), LogLevel.NORMAL);
-						if (character.IsInVehicle())
-						{
-							IEntity parent = character.GetParent();
-							Print(string.Format("[ReplayDebug]   Parent=%1, Vehicle=%2", parent, vehicle), LogLevel.NORMAL);
-							if (parent && parent == vehicle)
-							{
-								Print(string.Format("[ReplayDebug]   Player %1 is in this vehicle!", playerId), LogLevel.NORMAL);
-								playerInThisVehicle = true;
-								break;
-							}
-						}
-					}
-				}
-			}
-			if (playerInThisVehicle)
-			{
-				Print(string.Format("GRAD_BC_ReplayManager: Skipping vehicle %1, player is inside", vehicle.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
-				continue;
-			}
+			// No longer skip vehicles with players inside; always record all vehicles
 	
 			// Now we have an empty vehicle. Record it.
 			vector position = vehicle.GetOrigin();
@@ -431,24 +423,48 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			
 			FactionAffiliationComponent factionComponent = FactionAffiliationComponent.Cast(vehicle.FindComponent(FactionAffiliationComponent));
 			string factionKey = "";
-			if (factionComponent)
+			if (factionComponent && factionComponent.GetAffiliatedFaction())
+			{
 				factionKey = factionComponent.GetAffiliatedFaction().GetFactionKey();
+			}
+			else
+			{
+				factionKey = "Empty";
+				Print("GRAD_BC_ReplayManager: Vehicle has no FactionAffiliationComponent or AffiliatedFaction, using 'Empty'", LogLevel.NORMAL);
+			}
 				
 			RplComponent rpl = RplComponent.Cast(vehicle.FindComponent(RplComponent));
 			if (!rpl)
 				continue;
 
-			Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for empty vehicle: %1", vehicleType), LogLevel.NORMAL);
+			// Check if vehicle is empty
+			BaseCompartmentManagerComponent compartmentManager = BaseCompartmentManagerComponent.Cast(vehicle.FindComponent(BaseCompartmentManagerComponent));
+			bool isEmpty = true;
+			if (compartmentManager)
+			{
+				array<BaseCompartmentSlot> compartments = {};
+				compartmentManager.GetCompartments(compartments);
+				isEmpty = true;
+				foreach (BaseCompartmentSlot slot : compartments)
+				{
+					if (slot.GetOccupant())
+					{
+						isEmpty = false;
+						break;
+					}
+				}
+			}
 
-			GRAD_BC_VehicleSnapshot snapshot = GRAD_BC_VehicleSnapshot.Create(
-				rpl.Id(), 
-				vehicleType, 
-				factionKey,
-				position, 
-				angles,
-				!playerInThisVehicle
-			);
+			Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for vehicle: %1", vehicleType), LogLevel.NORMAL);
 			
+			GRAD_BC_VehicleSnapshot snapshot = GRAD_BC_VehicleSnapshot.Create(
+				rpl.Id(),
+				vehicleType,
+				factionKey,
+				position,
+				angles,
+				isEmpty
+			);
 			frame.vehicles.Insert(snapshot);
 		}
 	}
@@ -468,41 +484,30 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			IEntity controlledEntity = playerManager.GetPlayerControlledEntity(playerId);
 			if (!controlledEntity)
 				continue;
-				
+
 			SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(controlledEntity);
 			if (!character)
 				continue;
-				
+			
 			string playerName = playerManager.GetPlayerName(playerId);
 			string factionKey = character.GetFactionKey();
 			vector position = controlledEntity.GetOrigin();
 			vector angles = controlledEntity.GetYawPitchRoll();
 			bool isAlive = !character.GetCharacterController().IsDead();
-			
-			// Use ChimeraCharacter's native IsInVehicle() function
+
+			// vehicle info
 			bool isInVehicle = character.IsInVehicle();
 			string vehicleType = "";
-			
-			// Get vehicle details if in vehicle
+			RplId vehicleId;
 			if (isInVehicle)
 			{
-				CompartmentAccessComponent compartmentAccess = character.GetCompartmentAccessComponent();
-				if (compartmentAccess)
+				Vehicle vehicle = Vehicle.Cast(character.GetParent());
+				if (vehicle)
 				{
-					BaseCompartmentSlot compartment = compartmentAccess.GetCompartment();
-					if (compartment)
-					{
-						Vehicle vehicle = Vehicle.Cast(compartment.GetOwner());
-						if (vehicle)
-						{
-							vehicleType = vehicle.GetPrefabData().GetPrefabName();
-							// Use vehicle position/rotation instead of character
-							position = vehicle.GetOrigin();
-							angles = vehicle.GetYawPitchRoll();
-							
-							Print(string.Format("GRAD_BC_ReplayManager: Player %1 is in vehicle: %2", playerName, vehicleType), LogLevel.NORMAL);
-						}
-					}
+					vehicleType = vehicle.GetPrefabData().GetPrefabName();
+					RplComponent rpl = RplComponent.Cast(vehicle.FindComponent(RplComponent));
+					if (rpl)
+						vehicleId = rpl.Id();
 				}
 			}
 			
@@ -510,7 +515,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			string unitRole = DetermineUnitRole(character);
 			
 			GRAD_BC_PlayerSnapshot snapshot = GRAD_BC_PlayerSnapshot.Create(
-				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole
+				playerId, playerName, factionKey, position, angles, isAlive, isInVehicle, vehicleType, unitRole, vehicleId
 			);
 
 			// Debug: Log vehicle state for each player (first 20 only)
@@ -519,11 +524,10 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			if (vehicleRecordDebugCount <= 20)
 			{
 				Print(string.Format(
-					"GRAD_BC_ReplayManager: PlayerRecord id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitRole='%5'", 
+					"GRAD_BC_ReplayManager: PlayerRecord id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitRole='%5'",
 					playerId, playerName, isInVehicle, vehicleType, unitRole
 				), LogLevel.NORMAL);
 			}
-			
 			// Debug: Log recording positions and angles for first few frames
 			static int recordLogCount = 0;
 			recordLogCount++;
@@ -538,63 +542,48 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Determine unit role based on equipment and components
+	// Determine unit role using SCR_ECharacterTypeUI from SCR_CharacterUIComponent
 	string DetermineUnitRole(SCR_ChimeraCharacter character)
 	{
 		if (!character)
 			return "Rifleman";
-			
-		// Check for medic role - has medical supplies
-		InventoryStorageManagerComponent inventoryManager = InventoryStorageManagerComponent.Cast(character.FindComponent(InventoryStorageManagerComponent));
-		if (inventoryManager)
+
+		SCR_CharacterUIComponent charUI = SCR_CharacterUIComponent.Cast(character.FindComponent(SCR_CharacterUIComponent));
+		if (charUI)
 		{
-			array<IEntity> items = {};
-			inventoryManager.GetItems(items);
-			foreach (IEntity item : items)
+			SCR_ECharacterTypeUI typeUI = charUI.GetCharacterTypes();
+			switch (typeUI)
 			{
-				// Check for medical items
-				SCR_ConsumableItemComponent consumable = SCR_ConsumableItemComponent.Cast(item.FindComponent(SCR_ConsumableItemComponent));
-				if (consumable)
-				{
-					SCR_ConsumableEffectHealthItems healthEffect = SCR_ConsumableEffectHealthItems.Cast(consumable.GetConsumableEffect());
-					if (healthEffect)
-						return "Medic";
-				}
+				case SCR_ECharacterTypeUI.RIFLEMAN:
+					return "Rifleman";
+				case SCR_ECharacterTypeUI.MEDIC:
+					return "Medic";
+				case SCR_ECharacterTypeUI.ENGINEER:
+					return "Engineer";
+				case SCR_ECharacterTypeUI.GRENADIER:
+					return "Grenadier";
+				case SCR_ECharacterTypeUI.MACHINEGUNNER:
+					return "MachineGunner";
+				case SCR_ECharacterTypeUI.ANTI_TANK:
+					return "AntiTank";
+				case SCR_ECharacterTypeUI.SHARSHOOTER:
+					return "Sharpshooter";
+				case SCR_ECharacterTypeUI.PLATOON_SERGEANT:
+					return "TeamLeader";
+				case SCR_ECharacterTypeUI.CREW_MAN:
+					return "Crew";
+				case SCR_ECharacterTypeUI.SAPPER:
+					return "ExplosiveSpecialist";
+				case SCR_ECharacterTypeUI.OFFICER:
+					return "Squadleader";
+				case SCR_ECharacterTypeUI.PLATOON_LEADER:
+					return "Squadleader";
+				default:
+					return "Rifleman";
 			}
 		}
-		
-		// Check weapon type using CharacterControllerComponent
-		CharacterControllerComponent controller = character.GetCharacterController();
-		if (controller)
-		{
-			BaseWeaponManagerComponent weaponManager = controller.GetWeaponManagerComponent();
-			if (weaponManager)
-			{
-				BaseWeaponComponent currentWeapon = weaponManager.GetCurrentWeapon();
-				if (currentWeapon)
-				{
-					// Get weapon entity to check type
-					IEntity weaponEntity = currentWeapon.GetOwner();
-					if (weaponEntity)
-					{
-						string weaponName = weaponEntity.GetPrefabData().GetPrefabName();
-						weaponName.ToLower();
-						
-						// Check weapon type based on name patterns
-						if (weaponName.Contains("m249") || weaponName.Contains("mg") || weaponName.Contains("pkm") || weaponName.Contains("machinegun"))
-							return "MachineGunner";
-						if (weaponName.Contains("m72") || weaponName.Contains("rpg") || weaponName.Contains("at4") || weaponName.Contains("law") || weaponName.Contains("rocket"))
-							return "AntiTank";
-						if (weaponName.Contains("m21") || weaponName.Contains("svd") || weaponName.Contains("sniper"))
-							return "Sharpshooter";
-						if (weaponName.Contains("m203") || weaponName.Contains("gp25") || weaponName.Contains("grenade"))
-							return "Grenadier";
-					}
-				}
-			}
-		}
-		
-		// Default to rifleman
+
+		// Fallback if no UI component or unknown type
 		return "Rifleman";
 	}
 	
@@ -976,6 +965,7 @@ void StartLocalReplayPlayback()
 		ref array<string> factions = {};
 		ref array<bool> inVehicles = {};
 		ref array<string> playerNames = {};
+		ref array<RplId> playerVehicleIds = {};
 		
 		// Projectile data arrays
 		ref array<float> projTimestamps = {};
@@ -1011,6 +1001,7 @@ void StartLocalReplayPlayback()
 				factions.Insert(playerData.factionKey);
 				inVehicles.Insert(playerData.isInVehicle);
 				playerNames.Insert(playerData.playerName);
+				playerVehicleIds.Insert(playerData.vehicleId);
 			}
 			
 			// Add projectile data
@@ -1045,7 +1036,7 @@ void StartLocalReplayPlayback()
 		}
 		
 		// Send player data
-		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames);
+		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames, playerVehicleIds);
 		
 		// Send projectile data if any
 		if (projTimestamps.Count() > 0)
@@ -1136,7 +1127,7 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions, 
-		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<string> playerNames)
+		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<string> playerNames, array<RplId> playerVehicleIds)
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
@@ -1181,7 +1172,10 @@ void StartLocalReplayPlayback()
 				positions[i],
 				rotations[i],
 				true,
-				inVehicles[i]
+				inVehicles[i],
+				"", // vehicleType is not sent, can be derived later if needed
+				"Rifleman", // unitRole is not sent, can be derived later if needed
+				playerVehicleIds[i]
 			);
 			
 			frame.players.Insert(playerData);

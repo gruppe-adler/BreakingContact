@@ -447,6 +447,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 				string factionKey = factionComp.GetAffiliatedFaction().GetFactionKey();
 				Print(string.Format("BC Debug - Vehicle instigator faction: %1", factionKey), LogLevel.NORMAL);
 				return factionKey;
+			} else {
+				string factionKey = "Empty";
+				return factionKey;
 			}
 		}
 		

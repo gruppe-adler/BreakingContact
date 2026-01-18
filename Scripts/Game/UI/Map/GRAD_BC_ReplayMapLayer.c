@@ -5,10 +5,50 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Map vehicle prefab and faction to icon key
 	protected string GetVehicleIconKey(string prefab, string factionKey, bool isEmpty)
 	{
+		if (factionKey.IsEmpty())
+			factionKey = "Empty";
+		
 		if (prefab.IsEmpty()) return "";
 		string key = "";
 		string pf = prefab;
 		pf.ToLower();
+		// Special case: ambient/empty vehicles (no faction)
+		if (factionKey == "Empty")
+		{
+			// Always use empty icon for ambient vehicles
+			if (pf.Contains("lav")) key = "LAV_empty";
+			else if (pf.Contains("m151a2"))
+			{
+				if (pf.Contains("transport")) key = "M151A2_closed_empty";
+				else if (pf.Contains("open")) key = "M151A2_open_empty";
+				else key = "M151A2_empty";
+			}
+			else if (pf.Contains("m923")) key = "M923A1_closed_empty";
+			else if (pf.Contains("m998"))
+			{
+				if (pf.Contains("m2hb")) key = "M998_M2HB_empty";
+				else if (pf.Contains("transport")) key = "M998_closed_empty";
+				else key = "M998_open_empty";
+			}
+			else if (pf.Contains("uaz_452")) key = "UAZ_452_empty";
+			else if (pf.Contains("s1203")) key = "S1203_empty";
+			else if (pf.Contains("s105")) key = "S105_empty";
+			else if (pf.Contains("uaz_469"))
+			{
+				if (pf.Contains("pkm")) key = "UAZ_469_PKM_empty";
+				else if (pf.Contains("open")) key = "UAZ_469_Open_empty";
+				else key = "UAZ_469_closed_empty";
+			}
+			else if (pf.Contains("uh1h1")) key = "UH1H1_empty";
+			else if (pf.Contains("ural"))
+			{
+				if (pf.Contains("open")) key = "Ural_Open_empty";
+				else key = "Ural_closed_empty";
+			}
+			// fallback: treat as generic empty vehicle if needed
+			return key;
+		}
+		// Normal logic for faction vehicles
 		if (pf.Contains("lav"))
 		{
 			if (isEmpty) key = "LAV_empty";
@@ -65,9 +105,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		}
 		else if (pf.Contains("uaz_452"))
 		{
-			  if (isEmpty) key = "UAZ_452_empty";
+			if (isEmpty) key = "UAZ_452_empty";
 			if (factionKey == "US") key = "UAZ_452_blufor";
 			if (factionKey == "USSR") key = "UAZ_452_opfor";
+		}
+		else if (pf.Contains("S1203"))
+		{
+			if (isEmpty) key = "S1203_empty";
+			if (factionKey == "US") key = "S1203_blufor";
+			if (factionKey == "USSR") key = "S1203_opfor";
+		}
+		else if (pf.Contains("S105"))
+		{
+			if (isEmpty) key = "S105_empty";
+			if (factionKey == "US") key = "S105_blufor";
+			if (factionKey == "USSR") key = "S105_opfor";
 		}
 		else if (pf.Contains("uaz_469"))
 		{
@@ -189,6 +241,22 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("Ural_Open_empty", "{BD154D82B60DC8F0}UI/Textures/Icons/Ural_Open_empty.edds");
 		m_vehicleIconTextures.Set("Ural_opfor", "{07E46F71B9B92027}UI/Textures/Icons/Ural_opfor.edds");
 		m_vehicleIconTextures.Set("UralOpen_opfor", "{AD63B0D696D2577D}UI/Textures/Icons/UralOpen_opfor.edds");
+		m_vehicleIconTextures.Set("Radiotruck_blufor", "{ABB9C00A86D1437D}UI/Textures/Icons/Radiotruck_blufor.edds");
+		m_vehicleIconTextures.Set("Radiotruck_empty", "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_Empty.edds");
+		m_vehicleIconTextures.Set("Radiotruck_opfor", "{295A98A64B22490E}UI/Textures/Icons/Radiotruck_opfor.edds");
+		m_vehicleIconTextures.Set("Commandvehicle_blufor", "{2CCAAB5BEDD7BAA1}UI/Textures/Icons/Commandvehicle_blufor.edds");
+		m_vehicleIconTextures.Set("Commandvehicle_empty", "{C2436C5A1B9CF72D}UI/Textures/Icons/Commandvehicle_Empty.edds");
+		m_vehicleIconTextures.Set("Commandvehicle_opfor", "{401B021391378F32}UI/Textures/Icons/Commandvehicle_opfor.edds");
+
+		m_vehicleIconTextures.Set("S105_blufor", "{8705E23234AE5219}UI/Textures/Icons/S105_blufor.edds");
+		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_Empty.edds");
+		m_vehicleIconTextures.Set("S105_opfor", "{933D1EE7EE137751}UI/Textures/Icons/S105_opfor.edds");
+
+		m_vehicleIconTextures.Set("S1203_blufor", "{E04DE98D3C890A8A}UI/Textures/Icons/S1203_blufor.edds");
+		m_vehicleIconTextures.Set("S1203_empty", "{1040C8443019C220}UI/Textures/Icons/S1203_empty.edds");
+		m_vehicleIconTextures.Set("S1203_opfor", "{9218A60DBAB2BA3F}UI/Textures/Icons/S1203_opfor.edds");
+
+		
 	
 		super.Init();
 		
@@ -200,25 +268,76 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_transmissionIconPaths.Set("transmission_interrupted", "{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset:transmission_interrupted");
 		m_transmissionIconPaths.Set("radiotruck_active", "{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset:radiotruck_active");
 		
-		// Initialize unit type textures with game icons
-		m_unitTypeTextures.Set("AntiTank", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
-		m_unitTypeTextures.Set("AT", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
-		m_unitTypeTextures.Set("AAT", "{A0D5026DB9156DA8}UI/Textures/Icons/iconman_at_ca.edds");
-		m_unitTypeTextures.Set("Engineer", "{DB2B78344402FFB6}UI/Textures/Icons/iconmanengineer_ca.edds");
-		m_unitTypeTextures.Set("Grenadier", "{46E164B39CEAF539}UI/Textures/Icons/iconmanexplosive_ca.edds");
-		m_unitTypeTextures.Set("Leader", "{27462C23B18E544B}UI/Textures/Icons/iconmanleader_ca.edds");
-		m_unitTypeTextures.Set("SL", "{27462C23B18E544B}UI/Textures/Icons/iconmanleader_ca.edds");
-		m_unitTypeTextures.Set("Officer", "{5C5BA790ABB84C51}UI/Textures/Icons/iconmanofficer_ca.edds");
-		m_unitTypeTextures.Set("Medic", "{82BA31D8DF0720DB}UI/Textures/Icons/iconmanmedic_ca.edds");
-		m_unitTypeTextures.Set("MachineGunner", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
-		m_unitTypeTextures.Set("AR", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
-		m_unitTypeTextures.Set("AutomaticRifleman", "{FDB9BEC99F7C26A3}UI/Textures/Icons/iconmanmg_ca.edds");
-		m_unitTypeTextures.Set("Sharpshooter", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
-		m_unitTypeTextures.Set("Recon", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
-		m_unitTypeTextures.Set("Spotter", "{8CE2F1C396335FAC}UI/Textures/Icons/iconmanrecon_ca.edds");
-		m_unitTypeTextures.Set("Rifleman", "{9731965B995D0B76}UI/Textures/Icons/iconman_ca.edds");
-		
-		// Vehicle icons
+		// Initialize unit type textures with new faction-sensitive icons
+		// Format: m_unitTypeTextures.Set("Role_Faction", "texturePath");
+		// Factions: US (blufor), USSR (opfor), CIV (civ)
+		// AntiTank
+		m_unitTypeTextures.Set("AntiTank_US", "{ECC9BB91F97CEC7E}UI/Textures/Icons/iconman_at_blufor.edds");
+		m_unitTypeTextures.Set("AntiTank_USSR", "{449232651E2D6688}UI/Textures/Icons/iconman_at_opfor.edds");
+		m_unitTypeTextures.Set("AntiTank_CIV", "{EAD70F3FE70432A4}UI/Textures/Icons/iconman_at_civ.edds");
+		m_unitTypeTextures.Set("AT_US", "{ECC9BB91F97CEC7E}UI/Textures/Icons/iconman_at_blufor.edds");
+		m_unitTypeTextures.Set("AT_USSR", "{449232651E2D6688}UI/Textures/Icons/iconman_at_opfor.edds");
+		m_unitTypeTextures.Set("AT_CIV", "{EAD70F3FE70432A4}UI/Textures/Icons/iconman_at_civ.edds");
+		m_unitTypeTextures.Set("AAT_US", "{ECC9BB91F97CEC7E}UI/Textures/Icons/iconman_at_blufor.edds");
+		m_unitTypeTextures.Set("AAT_USSR", "{449232651E2D6688}UI/Textures/Icons/iconman_at_opfor.edds");
+		m_unitTypeTextures.Set("AAT_CIV", "{EAD70F3FE70432A4}UI/Textures/Icons/iconman_at_civ.edds");
+		// Engineer
+		m_unitTypeTextures.Set("Engineer_US", "{67FCB2D6D795807C}UI/Textures/Icons/iconman_engineer_blufor.edds");
+		m_unitTypeTextures.Set("Engineer_USSR", "{0D1394432D5C8C2A}UI/Textures/Icons/iconman_engineer_opfor.edds");
+		m_unitTypeTextures.Set("Engineer_CIV", "{9F9D2F059235FF68}UI/Textures/Icons/iconman_engineer_civ.edds");
+		// Grenadier
+		m_unitTypeTextures.Set("Grenadier_US", "{138C2049645E03C1}UI/Textures/Icons/iconman_explosive_blufor.edds");
+		m_unitTypeTextures.Set("Grenadier_USSR", "{687A58A5F6834059}UI/Textures/Icons/iconman_explosive_opfor.edds");
+		m_unitTypeTextures.Set("Grenadier_CIV", "{93CE7B5AB88B8235}UI/Textures/Icons/iconman_explosive_civ.edds");
+		// Medic
+		m_unitTypeTextures.Set("Medic_US", "{C6C1954CA9E57C00}UI/Textures/Icons/iconman_medic_blufor.edds");
+		m_unitTypeTextures.Set("Medic_USSR", "{1C9664FDA31BF765}UI/Textures/Icons/iconman_medic_opfor.edds");
+		m_unitTypeTextures.Set("Medic_CIV", "{5857673AF18884E7}UI/Textures/Icons/iconman_medic_civ.edds");
+		// MachineGunner
+		m_unitTypeTextures.Set("MachineGunner_US", "{3EA1BC7E0E0B0533}UI/Textures/Icons/iconman_mg_blufor.edds");
+		m_unitTypeTextures.Set("MachineGunner_USSR", "{65CED072E552385C}UI/Textures/Icons/iconman_mg_opfor.edds");
+		m_unitTypeTextures.Set("MachineGunner_CIV", "{FEF73C39377E824B}UI/Textures/Icons/iconman_mg_civ.edds");
+		m_unitTypeTextures.Set("AR_US", "{3EA1BC7E0E0B0533}UI/Textures/Icons/iconman_mg_blufor.edds");
+		m_unitTypeTextures.Set("AR_USSR", "{65CED072E552385C}UI/Textures/Icons/iconman_mg_opfor.edds");
+		m_unitTypeTextures.Set("AR_CIV", "{FEF73C39377E824B}UI/Textures/Icons/iconman_mg_civ.edds");
+		m_unitTypeTextures.Set("AutomaticRifleman_US", "{3EA1BC7E0E0B0533}UI/Textures/Icons/iconman_mg_blufor.edds");
+		m_unitTypeTextures.Set("AutomaticRifleman_USSR", "{65CED072E552385C}UI/Textures/Icons/iconman_mg_opfor.edds");
+		m_unitTypeTextures.Set("AutomaticRifleman_CIV", "{FEF73C39377E824B}UI/Textures/Icons/iconman_mg_civ.edds");
+		// Rifleman
+		m_unitTypeTextures.Set("Rifleman_US", "{9912E888E7CC2E28}UI/Textures/Icons/iconman_rifleman_blufor.edds");
+		m_unitTypeTextures.Set("Rifleman_USSR", "{A3894E64547137A3}UI/Textures/Icons/iconman_rifleman_opfor.edds");
+		m_unitTypeTextures.Set("Rifleman_CIV", "{97ECC0C7F6184F3F}UI/Textures/Icons/iconman_rifleman_civ.edds");
+		// Squad Leader
+		m_unitTypeTextures.Set("Leader_US", "{E146B4EA5F726807}UI/Textures/Icons/iconman_squadleader_blufor.edds");
+		m_unitTypeTextures.Set("Leader_USSR", "{E32B1F3A2323E5C4}UI/Textures/Icons/iconman_squadleader_opfor.edds");
+		m_unitTypeTextures.Set("Leader_CIV", "{94FC55A740EFF5F5}UI/Textures/Icons/iconman_squadleader_civ.edds");
+		m_unitTypeTextures.Set("SL_US", "{E146B4EA5F726807}UI/Textures/Icons/iconman_squadleader_blufor.edds");
+		m_unitTypeTextures.Set("SL_USSR", "{E32B1F3A2323E5C4}UI/Textures/Icons/iconman_squadleader_opfor.edds");
+		m_unitTypeTextures.Set("SL_CIV", "{94FC55A740EFF5F5}UI/Textures/Icons/iconman_squadleader_civ.edds");
+		// Team Leader
+		m_unitTypeTextures.Set("TeamLeader_US", "{DEBB5CF0EDAEAA90}UI/Textures/Icons/iconman_teamleader_blufor.edds");
+		m_unitTypeTextures.Set("TeamLeader_USSR", "{7043346D3A86D4AC}UI/Textures/Icons/iconman_teamleader_opfor.edds");
+		m_unitTypeTextures.Set("TeamLeader_CIV", "{03ACA7A746ACE869}UI/Textures/Icons/iconman_teamleader_civ.edds");
+		// Virtual
+		m_unitTypeTextures.Set("Virtual_US", "{0E582F43978CE7F8}UI/Textures/Icons/iconman_virtual_blufor.edds");
+		m_unitTypeTextures.Set("Virtual_USSR", "{3E17667584578998}UI/Textures/Icons/iconman_virtual_opfor.edds");
+		m_unitTypeTextures.Set("Virtual_CIV", "{1D125ACAB33784C1}UI/Textures/Icons/iconman_virtual_civ.edds");
+		// Recon/Sharpshooter/Spotter
+		m_unitTypeTextures.Set("Sharpshooter_US", "{0F4868B3AFD5B26F}UI/Textures/Icons/iconmanrecon_blufor.edds");
+		m_unitTypeTextures.Set("Sharpshooter_USSR", "{AD41A08D77783D67}UI/Textures/Icons/iconmanrecon_opfor.edds");
+		m_unitTypeTextures.Set("Sharpshooter_CIV", "{CA0BFA20F232081B}UI/Textures/Icons/iconmanrecon_civ.edds");
+		m_unitTypeTextures.Set("Recon_US", "{0F4868B3AFD5B26F}UI/Textures/Icons/iconmanrecon_blufor.edds");
+		m_unitTypeTextures.Set("Recon_USSR", "{AD41A08D77783D67}UI/Textures/Icons/iconmanrecon_opfor.edds");
+		m_unitTypeTextures.Set("Recon_CIV", "{CA0BFA20F232081B}UI/Textures/Icons/iconmanrecon_civ.edds");
+		m_unitTypeTextures.Set("Spotter_US", "{0F4868B3AFD5B26F}UI/Textures/Icons/iconmanrecon_blufor.edds");
+		m_unitTypeTextures.Set("Spotter_USSR", "{AD41A08D77783D67}UI/Textures/Icons/iconmanrecon_opfor.edds");
+		m_unitTypeTextures.Set("Spotter_CIV", "{CA0BFA20F232081B}UI/Textures/Icons/iconmanrecon_civ.edds");
+		// Officer fallback (no new icon provided)
+		m_unitTypeTextures.Set("Officer_US", "{E146B4EA5F726807}UI/Textures/Icons/iconman_squadleader_blufor.edds");
+		m_unitTypeTextures.Set("Officer_USSR", "{E32B1F3A2323E5C4}UI/Textures/Icons/iconman_squadleader_opfor.edds");
+		m_unitTypeTextures.Set("Officer_CIV", "{94FC55A740EFF5F5}UI/Textures/Icons/iconman_squadleader_civ.edds");
+
+		// Vehicle icons (unchanged)
 		m_unitTypeTextures.Set("ArmedCar", "{EB7C826CD3D2BE53}UI/Textures/Icons/iconarmedcar_ca.edds");
 		m_unitTypeTextures.Set("Car", "{AAEC4011C3FAAE79}UI/Textures/Icons/iconcar_ca.edds");
 		m_unitTypeTextures.Set("Helicopter", "{7F728098B42A124F}UI/Textures/Icons/iconheli_ca.edds");
@@ -226,10 +345,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_unitTypeTextures.Set("Truck", "{DDACA1439DB45633}UI/Textures/Icons/icontruck_ca.edds");
 		m_unitTypeTextures.Set("Tank", "{CAC18FF5CC2A427D}UI/Textures/Icons/icontank_ca.edds");
 		m_unitTypeTextures.Set("Plane", "{D9861CB8FECEC812}UI/Textures/Icons/iconplane_ca.edds");
-		
+
 		// Default fallback for unknown unit types
-		m_unitTypeTextures.Set("Default", "{9731965B995D0B76}UI/Textures/Icons/iconman_ca.edds");
-		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with unit type textures", LogLevel.NORMAL);
+		m_unitTypeTextures.Set("Default", "{9912E888E7CC2E28}UI/Textures/Icons/iconman_rifleman_blufor.edds");
+		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with faction-sensitive unit type textures", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -310,60 +429,55 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			if (vehicleDebugCount <= 20)
 			{
 				Print(string.Format(
-					"GRAD_BC_ReplayMapLayer: PlayerMarker id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitType='%5'", 
-					marker.playerId, marker.playerName, marker.isInVehicle, marker.vehicleType, marker.unitType
+					"GRAD_BC_ReplayMapLayer: PlayerMarker id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitType='%5' faction='%6'", 
+					marker.playerId, marker.playerName, marker.isInVehicle, marker.vehicleType, marker.unitType, marker.factionKey
 				), LogLevel.NORMAL);
 			}
-				
-			// Get faction color from Faction API
-			int color = 0xFFFFFFFF; // Default white
-			
-			// Get the faction using FactionManager
-			FactionManager factionManager = GetGame().GetFactionManager();
-			if (factionManager)
+
+			// Draw unit icon with directional chevron (use vehicle icon if in vehicle)
+			string vehicleIconKey = "";
+			if (marker.isInVehicle)
 			{
-				Faction faction = factionManager.GetFactionByKey(marker.factionKey);
-				if (faction)
+				vehicleIconKey = GetVehicleIconKey(marker.vehicleType, marker.factionKey, false);
+				DrawUnitMarker(marker.position, marker.direction, marker.unitType, marker.factionKey, true, marker.isAlive, vehicleIconKey);
+			}
+			else
+			{
+				DrawUnitMarker(marker.position, marker.direction, marker.unitType, marker.factionKey, false, marker.isAlive);
+			}
+		}
+
+		// Draw empty vehicle markers (always show all vehicles, even if empty)
+		array<ref GRAD_BC_ReplayVehicleMarker> vehiclesToRender;
+		if (replayManager && replayManager.IsPlayingBack())
+			vehiclesToRender = m_vehicleMarkers;
+		else if (m_hasLastFrame)
+			vehiclesToRender = m_lastFrameVehicleMarkers;
+		else
+			vehiclesToRender = {};
+
+		foreach (GRAD_BC_ReplayVehicleMarker vehicleMarker : vehiclesToRender)
+		{
+			if (!vehicleMarker.isVisible)
+				continue;
+
+			// Check if a player is in this vehicle
+			bool isOccupied = false;
+			foreach (GRAD_BC_ReplayPlayerMarker playerMarker : markersToRender)
+			{
+				if (playerMarker.isInVehicle && playerMarker.vehicleId == vehicleMarker.entityId)
 				{
-					Color factionColor = faction.GetFactionColor();
-					   factionColor.SetA(1.0);
-					   color = factionColor.PackToInt();
-					
-					// Debug: Log color assignment for first few markers
-					static int colorLogCount = 0;
-					colorLogCount++;
-					if (colorLogCount <= 5)
-					{
-						Print(string.Format("GRAD_BC_ReplayMapLayer: Faction '%1' color from API: 0x%2", 
-							marker.factionKey, color.ToString(16)), LogLevel.NORMAL);
-					}
-				}
-				else
-				{
-					static int noFactionCount = 0;
-					noFactionCount++;
-					if (noFactionCount <= 3)
-					{
-						Print(string.Format("GRAD_BC_ReplayMapLayer: Faction '%1' not found in FactionManager", marker.factionKey), LogLevel.WARNING);
-					}
+					isOccupied = true;
+					break;
 				}
 			}
-				
-			if (!marker.isAlive)
-				color = 0x80808080; // Gray for dead
-			
-			   // Draw unit icon with directional chevron (use vehicle icon if in vehicle)
-			   string vehicleIconKey = "";
-			   if (marker.isInVehicle)
-			   {
-				   vehicleIconKey = GetVehicleIconKey(marker.vehicleType, marker.factionKey, true);
-				   DrawUnitMarker(marker.position, marker.direction, marker.unitType, color, true, marker.isAlive, vehicleIconKey);
-			   }
-			   else
-			   {
-				   DrawUnitMarker(marker.position, marker.direction, marker.unitType, color, false, marker.isAlive);
-			   }
-				   // (Removed duplicate color declaration and undefined iconType usage)
+
+			if (isOccupied)
+				continue;
+
+			string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, true);
+			Print(string.Format("BC Debug - VehicleMarker: vehicleType=%1, factionKey=%2, isEmpty=%3, vehicleIconKey=%4", vehicleMarker.vehicleType, vehicleMarker.factionKey, vehicleMarker.isEmpty, vehicleIconKey), LogLevel.NORMAL);
+			DrawUnitMarker(vehicleMarker.position, vehicleMarker.direction, "", vehicleMarker.factionKey, true, true, vehicleIconKey);
 		}
 		
 		// Draw projectiles as lines from firing position to impact position
@@ -536,11 +650,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		{
 			if (!truckMarker.isVisible || truckMarker.isDestroyed)
 				continue;
-			
-			// Use radiotruck_active icon
-			string truckIconPath = m_transmissionIconPaths.Get("radiotruck_active");
-			if (truckIconPath)
-				DrawTransmissionIcon(truckMarker.position, 48, 48, truckIconPath);
+
+			// Draw the vehicle marker for the radio truck (use Ural as default, or match prefab if available)
+			string vehicleIconKey = "Radiotruck_opfor";
+			DrawUnitMarker(truckMarker.position, truckMarker.direction, "", "USSR", true, true, vehicleIconKey);
+
 		}
 		
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
@@ -577,9 +691,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Draw an image with rotation and color tint
+	// Draw an image with rotation
 	// Rotation happens around center of the image
-	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, int color, float rotationDegrees)
+	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, float rotationDegrees)
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
 		
@@ -594,11 +708,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		cmd.m_Position = Vector(xcp - (expandedWidth/2), ycp - (expandedHeight/2), 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(expandedWidth, expandedHeight, 0);
-		// Ensure color is fully opaque and only tints the icon, not the background
-		// If the faction color is red, use 0xFFFF0000; otherwise, use the packed color with alpha 0xFF
-		// Always use full alpha for tinting to preserve texture transparency
-		// Always use pure white for icon tint to preserve alpha transparency
-		cmd.m_iColor = 0xFFFFFFFF;
+		// we dont color tint anymore due to transparency issues (no idea wtf enfusion is doing)
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		cmd.m_fRotation = rotationDegrees;
 		m_Commands.Insert(cmd);
 	}
@@ -621,7 +732,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				   m_loadedTextures.Set(texturePath, texture);
 		   }
 		   if (!texture)
+		   {
+			   Print(string.Format("BC Debug - DrawTransmissionIcon: Fallback to circle for texturePath=%1", texturePath), LogLevel.WARNING);
+			   DrawCircle(center, width * 0.3, 0xFFFFFFFF, 12);
 			   return;
+		   }
 		   // Create image draw command
 		   ImageDrawCommand cmd = new ImageDrawCommand();
 		   cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
@@ -636,7 +751,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	
 	//------------------------------------------------------------------------------------------------
 	// Draw a unit marker with icon and directional chevron
-	   protected void DrawUnitMarker(vector position, float direction, string unitType, int color, bool isVehicle, bool isAlive, string vehicleIconKey = "")
+	   protected void DrawUnitMarker(vector position, float direction, string unitType, string factionKey, bool isVehicle, bool isAlive, string vehicleIconKey = "")
 	   {
 		   float iconSize;
 		   if (isVehicle)
@@ -645,46 +760,58 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			   iconSize = 35.0;
 
 		   string texturePath;
-		   if (isVehicle && vehicleIconKey != "")
-		   {
-			   texturePath = m_vehicleIconTextures.Get(vehicleIconKey);
-		   }
-		   else
-		   {
-			   texturePath = m_unitTypeTextures.Get(unitType);
-			   if (texturePath == "")
-				   texturePath = m_unitTypeTextures.Get("Default");
-			   if (!isAlive)
-				   texturePath = m_unitTypeTextures.Get("Dead");
-		   }
+			if (isVehicle)
+		    {
+		        if (vehicleIconKey != "")
+		        {
+		            texturePath = m_vehicleIconTextures.Get(vehicleIconKey);
+		        }
+		    }
+		    else // Is infantry
+		    {
+		        string roleStr = unitType;
+		        if (roleStr == "")
+		           roleStr = "Rifleman";
+		
+		        string key = roleStr + "_" + factionKey;
+		        texturePath = m_unitTypeTextures.Get(key);
+		    }
+		
+		    // Centralized fallback
+		    if (texturePath == "")
+		    {
+		        if (isVehicle)
+		        {
+		             // Fallback for vehicle to a generic empty vehicle icon
+		             texturePath = m_vehicleIconTextures.Get("Commandvehicle_empty");
+		        } else {
+		             texturePath = m_unitTypeTextures.Get("Default");
+        		}
+		        Print(string.Format("BC Debug - DrawUnitMarker: Using fallback icon for vehicle/unit. isVehicle: %1, unitType: %2, faction: %3, vehicleIconKey: %4", isVehicle, unitType, factionKey, vehicleIconKey), LogLevel.WARNING);
+		    }
 
-		   if (texturePath != "")
+
+		   SharedItemRef texture = m_loadedTextures.Get(texturePath);
+		   if (!texture && m_Canvas && texturePath != "")
 		   {
-			   int iconPixelSize;
-			   if (isVehicle)
-				   iconPixelSize = 32;
-			   else
-				   iconPixelSize = 28;
-
-			   SharedItemRef texture = m_loadedTextures.Get(texturePath);
-			   if (!texture && m_Canvas)
-			   {
-				   texture = m_Canvas.LoadTexture(texturePath);
-				   if (texture)
-					   m_loadedTextures.Set(texturePath, texture);
-			   }
-
+			   texture = m_Canvas.LoadTexture(texturePath);
 			   if (texture)
-			   {
-				   DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, color, direction);
-			   }
-			   else
-			   {
-				   DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
-			   }
+				   m_loadedTextures.Set(texturePath, texture);
+		   }
+
+		   int iconPixelSize;
+		   if (isVehicle)
+			   iconPixelSize = 85;
+		   else
+			   iconPixelSize = 42;
+
+		   if (texture)
+		   {
+			   DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, direction);
 		   }
 		   else
 		   {
+			   Print(string.Format("BC Debug - DrawUnitMarker: Fallback to circle for texturePath=%1", texturePath), LogLevel.WARNING);
 			   DrawCircle(position, iconSize * 0.3, 0xFFFFFFFF, 12);
 		   }
 	   }
@@ -714,6 +841,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			marker.direction = playerSnapshot.angles[0]; // Yaw
 			marker.isAlive = playerSnapshot.isAlive;
 			marker.isInVehicle = playerSnapshot.isInVehicle;
+			marker.vehicleId = playerSnapshot.vehicleId;
 			marker.unitType = playerSnapshot.unitRole; // Infantry role from snapshot
 			marker.vehicleType = playerSnapshot.vehicleType; // Vehicle type from snapshot
 			marker.isVisible = true;
@@ -800,7 +928,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			marker.position = vehicleSnapshot.position;
 			marker.direction = vehicleSnapshot.angles[0]; // Yaw
 			marker.isVisible = true;
-			
+			marker.isEmpty = vehicleSnapshot.isEmpty;
 			newVehicleMarkers.Insert(marker);
 		}
 		
@@ -829,6 +957,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			lastMarker.direction = playerMarker.direction;
 			lastMarker.isAlive = playerMarker.isAlive;
 			lastMarker.isInVehicle = playerMarker.isInVehicle;
+			lastMarker.vehicleId = playerMarker.vehicleId;
 			lastMarker.unitType = playerMarker.unitType;
 			lastMarker.vehicleType = playerMarker.vehicleType;
 			lastMarker.isVisible = playerMarker.isVisible;
@@ -1012,6 +1141,7 @@ class GRAD_BC_ReplayPlayerMarker : Managed
 	float direction;
 	bool isAlive;
 	bool isInVehicle;
+	RplId vehicleId;
 	string unitType; // Infantry unit type (Rifleman, Medic, etc.)
 	string vehicleType; // Vehicle prefab name when in vehicle
 	bool isVisible;

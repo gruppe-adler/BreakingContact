@@ -684,11 +684,42 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		vector position = radioTruck.GetOrigin();
 		vector angles = radioTruck.GetAngles();
 		
+		// Check occupancy
+		Vehicle vehicle = Vehicle.Cast(radioTruck);
+		bool isEmpty = true;
+		if (vehicle)
+		{
+			BaseCompartmentManagerComponent compartmentManager = BaseCompartmentManagerComponent.Cast(vehicle.FindComponent(BaseCompartmentManagerComponent));
+			if (compartmentManager)
+			{
+				array<BaseCompartmentSlot> compartments = {};
+				compartmentManager.GetCompartments(compartments);
+				foreach (BaseCompartmentSlot slot : compartments)
+				{
+					if (slot.GetOccupant())
+					{
+						isEmpty = false;
+						break;
+					}
+				}
+			}
+		}
+		
+		// Check faction
+		string factionKey = "Empty";
+		FactionAffiliationComponent factionComponent = FactionAffiliationComponent.Cast(radioTruck.FindComponent(FactionAffiliationComponent));
+		if (factionComponent && factionComponent.GetAffiliatedFaction())
+		{
+			factionKey = factionComponent.GetAffiliatedFaction().GetFactionKey();
+		}
+		
 		GRAD_BC_RadioTruckSnapshot snapshot = GRAD_BC_RadioTruckSnapshot.Create(
 			position,
 			angles,
 			isActive,
-			isDestroyed
+			isDestroyed,
+			isEmpty,
+			factionKey
 		);
 		
 		frame.radioTrucks.Insert(snapshot);

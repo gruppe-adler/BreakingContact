@@ -48,7 +48,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		GRAD_BC_Traffic display = GRAD_BC_Traffic.Cast(hudManager.FindInfoDisplay(GRAD_BC_Traffic));
 		if (display)
 		{
-			display.showTransmissionHint(displayType);
+			display.showTrafficHint(displayType);
 		}
 	}
 }

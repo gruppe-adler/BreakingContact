@@ -455,7 +455,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				}
 			}
 
-			Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for vehicle: %1", vehicleType), LogLevel.NORMAL);
+			// Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for vehicle: %1", vehicleType), LogLevel.NORMAL);
 			
 			GRAD_BC_VehicleSnapshot snapshot = GRAD_BC_VehicleSnapshot.Create(
 				rpl.Id(),

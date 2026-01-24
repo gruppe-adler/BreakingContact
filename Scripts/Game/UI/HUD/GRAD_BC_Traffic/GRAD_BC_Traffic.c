@@ -45,7 +45,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		Print("GRAD_BC_Traffic: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	
-	void showTransmissionHint(e_currentTrafficDisplay currentHint) {
+	void showTrafficHint(e_currentTrafficDisplay currentHint) {
 		
 		if (!m_infoImage) {
 			Print("GRAD_BC_Traffic: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);

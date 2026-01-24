@@ -1,11 +1,6 @@
 SCR_PlayerController {
  ID "1A9BA6BEFA06E3B1"
  components {
-  ADM_CurrencyComponent "{644D68F422C12855}" {
-   m_Value 5
-  }
-  ADM_PlayerShopManagerComponent "{644D68F5C12179D3}" {
-  }
   GRAD_PlayerComponent "{6574C16112F8567A}" {
   }
   SCR_HUDManagerComponent "{2FDC275D9EBCDB8B}" {
@@ -19,6 +14,10 @@ SCR_PlayerController {
      m_eShow 55
     }
     GRAD_BC_Gamestate "{66072C1C64A76AD9}" {
+     m_eShow 55
+    }
+    GRAD_BC_Traffic "{687109A503260987}" {
+     m_LayoutPath "{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout"
      m_eShow 55
     }
    }

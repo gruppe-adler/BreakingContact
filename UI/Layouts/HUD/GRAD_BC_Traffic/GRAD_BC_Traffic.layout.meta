@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout"
+ Name "{816A27B9F4B00FF8}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout"
  Configurations {
   LayoutResourceClass PC {
   }
@@ -10,6 +10,8 @@ MetaFileClass {
   LayoutResourceClass PS4 : PC {
   }
   LayoutResourceClass HEADLESS : PC {
+  }
+  LayoutResourceClass PS5 : PC {
   }
  }
 }

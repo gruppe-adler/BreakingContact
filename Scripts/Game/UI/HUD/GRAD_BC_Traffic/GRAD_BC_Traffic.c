@@ -19,12 +19,20 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		
 		Print("GRAD_BC_Traffic: DisplayStartDraw called", LogLevel.NORMAL);
 		
-		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout", null);
+		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{816A27B9F4B00FF8}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout", null);
 		
 		if (!m_wRoot) {
 			Print("GRAD_BC_Traffic: no m_wRoot found", LogLevel.NORMAL);
 			return;
 		}
+
+		if (m_wRoot) {
+        Print("--- DUMPING WIDGET HIERARCHY ---");
+        DumpWidgets(m_wRoot, 0);
+        
+        m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Traffic_Widget"));
+    }
+
 		
 		Print("GRAD_BC_Traffic: m_wRoot created successfully", LogLevel.NORMAL);
 		
@@ -34,6 +42,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		if (!m_infoImage) {
 			Print("GRAD_BC_Traffic_Widget: no GRAD_BC_Traffic_Widget found", LogLevel.NORMAL);
 			return;
+
 		}
 		
 		Print("GRAD_BC_Traffic: m_infoImage found and initialized", LogLevel.NORMAL);
@@ -45,6 +54,23 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		Print("GRAD_BC_Traffic: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	
+	
+	// Helper to see exactly what names the engine is seeing
+	void DumpWidgets(Widget w, int indent) {
+		if (!w) return;
+		string space = "";
+		for(int i=0; i<indent; i++) space += "  ";
+		
+		Print(space + "- 
+			: " + w.GetName() + " [Type: " + w.GetTypeName() + "]");
+		
+		Widget child = w.GetChildren();
+		while (child) {
+			DumpWidgets(child, indent + 1);
+			child = child.GetSibling();
+		}
+	}
+
 	void showTrafficHint(e_currentTrafficDisplay currentHint) {
 		
 		if (!m_infoImage) {

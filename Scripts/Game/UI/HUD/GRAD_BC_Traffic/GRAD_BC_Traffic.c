@@ -19,7 +19,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		
 		Print("GRAD_BC_Traffic: DisplayStartDraw called", LogLevel.NORMAL);
 		
-		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{816A27B9F4B00FF8}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout", null);
+		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{71FCB653E258569E}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout", null);
 		
 		if (!m_wRoot) {
 			Print("GRAD_BC_Traffic: no m_wRoot found", LogLevel.NORMAL);
@@ -61,8 +61,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		string space = "";
 		for(int i=0; i<indent; i++) space += "  ";
 		
-		Print(space + "- 
-			: " + w.GetName() + " [Type: " + w.GetTypeName() + "]");
+		Print(space + "- : " + w.GetName() + " [Type: " + w.GetTypeName() + "]");
 		
 		Widget child = w.GetChildren();
 		while (child) {

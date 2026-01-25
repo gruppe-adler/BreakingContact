@@ -6,12 +6,23 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
-		// Only run on the client/player who owns this component
-		if (GetGame().GetPlayerController() != owner)
-			return;
-
-		// Subscribe to the global traffic event
-		SCR_TrafficEvents.OnCivilianEvent.Insert(OnCivilianEvent);
+		// Enable frame updates so we can check every frame
+   		 SetEventMask(owner, EntityEvent.FRAME);
+	}
+	
+	override void EOnFrame(IEntity owner, float timeSlice)
+	{
+	    PlayerController pc = GetGame().GetPlayerController();
+	    
+	    // Check if the local PC is now this owner
+	    if (pc && pc == owner)
+	    {
+	        SCR_TrafficEvents.OnCivilianEvent.Insert(OnCivilianEvent);
+	        Print("GRAD_BC_TrafficHintManagerComponent: Local PlayerController found via frame poll!");
+	        
+	        // IMPORTANT: Turn off the frame event once we are subscribed
+	        ClearEventMask(owner, EntityEvent.FRAME);
+	    }
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -19,13 +30,14 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	{
 		// Cleanup subscription
 		SCR_TrafficEvents.OnCivilianEvent.Remove(OnCivilianEvent);
+    		super.OnDelete(owner);
 	}
 
 	//------------------------------------------------------------------------------------------------
 	protected void OnCivilianEvent(vector location, string eventtype)
 	{
 
-		Print(string.Format("GRAD_BC_Manager: Civilian gunfight or death detected at %1", location), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Civilian gunfight or death detected at %1", location), LogLevel.NORMAL);
 
 		// Find the UI display via the HUD Manager
 		SCR_HUDManagerComponent hudManager = SCR_HUDManagerComponent.Cast(GetGame().GetPlayerController().FindComponent(SCR_HUDManagerComponent));
@@ -40,7 +52,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 				case "gunfight": { displayType = e_currentTrafficDisplay.GUNFIGHT; break; };
 				default: {
 					displayType = e_currentTrafficDisplay.NONE;
-					Print(string.Format("BC TrafficHintManagerComponent: No hint", eventtype), LogLevel.ERROR);
+					Print(string.Format("GRAD_BC_TrafficHintManagerComponent: No hint", eventtype), LogLevel.ERROR);
 					break;
 				}
 		};
@@ -49,6 +61,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		if (display)
 		{
 			display.showTrafficHint(displayType);
+		} else {
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: No display", eventtype), LogLevel.ERROR);
 		}
 	}
 }

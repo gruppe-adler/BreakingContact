@@ -158,7 +158,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // --- CHANGE 2: SKIP PLAYERS IN VEHICLES ---
             // The vehicle loop above has already drawn the vehicle.
             // Drawing it here again would use the wrong rotation (Player Look Dir).
-            if (playerMarker.isInVehicle) continue; 
+            if (playerMarker.isInVehicle) continue;
             
             // Logic below now only handles foot mobile units
             string roleStr = playerMarker.unitType;
@@ -408,9 +408,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("LAV_empty", "{AD78B1EE505E01FC}UI/Textures/Icons/LAV_empty.edds");
 		m_vehicleIconTextures.Set("LAV_opfor", "{2F20DFA7DAF579E3}UI/Textures/Icons/LAV_opfor.edds");
 
-		m_vehicleIconTextures.Set("BTR_blufor", "{06FB93A5E254D29E}UI/Textures/Icons/BTR_blufor.edds");
-		m_vehicleIconTextures.Set("BTR_empty", "{4F0602CC01556B32}UI/Textures/Icons/BTR_empty.edds");
-		m_vehicleIconTextures.Set("BTR_opfor", "{D26C47510DE3338D}UI/Textures/Icons/BRDM_opfor.edds");
+		m_vehicleIconTextures.Set("BTR_blufor", "{06FB93A5E254D29E}UI/Textures/Icons/BTR70_blufor.edds");
+		m_vehicleIconTextures.Set("BTR_empty", "{4F0602CC01556B32}UI/Textures/Icons/BTR70_empty.edds");
+		m_vehicleIconTextures.Set("BTR_opfor", "{CD5E6C858BFE132D}UI/Textures/Icons/BTR70_opfor.edds");
 
 		m_vehicleIconTextures.Set("M151A2_blufor", "{F134996BEE493C80}UI/Textures/Icons/M151A2_blufor.edds");
 		m_vehicleIconTextures.Set("M151A2_empty", "{3F818F4DDA023873}UI/Textures/Icons/M151A2_empty.edds");
@@ -434,8 +434,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("M998_open_opfor", "{8F14AB7CA8092506}UI/Textures/Icons/M998_open_opfor.edds");
 
 		m_vehicleIconTextures.Set("UAZ_452_opfor", "{D5FBFD6881DC4B58}UI/Textures/Icons/UAZ_452_opfor.edds");
-		m_vehicleIconTextures.Set("UAZ_452_blufor", "{7AD5D1D4CA9B9DFF}UI/Textures/Icons/UAZ_452_blufor.edds");
-		m_vehicleIconTextures.Set("UAZ_452_empty", "{D74712B1A79AFEFB}UI/Textures/Icons/UAZ_452_empty.edds");
+		m_vehicleIconTextures.Set("UAZ_452_blufor", "{5731CADA4C68FBCF}UI/Textures/Icons/UAZ_452_blufor.edds");
+		m_vehicleIconTextures.Set("UAZ_452_empty", "{57A393210B773347}UI/Textures/Icons/UAZ_452_empty.edds");
 
 		m_vehicleIconTextures.Set("UAZ_469_closed_blufor", "{613ACF2847FB8583}UI/Textures/Icons/UAZ_469 closed_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_closed_empty", "{529E5BA357DB08E3}UI/Textures/Icons/UAZ_469 closed_empty.edds");
@@ -467,7 +467,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("Commandvehicle_opfor", "{401B021391378F32}UI/Textures/Icons/Commandvehicle_opfor.edds");
 
 		m_vehicleIconTextures.Set("S105_blufor", "{8705E23234AE5219}UI/Textures/Icons/S105_blufor.edds");
-		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_Empty.edds");
+		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_empty.edds");
 		m_vehicleIconTextures.Set("S105_opfor", "{933D1EE7EE137751}UI/Textures/Icons/S105_opfor.edds");
 
 		m_vehicleIconTextures.Set("S1203_blufor", "{E04DE98D3C890A8A}UI/Textures/Icons/S1203_blufor.edds");

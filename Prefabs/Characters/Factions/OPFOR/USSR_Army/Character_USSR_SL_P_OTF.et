@@ -11,12 +11,6 @@ SCR_ChimeraCharacter : "{A5F4D7FEBDB57182}Prefabs/Characters/Factions/OPFOR/USSR
       "{77EAE5E07DC4678A}Prefabs/Weapons/Grenades/Smoke_RDG2.et" "{77EAE5E07DC4678A}Prefabs/Weapons/Grenades/Smoke_RDG2.et" "{645C73791ECA1698}Prefabs/Weapons/Grenades/Grenade_RGD5.et" "{0A84AA5A3884176F}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Last_5Tracer.et" "{0A84AA5A3884176F}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Last_5Tracer.et" "{0A84AA5A3884176F}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Last_5Tracer.et" "{0A84AA5A3884176F}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Last_5Tracer.et" "{E5912E45754CD421}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Tracer.et" "{E5912E45754CD421}Prefabs/Weapons/Magazines/Magazine_545x39_AK_30rnd_Tracer.et"
      }
     }
-    ItemsInitConfigurationItem "{5F028E5ACDB8E1CE}" {
-     TargetStorage "Vest/Vest_Lifchik_GL.et"
-     PrefabsToSpawn {
-      "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
-     }
-    }
    }
   }
  }

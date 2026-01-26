@@ -12,15 +12,5 @@ SCR_ChimeraCharacter : "{47B0BA658525301A}Prefabs/Characters/Factions/OPFOR/USSR
     }
    }
   }
-  SCR_InventoryStorageManagerComponent "{520EA1D2DB118DE5}" {
-   InitialInventoryItems {
-    ItemsInitConfigurationItem "{5F028E5B8CF14D49}" {
-     TargetStorage "Vest/Vest_Lifchik.et"
-     PrefabsToSpawn {
-      "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
-     }
-    }
-   }
-  }
  }
 }

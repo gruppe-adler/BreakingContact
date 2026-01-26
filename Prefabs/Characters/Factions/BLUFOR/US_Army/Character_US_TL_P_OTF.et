@@ -15,15 +15,5 @@ SCR_ChimeraCharacter : "{094747C4F8BE9F9F}Prefabs/Characters/Factions/BLUFOR/US_
   GRAD_CharacterRoleComponent "{607F64131E3AB5D2}" {
    m_sCharacterRole "Blufor Commander"
   }
-  SCR_InventoryStorageManagerComponent "{520EA1D2DB118DE5}" {
-   InitialInventoryItems {
-    ItemsInitConfigurationItem "{5F028E5F9414953B}" {
-     TargetStorage "Vest/Vest_ALICE_rifleman.et"
-     PrefabsToSpawn {
-      "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
-     }
-    }
-   }
-  }
  }
 }

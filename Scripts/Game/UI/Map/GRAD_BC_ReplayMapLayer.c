@@ -85,27 +85,25 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     //------------------------------------------------------------------------------------------------
     override void Draw()
     {
-        // 1. Clear Command Buffer (for lines/projectiles which still use Canvas)
+        // 1. Clear Command Buffer
         m_Commands.Clear();
         
-        // 2. Prepare Widget Tracking for this frame
+        // 2. Prepare Widget Tracking
         m_UsedWidgetKeys.Clear();
 
         GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 
-        // Safety checks
         if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
         {
-            // Hide all widgets if replay isn't active
             foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
             return;
         }
 
         // ---------------------------------------------------------
-        // UPDATE UNITS & VEHICLES (Using Widgets)
+        // UPDATE UNITS & VEHICLES
         // ---------------------------------------------------------
         
-        // --- 1. Vehicles ---
+        // --- 1. Vehicles (Draw ALL vehicles here, occupied or not) ---
         array<ref GRAD_BC_ReplayVehicleMarker> vehiclesToRender;
         if (m_bIsInReplayMode) vehiclesToRender = m_vehicleMarkers;
         else if (m_hasLastFrame) vehiclesToRender = m_lastFrameVehicleMarkers;
@@ -115,24 +113,36 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         {
             if (!vehicleMarker.isVisible) continue;
 
-            // Check if occupied by player (to avoid drawing duplicate)
+            // Check if occupied by player to determine Color/Icon
             bool isOccupied = false;
-            // (Assuming markersToRender is available in scope or passed in - inferred from your snippet)
-            // If markersToRender isn't class member, iterate m_playerMarkers
+            
+            // Optimization: If your snapshot data already has 'isEmpty' reliably populated, 
+            // you can just use "!vehicleMarker.isEmpty". 
+            // Otherwise, keep this loop to double-check against actual players:
             foreach (GRAD_BC_ReplayPlayerMarker p : m_playerMarkers) {
                 if (p.isInVehicle && p.vehicleId == vehicleMarker.entityId) { isOccupied = true; break; }
             }
-            if (isOccupied) continue;
+            
+            // --- CHANGE 1: DO NOT CONTINUE/SKIP HERE --- 
+            // We want to draw the vehicle using the VehicleMarker data because 
+            // vehicleMarker.direction is the Chassis direction (Correct),
+            // whereas playerMarker.direction is View direction (Wrong).
 
-            string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, true);
+            // Determine if we treat it as empty for the icon key
+            bool showAsEmpty = !isOccupied;
+
+            // Get Key based on vehicle state
+            string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, showAsEmpty);
             string texturePath = m_vehicleIconTextures.Get(vehicleIconKey);
             
             // Fallback
-            if (texturePath == "") texturePath = m_vehicleIconTextures.Get("M998_closed_empty"); // Default fallback
+            if (texturePath == "") texturePath = m_vehicleIconTextures.Get("M998_closed_empty");
 
             // Update Widget
-            string widgetKey = "VEH_" + vehicleMarker.entityId.ToString(); // Unique ID
-            UpdateMarkerWidget(widgetKey, texturePath, vehicleMarker.position, vehicleMarker.direction, true, true);
+            string widgetKey = "VEH_" + vehicleMarker.entityId.ToString();
+            
+            // Pass 'showAsEmpty' to the update function to tint it Gray if needed
+            UpdateMarkerWidget(widgetKey, texturePath, vehicleMarker.position, vehicleMarker.direction, true, showAsEmpty);
         }
 
         // --- 2. Infantry / Players ---
@@ -145,28 +155,24 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         {
             if (!playerMarker.isVisible) continue;
             
-            string texturePath;
-            bool isVehicle = playerMarker.isInVehicle;
+            // --- CHANGE 2: SKIP PLAYERS IN VEHICLES ---
+            // The vehicle loop above has already drawn the vehicle.
+            // Drawing it here again would use the wrong rotation (Player Look Dir).
+            if (playerMarker.isInVehicle) continue; 
             
-            if (isVehicle) {
-                string vKey = GetVehicleIconKey(playerMarker.vehicleType, playerMarker.factionKey, false);
-                texturePath = m_vehicleIconTextures.Get(vKey);
-            } else {
-                string roleStr = playerMarker.unitType;
-                if (roleStr == "") roleStr = "Rifleman";
-                string key = roleStr + "_" + playerMarker.factionKey;
-                texturePath = m_unitTypeTextures.Get(key);
-            }
+            // Logic below now only handles foot mobile units
+            string roleStr = playerMarker.unitType;
+            if (roleStr == "") roleStr = "Rifleman";
+            string key = roleStr + "_" + playerMarker.factionKey;
+            string texturePath = m_unitTypeTextures.Get(key);
 
-            // Fallback
             if (texturePath == "") texturePath = m_unitTypeTextures.Get("Default");
 
             string widgetKey = "PLR_" + playerMarker.playerId.ToString();
-            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, isVehicle, false);
+            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
         }
 
         // --- 3. Hide Unused Widgets ---
-        // Any widget that wasn't updated this frame should be hidden
         foreach (string key, ImageWidget w : m_ActiveWidgets)
         {
             if (!m_UsedWidgetKeys.Contains(key))

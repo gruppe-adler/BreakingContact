@@ -1072,13 +1072,13 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		if (isOver) {
-            // FIX: Check if we are already skipping (already scheduled)
+            // Check if we are already skipping (already scheduled)
             if (m_skipWinConditions || GameModeOver())
             {
                 return; 
             }
             
-            // FIX: Lock it immediately so the next mainLoop tick (1 sec later) exits early
+            // Lock it immediately so the next mainLoop tick (1 sec later) exits early
             m_skipWinConditions = true;
 
             // Schedule game over
@@ -1088,8 +1088,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	void SetBluforWin()
 	{
-		if (GameModeOver())
-			return; // Game already over
+        if (m_skipWinConditions || GameModeOver())
+            return; 
+            
+        // Lock immediately
+        m_skipWinConditions = true;
 			
 		m_sWinnerSide = "blufor";
 		Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
@@ -1104,8 +1107,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SetRadioTruckDestroyed(string destroyerFaction)
 	{
-		if (GameModeOver())
-			return; // Game already over
+        if (m_skipWinConditions || GameModeOver())
+            return; 
+        
+        // Lock immediately
+        m_skipWinConditions = true;
 		
 		m_bRadioTruckDestroyed = true;
 		m_sRadioTruckDestroyerFaction = destroyerFaction;

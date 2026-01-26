@@ -1072,15 +1072,18 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		if (isOver) {
-			// Check if we already scheduled game over to prevent multiple calls
-			if (GameModeOver())
-			{
-				return; // Already scheduled or in GAMEOVER phase
-			}
-			
-			// Schedule game over
-			GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
-		}
+            // FIX: Check if we are already skipping (already scheduled)
+            if (m_skipWinConditions || GameModeOver())
+            {
+                return; 
+            }
+            
+            // FIX: Lock it immediately so the next mainLoop tick (1 sec later) exits early
+            m_skipWinConditions = true;
+
+            // Schedule game over
+            GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
+        }
 	}
 	
 	void SetBluforWin()

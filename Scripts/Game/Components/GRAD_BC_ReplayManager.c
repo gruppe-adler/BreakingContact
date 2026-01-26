@@ -1968,52 +1968,82 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	// Skip empty frames at the start of replay
 	void SkipEmptyFrames()
-	{
-		if (!m_replayData || m_replayData.frames.Count() == 0)
-			return;
-			
-		Print("GRAD_BC_ReplayManager: Checking for empty frames to skip...", LogLevel.NORMAL);
-		
-		int skippedCount = 0;
-		int startIndex = m_iCurrentFrameIndex;
-		
-		// Look ahead for the first frame with interesting content
-		for (int i = startIndex; i < m_replayData.frames.Count(); i++)
-		{
-			GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
+{
+    if (!m_replayData || m_replayData.frames.Count() == 0)
+        return;
+        
+    Print("GRAD_BC_ReplayManager: Checking for empty frames to skip...", LogLevel.NORMAL);
+    
+    int startIndex = m_iCurrentFrameIndex;
+    
+    for (int i = startIndex; i < m_replayData.frames.Count(); i++)
+    {
+        GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
 
-			// FIXED: Check if frame has any content (including vehicles and radio trucks)
-			bool hasContent = frame.players.Count() > 0 ||
-							  frame.projectiles.Count() > 0 ||
-							  frame.transmissions.Count() > 0 ||
-							  frame.vehicles.Count() > 0 ||
-							  frame.radioTrucks.Count() > 0;
+        // --- FIX: Check for VISUAL content, not just list count ---
+        bool hasVisualContent = false;
 
-			if (hasContent)
-			{
-				// Found content!
-				if (i > startIndex)
-				{
-					// Update playback state to this frame
-					m_iCurrentFrameIndex = i;
-					float frameTime = frame.timestamp - m_replayData.startTime;
-					m_fCurrentPlaybackTime = frameTime;
-					
-					// Adjust start time so playback continues from here
-					float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-					m_fPlaybackStartTime = currentWorldTime - (m_fCurrentPlaybackTime / m_fPlaybackSpeed);
-					
-					Print(string.Format("GRAD_BC_ReplayManager: Skipped %1 empty frames. Starting at frame %2 (time: %.2f)", 
-						i - startIndex, i, frameTime), LogLevel.NORMAL);
-				}
-				else
-				{
-					Print("GRAD_BC_ReplayManager: No empty frames to skip.", LogLevel.NORMAL);
-				}
-				return;
-			}
-		}
-		
-		Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
+        // 1. Check Players 
+        // Players often exist in data before they physically spawn on the map.
+        // We check if their position is non-zero (assuming 0,0,0 is the loading limbo).
+        if (frame.players.Count() > 0)
+        {
+            // Assuming the type is GRAD_BC_ReplayPlayer based on your naming convention
+            // If the type is different, replace 'GRAD_BC_ReplayPlayer' with the correct class name.
+            foreach (GRAD_BC_PlayerSnapshot player : frame.players)
+            {
+                // Ensure player has a valid coordinate (Vector Length check)
+                if (player.position.Length() > 0.1) 
+                {
+                    hasVisualContent = true;
+                    break; 
+                }
+            }
+        }
+
+        // 2. Check other entities
+        // If these lists have items, the game is usually active.
+        if (!hasVisualContent)
+        {
+            if (frame.projectiles.Count() > 0 || 
+                frame.transmissions.Count() > 0 || 
+                frame.vehicles.Count() > 0 ||
+                frame.radioTrucks.Count() > 0)
+            {
+                hasVisualContent = true;
+            }
+        }
+
+        if (hasVisualContent)
+        {
+            if (i > startIndex)
+            {
+                m_iCurrentFrameIndex = i;
+                float frameTime = frame.timestamp - m_replayData.startTime;
+                m_fCurrentPlaybackTime = frameTime;
+                
+                float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
+                
+                // NO TERNARY: Standard if-check for speed safety
+                float speed = m_fPlaybackSpeed;
+                if (speed == 0)
+                {
+                    speed = 1.0;
+                }
+                
+                m_fPlaybackStartTime = currentWorldTime - (m_fCurrentPlaybackTime / speed);
+                
+                Print(string.Format("GRAD_BC_ReplayManager: Skipped %1 empty frames. Starting at frame %2", 
+                    i - startIndex, i), LogLevel.NORMAL);
+            }
+            else
+            {
+                Print("GRAD_BC_ReplayManager: Content found immediately (Frame " + i + ")", LogLevel.NORMAL);
+            }
+            return;
+        }
+    }
+    
+    Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
 	}
 }

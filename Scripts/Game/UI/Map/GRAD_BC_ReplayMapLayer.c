@@ -193,22 +193,26 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // 1. Get/Create Widget
         ImageWidget w = GetOrCreateMarkerWidget(key, texturePath, isVehicle);
         if (!w) return;
-        
+
         m_UsedWidgetKeys.Insert(key);
 
-        // 2. World to Screen
-        float x, y;
-        m_MapEntity.WorldToScreen(worldPos[0], worldPos[2], x, y, true);
-        
+        // 2. World to Screen - Returns screen pixels
+        float screenX, screenY;
+        m_MapEntity.WorldToScreen(worldPos[0], worldPos[2], screenX, screenY, true);
+
         // 3. Position & Rotation
-        FrameSlot.SetPos(w, x, y);
-        
+        // FIXED: Apply DPI unscaling to screen coordinates for proper positioning
+        // Since alignment is 0.5, 0.5 (center), position is already the center point
+        float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
+        float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
+        FrameSlot.SetPos(w, posX, posY);
+
         // Rotation: Input 'direction' is usually World Yaw.
-        // Icons usually face UP. 
+        // Icons usually face UP.
         // World 0 (North) -> Screen UP.
         // If World Yaw increases Clockwise, Screen Rotation increases Clockwise.
         // Standard formula:
-        float rot = direction; 
+        float rot = direction;
         w.SetRotation(rot);
 
         // 4. Color / Opacity
@@ -727,9 +731,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Called by replay manager to update marker positions
 	void UpdateReplayFrame(GRAD_BC_ReplayFrame frame)
 	{
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles", 
-			frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.radioTrucks.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
-		
+		// Reduced logging frequency - only log every 20th frame
+		static int frameUpdateCount = 0;
+		frameUpdateCount++;
+		if (frameUpdateCount % 20 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles",
+				frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.radioTrucks.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
+		}
+
 		// Build new marker arrays first (don't clear existing ones yet to avoid empty frames)
 		array<ref GRAD_BC_ReplayPlayerMarker> newPlayerMarkers = {};
 		array<ref GRAD_BC_ReplayProjectileMarker> newProjectileMarkers = {};
@@ -841,92 +851,33 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			newVehicleMarkers.Insert(marker);
 		}
 		
+		// PERFORMANCE FIX: Before swapping, save current markers as last frame (by reference, not deep copy)
+		// This is much faster than deep copying all marker data
+		if (m_playerMarkers.Count() > 0 || m_projectileMarkers.Count() > 0 || m_transmissionMarkers.Count() > 0 || m_radioTruckMarkers.Count() > 0 || m_vehicleMarkers.Count() > 0)
+		{
+			m_lastFramePlayerMarkers = m_playerMarkers;
+			m_lastFrameProjectileMarkers = m_projectileMarkers;
+			m_lastFrameTransmissionMarkers = m_transmissionMarkers;
+			m_lastFrameRadioTruckMarkers = m_radioTruckMarkers;
+			m_lastFrameVehicleMarkers = m_vehicleMarkers;
+			m_hasLastFrame = true;
+		}
+
 		// Now atomically swap the marker arrays to avoid empty frames during rendering
 		m_playerMarkers = newPlayerMarkers;
 		m_projectileMarkers = newProjectileMarkers;
 		m_transmissionMarkers = newTransmissionMarkers;
 		m_radioTruckMarkers = newRadioTruckMarkers;
 		m_vehicleMarkers = newVehicleMarkers;
-		
-		// Save this frame as the last frame for persistent display
-		m_lastFramePlayerMarkers.Clear();
-		m_lastFrameProjectileMarkers.Clear();
-		m_lastFrameTransmissionMarkers.Clear();
-		m_lastFrameRadioTruckMarkers.Clear();
-		m_lastFrameVehicleMarkers.Clear();
-		
-		// Deep copy current markers to last frame
-		foreach (GRAD_BC_ReplayPlayerMarker playerMarker : m_playerMarkers)
-		{
-			GRAD_BC_ReplayPlayerMarker lastMarker = new GRAD_BC_ReplayPlayerMarker();
-			lastMarker.playerId = playerMarker.playerId;
-			lastMarker.playerName = playerMarker.playerName;
-			lastMarker.factionKey = playerMarker.factionKey;
-			lastMarker.position = playerMarker.position;
-			lastMarker.direction = playerMarker.direction;
-			lastMarker.isAlive = playerMarker.isAlive;
-			lastMarker.isInVehicle = playerMarker.isInVehicle;
-			lastMarker.vehicleId = playerMarker.vehicleId;
-			lastMarker.unitType = playerMarker.unitType;
-			lastMarker.vehicleType = playerMarker.vehicleType;
-			lastMarker.isVisible = playerMarker.isVisible;
-			m_lastFramePlayerMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayProjectileMarker projMarker : m_projectileMarkers)
-		{
-			GRAD_BC_ReplayProjectileMarker lastMarker = new GRAD_BC_ReplayProjectileMarker();
-			lastMarker.projectileType = projMarker.projectileType;
-			lastMarker.position = projMarker.position;
-			lastMarker.impactPosition = projMarker.impactPosition;
-			lastMarker.velocity = projMarker.velocity;
-			lastMarker.isVisible = projMarker.isVisible;
-			m_lastFrameProjectileMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayTransmissionMarker transMarker : m_transmissionMarkers)
-		{
-			GRAD_BC_ReplayTransmissionMarker lastMarker = new GRAD_BC_ReplayTransmissionMarker();
-			lastMarker.position = transMarker.position;
-			lastMarker.state = transMarker.state;
-			lastMarker.progress = transMarker.progress;
-			lastMarker.isVisible = transMarker.isVisible;
-			m_lastFrameTransmissionMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayRadioTruckMarker truckMarker : m_radioTruckMarkers)
-		{
-			GRAD_BC_ReplayRadioTruckMarker lastMarker = new GRAD_BC_ReplayRadioTruckMarker();
-			lastMarker.position = truckMarker.position;
-			lastMarker.direction = truckMarker.direction;
-			lastMarker.isActive = truckMarker.isActive;
-			lastMarker.isDestroyed = truckMarker.isDestroyed;
-			lastMarker.isVisible = truckMarker.isVisible;
-			lastMarker.isEmpty = truckMarker.isEmpty;
-			lastMarker.factionKey = truckMarker.factionKey;
-			m_lastFrameRadioTruckMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayVehicleMarker vehicleMarker : m_vehicleMarkers)
-		{
-			GRAD_BC_ReplayVehicleMarker lastMarker = new GRAD_BC_ReplayVehicleMarker();
-			lastMarker.entityId = vehicleMarker.entityId;
-			lastMarker.vehicleType = vehicleMarker.vehicleType;
-			lastMarker.factionKey = vehicleMarker.factionKey;
-			lastMarker.position = vehicleMarker.position;
-			lastMarker.direction = vehicleMarker.direction;
-			lastMarker.isVisible = vehicleMarker.isVisible;
-			m_lastFrameVehicleMarkers.Insert(lastMarker);
-		}
-		
-		m_hasLastFrame = true;
+
 		m_bIsInReplayMode = true; // Mark that we're in replay mode
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles for persistent display", 
-			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count(), m_lastFrameTransmissionMarkers.Count(), m_lastFrameRadioTruckMarkers.Count(), m_lastFrameVehicleMarkers.Count()));
-		
-		// Log frame update for debugging
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks", 
-			m_playerMarkers.Count(), m_projectileMarkers.Count(), m_transmissionMarkers.Count(), m_radioTruckMarkers.Count()), LogLevel.NORMAL);
+
+		// Reduced logging
+		if (frameUpdateCount % 20 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 vehicles (last frame: %3 players)",
+				m_playerMarkers.Count(), m_vehicleMarkers.Count(), m_lastFramePlayerMarkers.Count()), LogLevel.NORMAL);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

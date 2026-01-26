@@ -1981,12 +1981,14 @@ void StartLocalReplayPlayback()
 		for (int i = startIndex; i < m_replayData.frames.Count(); i++)
 		{
 			GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
-			
-			// Check if frame has any content
-			bool hasContent = frame.players.Count() > 0 || 
-							  frame.projectiles.Count() > 0 || 
-							  frame.transmissions.Count() > 0;
-							  
+
+			// FIXED: Check if frame has any content (including vehicles and radio trucks)
+			bool hasContent = frame.players.Count() > 0 ||
+							  frame.projectiles.Count() > 0 ||
+							  frame.transmissions.Count() > 0 ||
+							  frame.vehicles.Count() > 0 ||
+							  frame.radioTrucks.Count() > 0;
+
 			if (hasContent)
 			{
 				// Found content!

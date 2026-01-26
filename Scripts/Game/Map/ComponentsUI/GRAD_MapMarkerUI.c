@@ -59,54 +59,63 @@ class MapCircle
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void UpdateCircle()
-	{	
-		if (!m_wCircle)	// can happen due to callater used for update
-			return;
-				
-		int screenX, screenY, endX, endY;
-		
-		// gets logged REALLY often, only uncomment if necessary
-		// Print(string.Format("GRAD CirclemarkerUI: m_sType is %1, m_textureCache is %2", m_sType, m_textureCache), LogLevel.NORMAL);
-		
-		if (m_sType != "" && m_textureCache != m_sType && !isSpawnMarker) {
-			
-			bool textureLoaded = m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
-			
-			if (textureLoaded) {
-				m_textureCache = m_sType;  // as we have no getter for existing texture WHYEVER :[[
-			};
-			
-			Print(string.Format("GRAD CirclemarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
-		};
+	//------------------------------------------------------------------------------------------------
+    //------------------------------------------------------------------------------------------------
+    void UpdateCircle()
+    {   
+        if (!m_wCircle)
+            return;
+                
+        int screenX, screenY, endX, endY;
+        
+        if (m_sType != "" && m_textureCache != m_sType && !isSpawnMarker) {
+            bool textureLoaded = m_wCircleImage.LoadImageTexture (0, m_sType, false, false);
+            if (textureLoaded) {
+                m_textureCache = m_sType;
+            };
+        };
 
-		
-		m_wCircle.SetOpacity(m_opacity);
-		
-		m_MapEntity.WorldToScreen(m_fStartPointX, m_fStartPointY, screenX, screenY, true);
-		m_MapEntity.WorldToScreen(m_fEndPointX, m_fEndPointY, endX, endY, true);
-		
-		vector circleVector = vector.Zero;
-		circleVector[0] = m_fStartPointX - m_fEndPointX;
-		circleVector[1] = m_fStartPointY - m_fEndPointY;
+        m_wCircle.SetOpacity(m_opacity);
+        
+        // --- Calculate Vector ---
+        vector circleVector = vector.Zero;
+        circleVector[0] = m_fStartPointX - m_fEndPointX;
+        circleVector[1] = m_fStartPointY - m_fEndPointY;
 
-		vector angles = circleVector.VectorToAngles();
-		if (angles[0] == 90)
-			angles[1] =  180 - angles[1]; 	// reverse angles when passing vertical axis
-		
-		m_wCircleImage.SetRotation(angles[1]);
-		
-		circleVector = m_MapEntity.GetMapWidget().SizeToPixels(circleVector);
-		m_wCircleImage.SetSize(GetGame().GetWorkspace().DPIUnscale(circleVector.Length()), GetGame().GetWorkspace().DPIUnscale(circleVector.Length()));
-		float size = GetGame().GetWorkspace().DPIUnscale(circleVector.Length());
-		m_wCircleImage.SetSize(size, size);
-		
-		float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
-		float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
-		
-		FrameSlot.SetAlignment(m_wCircle, 0.5, 0.5);
-		FrameSlot.SetPos(m_wCircle, posX, posY);	// needs unscaled coords
-	}
+        vector angles = circleVector.VectorToAngles();
+        if (angles[0] == 90)
+            angles[1] =  180 - angles[1];
+        
+        m_wCircleImage.SetRotation(angles[1]);
+        
+        // --- Calculate Size ---
+        vector screenCircleVector = m_MapEntity.GetMapWidget().SizeToPixels(circleVector);
+        float size = GetGame().GetWorkspace().DPIUnscale(screenCircleVector.Length());
+        
+        // --- FIX 1: Size the Root Widget ---
+        // Since m_wCircle is a generic Widget, we must use FrameSlot to set its size.
+        // If we don't do this, the root remains 0x0, rendering the alignment useless.
+        FrameSlot.SetSize(m_wCircle, size, size);
+        
+        // Keep sizing the image as you had it (assuming ImageWidget has SetSize in your API version)
+        m_wCircleImage.SetSize(size, size);
+
+        // --- FIX 2: Calculate Center in World Space ---
+        // Averaging world coords is safer than screen coords
+        float worldCenterX = (m_fStartPointX + m_fEndPointX) / 2.0;
+        float worldCenterY = (m_fStartPointY + m_fEndPointY) / 2.0;
+        
+        float screenCenterX, screenCenterY;
+        m_MapEntity.WorldToScreen(worldCenterX, worldCenterY, screenCenterX, screenCenterY, true);
+
+        float posX = GetGame().GetWorkspace().DPIUnscale(screenCenterX);
+        float posY = GetGame().GetWorkspace().DPIUnscale(screenCenterY);
+
+        // --- Alignment ---
+        // Now that m_wCircle has a size (via FrameSlot.SetSize), 0.5 alignment will correctly center it.
+        FrameSlot.SetAlignment(m_wCircle, 0.5, 0.5);
+        FrameSlot.SetPos(m_wCircle, posX, posY);
+    }
 	
 	//------------------------------------------------------------------------------------------------
 	void MapCircle(SCR_MapEntity mapEnt, GRAD_MapMarkerUI ownerComp)
@@ -312,12 +321,13 @@ class GRAD_MapMarkerUI
 			return;
 		}
 		
-		// todo fix hardcoded
+		// Create spawn marker circle: center at coords, radius 500m
+		// Circle is defined by two opposite corners of bounding box
 		GRAD_PlayerComponent.GetInstance().AddCircleMarker(
-			coords[0] - 500.0,
-			coords[2] + 500.0,
-			coords[0] + 500.0,
-			coords[2] + 500.0,
+			coords[0] - 500.0,  // startX: 500m west of center
+			coords[2] - 500.0,  // startY: 500m south of center (FIXED: was +500)
+			coords[0] + 500.0,  // endX: 500m east of center
+			coords[2] + 500.0,  // endY: 500m north of center
 			-1,
 			true
 		);

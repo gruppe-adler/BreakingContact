@@ -58,8 +58,19 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	private int m_iCurrentAnimationSegment = 0;
 	private bool m_bAntennaRaising = false;
 	protected float m_fAnimationProgress = 0; // 0.0 = retracted, 1.0 = fully extended
-protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
+	protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 
+	// Antenna prop spawning
+	[Attribute("{F23A470F0A7A46A0}Assets/Props/Military/Antennas/Antenna_R142_01/Dst/Antenna_R142_01_dst_03.xob", UIWidgets.ResourcePickerThumbnail, "Antenna prop to spawn when extended", "xob")]
+	protected ResourceName m_sAntennaPropResource;
+
+	// Red Light on Top spawning
+	[Attribute("{5A9683E2DC0239EC}Prefabs/Vehicles/Helicopters/UH1H/Lights/VehicleLight_UH1H_Navigating_Base.et", UIWidgets.ResourcePickerThumbnail, "Red light prop to spawn on top when extended", "et")]
+	protected ResourceName m_sRedLightPropResource;
+	
+
+	private IEntity m_AntennaPropEntity = null;
+	private IEntity m_RedLightPropEntity = null;
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -112,28 +123,50 @@ protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 		SetEventMask(owner, EntityEvent.FRAME);
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Ease in/out function (cubic easing)
+	//------------------------------------------------------------------------------------------------
+	float EaseInOutCubic(float t)
+	{
+		if (t < 0.5)
+			return 4 * t * t * t;
+		else
+		{
+			float f = ((2 * t) - 2);
+			return 0.5 * f * f * f + 1;
+		}
+	}
+
 	override void EOnFrame(IEntity owner, float timeSlice)
-{
-    if (!m_bAntennaAnimating)
-        return;
+	{
+		if (!m_bAntennaAnimating)
+			return;
 
-    // Update progress - convert milliseconds to seconds for timeSlice
-    if (m_bAntennaRaising)
-        m_fAnimationProgress += timeSlice / (m_iAntennaAnimationTime / 1000.0);
-    else
-        m_fAnimationProgress -= timeSlice / (m_iAntennaAnimationTime / 1000.0);
+		// Update progress - convert milliseconds to seconds for timeSlice
+		if (m_bAntennaRaising)
+			m_fAnimationProgress += timeSlice / (m_iAntennaAnimationTime / 1000.0);
+		else
+			m_fAnimationProgress -= timeSlice / (m_iAntennaAnimationTime / 1000.0);
 
-    // Clamp and check for completion
-    m_fAnimationProgress = Math.Clamp(m_fAnimationProgress, 0, 1);
+		// Clamp and check for completion
+		m_fAnimationProgress = Math.Clamp(m_fAnimationProgress, 0, 1);
 
-    UpdateAntennaBones(m_fAnimationProgress);
+		// Apply easing for smooth animation
+		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
+		UpdateAntennaBones(easedProgress);
 
-    if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
-    {
-        m_bAntennaAnimating = false;
-        m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
-    }
-}
+		// Spawn antenna prop when fully extended
+		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_AntennaPropEntity)
+		{
+			SpawnAntennaProp();
+		}
+
+		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
+		{
+			m_bAntennaAnimating = false;
+			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
+		}
+	}
 
 void UpdateAntennaBones(float progress)
 {
@@ -407,18 +440,111 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
+		// Remove antenna prop as soon as retraction starts
+		RemoveAntennaProp();
+
 		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = false;
 		// EOnFixedFrame will handle the smooth animation
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Spawn antenna prop at the top when fully extended
+	//------------------------------------------------------------------------------------------------
+	void SpawnAntennaProp()
+	{
+		if (m_AntennaPropEntity)
+		{
+			Print("BC Debug - ANTENNA: Antenna prop already spawned", LogLevel.WARNING);
+			return;
+		}
 
-	
+		if (!m_commandBox)
+		{
+			Print("BC Debug - ANTENNA: Cannot spawn antenna prop - command box not found", LogLevel.ERROR);
+			return;
+		}
 
-	
+		// Get the top antenna bone (v_antenna_08)
+		Animation anim = m_commandBox.GetAnimation();
+		if (!anim)
+		{
+			Print("BC Debug - ANTENNA: Cannot spawn antenna prop - no animation component", LogLevel.ERROR);
+			return;
+		}
 
-	
+		TNodeId topBoneId = anim.GetBoneIndex("v_antenna_08");
+		if (topBoneId == -1)
+		{
+			Print("BC Debug - ANTENNA: Cannot spawn antenna prop - v_antenna_08 bone not found", LogLevel.ERROR);
+			return;
+		}
+
+		// Note: .xob files cannot be spawned directly as entities
+		// You need to create a prefab (.et file) that wraps the .xob mesh
+		// For now, we'll skip spawning the antenna prop or you can:
+		// 1. Create a prefab in Workbench that uses the .xob as its mesh
+		// 2. Update m_sAntennaPropResource to point to that .et prefab instead
+
+		Print("BC Debug - ANTENNA: Skipping antenna prop spawn - .xob files need to be wrapped in a prefab (.et)", LogLevel.WARNING);
+
+		// Example of what you would do with a proper prefab:
+		// Resource antennaResource = Resource.Load(m_sAntennaPropResource);
+		// if (antennaResource && antennaResource.IsValid())
+		// {
+		//     m_AntennaPropEntity = GetGame().SpawnEntityPrefab(antennaResource, GetGame().GetWorld());
+		//     if (m_AntennaPropEntity)
+		//     {
+		//         m_AntennaPropEntity.SetOrigin(vector.Zero);
+		//         m_commandBox.AddChild(m_AntennaPropEntity, topBoneId, EAddChildFlags.AUTO_TRANSFORM);
+		//     }
+		// }
+
+		// Spawn red light prop
+		Resource lightResource = Resource.Load(m_sRedLightPropResource);
+		if (!lightResource || !lightResource.IsValid())
+		{
+			Print(string.Format("BC Debug - ANTENNA: Failed to load red light prop resource: %1", m_sRedLightPropResource), LogLevel.ERROR);
+			return;
+		}
+
+		m_RedLightPropEntity = GetGame().SpawnEntityPrefab(lightResource, GetGame().GetWorld());
+
+		if (m_RedLightPropEntity)
+		{
+			// Attach to the command box at the top bone with pivot ID
+			m_RedLightPropEntity.SetOrigin(vector.Zero);
+			m_commandBox.AddChild(m_RedLightPropEntity, topBoneId, EAddChildFlags.AUTO_TRANSFORM);
+			Print("BC Debug - ANTENNA: Red light prop spawned and attached successfully", LogLevel.NORMAL);
+		}
+		else
+		{
+			Print("BC Debug - ANTENNA: Failed to spawn red light prop entity", LogLevel.ERROR);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Remove antenna prop when retraction starts
+	//------------------------------------------------------------------------------------------------
+	void RemoveAntennaProp()
+	{
+		if (m_AntennaPropEntity)
+		{
+			Print("BC Debug - ANTENNA: Removing antenna prop", LogLevel.NORMAL);
+			SCR_EntityHelper.DeleteEntityAndChildren(m_AntennaPropEntity);
+			m_AntennaPropEntity = null;
+		}
+
+		if (m_RedLightPropEntity)
+		{
+			Print("BC Debug - ANTENNA: Removing red light prop", LogLevel.NORMAL);
+			SCR_EntityHelper.DeleteEntityAndChildren(m_RedLightPropEntity);
+			m_RedLightPropEntity = null;
+		}
+	}
+
+
 
 	//------------------------------------------------------------------------------------------------
 	// Check if truck is allowed to move (antenna must be fully retracted and not animating)

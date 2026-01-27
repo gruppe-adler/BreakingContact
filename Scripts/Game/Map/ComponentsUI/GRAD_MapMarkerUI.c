@@ -131,7 +131,7 @@ class MapCircle
         float posY = GetGame().GetWorkspace().DPIUnscale(screenCenterY);
 
         // --- Alignment ---
-        FrameSlot.SetAlignment(m_wCircle, 0.5, 0.5);
+        FrameSlot.SetAlignment(m_wCircle, 0.5, 0); // move it half a circle down due to placement bug
         FrameSlot.SetPos(m_wCircle, posX, posY);
     }
 };

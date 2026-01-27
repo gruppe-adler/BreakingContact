@@ -128,7 +128,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 	
 	//------
-	void ForceOpenMap() 
+	void ForceOpenMap()
 	{
 		// try again
 		if (!m_playerController) {
@@ -136,7 +136,7 @@ class GRAD_PlayerComponent : ScriptComponent
 			Print(string.Format("no playerController - wait and retry in 5s"), LogLevel.WARNING);
 			return;
 		}
-		
+
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 		// try again
 		if (!ch) {
@@ -144,23 +144,23 @@ class GRAD_PlayerComponent : ScriptComponent
 			Print(string.Format("no chimera - wait and retry in 5s"), LogLevel.WARNING);
 			return;
 		}
-		
-		
+
+
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
 		if (!characterRoleComponent) {
 			Print(string.Format("no character role component for this slot - wait and retry in 5s"), LogLevel.WARNING);
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
 		}
-		
-		string characterRole = "none"; 
-		
+
+		string characterRole = "none";
+
 		if (characterRoleComponent) {
 			characterRole = characterRoleComponent.GetCharacterRole();
 		} else {
 			Print(string.Format("BC phase opfor - no commander found"), LogLevel.WARNING);
 		}
-		
+
 		if (characterRole == "Opfor Commander")
 		{
 			m_faction = "USSR";
@@ -168,17 +168,17 @@ class GRAD_PlayerComponent : ScriptComponent
 			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
 		}
-		
+
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
 			m_faction = "US";
 			m_bChoosingSpawn = true;
 		}
-		
+
 		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
-		
+
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -112,20 +112,20 @@ protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 		SetEventMask(owner, EntityEvent.FRAME);
 	}
 
-	override void EOnFixedFrame(IEntity owner, float timeSlice)
+	override void EOnFrame(IEntity owner, float timeSlice)
 {
     if (!m_bAntennaAnimating)
         return;
 
-    // Update progress
+    // Update progress - convert milliseconds to seconds for timeSlice
     if (m_bAntennaRaising)
-        m_fAnimationProgress += timeSlice * (1000.0 / m_iAntennaAnimationTime);
+        m_fAnimationProgress += timeSlice / (m_iAntennaAnimationTime / 1000.0);
     else
-        m_fAnimationProgress -= timeSlice * (1000.0 / m_iAntennaAnimationTime);
+        m_fAnimationProgress -= timeSlice / (m_iAntennaAnimationTime / 1000.0);
 
     // Clamp and check for completion
     m_fAnimationProgress = Math.Clamp(m_fAnimationProgress, 0, 1);
-    
+
     UpdateAntennaBones(m_fAnimationProgress);
 
     if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
@@ -150,9 +150,22 @@ void UpdateAntennaBones(float progress)
 
         vector mat[4];
         Math3D.MatrixIdentity4(mat);
+
+        // Segment lengths with graduated gaps for top 4 segments
         
-        // Use your maxZ (0.8) multiplied by the local progress of this bone
-        float zTrans = segmentLocalProgress * 0.8; 
+        float segmentLength;
+        if (i <= 3)
+            segmentLength = 0.5;
+        else if (i == 4)
+            segmentLength = 0.45;
+        else if (i == 5)
+            segmentLength = 0.35;
+        else if (i == 6)
+            segmentLength = 0.3;
+        else // i == 7
+            segmentLength = 0.25;
+
+        float zTrans = segmentLocalProgress * segmentLength;
         mat[3] = Vector(0, 0, zTrans);
 
         m_commandBox.GetAnimation().SetBoneMatrix(m_commandBox, boneId, mat);
@@ -163,10 +176,7 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	override void OnDelete(IEntity owner)
 	{
-		// Stop any ongoing antenna animation
-		GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
-
-		// No event handlers to clean up anymore
+		// No event handlers to clean up
 		super.OnDelete(owner);
 	}
 
@@ -378,16 +388,10 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		Print(string.Format("BC Debug - ANTENNA: Starting antenna raise animation. Animation time: %1ms, Segment count: %2", m_iAntennaAnimationTime, ANTENNA_SEGMENT_COUNT), LogLevel.NORMAL);
+		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna raise animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = true;
-		m_iCurrentAnimationSegment = 0;
-
-		// Calculate delay between each segment animation
-		int segmentDelay = m_iAntennaAnimationTime / ANTENNA_SEGMENT_COUNT;
-		Print(string.Format("BC Debug - ANTENNA: Segment delay: %1ms", segmentDelay), LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(AnimateAntennaSegment, segmentDelay, true);
-		Print("BC Debug - ANTENNA: CallLater scheduled for AnimateAntennaSegment", LogLevel.NORMAL);
+		// EOnFixedFrame will handle the smooth animation
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -403,122 +407,12 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		Print(string.Format("BC Debug - ANTENNA: Starting antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
+		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = false;
-		m_iCurrentAnimationSegment = ANTENNA_SEGMENT_COUNT - 1;
-
-		// Calculate delay between each segment animation
-		int segmentDelay = m_iAntennaAnimationTime / ANTENNA_SEGMENT_COUNT;
-		Print(string.Format("BC Debug - ANTENNA: Segment delay: %1ms, Starting from segment %2", segmentDelay, m_iCurrentAnimationSegment), LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(AnimateAntennaSegment, segmentDelay, true);
+		// EOnFixedFrame will handle the smooth animation
 	}
 
-	//------------------------------------------------------------------------------------------------
-	// Animate individual antenna segments
-	//------------------------------------------------------------------------------------------------
-	void AnimateAntennaSegment()
-	{
-		Print(string.Format("BC Debug - ANTENNA: AnimateAntennaSegment() called. Raising: %1, Current segment: %2", m_bAntennaRaising, m_iCurrentAnimationSegment), LogLevel.NORMAL);
-
-		if (m_bAntennaRaising)
-		{
-			// Raising: animate from bottom to top
-			if (m_iCurrentAnimationSegment >= ANTENNA_SEGMENT_COUNT)
-			{
-				// Animation complete
-				Print("BC Debug - ANTENNA: Raise animation complete, stopping timer", LogLevel.NORMAL);
-				GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
-				m_bAntennaAnimating = false;
-				m_bAntennaExtended = true;
-				Print("BC Debug - ANTENNA: Antenna fully extended", LogLevel.NORMAL);
-				return;
-			}
-
-			// Get the bone ID for this segment
-			TNodeId boneId = m_aAntennaBoneIds[m_iCurrentAnimationSegment];
-			Print(string.Format("BC Debug - ANTENNA: Extending segment %1 (bone ID: %2, angle: %3)", m_iCurrentAnimationSegment + 1, boneId, m_fAntennaExtendAngle), LogLevel.NORMAL);
-
-			if (boneId != -1)
-			{
-				SetAntennaBoneRotation(boneId, m_fAntennaExtendAngle);
-				Print(string.Format("BC Debug - ANTENNA: Extended antenna segment %1", m_iCurrentAnimationSegment + 1), LogLevel.NORMAL);
-			}
-			else
-			{
-				Print(string.Format("BC Debug - ANTENNA: WARNING - Bone ID is -1 for segment %1, skipping", m_iCurrentAnimationSegment + 1), LogLevel.WARNING);
-			}
-
-			m_iCurrentAnimationSegment++;
-		}
-		else
-		{
-			// Lowering: animate from top to bottom
-			if (m_iCurrentAnimationSegment < 0)
-			{
-				// Animation complete
-				Print("BC Debug - ANTENNA: Lower animation complete, stopping timer", LogLevel.NORMAL);
-				GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
-				m_bAntennaAnimating = false;
-				m_bAntennaExtended = false;
-				Print("BC Debug - ANTENNA: Antenna fully retracted", LogLevel.NORMAL);
-				return;
-			}
-
-			// Get the bone ID for this segment
-			TNodeId boneId = m_aAntennaBoneIds[m_iCurrentAnimationSegment];
-			Print(string.Format("BC Debug - ANTENNA: Retracting segment %1 (bone ID: %2)", m_iCurrentAnimationSegment + 1, boneId), LogLevel.NORMAL);
-
-			if (boneId != -1)
-			{
-				SetAntennaBoneRotation(boneId, 0); // Return to 0 degrees (retracted)
-				Print(string.Format("BC Debug - ANTENNA: Retracted antenna segment %1", m_iCurrentAnimationSegment + 1), LogLevel.NORMAL);
-			}
-			else
-			{
-				Print(string.Format("BC Debug - ANTENNA: WARNING - Bone ID is -1 for segment %1, skipping", m_iCurrentAnimationSegment + 1), LogLevel.WARNING);
-			}
-
-			m_iCurrentAnimationSegment--;
-		}
-	}
-
-	//------------------------------------------------------------------------------------------------
-	// Set rotation for a specific antenna bone
-	//------------------------------------------------------------------------------------------------
-
-	void SetAntennaBoneRotation(TNodeId boneId, float extendAmount)
-	{
-		Print(string.Format("BC Debug - ANTENNA: SetAntennaBoneRotation() called. BoneID: %1, Extend: %2", boneId, extendAmount), LogLevel.NORMAL);
-
-		if (boneId == -1)
-		{
-			Print("BC Debug - ANTENNA: WARNING - BoneID is -1, cannot set transform", LogLevel.WARNING);
-			return;
-		}
-
-		if (!m_commandBox)
-		{
-			Print("BC Debug - ANTENNA: WARNING - Command box is null, cannot set transform", LogLevel.ERROR);
-			return;
-		}
-
-		// Create identity matrix (no rotation)
-		vector mat[4];
-		Math3D.MatrixIdentity4(mat);
-
-
-		// Smooth animation: interpolate Z translation based on extendAmount (0=retracted, 1=fully extended)
-		float maxZ = 0.8; // Maximum extension per segment
-		float zTrans = Math.Clamp(extendAmount / m_fAntennaExtendAngle, 0.0, 1.0) * maxZ;
-		mat[3] = Vector(0, 0, zTrans);
-
-		Print(string.Format("BC Debug - ANTENNA: Translation - Z: %1", zTrans), LogLevel.NORMAL);
-		Print(string.Format("BC Debug - ANTENNA: Final matrix position: %1", mat[3]), LogLevel.NORMAL);
-		Print(string.Format("BC Debug - ANTENNA: Calling SetBoneMatrix with matrix: [%1][%2][%3][%4]", mat[0], mat[1], mat[2], mat[3]), LogLevel.NORMAL);
-		m_commandBox.GetAnimation().SetBoneMatrix(m_commandBox, boneId, mat);
-		Print("BC Debug - ANTENNA: SetBoneMatrix completed", LogLevel.NORMAL);
-	}
 
 	
 
@@ -567,7 +461,6 @@ void UpdateAntennaBones(float progress)
 				if (m_bAntennaExtended || m_bAntennaAnimating)
 				{
 					// Stop animation and force retract
-					GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
 					m_bAntennaAnimating = false;
 					m_bAntennaExtended = false;
 				}
@@ -903,7 +796,6 @@ void UpdateAntennaBones(float progress)
 			if (m_bAntennaExtended || m_bAntennaAnimating)
 			{
 				// Stop animation and force retract
-				GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
 				m_bAntennaAnimating = false;
 				m_bAntennaExtended = false;
 			}
@@ -1025,7 +917,6 @@ void UpdateAntennaBones(float progress)
 				if (m_bAntennaExtended || m_bAntennaAnimating)
 				{
 					// Stop animation and force retract
-					GetGame().GetCallqueue().Remove(AnimateAntennaSegment);
 					m_bAntennaAnimating = false;
 					m_bAntennaExtended = false;
 				}

@@ -4,15 +4,5 @@ SCR_ChimeraCharacter : "{26A9756790131354}Prefabs/Characters/Factions/BLUFOR/US_
   PS_PlayableComponent "{5EFCC1946F475F15}" {
    m_bIsPlayable 1
   }
-  SCR_InventoryStorageManagerComponent "{520EA1D2DB118DE5}" {
-   InitialInventoryItems {
-    ItemsInitConfigurationItem "{609086300FA285CA}" {
-     TargetStorage "Vest/Vest_ALICE_rifleman.et"
-     PrefabsToSpawn {
-      "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
-     }
-    }
-   }
-  }
  }
 }

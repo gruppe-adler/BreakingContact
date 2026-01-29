@@ -1,0 +1,22 @@
+FrameWidgetClass {
+ Name "rootFrame"
+ {
+  ImageWidgetClass "{687119926685D45A}" {
+   Name "GRAD_BC_Traffic_Widget"
+   Slot FrameWidgetSlot "{5F3EC93A2A026B8A}" {
+    Anchor 1 0 1 0
+    PositionX -302
+    OffsetLeft -302
+    PositionY 96
+    OffsetTop 96
+    SizeX 256
+    OffsetRight 46
+    SizeY 256
+    OffsetBottom -352
+   }
+   Texture "{17A6DE75995ABA67}UI/Traffic/civ_gunfight_badge_bca.edds"
+   Size 1024 1024
+   Range 1
+  }
+ }
+}

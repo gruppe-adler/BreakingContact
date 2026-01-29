@@ -2,6 +2,230 @@
 [BaseContainerProps()]
 class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven working class
 {
+	
+	protected Widget m_WidgetsRoot;
+    protected ref map<string, ImageWidget> m_ActiveWidgets = new map<string, ImageWidget>();
+    
+    // We track used widgets every frame to hide/remove unused ones (garbage collection)
+    protected ref set<string> m_UsedWidgetKeys = new set<string>();
+
+    override void OnMapOpen(MapConfiguration config)
+    {
+        super.OnMapOpen(config);
+        
+        // Create a root frame to hold our markers. 
+        // We attach it to the workspace. You might want to attach it to m_MapEntity.GetMapWidget() if available.
+        if (!m_WidgetsRoot)
+        {
+            m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS, Color.White, 0, null);
+            FrameSlot.SetSize(m_WidgetsRoot, 1, 1); // Fill parent or set specific size logic if needed
+            // Ensure it covers the screen for WorldToScreen mapping
+            FrameSlot.SetAnchorMin(m_WidgetsRoot, 0, 0);
+            FrameSlot.SetAnchorMax(m_WidgetsRoot, 1, 1);
+            FrameSlot.SetOffsets(m_WidgetsRoot, 0, 0, 0, 0);
+        }
+        
+        Print("GRAD_BC_ReplayMapLayer: Widget Root Created", LogLevel.NORMAL);
+    }
+
+    override void OnMapClose(MapConfiguration config)
+    {
+        super.OnMapClose(config);
+        
+        // Cleanup widgets
+        if (m_WidgetsRoot)
+        {
+            m_WidgetsRoot.RemoveFromHierarchy();
+            m_WidgetsRoot = null;
+        }
+        m_ActiveWidgets.Clear();
+    }
+
+    // Helper to get or create an icon widget
+    protected ImageWidget GetOrCreateMarkerWidget(string key, string texturePath, bool isVehicle)
+    {
+        ImageWidget w;
+        if (m_ActiveWidgets.Find(key, w))
+        {
+            // Update texture if it changed (rare, but possible)
+            // Optimization: You can check a separate "currentTexture" map if needed, 
+            // but LoadTexture is usually cached by engine.
+            if (texturePath != "") 
+                w.LoadImageTexture(0, texturePath);
+                
+            w.SetVisible(true);
+            return w;
+        }
+
+        // Create new
+        if (!m_WidgetsRoot) return null;
+
+        w = ImageWidget.Cast(GetGame().GetWorkspace().CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND, Color.White, 0, m_WidgetsRoot));
+        
+        if (texturePath != "")
+            w.LoadImageTexture(0, texturePath);
+            
+        // ---------------------------------------------------------
+        // THE FIX: Set Alignment to 0.5, 0.5 (Center)
+        // ---------------------------------------------------------
+        FrameSlot.SetAlignment(w, 0.5, 0.5);
+        
+        // Set default sizes based on type
+        if (isVehicle)
+            FrameSlot.SetSize(w, 128, 128);
+        else
+            FrameSlot.SetSize(w, 64, 64);
+            
+        m_ActiveWidgets.Insert(key, w);
+        return w;
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // DRAW / UPDATE
+    //------------------------------------------------------------------------------------------------
+    override void Draw()
+    {
+        // 1. Clear Command Buffer
+        m_Commands.Clear();
+        
+        // 2. Prepare Widget Tracking
+        m_UsedWidgetKeys.Clear();
+
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+
+        if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
+        {
+            foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
+            return;
+        }
+
+        // ---------------------------------------------------------
+        // UPDATE UNITS & VEHICLES
+        // ---------------------------------------------------------
+        
+        // --- 1. Vehicles (Draw ALL vehicles here, occupied or not) ---
+        array<ref GRAD_BC_ReplayVehicleMarker> vehiclesToRender;
+        if (m_bIsInReplayMode) vehiclesToRender = m_vehicleMarkers;
+        else if (m_hasLastFrame) vehiclesToRender = m_lastFrameVehicleMarkers;
+        else vehiclesToRender = {};
+
+        foreach (GRAD_BC_ReplayVehicleMarker vehicleMarker : vehiclesToRender)
+        {
+            if (!vehicleMarker.isVisible) continue;
+
+            // Check if occupied by player to determine Color/Icon
+            bool isOccupied = false;
+            
+            // Optimization: If your snapshot data already has 'isEmpty' reliably populated, 
+            // you can just use "!vehicleMarker.isEmpty". 
+            // Otherwise, keep this loop to double-check against actual players:
+            foreach (GRAD_BC_ReplayPlayerMarker p : m_playerMarkers) {
+                if (p.isInVehicle && p.vehicleId == vehicleMarker.entityId) { isOccupied = true; break; }
+            }
+            
+            // --- CHANGE 1: DO NOT CONTINUE/SKIP HERE --- 
+            // We want to draw the vehicle using the VehicleMarker data because 
+            // vehicleMarker.direction is the Chassis direction (Correct),
+            // whereas playerMarker.direction is View direction (Wrong).
+
+            // Determine if we treat it as empty for the icon key
+            bool showAsEmpty = !isOccupied;
+
+            // Get Key based on vehicle state
+            string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, showAsEmpty);
+            string texturePath = m_vehicleIconTextures.Get(vehicleIconKey);
+            
+            // Fallback
+            if (texturePath == "") texturePath = m_vehicleIconTextures.Get("M998_closed_empty");
+
+            // Update Widget
+            string widgetKey = "VEH_" + vehicleMarker.entityId.ToString();
+            
+            // Pass 'showAsEmpty' to the update function to tint it Gray if needed
+            UpdateMarkerWidget(widgetKey, texturePath, vehicleMarker.position, vehicleMarker.direction, true, showAsEmpty);
+        }
+
+        // --- 2. Infantry / Players ---
+        array<ref GRAD_BC_ReplayPlayerMarker> playersToRender;
+        if (m_bIsInReplayMode) playersToRender = m_playerMarkers;
+        else if (m_hasLastFrame) playersToRender = m_lastFramePlayerMarkers;
+        else playersToRender = {};
+
+        foreach (GRAD_BC_ReplayPlayerMarker playerMarker : playersToRender)
+        {
+            if (!playerMarker.isVisible) continue;
+            
+            // --- CHANGE 2: SKIP PLAYERS IN VEHICLES ---
+            // The vehicle loop above has already drawn the vehicle.
+            // Drawing it here again would use the wrong rotation (Player Look Dir).
+            if (playerMarker.isInVehicle) continue;
+            
+            // Logic below now only handles foot mobile units
+            string roleStr = playerMarker.unitType;
+            if (roleStr == "") roleStr = "Rifleman";
+            string key = roleStr + "_" + playerMarker.factionKey;
+            string texturePath = m_unitTypeTextures.Get(key);
+
+            if (texturePath == "") texturePath = m_unitTypeTextures.Get("Default");
+
+            string widgetKey = "PLR_" + playerMarker.playerId.ToString();
+            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
+        }
+
+        // --- 3. Hide Unused Widgets ---
+        foreach (string key, ImageWidget w : m_ActiveWidgets)
+        {
+            if (!m_UsedWidgetKeys.Contains(key))
+            {
+                w.SetVisible(false);
+            }
+        }
+
+        // ---------------------------------------------------------
+        // DRAW LINES & PROJECTILES (Keep using Commands for performance on lines)
+        // ---------------------------------------------------------
+        // ... (Keep your existing code for Projectiles and Transmission bars here) ...
+        // Example for projectiles (simplified):
+        if (m_bIsInReplayMode) {
+            foreach (GRAD_BC_ReplayProjectileMarker proj : m_projectileMarkers) {
+                 if (proj.isVisible) DrawLine(proj.position, proj.impactPosition, 2.0, 0xFFFF0000);
+            }
+        }
+    }
+
+    // Core function to update a single marker widget
+    protected void UpdateMarkerWidget(string key, string texturePath, vector worldPos, float direction, bool isVehicle, bool isEmptyVehicle)
+    {
+        // 1. Get/Create Widget
+        ImageWidget w = GetOrCreateMarkerWidget(key, texturePath, isVehicle);
+        if (!w) return;
+
+        m_UsedWidgetKeys.Insert(key);
+
+        // 2. World to Screen - Returns screen pixels
+        float screenX, screenY;
+        m_MapEntity.WorldToScreen(worldPos[0], worldPos[2], screenX, screenY, true);
+
+        // 3. Position & Rotation
+        // FIXED: Apply DPI unscaling to screen coordinates for proper positioning
+        // Since alignment is 0.5, 0.5 (center), position is already the center point
+        float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
+        float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
+        FrameSlot.SetPos(w, posX, posY);
+
+        // Rotation: Input 'direction' is usually World Yaw.
+        // Icons usually face UP.
+        // World 0 (North) -> Screen UP.
+        // If World Yaw increases Clockwise, Screen Rotation increases Clockwise.
+        // Standard formula:
+        float rot = direction;
+        w.SetRotation(rot);
+
+        // 4. Color / Opacity
+        if (isEmptyVehicle) w.SetColor(Color.Gray); // Example tinting
+        else w.SetColor(Color.White);
+    }
+	
 	// Map vehicle prefab and faction to icon key
 	protected string GetVehicleIconKey(string prefab, string factionKey, bool isEmpty)
 	{
@@ -15,38 +239,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		// Special case: ambient/empty vehicles (no faction)
 		if (factionKey == "Empty")
 		{
-			// Always use empty icon for ambient vehicles
-			if (pf.Contains("lav")) key = "LAV_empty";
-			else if (pf.Contains("m151a2"))
-			{
-				if (pf.Contains("transport")) key = "M151A2_closed_empty";
-				else if (pf.Contains("open")) key = "M151A2_open_empty";
-				else key = "M151A2_empty";
-			}
-			else if (pf.Contains("m923")) key = "M923A1_closed_empty";
-			else if (pf.Contains("m998"))
-			{
-				if (pf.Contains("m2hb")) key = "M998_M2HB_empty";
-				else if (pf.Contains("transport")) key = "M998_closed_empty";
-				else key = "M998_open_empty";
-			}
-			else if (pf.Contains("uaz_452")) key = "UAZ_452_empty";
-			else if (pf.Contains("s1203")) key = "S1203_empty";
-			else if (pf.Contains("s105")) key = "S105_empty";
-			else if (pf.Contains("uaz_469"))
-			{
-				if (pf.Contains("pkm")) key = "UAZ_469_PKM_empty";
-				else if (pf.Contains("open")) key = "UAZ_469_Open_empty";
-				else key = "UAZ_469_closed_empty";
-			}
-			else if (pf.Contains("uh1h1")) key = "UH1H1_empty";
-			else if (pf.Contains("ural"))
-			{
-				if (pf.Contains("open")) key = "Ural_Open_empty";
-				else key = "Ural_closed_empty";
-			}
-			// fallback: treat as generic empty vehicle if needed
-			return key;
+			isEmpty = true;
 		}
 		// Normal logic for faction vehicles
 		if (pf.Contains("lav"))
@@ -103,25 +296,31 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				else if (factionKey == "USSR") key = "M998_open_opfor";
 			}
 		}
-		else if (pf.Contains("uaz_452"))
+		else if (pf.Contains("uaz452") || pf.Contains("uaz_452"))
 		{
 			if (isEmpty) key = "UAZ_452_empty";
-			if (factionKey == "US") key = "UAZ_452_blufor";
-			if (factionKey == "USSR") key = "UAZ_452_opfor";
+			else if (factionKey == "US") key = "UAZ_452_blufor";
+			else if (factionKey == "USSR") key = "UAZ_452_opfor";
+		}
+		else if (pf.Contains("btr"))
+		{
+			if (isEmpty) key = "BTR_empty";
+			else if (factionKey == "US") key = "BTR_blufor";
+			else if (factionKey == "USSR") key = "BTR_opfor";
 		}
 		else if (pf.Contains("S1203"))
 		{
 			if (isEmpty) key = "S1203_empty";
-			if (factionKey == "US") key = "S1203_blufor";
-			if (factionKey == "USSR") key = "S1203_opfor";
+			else if (factionKey == "US") key = "S1203_blufor";
+			else if (factionKey == "USSR") key = "S1203_opfor";
 		}
 		else if (pf.Contains("S105"))
 		{
 			if (isEmpty) key = "S105_empty";
-			if (factionKey == "US") key = "S105_blufor";
-			if (factionKey == "USSR") key = "S105_opfor";
+			else if (factionKey == "US") key = "S105_blufor";
+			else if (factionKey == "USSR") key = "S105_opfor";
 		}
-		else if (pf.Contains("uaz_469"))
+		else if (pf.Contains("uaz469") || pf.Contains("uaz_469"))
 		{
 			if (pf.Contains("pkm"))
 			{
@@ -148,9 +347,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			else if (factionKey == "US") key = "UH1H1_blufor";
 			else if (factionKey == "USSR") key = "UH1H1_opfor";
 		}
-		else if (pf.Contains("ural"))
+		else if (pf.Contains("ural4320"))
 		{
-			if (pf.Contains("transport"))
+			if (pf.Contains("command") || pf.Contains("radio"))
+			{
+				if (isEmpty) key = "Radiotruck_empty";
+				else if (factionKey == "US") key = "Radiotruck_blufor";
+				else if (factionKey == "USSR") key = "Radiotruck_opfor";
+			}
+			else if (pf.Contains("transport") || pf.Contains("covered"))
 			{
 				if (isEmpty) key = "Ural_empty";
 				else if (factionKey == "US") key = "Ural_blufor";
@@ -158,7 +363,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			}
 			else
 			{
-					if (isEmpty) key = "Ural_Open_empty";
+				if (isEmpty) key = "Ural_Open_empty";
 				else if (factionKey == "US") key = "Ural_Open_blufor";
 				else if (factionKey == "USSR") key = "UralOpen_opfor";
 			}
@@ -202,15 +407,22 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("LAV_blufor", "{1D2C64090C772F84}UI/Textures/Icons/LAV_blufor.edds");
 		m_vehicleIconTextures.Set("LAV_empty", "{AD78B1EE505E01FC}UI/Textures/Icons/LAV_empty.edds");
 		m_vehicleIconTextures.Set("LAV_opfor", "{2F20DFA7DAF579E3}UI/Textures/Icons/LAV_opfor.edds");
+
+		m_vehicleIconTextures.Set("BTR_blufor", "{06FB93A5E254D29E}UI/Textures/Icons/BTR70_blufor.edds");
+		m_vehicleIconTextures.Set("BTR_empty", "{4F0602CC01556B32}UI/Textures/Icons/BTR70_empty.edds");
+		m_vehicleIconTextures.Set("BTR_opfor", "{CD5E6C858BFE132D}UI/Textures/Icons/BTR70_opfor.edds");
+
 		m_vehicleIconTextures.Set("M151A2_blufor", "{F134996BEE493C80}UI/Textures/Icons/M151A2_blufor.edds");
 		m_vehicleIconTextures.Set("M151A2_empty", "{3F818F4DDA023873}UI/Textures/Icons/M151A2_empty.edds");
 		m_vehicleIconTextures.Set("M151A2_open_blufor", "{77AC2D8B6883E41F}UI/Textures/Icons/M151A2_open_blufor.edds");
 		m_vehicleIconTextures.Set("M151A2_open_empty", "{CA8A6C10410526AA}UI/Textures/Icons/M151A2_open_empty.edds");
 		m_vehicleIconTextures.Set("M151A2_open_opfor", "{48D20259CBAE5EB5}UI/Textures/Icons/M151A2_open_opfor.edds");
 		m_vehicleIconTextures.Set("M151A2_opfor", "{BDD9E10450A9406C}UI/Textures/Icons/M151A2_opfor.edds");
+		
 		m_vehicleIconTextures.Set("M923A1_closed_blufor", "{92B598738E1468A1}UI/Textures/Icons/M923A1_closed_blufor.edds");
 		m_vehicleIconTextures.Set("M923A1_closed_empty", "{C2FD136933FF34FF}UI/Textures/Icons/M923A1_closed_empty.edds");
 		m_vehicleIconTextures.Set("M923A1_closed_opfor", "{40A57D20B9544CE0}UI/Textures/Icons/M923A1_closed_opfor.edds");
+
 		m_vehicleIconTextures.Set("M998_closed_blufor", "{6BC2F3B2C876C86F}UI/Textures/Icons/M998_closed_blufor.edds");
 		m_vehicleIconTextures.Set("M998_closed_empty", "{2F7D445FFCB4E602}UI/Textures/Icons/M998_closed_empty.edds");
 		m_vehicleIconTextures.Set("M998_closed_opfor", "{AD252A16761F9E1D}UI/Textures/Icons/M998_closed_opfor.edds");
@@ -220,9 +432,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("M998_open_blufor", "{13D8AB44ACDAB597}UI/Textures/Icons/M998_open_blufor.edds");
 		m_vehicleIconTextures.Set("M998_open_empty", "{0D4CC53522A25D19}UI/Textures/Icons/M998_open_empty.edds");
 		m_vehicleIconTextures.Set("M998_open_opfor", "{8F14AB7CA8092506}UI/Textures/Icons/M998_open_opfor.edds");
+
 		m_vehicleIconTextures.Set("UAZ_452_opfor", "{D5FBFD6881DC4B58}UI/Textures/Icons/UAZ_452_opfor.edds");
-		m_vehicleIconTextures.Set("UAZ_452_blufor", "{7AD5D1D4CA9B9DFF}UI/Textures/Icons/UAZ_452_blufor.edds");
-		m_vehicleIconTextures.Set("UAZ_452_empty", "{D74712B1A79AFEFB}UI/Textures/Icons/UAZ_452_empty.edds");
+		m_vehicleIconTextures.Set("UAZ_452_blufor", "{5731CADA4C68FBCF}UI/Textures/Icons/UAZ_452_blufor.edds");
+		m_vehicleIconTextures.Set("UAZ_452_empty", "{57A393210B773347}UI/Textures/Icons/UAZ_452_empty.edds");
+
 		m_vehicleIconTextures.Set("UAZ_469_closed_blufor", "{613ACF2847FB8583}UI/Textures/Icons/UAZ_469 closed_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_closed_empty", "{529E5BA357DB08E3}UI/Textures/Icons/UAZ_469 closed_empty.edds");
 		m_vehicleIconTextures.Set("UAZ_469_Open_blufor", "{BE066D044B960605}UI/Textures/Icons/UAZ_469 Open_blufor.edds");
@@ -232,24 +446,28 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("UAZ_469_PKM_empty", "{D3C0984F7BD3DE72}UI/Textures/Icons/UAZ_469 PKM_empty.edds");
 		m_vehicleIconTextures.Set("UAZ_469_closed_opfor", "{90645BA8C54E7ABC}UI/Textures/Icons/UAZ_469_closed_opfor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_PKM_opfor", "{2B897E967D0AC339}UI/Textures/Icons/UAZ_469_PKM_opfor.edds");
+
 		m_vehicleIconTextures.Set("UH1H1_blufor", "{A4FDF3DA7E1BF136}UI/Textures/Icons/UH1H1_blufor.edds");
 		m_vehicleIconTextures.Set("UH1H1_empty", "{519C8DBD9918D6CC}UI/Textures/Icons/UH1H1_empty.edds");
 		m_vehicleIconTextures.Set("UH1H1_opfor", "{D3C4E3F413B3AED3}UI/Textures/Icons/UH1H1_opfor.edds");
+
 		m_vehicleIconTextures.Set("Ural_blufor", "{87808F1F7D6839E4}UI/Textures/Icons/Ural_blufor.edds");
 		m_vehicleIconTextures.Set("Ural_empty", "{8020A00CF179274D}UI/Textures/Icons/Ural_empty.edds");
 		m_vehicleIconTextures.Set("Ural_Open_blufor", "{16ED7010CF5FA66B}UI/Textures/Icons/Ural_Open_blufor.edds");
 		m_vehicleIconTextures.Set("Ural_Open_empty", "{BD154D82B60DC8F0}UI/Textures/Icons/Ural_Open_empty.edds");
 		m_vehicleIconTextures.Set("Ural_opfor", "{07E46F71B9B92027}UI/Textures/Icons/Ural_opfor.edds");
 		m_vehicleIconTextures.Set("UralOpen_opfor", "{AD63B0D696D2577D}UI/Textures/Icons/UralOpen_opfor.edds");
+
 		m_vehicleIconTextures.Set("Radiotruck_blufor", "{ABB9C00A86D1437D}UI/Textures/Icons/Radiotruck_blufor.edds");
 		m_vehicleIconTextures.Set("Radiotruck_empty", "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_Empty.edds");
 		m_vehicleIconTextures.Set("Radiotruck_opfor", "{295A98A64B22490E}UI/Textures/Icons/Radiotruck_opfor.edds");
+
 		m_vehicleIconTextures.Set("Commandvehicle_blufor", "{2CCAAB5BEDD7BAA1}UI/Textures/Icons/Commandvehicle_blufor.edds");
 		m_vehicleIconTextures.Set("Commandvehicle_empty", "{C2436C5A1B9CF72D}UI/Textures/Icons/Commandvehicle_Empty.edds");
 		m_vehicleIconTextures.Set("Commandvehicle_opfor", "{401B021391378F32}UI/Textures/Icons/Commandvehicle_opfor.edds");
 
 		m_vehicleIconTextures.Set("S105_blufor", "{8705E23234AE5219}UI/Textures/Icons/S105_blufor.edds");
-		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_Empty.edds");
+		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_empty.edds");
 		m_vehicleIconTextures.Set("S105_opfor", "{933D1EE7EE137751}UI/Textures/Icons/S105_opfor.edds");
 
 		m_vehicleIconTextures.Set("S1203_blufor", "{E04DE98D3C890A8A}UI/Textures/Icons/S1203_blufor.edds");
@@ -351,315 +569,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with faction-sensitive unit type textures", LogLevel.NORMAL);
 	}
 	
-	//------------------------------------------------------------------------------------------------
-	override void OnMapOpen(MapConfiguration config)
-	{
-		super.OnMapOpen(config); // This handles widget/canvas creation in parent
-		
-		Print("GRAD_BC_ReplayMapLayer: OnMapOpen called, canvas should be initialized by parent", LogLevel.NORMAL);
-	}
 	
-	//------------------------------------------------------------------------------------------------
-	override void OnMapClose(MapConfiguration config)
-	{
-		super.OnMapClose(config);
-		Print("GRAD_BC_ReplayMapLayer: OnMapClose called, cleaning up", LogLevel.NORMAL);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// Use the proven Draw() pattern from GRAD_MapMarkerManager
-	override void Draw()
-	{
-		// Clear previous commands (inherited from GRAD_MapMarkerLayer)
-		m_Commands.Clear();
-		
-		// Check if we should draw anything
-		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
-		
-		// Draw progress bar at top of screen during replay
-		if (replayManager && replayManager.IsPlayingBack() && m_MapEntity)
-		{
-			DrawProgressBar(replayManager);
-		}
-		
-		bool shouldDraw = false;
-		array<ref GRAD_BC_ReplayPlayerMarker> markersToRender = {};
-		
-		if (replayManager && replayManager.IsPlayingBack())
-		{
-			// During playback - use current markers
-			shouldDraw = m_playerMarkers.Count() > 0 || m_vehicleMarkers.Count() > 0;
-			markersToRender = m_playerMarkers;
-			
-			static int drawCallCounter = 0;
-			drawCallCounter++;
-			if (drawCallCounter % 50 == 0)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() during playback - %1 player markers, %2 vehicle markers", markersToRender.Count(), m_vehicleMarkers.Count()));
-			}
-		}
-		else if (m_hasLastFrame)
-		{
-			// After replay - use saved last frame
-			shouldDraw = m_lastFramePlayerMarkers.Count() > 0 || m_lastFrameVehicleMarkers.Count() > 0;
-			markersToRender = m_lastFramePlayerMarkers;
-			
-			static int persistentDrawCounter = 0;
-			persistentDrawCounter++;
-			if (persistentDrawCounter % 100 == 0)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() persistent mode - %1 saved player markers, %2 saved vehicle markers", markersToRender.Count(), m_lastFrameVehicleMarkers.Count()));
-			}
-		}
-		
-		if (!shouldDraw || !m_MapEntity)
-		{
-			return; // Nothing to draw or no map entity
-		}
-		
-		// Draw player markers with unit type icons and directional indicators
-		foreach (GRAD_BC_ReplayPlayerMarker marker : markersToRender)
-		{
-			if (!marker.isVisible)
-				continue;
-
-			// Debug: Log vehicle state for each marker (first 20 only)
-			static int vehicleDebugCount = 0;
-			vehicleDebugCount++;
-			if (vehicleDebugCount <= 20)
-			{
-				Print(string.Format(
-					"GRAD_BC_ReplayMapLayer: PlayerMarker id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitType='%5' faction='%6'", 
-					marker.playerId, marker.playerName, marker.isInVehicle, marker.vehicleType, marker.unitType, marker.factionKey
-				), LogLevel.NORMAL);
-			}
-
-			// Draw unit icon with directional chevron (use vehicle icon if in vehicle)
-			string vehicleIconKey = "";
-			if (marker.isInVehicle)
-			{
-				vehicleIconKey = GetVehicleIconKey(marker.vehicleType, marker.factionKey, false);
-				DrawUnitMarker(marker.position, marker.direction, marker.unitType, marker.factionKey, true, marker.isAlive, vehicleIconKey);
-			}
-			else
-			{
-				DrawUnitMarker(marker.position, marker.direction, marker.unitType, marker.factionKey, false, marker.isAlive);
-			}
-		}
-
-		// Draw empty vehicle markers (always show all vehicles, even if empty)
-		array<ref GRAD_BC_ReplayVehicleMarker> vehiclesToRender;
-		if (replayManager && replayManager.IsPlayingBack())
-			vehiclesToRender = m_vehicleMarkers;
-		else if (m_hasLastFrame)
-			vehiclesToRender = m_lastFrameVehicleMarkers;
-		else
-			vehiclesToRender = {};
-
-		foreach (GRAD_BC_ReplayVehicleMarker vehicleMarker : vehiclesToRender)
-		{
-			if (!vehicleMarker.isVisible)
-				continue;
-
-			// Check if a player is in this vehicle
-			bool isOccupied = false;
-			foreach (GRAD_BC_ReplayPlayerMarker playerMarker : markersToRender)
-			{
-				if (playerMarker.isInVehicle && playerMarker.vehicleId == vehicleMarker.entityId)
-				{
-					isOccupied = true;
-					break;
-				}
-			}
-
-			if (isOccupied)
-				continue;
-
-			string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, true);
-			Print(string.Format("BC Debug - VehicleMarker: vehicleType=%1, factionKey=%2, isEmpty=%3, vehicleIconKey=%4", vehicleMarker.vehicleType, vehicleMarker.factionKey, vehicleMarker.isEmpty, vehicleIconKey), LogLevel.NORMAL);
-			DrawUnitMarker(vehicleMarker.position, vehicleMarker.direction, "", vehicleMarker.factionKey, true, true, vehicleIconKey);
-		}
-		
-		// Draw projectiles as lines from firing position to impact position
-		array<ref GRAD_BC_ReplayProjectileMarker> projectilesToRender = {};
-		bool isLiveReplay = false;
-		if (replayManager && replayManager.IsPlayingBack())
-		{
-			projectilesToRender = m_projectileMarkers;
-			isLiveReplay = true;
-		}
-		else if (m_hasLastFrame)
-		{
-			projectilesToRender = m_lastFrameProjectileMarkers;
-		}
-		
-		// Debug: Log projectile rendering details
-		if (projectilesToRender.Count() > 0)
-		{
-			string source;
-			if (isLiveReplay)
-				source = "live replay";
-			else
-				source = "last frame";
-			
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing %1 projectiles (source: %2)", 
-				projectilesToRender.Count(), 
-				source), LogLevel.NORMAL);
-		}
-		
-		int visibleCount = 0;
-		foreach (GRAD_BC_ReplayProjectileMarker projMarker : projectilesToRender)
-		{
-			if (!projMarker.isVisible)
-				continue;
-			
-			visibleCount++;
-			
-			// Debug: Log first few projectile lines being drawn
-			if (visibleCount <= 3)
-			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Drawing projectile line - Type: %1, From: [%2, %3, %4] To: [%5, %6, %7]",
-					projMarker.projectileType,
-					projMarker.position[0], projMarker.position[1], projMarker.position[2],
-					projMarker.impactPosition[0], projMarker.impactPosition[1], projMarker.impactPosition[2]), LogLevel.NORMAL);
-			}
-				
-			// Draw line from firing position to impact position (bright red for visibility)
-			DrawLine(projMarker.position, projMarker.impactPosition, 2, Color.RED);
-		}
-		
-		// Debug: Summary of what was drawn
-		if (visibleCount > 0)
-		{
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Drew %1 visible projectile lines (out of %2 total projectiles)",
-				visibleCount, projectilesToRender.Count()), LogLevel.NORMAL);
-		}
-		
-		// Draw transmissions with state indicators and progress bars
-		// DISABLED DURING REPLAY - transmissions should only show in live mode
-		
-		array<ref GRAD_BC_ReplayTransmissionMarker> transmissionsToRender = {};
-		if (replayManager && replayManager.IsPlayingBack())
-		{
-			transmissionsToRender = m_transmissionMarkers;
-		}
-		else if (m_hasLastFrame)
-		{
-			transmissionsToRender = m_lastFrameTransmissionMarkers;
-		}
-		
-		foreach (GRAD_BC_ReplayTransmissionMarker transMarker : transmissionsToRender)
-		{
-			if (!transMarker.isVisible)
-				continue;
-			
-			// Choose icon based on transmission state
-			string iconName;
-			int stateColor; // Color for progress bar
-			switch (transMarker.state)
-			{
-				case ETransmissionState.OFF:
-					iconName = "transmission_default";
-					stateColor = 0xFF808080; // Gray
-					break;
-				case ETransmissionState.TRANSMITTING:
-					iconName = "transmission_active";
-					stateColor = 0xFF00FF00; // Green
-					break;
-				case ETransmissionState.INTERRUPTED:
-					iconName = "transmission_interrupted";
-					stateColor = 0xFFFF8800; // Orange
-					break;
-				case ETransmissionState.DISABLED:
-					iconName = "transmission_interrupted"; // Use interrupted icon for disabled
-					stateColor = 0xFFFF0000; // Red
-					break;
-				case ETransmissionState.DONE:
-					iconName = "transmission_active"; // Use active icon for done
-					stateColor = 0xFF0088FF; // Blue
-					break;
-				default:
-					iconName = "transmission_default";
-					stateColor = 0xFFFFFFFF; // White
-			}
-			
-			// Draw transmission point icon
-			string iconPath = m_transmissionIconPaths.Get(iconName);
-			if (iconPath)
-				DrawTransmissionIcon(transMarker.position, 40, 40, iconPath);
-			
-			// Draw progress bar if transmitting
-			if (transMarker.state == ETransmissionState.TRANSMITTING || transMarker.progress > 0)
-			{
-				// Draw progress bar beneath the transmission marker
-				int xcp, ycp;
-				m_MapEntity.WorldToScreen(transMarker.position[0], transMarker.position[2], xcp, ycp, true);
-				
-				int barWidth = 60;
-				int barHeight = 8;
-				int barX = xcp - barWidth / 2;
-				int barY = ycp + 30; // Below the circle
-				
-				// Draw background bar (dark gray) using PolygonDrawCommand
-				PolygonDrawCommand bgBar = new PolygonDrawCommand();
-				bgBar.m_iColor = 0xFF303030;
-				bgBar.m_Vertices = new array<float>;
-				bgBar.m_Vertices.Insert(barX);
-				bgBar.m_Vertices.Insert(barY);
-				bgBar.m_Vertices.Insert(barX + barWidth);
-				bgBar.m_Vertices.Insert(barY);
-				bgBar.m_Vertices.Insert(barX + barWidth);
-				bgBar.m_Vertices.Insert(barY + barHeight);
-				bgBar.m_Vertices.Insert(barX);
-				bgBar.m_Vertices.Insert(barY + barHeight);
-				m_Commands.Insert(bgBar);
-				
-				// Draw progress fill
-				int fillWidth = barWidth * transMarker.progress;
-				if (fillWidth > 0)
-				{
-					PolygonDrawCommand fillBar = new PolygonDrawCommand();
-					fillBar.m_iColor = stateColor;
-					fillBar.m_Vertices = new array<float>;
-					fillBar.m_Vertices.Insert(barX);
-					fillBar.m_Vertices.Insert(barY);
-					fillBar.m_Vertices.Insert(barX + fillWidth);
-					fillBar.m_Vertices.Insert(barY);
-					fillBar.m_Vertices.Insert(barX + fillWidth);
-					fillBar.m_Vertices.Insert(barY + barHeight);
-					fillBar.m_Vertices.Insert(barX);
-					fillBar.m_Vertices.Insert(barY + barHeight);
-					m_Commands.Insert(fillBar);
-				}
-			}
-		}
-		
-		
-		// Draw radio truck markers
-		array<ref GRAD_BC_ReplayRadioTruckMarker> radioTrucksToRender = {};
-		if (replayManager && replayManager.IsPlayingBack())
-		{
-			radioTrucksToRender = m_radioTruckMarkers;
-		}
-		else if (m_hasLastFrame)
-		{
-			radioTrucksToRender = m_lastFrameRadioTruckMarkers;
-		}
-		
-		foreach (GRAD_BC_ReplayRadioTruckMarker truckMarker : radioTrucksToRender)
-		{
-			if (!truckMarker.isVisible || truckMarker.isDestroyed)
-				continue;
-
-			// Draw the vehicle marker for the radio truck (use Ural as default, or match prefab if available)
-			string vehicleIconKey = "Radiotruck_opfor";
-			DrawUnitMarker(truckMarker.position, truckMarker.direction, "", "USSR", true, true, vehicleIconKey);
-
-		}
-		
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Draw() completed - %1 player markers, %2 projectile markers, %3 total commands", 
-			markersToRender.Count(), projectilesToRender.Count(), m_Commands.Count()));
-	}
 	
 	//------------------------------------------------------------------------------------------------
 	// Draw an image texture at a world position
@@ -667,11 +577,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
 		
-		int xcp, ycp;        
+		float xcp, ycp;        
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
 		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		m_Commands.Insert(cmd);
 	}
 	
@@ -681,12 +593,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
 		
-		int xcp, ycp;        
+		float xcp, ycp;        
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
 		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
 		cmd.m_pTexture = tex;
 		cmd.m_Size = Vector(width, height, 0);
 		cmd.m_iColor = color;
+		cmd.m_iFlags = WidgetFlags.BLEND;
 		m_Commands.Insert(cmd);
 	}
 	
@@ -696,21 +610,19 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	void DrawImageColorRotated(vector center, int width, int height, SharedItemRef tex, float rotationDegrees)
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
-		
-		int xcp, ycp;        
-		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
-		// Increase bounding box to prevent clipping during rotation
-		// When rotated 45 degrees, diagonal is sqrt(2) times larger, so use 1.5x to be safe
-		int expandedWidth = width * 1.5;
-		int expandedHeight = height * 1.5;
-		// Center the expanded image at the screen position
-		// The rotation point must be the center of the image, so we offset by half the expanded size
-		cmd.m_Position = Vector(xcp - (expandedWidth/2), ycp - (expandedHeight/2), 0);
 		cmd.m_pTexture = tex;
-		cmd.m_Size = Vector(expandedWidth, expandedHeight, 0);
-		// we dont color tint anymore due to transparency issues (no idea wtf enfusion is doing)
-		cmd.m_iFlags = WidgetFlags.BLEND;
+		cmd.m_iColor = 0xFFFFFFFF;
+		
+		float xcp, ycp;        
+		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
+		// Use m_Pivot to rotate around the center
+		cmd.m_Position = Vector(xcp - (width * 0.5), ycp - (height * 0.5), 0);
+		cmd.m_Size = Vector(width, height, 0);
+		cmd.m_Pivot = Vector(width * 0.5, height * 0.5, 0);
 		cmd.m_fRotation = rotationDegrees;
+		cmd.m_iFlags = WidgetFlags.BLEND;
+		
 		m_Commands.Insert(cmd);
 	}
 	
@@ -721,8 +633,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		if (!m_Canvas || !texturePath)
 			return;
 			
-		   int xcp, ycp;        
+		   float xcp, ycp;        
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
+		
 		   // Check if texture is already loaded, otherwise load and cache it
 		   SharedItemRef texture = m_loadedTextures.Get(texturePath);
 		   if (!texture)
@@ -743,6 +656,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		   cmd.m_Size = Vector(width, height, 0);
 		   cmd.m_iColor = 0xFFFFFFFF;
 		   cmd.m_pTexture = texture;
+		   cmd.m_iFlags = WidgetFlags.BLEND;
 		   m_Commands.Insert(cmd);
 	}
 	
@@ -755,9 +669,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	   {
 		   float iconSize;
 		   if (isVehicle)
-			   iconSize = 50.0;
+			   iconSize = 64.0;
 		   else
-			   iconSize = 35.0;
+			   iconSize = 32.0;
 
 		   string texturePath;
 			if (isVehicle)
@@ -801,12 +715,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		   int iconPixelSize;
 		   if (isVehicle)
-			   iconPixelSize = 85;
+			   iconPixelSize = 128;
 		   else
-			   iconPixelSize = 42;
+			   iconPixelSize = 64;
 
 		   if (texture)
 		   {
+			   // Fix rotation: convert world yaw to map icon rotation
+			   // float iconRotation = -direction + 90.0; // Map north-up, world yaw=0 east? Adjust as needed
+			   // Print(string.Format("BC Debug - DrawUnitMarker: direction=%.2f, iconRotation=%.2f", direction, iconRotation), LogLevel.NORMAL);
 			   DrawImageColorRotated(position, iconPixelSize, iconPixelSize, texture, direction);
 		   }
 		   else
@@ -820,9 +737,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Called by replay manager to update marker positions
 	void UpdateReplayFrame(GRAD_BC_ReplayFrame frame)
 	{
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles", 
-			frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.radioTrucks.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
-		
+		// Reduced logging frequency - only log every 20th frame
+		static int frameUpdateCount = 0;
+		frameUpdateCount++;
+		if (frameUpdateCount % 20 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles",
+				frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.radioTrucks.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
+		}
+
 		// Build new marker arrays first (don't clear existing ones yet to avoid empty frames)
 		array<ref GRAD_BC_ReplayPlayerMarker> newPlayerMarkers = {};
 		array<ref GRAD_BC_ReplayProjectileMarker> newProjectileMarkers = {};
@@ -913,6 +836,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			marker.direction = truckSnapshot.angles[0]; // Yaw
 			marker.isActive = truckSnapshot.isActive;
 			marker.isDestroyed = truckSnapshot.isDestroyed;
+			marker.isEmpty = truckSnapshot.isEmpty;
+			marker.factionKey = truckSnapshot.factionKey;
 			marker.isVisible = true;
 			
 			newRadioTruckMarkers.Insert(marker);
@@ -932,90 +857,33 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			newVehicleMarkers.Insert(marker);
 		}
 		
+		// PERFORMANCE FIX: Before swapping, save current markers as last frame (by reference, not deep copy)
+		// This is much faster than deep copying all marker data
+		if (m_playerMarkers.Count() > 0 || m_projectileMarkers.Count() > 0 || m_transmissionMarkers.Count() > 0 || m_radioTruckMarkers.Count() > 0 || m_vehicleMarkers.Count() > 0)
+		{
+			m_lastFramePlayerMarkers = m_playerMarkers;
+			m_lastFrameProjectileMarkers = m_projectileMarkers;
+			m_lastFrameTransmissionMarkers = m_transmissionMarkers;
+			m_lastFrameRadioTruckMarkers = m_radioTruckMarkers;
+			m_lastFrameVehicleMarkers = m_vehicleMarkers;
+			m_hasLastFrame = true;
+		}
+
 		// Now atomically swap the marker arrays to avoid empty frames during rendering
 		m_playerMarkers = newPlayerMarkers;
 		m_projectileMarkers = newProjectileMarkers;
 		m_transmissionMarkers = newTransmissionMarkers;
 		m_radioTruckMarkers = newRadioTruckMarkers;
 		m_vehicleMarkers = newVehicleMarkers;
-		
-		// Save this frame as the last frame for persistent display
-		m_lastFramePlayerMarkers.Clear();
-		m_lastFrameProjectileMarkers.Clear();
-		m_lastFrameTransmissionMarkers.Clear();
-		m_lastFrameRadioTruckMarkers.Clear();
-		m_lastFrameVehicleMarkers.Clear();
-		
-		// Deep copy current markers to last frame
-		foreach (GRAD_BC_ReplayPlayerMarker playerMarker : m_playerMarkers)
-		{
-			GRAD_BC_ReplayPlayerMarker lastMarker = new GRAD_BC_ReplayPlayerMarker();
-			lastMarker.playerId = playerMarker.playerId;
-			lastMarker.playerName = playerMarker.playerName;
-			lastMarker.factionKey = playerMarker.factionKey;
-			lastMarker.position = playerMarker.position;
-			lastMarker.direction = playerMarker.direction;
-			lastMarker.isAlive = playerMarker.isAlive;
-			lastMarker.isInVehicle = playerMarker.isInVehicle;
-			lastMarker.vehicleId = playerMarker.vehicleId;
-			lastMarker.unitType = playerMarker.unitType;
-			lastMarker.vehicleType = playerMarker.vehicleType;
-			lastMarker.isVisible = playerMarker.isVisible;
-			m_lastFramePlayerMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayProjectileMarker projMarker : m_projectileMarkers)
-		{
-			GRAD_BC_ReplayProjectileMarker lastMarker = new GRAD_BC_ReplayProjectileMarker();
-			lastMarker.projectileType = projMarker.projectileType;
-			lastMarker.position = projMarker.position;
-			lastMarker.impactPosition = projMarker.impactPosition;
-			lastMarker.velocity = projMarker.velocity;
-			lastMarker.isVisible = projMarker.isVisible;
-			m_lastFrameProjectileMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayTransmissionMarker transMarker : m_transmissionMarkers)
-		{
-			GRAD_BC_ReplayTransmissionMarker lastMarker = new GRAD_BC_ReplayTransmissionMarker();
-			lastMarker.position = transMarker.position;
-			lastMarker.state = transMarker.state;
-			lastMarker.progress = transMarker.progress;
-			lastMarker.isVisible = transMarker.isVisible;
-			m_lastFrameTransmissionMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayRadioTruckMarker truckMarker : m_radioTruckMarkers)
-		{
-			GRAD_BC_ReplayRadioTruckMarker lastMarker = new GRAD_BC_ReplayRadioTruckMarker();
-			lastMarker.position = truckMarker.position;
-			lastMarker.direction = truckMarker.direction;
-			lastMarker.isActive = truckMarker.isActive;
-			lastMarker.isDestroyed = truckMarker.isDestroyed;
-			lastMarker.isVisible = truckMarker.isVisible;
-			m_lastFrameRadioTruckMarkers.Insert(lastMarker);
-		}
-		
-		foreach (GRAD_BC_ReplayVehicleMarker vehicleMarker : m_vehicleMarkers)
-		{
-			GRAD_BC_ReplayVehicleMarker lastMarker = new GRAD_BC_ReplayVehicleMarker();
-			lastMarker.entityId = vehicleMarker.entityId;
-			lastMarker.vehicleType = vehicleMarker.vehicleType;
-			lastMarker.factionKey = vehicleMarker.factionKey;
-			lastMarker.position = vehicleMarker.position;
-			lastMarker.direction = vehicleMarker.direction;
-			lastMarker.isVisible = vehicleMarker.isVisible;
-			m_lastFrameVehicleMarkers.Insert(lastMarker);
-		}
-		
-		m_hasLastFrame = true;
+
 		m_bIsInReplayMode = true; // Mark that we're in replay mode
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Saved last frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles for persistent display", 
-			m_lastFramePlayerMarkers.Count(), m_lastFrameProjectileMarkers.Count(), m_lastFrameTransmissionMarkers.Count(), m_lastFrameRadioTruckMarkers.Count(), m_lastFrameVehicleMarkers.Count()));
-		
-		// Log frame update for debugging
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks", 
-			m_playerMarkers.Count(), m_projectileMarkers.Count(), m_transmissionMarkers.Count(), m_radioTruckMarkers.Count()), LogLevel.NORMAL);
+
+		// Reduced logging
+		if (frameUpdateCount % 20 == 0)
+		{
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 vehicles (last frame: %3 players)",
+				m_playerMarkers.Count(), m_vehicleMarkers.Count(), m_lastFramePlayerMarkers.Count()), LogLevel.NORMAL);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1074,18 +942,18 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			m_Commands.Insert(fillBar);
 			
 			// Draw rounded left edge of fill
-			DrawCircle(Vector(barX + cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xFF3A7FD5, 8);
+			DrawScreenCircle(barX + cornerRadius, barY + barHeight/2, cornerRadius, 0xFF3A7FD5, 8);
 			
 			// Draw rounded right edge of fill if progress is not complete
 			if (progress < 0.99)
 			{
-				DrawCircle(Vector(barX + fillWidth - cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xFF3A7FD5, 8);
+				DrawScreenCircle(barX + fillWidth - cornerRadius, barY + barHeight/2, cornerRadius, 0xFF3A7FD5, 8);
 			}
 		}
 		
 		// Draw rounded corners for background using circles
-		DrawCircle(Vector(barX + cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xCC1A1A1A, 8);
-		DrawCircle(Vector(barX + barWidth - cornerRadius, barY + barHeight/2, 0), cornerRadius, 0xCC1A1A1A, 8);
+		DrawScreenCircle(barX + cornerRadius, barY + barHeight/2, cornerRadius, 0xCC1A1A1A, 8);
+		DrawScreenCircle(barX + barWidth - cornerRadius, barY + barHeight/2, cornerRadius, 0xCC1A1A1A, 8);
 		
 		// Draw border (white) with rounded effect
 		LineDrawCommand border = new LineDrawCommand();
@@ -1129,6 +997,57 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
 			progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Helper to draw a circle in screen coordinates (for UI elements like progress bar)
+	void DrawScreenCircle(float screenX, float screenY, float radius, int color, int n = 16)
+	{
+		PolygonDrawCommand cmd = new PolygonDrawCommand();
+		cmd.m_iColor = color;
+		cmd.m_Vertices = new array<float>;
+		
+		for(int i = 0; i < n; i++)
+		{
+			float theta = i*(2*Math.PI/n);
+			float x = screenX + radius*Math.Cos(theta);
+			float y = screenY + radius*Math.Sin(theta);
+			cmd.m_Vertices.Insert(x);
+			cmd.m_Vertices.Insert(y);
+		}
+		m_Commands.Insert(cmd);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Override DrawLine to apply DPIUnscale for projectiles
+	override void DrawLine(vector startPos, vector endPos, float width, int color)
+	{
+		PolygonDrawCommand cmd = new PolygonDrawCommand();
+		cmd.m_iColor = color;
+		
+		cmd.m_Vertices = new array<float>;
+		
+		float x1, y1, x2, y2;
+		m_MapEntity.WorldToScreen(startPos[0], startPos[2], x1, y1, true);
+		m_MapEntity.WorldToScreen(endPos[0], endPos[2], x2, y2, true);
+		
+		// Create a thick line by drawing a rectangle
+		float dx = x2 - x1;
+		float dy = y2 - y1;
+		float length = Math.Sqrt(dx * dx + dy * dy);
+		
+		if (length > 0)
+		{
+			float offsetX = (-dy / length) * (width / 2.0);
+			float offsetY = (dx / length) * (width / 2.0);
+			
+			cmd.m_Vertices.Insert(x1 + offsetX); cmd.m_Vertices.Insert(y1 + offsetY);
+			cmd.m_Vertices.Insert(x2 + offsetX); cmd.m_Vertices.Insert(y2 + offsetY);
+			cmd.m_Vertices.Insert(x2 - offsetX); cmd.m_Vertices.Insert(y2 - offsetY);
+			cmd.m_Vertices.Insert(x1 - offsetX); cmd.m_Vertices.Insert(y1 - offsetY);
+		}
+		
+		m_Commands.Insert(cmd);
+	}
 }
 
 // Marker classes for replay display
@@ -1170,6 +1089,8 @@ class GRAD_BC_ReplayRadioTruckMarker : Managed
 	float direction;
 	bool isActive; // whether radio truck is transmitting
 	bool isDestroyed; // whether radio truck is destroyed
+	bool isEmpty;
+	string factionKey;
 	bool isVisible;
 }
 

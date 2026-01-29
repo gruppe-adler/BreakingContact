@@ -30,7 +30,7 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 		
 		cmd.m_Vertices = new array<float>;
 		
-		int xcp, ycp;
+		float xcp, ycp;
 		
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
 		float r = range * m_MapEntity.GetCurrentZoom();
@@ -38,8 +38,8 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 		for(int i = 0; i < n; i++)
 		{
 			float theta = i*(2*Math.PI/n);
-			float x = (int)(xcp + r*Math.Cos(theta));
-			float y = (int)(ycp + r*Math.Sin(theta));
+			float x = xcp + r*Math.Cos(theta);
+			float y = ycp + r*Math.Sin(theta);
 			cmd.m_Vertices.Insert(x);
 			cmd.m_Vertices.Insert(y);
 		}
@@ -51,7 +51,7 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 	{
 		ImageDrawCommand cmd = new ImageDrawCommand();
 		
-		int xcp, ycp;		
+		float xcp, ycp;		
 		m_MapEntity.WorldToScreen(center[0], center[2], xcp, ycp, true);
 		
 		cmd.m_Position = Vector(xcp - (width/2), ycp - (height/2), 0);
@@ -68,7 +68,7 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 		
 		cmd.m_Vertices = new array<float>;
 		
-		int x1, y1, x2, y2;
+		float x1, y1, x2, y2;
 		m_MapEntity.WorldToScreen(startPos[0], startPos[2], x1, y1, true);
 		m_MapEntity.WorldToScreen(endPos[0], endPos[2], x2, y2, true);
 		

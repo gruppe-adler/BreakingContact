@@ -29,6 +29,14 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
   }
   GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
   }
+  SCR_AmbientTrafficManager "{687109A5DE64F342}" {
+   m_aVehicleOptions {
+    "{54C3CC22DEBD57BE}Prefabs/Vehicles/Wheeled/S105/S105_beige.et"
+    "{ACED839A6C5BE657}Prefabs/Vehicles/Wheeled/S1203/S1203_transport_brown.et"
+    "{F66EAD0D2016B6BA}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_transport_covered_CIV_blue.et"
+   }
+   m_GroupPrefab "{000CD338713F2B5A}Prefabs/AI/Groups/Group_Base.et"
+  }
   SCR_CampaignBuildingManagerComponent "{61B4DDBF56BF1B48}" {
    m_iCompositionRefundPercentage 0
    m_iXpRewardTreshold 9999

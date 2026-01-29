@@ -13,12 +13,6 @@ SCR_ChimeraCharacter : "{C9E4FEAF5AAC8D8C}Prefabs/Characters/Factions/BLUFOR/US_
       ""
      }
     }
-    ItemsInitConfigurationItem "{6090863FAC76BFBB}" {
-     TargetStorage "Back/Backpack_Medical_M5.et"
-     PrefabsToSpawn {
-      "{B0E67230AEEE2DF3}Prefabs/Items/Wallet.et"
-     }
-    }
    }
   }
  }

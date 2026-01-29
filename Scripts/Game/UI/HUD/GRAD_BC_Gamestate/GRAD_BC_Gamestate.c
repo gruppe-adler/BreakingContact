@@ -20,6 +20,9 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 			PrintFormat("GRAD_BC_Gamestate: no m_text found", LogLevel.ERROR);
 			return;
 		}
+
+		// Hide initially to prevent blocking input in menu/lobby
+		HideLogo();
 	}
 	
 	void ShowText(string message)

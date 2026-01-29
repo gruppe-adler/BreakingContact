@@ -110,14 +110,18 @@ class GRAD_BC_RadioTruckSnapshot : Managed
 	vector angles;
 	bool isActive; // whether transmitting
 	bool isDestroyed;
+	bool isEmpty;
+	string factionKey;
 	
-	static GRAD_BC_RadioTruckSnapshot Create(vector pos, vector ang, bool active, bool destroyed)
+	static GRAD_BC_RadioTruckSnapshot Create(vector pos, vector ang, bool active, bool destroyed, bool empty, string faction)
 	{
 		GRAD_BC_RadioTruckSnapshot snapshot = new GRAD_BC_RadioTruckSnapshot();
 		snapshot.position = pos;
 		snapshot.angles = ang;
 		snapshot.isActive = active;
 		snapshot.isDestroyed = destroyed;
+		snapshot.isEmpty = empty;
+		snapshot.factionKey = faction;
 		return snapshot;
 	}
 };

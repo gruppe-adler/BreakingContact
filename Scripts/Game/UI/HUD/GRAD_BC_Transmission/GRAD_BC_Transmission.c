@@ -20,7 +20,7 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 		
 		Print("GRAD_BC_Transmission: DisplayStartDraw called", LogLevel.NORMAL);
 		
-		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{D73BB17AFDB687C2}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout", null);
+		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{B03FBF0B1B06AD12}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout", null);
 		
 		if (!m_wRoot) {
 			Print("GRAD_BC_Transmission: no m_wRoot found", LogLevel.NORMAL);

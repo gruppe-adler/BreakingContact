@@ -23,6 +23,10 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 
 		// Hide initially to prevent blocking input in menu/lobby
 		HideGameStateDisplay();
+		
+		// Disable input on the root widget to prevent blocking lobby interactions
+		if (m_wRoot)
+			m_wRoot.SetFlags(WidgetFlags.NOFOCUS);
 	}
 	
 	void ShowText(string message)

@@ -21,7 +21,12 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 			return;
 		}
 		
+		// Ensure logo starts hidden and doesn't block input
 		HideLogo();
+		
+		// Disable input on the root widget to prevent blocking lobby interactions
+		if (m_wRoot)
+			m_wRoot.SetFlags(WidgetFlags.NOFOCUS);
 	}
 	
 	void ShowLogo()

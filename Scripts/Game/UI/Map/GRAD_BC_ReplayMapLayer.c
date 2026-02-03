@@ -183,47 +183,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         }
 
         // --- 3. Transmissions ---
-        array<ref GRAD_BC_ReplayTransmissionMarker> transmissionsToRender;
-        if (m_bIsInReplayMode) transmissionsToRender = m_transmissionMarkers;
-        else if (m_hasLastFrame) transmissionsToRender = m_lastFrameTransmissionMarkers;
-        else transmissionsToRender = {};
-
-        int transmissionIndex = 0;
-        foreach (GRAD_BC_ReplayTransmissionMarker transMarker : transmissionsToRender)
-        {
-            if (!transMarker.isVisible) continue;
-
-            // Get icon based on transmission state
-            string iconKey;
-            switch (transMarker.state)
-            {
-                case ETransmissionState.TRANSMITTING:
-                    iconKey = "transmission_active";
-                    break;
-                case ETransmissionState.INTERRUPTED:
-                    iconKey = "transmission_interrupted";
-                    break;
-                case ETransmissionState.DONE:
-                case ETransmissionState.OFF:
-                case ETransmissionState.DISABLED:
-                default:
-                    iconKey = "transmission_default";
-                    break;
-            }
-
-            string texturePath = m_transmissionIconPaths.Get(iconKey);
-            if (texturePath == "")
-                texturePath = m_transmissionIconPaths.Get("transmission_default");
-
-            // Use index for unique widget key since transmissions don't have entity IDs
-            string widgetKey = "TRANS_" + transmissionIndex.ToString();
-            
-            // Transmissions don't rotate, pass 0 for direction
-            // Use false for isVehicle (different size), false for isEmpty
-            UpdateMarkerWidget(widgetKey, texturePath, transMarker.position, 0, false, false);
-
-            transmissionIndex++;
-        }
+        // Transmissions are rendered as progress circles only (no icon widgets)
+        // See the drawing section below for transmission rendering
 
         // --- 4. Hide Unused Widgets ---
         foreach (string key, ImageWidget w : m_ActiveWidgets)
@@ -248,7 +209,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             {
                 if (!transMarker.isVisible) continue;
 
-                // Draw progress circle around transmission icon
+                // Determine circle color based on transmission state
                 int circleColor;
                 switch (transMarker.state)
                 {
@@ -270,7 +231,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                         break;
                 }
 
-                // Draw full circle as background
+                // Draw center dot for visibility (scales with zoom like other map elements)
+                float screenX, screenY;
+                m_MapEntity.WorldToScreen(transMarker.position[0], transMarker.position[2], screenX, screenY, true);
+                float dotRadius = 8.0 * m_MapEntity.GetCurrentZoom();
+                DrawScreenCircle(screenX, screenY, dotRadius, 0xFF000000, 12);
+                
+                // Draw background ring
                 DrawCircle(transMarker.position, 30.0, 3.0, 0x40000000); // Semi-transparent black background
                 
                 // Draw progress arc if transmitting or in progress
@@ -338,6 +305,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		string key = "";
 		string pf = prefab;
 		pf.ToLower();
+		
+		// Debug logging for unmapped vehicles
+		static int vehicleLogCount = 0;
+		vehicleLogCount++;
+		if (vehicleLogCount <= 20)
+		{
+			Print(string.Format("BC Debug - GetVehicleIconKey: prefab='%1', faction='%2', isEmpty=%3", pf, factionKey, isEmpty), LogLevel.NORMAL);
+		}
 		// Special case: ambient/empty vehicles (no faction)
 		if (factionKey == "Empty")
 		{
@@ -449,11 +424,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			else if (factionKey == "US") key = "UH1H1_blufor";
 			else if (factionKey == "USSR") key = "UH1H1_opfor";
 		}
-		else if (pf.Contains("ural4320"))
+		else if (pf.Contains("ural4320") || pf.Contains("ural_4320"))
 		{
-			if (pf.Contains("command") || pf.Contains("radio"))
+			if (pf.Contains("command") || pf.Contains("radio") || pf.Contains("r-142") || pf.Contains("r142"))
 			{
-				if (isEmpty) key = "Radiotruck_Empty";
+				if (isEmpty) key = "Radiotruck_empty";
 				else if (factionKey == "US") key = "Radiotruck_blufor";
 				else if (factionKey == "USSR") key = "Radiotruck_opfor";
 			}
@@ -469,6 +444,12 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				else if (factionKey == "US") key = "Ural_Open_blufor";
 				else if (factionKey == "USSR") key = "UralOpen_opfor";
 			}
+		}
+		
+		// Log when no key is matched
+		if (key == "" && vehicleLogCount <= 20)
+		{
+			Print(string.Format("BC Warning - GetVehicleIconKey: No icon key found for prefab='%1'", pf), LogLevel.WARNING);
 		}
 		return key;
 	}
@@ -566,7 +547,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("UralOpen_opfor", "{AD63B0D696D2577D}UI/Textures/Icons/UralOpen_opfor.edds");
 
 		m_vehicleIconTextures.Set("Radiotruck_blufor", "{ABB9C00A86D1437D}UI/Textures/Icons/Radiotruck_blufor.edds");
-		m_vehicleIconTextures.Set("Radiotruck_empty", "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_Empty.edds");
+		m_vehicleIconTextures.Set("Radiotruck_empty", "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_empty.edds");
 		m_vehicleIconTextures.Set("Radiotruck_opfor", "{295A98A64B22490E}UI/Textures/Icons/Radiotruck_opfor.edds");
 
 		m_vehicleIconTextures.Set("Commandvehicle_blufor", "{2CCAAB5BEDD7BAA1}UI/Textures/Icons/Commandvehicle_blufor.edds");
@@ -1085,6 +1066,52 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
 			progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Overloaded DrawCircle with width parameter for drawing rings
+	void DrawCircle(vector center, float radius, float width, int color)
+	{
+		float screenX, screenY;
+		m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
+		
+		int segments = 32;
+		
+		for (int i = 0; i < segments; i++)
+		{
+			float angle1 = ((float)i / (float)segments) * Math.PI2;
+			float angle2 = ((float)(i + 1) / (float)segments) * Math.PI2;
+			
+			float x1outer = screenX + Math.Cos(angle1) * (radius + width * 0.5);
+			float y1outer = screenY + Math.Sin(angle1) * (radius + width * 0.5);
+			float x2outer = screenX + Math.Cos(angle2) * (radius + width * 0.5);
+			float y2outer = screenY + Math.Sin(angle2) * (radius + width * 0.5);
+			
+			float x1inner = screenX + Math.Cos(angle1) * (radius - width * 0.5);
+			float y1inner = screenY + Math.Sin(angle1) * (radius - width * 0.5);
+			float x2inner = screenX + Math.Cos(angle2) * (radius - width * 0.5);
+			float y2inner = screenY + Math.Sin(angle2) * (radius - width * 0.5);
+			
+			PolygonDrawCommand cmd = new PolygonDrawCommand();
+			cmd.m_iColor = color;
+			cmd.m_Vertices = new array<float>;
+			
+			cmd.m_Vertices.Insert(x1outer); cmd.m_Vertices.Insert(y1outer);
+			cmd.m_Vertices.Insert(x2outer); cmd.m_Vertices.Insert(y2outer);
+			cmd.m_Vertices.Insert(x1inner); cmd.m_Vertices.Insert(y1inner);
+			
+			m_Commands.Insert(cmd);
+			
+			PolygonDrawCommand cmd2 = new PolygonDrawCommand();
+			cmd2.m_iColor = color;
+			cmd2.m_Vertices = new array<float>;
+			
+			cmd2.m_Vertices.Insert(x2outer); cmd2.m_Vertices.Insert(y2outer);
+			cmd2.m_Vertices.Insert(x2inner); cmd2.m_Vertices.Insert(y2inner);
+			cmd2.m_Vertices.Insert(x1inner); cmd2.m_Vertices.Insert(y1inner);
+			
+			m_Commands.Insert(cmd2);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

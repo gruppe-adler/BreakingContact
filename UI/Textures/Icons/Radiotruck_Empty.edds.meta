@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_Empty.edds"
+ Name "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_empty.edds"
  Configurations {
   PNGResourceClass PC : "{DC555BD399D92412}Configs/System/ResourceTypes/PC/TextureUnspecified.conf" {
    Conversion DXTCompression

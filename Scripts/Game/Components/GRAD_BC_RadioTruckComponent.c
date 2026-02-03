@@ -23,9 +23,14 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	// Replicated lamp state - when changed, clients toggle their local lamp visuals
 	[RplProp(onRplName: "OnLampStateReplicated")]
 	protected bool m_bLampStateOn = false;
+	
+	// Replicated channel selector rotation state
+	[RplProp(onRplName: "OnChannelSelectorStateReplicated")]
+	protected bool m_bChannelSelectorRotated = false;
 
 	private Vehicle m_radioTruck;
 	private IEntity m_commandBox; // The command box entity that has the antenna bones
+	private IEntity m_radioEntity; // The radio entity that has the channel_selector bone
 
 	protected float m_fSavedFuelRatio = -1.0;
 
@@ -45,6 +50,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	// Antenna animation variables
 	private static const int ANTENNA_SEGMENT_COUNT = 8;
 	private ref array<TNodeId> m_aAntennaBoneIds = new array<TNodeId>();
+	
+	// Channel selector bone
+	private TNodeId m_ChannelSelectorBoneId = -1;
 
 	[Attribute("90", UIWidgets.Slider, "Rotation angle for each antenna segment when extended (degrees)", "0 180 1")]
 	protected float m_fAntennaExtendAngle;
@@ -535,6 +543,9 @@ void UpdateAntennaBones(float progress)
 		}
 
 		Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones in array: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+		
+		// Initialize channel selector bone
+		InitializeChannelSelectorBone();
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -836,6 +847,104 @@ void UpdateAntennaBones(float progress)
 		Replication.BumpMe();
 		Print(string.Format("Breaking Contact RTC - Radio truck disabled state set to %1", m_bIsDisabled), LogLevel.NORMAL);
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Initialize channel selector bone reference
+	//------------------------------------------------------------------------------------------------
+	void InitializeChannelSelectorBone()
+	{
+		Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
+		
+		// Find the radio entity - search through slots
+		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
+		if (!slotManager)
+		{
+			Print("BC Debug - CHANNEL_SELECTOR: No SlotManagerComponent found", LogLevel.WARNING);
+			return;
+		}
+		
+		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
+		slotManager.GetSlotInfos(slots);
+		
+		foreach (EntitySlotInfo slotInfo : slots)
+		{
+			IEntity attachedEntity = slotInfo.GetAttachedEntity();
+			if (!attachedEntity)
+				continue;
+				
+			// Check if this entity has the channel_selector bone
+			Animation anim = attachedEntity.GetAnimation();
+			if (anim)
+			{
+				// Try to find the bone path: scene_root > root > channel_selector
+				TNodeId sceneRootId = anim.GetBoneIndex("scene_root");
+				if (sceneRootId != -1)
+				{
+					// Found scene_root, now look for root child
+					TNodeId rootId = anim.GetBoneIndex("root");
+					if (rootId != -1)
+					{
+						// Found root, now look for channel_selector
+						TNodeId channelSelectorId = anim.GetBoneIndex("channel_selector");
+						if (channelSelectorId != -1)
+						{
+							m_radioEntity = attachedEntity;
+							m_ChannelSelectorBoneId = channelSelectorId;
+							Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found channel_selector bone (ID: %1) in entity: %2", 
+								channelSelectorId, attachedEntity.GetName()), LogLevel.NORMAL);
+							return;
+						}
+					}
+				}
+			}
+		}
+		
+		Print("BC Debug - CHANNEL_SELECTOR: Could not find channel_selector bone", LogLevel.WARNING);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Apply channel selector rotation
+	//------------------------------------------------------------------------------------------------
+	void ApplyChannelSelectorRotation(bool rotated)
+	{
+		if (!m_radioEntity || m_ChannelSelectorBoneId == -1)
+		{
+			Print("BC Debug - CHANNEL_SELECTOR: Cannot apply rotation - bone not initialized", LogLevel.WARNING);
+			return;
+		}
+		
+		Animation anim = m_radioEntity.GetAnimation();
+		if (!anim)
+		{
+			Print("BC Debug - CHANNEL_SELECTOR: No animation component on radio entity", LogLevel.WARNING);
+			return;
+		}
+		
+		vector mat[4];
+		Math3D.MatrixIdentity4(mat);
+		
+		if (rotated)
+		{
+			// Rotate 90 degrees around Z-axis (up)
+			// Math3D.AnglesToMatrix expects angles in radians: (yaw, pitch, roll)
+			vector angles = Vector(0, 0, 90); // 90 degrees around Z
+			Math3D.AnglesToMatrix(angles, mat);
+		}
+		// If not rotated, identity matrix = 0 degrees (already set above)
+		
+		anim.SetBoneMatrix(m_radioEntity, m_ChannelSelectorBoneId, mat);
+		
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Applied rotation - rotated=%1", rotated), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Replication callback for channel selector state changes
+	//------------------------------------------------------------------------------------------------
+	void OnChannelSelectorStateReplicated()
+	{
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
+		ApplyChannelSelectorRotation(m_bChannelSelectorRotated);
+	}
 
 	void SetTransmissionActive(bool setTo) {
 		// Only allow server/authority to change transmission state
@@ -867,6 +976,9 @@ void UpdateAntennaBones(float progress)
 
 		// Set replicated lamp state - this triggers client-side lamp toggle via OnLampStateReplicated
 		m_bLampStateOn = setTo;
+		
+		// Set replicated channel selector state - this triggers client-side rotation via OnChannelSelectorStateReplicated
+		m_bChannelSelectorRotated = setTo;
 
 		// Bump replication to send all state changes to clients
 		Replication.BumpMe();
@@ -890,6 +1002,9 @@ void UpdateAntennaBones(float progress)
 
 		// Apply lamp state locally on server
 		ApplyLampState(setTo);
+		
+		// Apply channel selector rotation locally on server
+		ApplyChannelSelectorRotation(setTo);
 		
 		// Immediately notify the BreakingContactManager to handle transmission points
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -1112,6 +1227,10 @@ void UpdateAntennaBones(float progress)
 		// Apply lamp state
 		Print(string.Format("BC Debug - JIP: Applying lamp state: %1", m_bLampStateOn), LogLevel.NORMAL);
 		ApplyLampState(m_bLampStateOn);
+		
+		// Apply channel selector rotation for JIP clients
+		Print(string.Format("BC Debug - JIP: Applying channel selector rotation: %1", m_bChannelSelectorRotated), LogLevel.NORMAL);
+		ApplyChannelSelectorRotation(m_bChannelSelectorRotated);
 	}
 
 	//------------------------------------------------------------------------------------------------

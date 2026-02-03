@@ -407,7 +407,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		{
 			if (pf.Contains("command") || pf.Contains("radio"))
 			{
-				if (isEmpty) key = "Radiotruck_empty";
+				if (isEmpty) key = "Radiotruck_Empty";
 				else if (factionKey == "US") key = "Radiotruck_blufor";
 				else if (factionKey == "USSR") key = "Radiotruck_opfor";
 			}
@@ -438,6 +438,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	
 	// Replay mode flag - true when actively viewing replay, false for normal map use
 	protected bool m_bIsInReplayMode = false;
+	
+	// Public method to enable/disable replay mode
+	void SetReplayMode(bool enabled)
+	{
+		m_bIsInReplayMode = enabled;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
+	}
 	
 	// Keep last frame data for persistent display
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_lastFramePlayerMarkers = {};

@@ -1348,6 +1348,18 @@ void StartLocalReplayPlayback()
 			
 		Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 		
+		// Enable replay mode immediately for map layer
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (mapEntity)
+		{
+			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
+			if (replayLayer)
+			{
+				replayLayer.SetReplayMode(true);
+				Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
+			}
+		}
+		
 		// Calculate adaptive playback speed
 		CalculateAdaptiveSpeed();
 		Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
@@ -1673,6 +1685,8 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	void StopPlayback()
 	{
+		Print("GRAD_BC_ReplayManager: StopPlayback called", LogLevel.NORMAL);
+		
 		m_bIsPlayingBack = false;
 		m_bPlaybackPaused = false;
 		GetGame().GetCallqueue().Remove(UpdatePlayback);
@@ -1687,6 +1701,13 @@ void StartLocalReplayPlayback()
 				markerMgr.SetReplayMode(false);
 				Print("GRAD_BC_ReplayManager: Disabled replay mode on marker manager", LogLevel.NORMAL);
 			}
+			
+			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
+			if (replayLayer)
+			{
+				replayLayer.SetReplayMode(false);
+				Print("GRAD_BC_ReplayManager: Disabled replay mode on replay map layer", LogLevel.NORMAL);
+			}
 		}
 		
 		Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
@@ -1694,8 +1715,8 @@ void StartLocalReplayPlayback()
 		// Close the map
 		CloseMap();
 		
-		// Note: Server will automatically trigger endscreen after scheduled time
-		Print("GRAD_BC_ReplayManager: Waiting for server to trigger endscreen", LogLevel.NORMAL);
+		// Endscreen will be triggered by server after scheduled time
+		Print("GRAD_BC_ReplayManager: Endscreen will be triggered by server", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1954,8 +1975,17 @@ void StartLocalReplayPlayback()
 	// Get replay progress as percentage (0.0 to 1.0) for progress bar
 	float GetReplayProgress()
 	{
-		if (!m_replayData || m_replayData.totalDuration <= 0)
+		if (!m_replayData)
+		{
+			// No replay data yet - show 0% but don't error
 			return 0.0;
+		}
+		
+		if (m_replayData.totalDuration <= 0)
+		{
+			// Duration not set yet - show 0%
+			return 0.0;
+		}
 			
 		return Math.Clamp(m_fCurrentPlaybackTime / m_replayData.totalDuration, 0.0, 1.0);
 	}

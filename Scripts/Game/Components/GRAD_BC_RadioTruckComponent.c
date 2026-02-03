@@ -67,6 +67,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	private bool m_bAntennaRaising = false;
 	protected float m_fAnimationProgress = 0; // 0.0 = retracted, 1.0 = fully extended
 	protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
+	private int m_iLastLoggedProgress = -1; // For debug logging
 
 	// Antenna prop spawning
 	[Attribute("{F23A470F0A7A46A0}Assets/Props/Military/Antennas/Antenna_R142_01/Dst/Antenna_R142_01_dst_03.xob", UIWidgets.ResourcePickerThumbnail, "Antenna prop to spawn when extended", "xob")]
@@ -156,6 +157,25 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (!m_bAntennaAnimating)
 			return;
 
+		// Debug: Log that EOnFrame is running with animation
+		static int frameCounter = 0;
+		frameCounter++;
+		if (frameCounter % 60 == 1) // Log once per ~60 frames to avoid spam
+		{
+			Print(string.Format("BC Debug - ANTENNA: EOnFrame RUNNING - frame=%1, progress=%2, commandBox=%3, boneCount=%4",
+				frameCounter, m_fAnimationProgress, m_commandBox != null, m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+		}
+
+		// Debug: Log animation progress periodically (every ~10% progress)
+		int progressPercent = (int)(m_fAnimationProgress * 100);
+		if (progressPercent % 20 == 0 && progressPercent != m_iLastLoggedProgress)
+		{
+			m_iLastLoggedProgress = progressPercent;
+			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+			Print(string.Format("BC Debug - ANTENNA: EOnFrame animation - IsMaster=%1, Raising=%2, Progress=%3%%",
+				isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
+		}
+
 		// Update progress - convert milliseconds to seconds for timeSlice
 		if (m_bAntennaRaising)
 			m_fAnimationProgress += timeSlice / (m_iAntennaAnimationTime / 1000.0);
@@ -172,8 +192,11 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Spawn antenna prop when fully extended - only authority sets the replicated flag
 		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
 		{
+			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+			Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
+
 			// On authority, set the replicated flag which triggers spawning on all machines
-			if (m_RplComponent && m_RplComponent.IsMaster())
+			if (isMaster)
 			{
 				m_bRedLightPropSpawned = true;
 				Replication.BumpMe();
@@ -184,13 +207,33 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
 		{
+			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+			Print(string.Format("BC Debug - ANTENNA: Animation finished - Extended=%1, IsMaster=%2",
+				(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
+
+			// Reset the log flag for next animation
+			// Note: This is a static variable, so we need a different approach
 		}
 	}
 
 void UpdateAntennaBones(float progress)
 {
+    // Safety check: ensure command box and bones are initialized
+    if (!m_commandBox || m_aAntennaBoneIds.Count() == 0)
+    {
+        Print("BC Debug - ANTENNA: UpdateAntennaBones called but bones not initialized yet", LogLevel.WARNING);
+        return;
+    }
+
+    Animation anim = m_commandBox.GetAnimation();
+    if (!anim)
+    {
+        Print("BC Debug - ANTENNA: UpdateAntennaBones called but no animation component", LogLevel.WARNING);
+        return;
+    }
+
     for (int i = 0; i < ANTENNA_SEGMENT_COUNT; i++)
     {
         TNodeId boneId = m_aAntennaBoneIds[i];
@@ -222,7 +265,7 @@ void UpdateAntennaBones(float progress)
         float zTrans = segmentLocalProgress * segmentLength;
         mat[3] = Vector(0, 0, zTrans);
 
-        m_commandBox.GetAnimation().SetBoneMatrix(m_commandBox, boneId, mat);
+        anim.SetBoneMatrix(m_commandBox, boneId, mat);
     }
 }
 
@@ -694,6 +737,14 @@ void UpdateAntennaBones(float progress)
 	}
 
 	void SetTransmissionActive(bool setTo) {
+		// Only allow server/authority to change transmission state
+		if (m_RplComponent && !m_RplComponent.IsMaster())
+		{
+			Print(string.Format("BC Debug - SetTransmissionActive called on client (IsProxy=%1), ignoring - only server can change state",
+				m_RplComponent.IsProxy()), LogLevel.WARNING);
+			return;
+		}
+
 		// Don't allow transmission if the radio truck is disabled
 		if (m_bIsDisabled && setTo)
 		{
@@ -719,6 +770,10 @@ void UpdateAntennaBones(float progress)
 		// Bump replication to send all state changes to clients
 		Replication.BumpMe();
 
+		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
+		Print(string.Format("BC Debug - LAMP: SetTransmissionActive called - setTo=%1, IsMaster=%2, IsProxy=%3",
+			setTo, isMaster, isProxy), LogLevel.NORMAL);
 		Print(string.Format("Breaking Contact RTC - Setting m_bIsTransmitting=%1, m_bAntennaStateRaised=%2, m_bLampStateOn=%3",
 			m_bIsTransmitting, m_bAntennaStateRaised, m_bLampStateOn), LogLevel.NORMAL);
 
@@ -998,6 +1053,14 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
+		// Check if bones are initialized - if not, defer the animation start
+		if (!m_commandBox || m_aAntennaBoneIds.Count() == 0)
+		{
+			Print("BC Debug - ANTENNA: Bones not initialized yet, deferring animation start", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(OnAntennaStateReplicated, 200, false);
+			return;
+		}
+
 		// Trigger local animation based on the replicated state
 		if (m_bAntennaStateRaised)
 		{
@@ -1035,7 +1098,10 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	protected void OnLampStateReplicated()
 	{
-		Print(string.Format("BC Debug - LAMP: OnLampStateReplicated - m_bLampStateOn=%1", m_bLampStateOn), LogLevel.NORMAL);
+		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
+		Print(string.Format("BC Debug - LAMP: OnLampStateReplicated CALLED - m_bLampStateOn=%1, IsMaster=%2, IsProxy=%3",
+			m_bLampStateOn, isMaster, isProxy), LogLevel.NORMAL);
 
 		// Only process if we're a proxy (client)
 		if (m_RplComponent && m_RplComponent.IsMaster())
@@ -1044,7 +1110,9 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		// Toggle lamp visuals locally
+		Print("BC Debug - LAMP: Proceeding to apply lamp state on client", LogLevel.NORMAL);
+		// Toggle lamp visuals locally - ApplyLampState has its own retry mechanism
+		// for when slot entities aren't streamed in yet
 		ApplyLampState(m_bLampStateOn);
 	}
 
@@ -1054,13 +1122,37 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	protected void OnRedLightPropStateReplicated()
 	{
-		Print(string.Format("BC Debug - ANTENNA: OnRedLightPropStateReplicated - m_bRedLightPropSpawned=%1", m_bRedLightPropSpawned), LogLevel.NORMAL);
+		ApplyRedLightPropState(0);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Apply red light prop state with retry mechanism
+	//------------------------------------------------------------------------------------------------
+	protected void ApplyRedLightPropState(int retryCount)
+	{
+		Print(string.Format("BC Debug - ANTENNA: ApplyRedLightPropState - m_bRedLightPropSpawned=%1, retry=%2", m_bRedLightPropSpawned, retryCount), LogLevel.NORMAL);
 
 		// Only process if we're a proxy (client)
 		if (m_RplComponent && m_RplComponent.IsMaster())
 		{
 			Print("BC Debug - ANTENNA: Skipping client-side prop spawn - we are master", LogLevel.NORMAL);
 			return;
+		}
+
+		// Check if command box is initialized - needed for prop attachment
+		if (!m_commandBox || m_aAntennaBoneIds.Count() == 0)
+		{
+			if (retryCount < 10)
+			{
+				Print(string.Format("BC Debug - ANTENNA: Command box not ready for prop spawn, retry %1/10", retryCount + 1), LogLevel.NORMAL);
+				GetGame().GetCallqueue().CallLater(ApplyRedLightPropStateRetry, 300, false, retryCount + 1);
+				return;
+			}
+			else
+			{
+				Print("BC Debug - ANTENNA: Cannot spawn prop - command box not ready after retries", LogLevel.WARNING);
+				return;
+			}
 		}
 
 		if (m_bRedLightPropSpawned)
@@ -1084,11 +1176,24 @@ void UpdateAntennaBones(float progress)
 	}
 
 	//------------------------------------------------------------------------------------------------
+	// Helper for delayed red light prop state retry
+	//------------------------------------------------------------------------------------------------
+	protected void ApplyRedLightPropStateRetry(int retryCount)
+	{
+		ApplyRedLightPropState(retryCount);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	// Apply lamp visual state (called both on server and via replication on clients)
 	// Uses retry mechanism for clients where slot entities may not be loaded yet
 	//------------------------------------------------------------------------------------------------
 	void ApplyLampState(bool lampOn, int retryCount = 0)
 	{
+		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
+		Print(string.Format("BC Debug - LAMP: ApplyLampState ENTER - lampOn=%1, retryCount=%2, IsMaster=%3, IsProxy=%4",
+			lampOn, retryCount, isMaster, isProxy), LogLevel.NORMAL);
+
 		if (!m_radioTruck)
 		{
 			Print("BC Debug - LAMP: Cannot apply lamp state - no radio truck reference", LogLevel.WARNING);
@@ -1098,33 +1203,39 @@ void UpdateAntennaBones(float progress)
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
 		if (!slotManager)
 		{
-			Print("BC Debug - LAMP: Cannot apply lamp state - no slot manager", LogLevel.WARNING);
+			Print("BC Debug - LAMP: Cannot apply lamp state - no slot manager found on radio truck", LogLevel.WARNING);
 			return;
 		}
 
 		EntitySlotInfo slotInfoOn = slotManager.GetSlotByName("lamp_on");
 		EntitySlotInfo slotInfoOff = slotManager.GetSlotByName("lamp_off");
 
+		Print(string.Format("BC Debug - LAMP: Slot lookup - slotInfoOn=%1, slotInfoOff=%2",
+			slotInfoOn != null, slotInfoOff != null), LogLevel.NORMAL);
+
 		if (!slotInfoOn || !slotInfoOff)
 		{
-			Print("BC Debug - LAMP: Cannot apply lamp state - lamp slots not found", LogLevel.WARNING);
+			Print("BC Debug - LAMP: Cannot apply lamp state - lamp slots not found in slot manager", LogLevel.WARNING);
 			return;
 		}
 
 		IEntity lamp_on = slotInfoOn.GetAttachedEntity();
 		IEntity lamp_off = slotInfoOff.GetAttachedEntity();
 
+		Print(string.Format("BC Debug - LAMP: Attached entities - lamp_on=%1, lamp_off=%2",
+			lamp_on != null, lamp_off != null), LogLevel.NORMAL);
+
 		if (!lamp_on || !lamp_off)
 		{
-			// On clients, slot entities may not be streamed in yet - retry a few times
-			if (retryCount < 5)
+			// On clients, slot entities may not be streamed in yet - retry with more attempts for dedicated servers
+			if (retryCount < 10)
 			{
-				Print(string.Format("BC Debug - LAMP: Lamp entities not attached yet, retry %1/5", retryCount + 1), LogLevel.NORMAL);
-				GetGame().GetCallqueue().CallLater(ApplyLampStateRetry, 200, false, lampOn, retryCount + 1);
+				Print(string.Format("BC Debug - LAMP: Lamp entities not attached yet, scheduling retry %1/10 in 300ms", retryCount + 1), LogLevel.NORMAL);
+				GetGame().GetCallqueue().CallLater(ApplyLampStateRetry, 300, false, lampOn, retryCount + 1);
 			}
 			else
 			{
-				Print("BC Debug - LAMP: Cannot apply lamp state - lamp entities not attached after retries", LogLevel.WARNING);
+				Print("BC Debug - LAMP: FAILED - Cannot apply lamp state - lamp entities not attached after 10 retries", LogLevel.WARNING);
 			}
 			return;
 		}
@@ -1133,35 +1244,43 @@ void UpdateAntennaBones(float progress)
 		{
 			lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 			lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-			Print("BC Debug - LAMP: Lamp turned ON", LogLevel.NORMAL);
 
 			// Enable light entities on lamp_on
 			IEntity child = lamp_on.GetChildren();
+			int lightCount = 0;
 			while (child)
 			{
 				LightEntity lightEntity = LightEntity.Cast(child);
 				if (lightEntity)
+				{
 					lightEntity.SetEnabled(true);
+					lightCount++;
+				}
 				child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 				child = child.GetSibling();
 			}
+			Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned ON, enabled %1 light entities", lightCount), LogLevel.NORMAL);
 		}
 		else
 		{
 			lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 			lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-			Print("BC Debug - LAMP: Lamp turned OFF", LogLevel.NORMAL);
 
 			// Disable light entities on lamp_on
 			IEntity child = lamp_on.GetChildren();
+			int lightCount = 0;
 			while (child)
 			{
 				LightEntity lightEntity = LightEntity.Cast(child);
 				if (lightEntity)
+				{
 					lightEntity.SetEnabled(false);
+					lightCount++;
+				}
 				child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 				child = child.GetSibling();
 			}
+			Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned OFF, disabled %1 light entities", lightCount), LogLevel.NORMAL);
 		}
 	}
 

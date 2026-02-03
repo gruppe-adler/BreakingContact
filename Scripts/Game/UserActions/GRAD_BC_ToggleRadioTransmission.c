@@ -111,6 +111,10 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		{
 			m_radioTruckComponent.SetTransmissionActive(true);
 		}
+
+		// Request replication sync to ensure clients get the updated state quickly
+		// This helps the action label update faster on the client that performed the action
+		m_radioTruckComponent.SyncVariables();
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -40,24 +40,44 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	{
 		// Only allow for BLUFOR players
 		if (!IsUserBlufor(user))
+		{
+			Print("BC Debug - DisableRadioTruck CanBePerformed: FALSE - user is not BLUFOR", LogLevel.NORMAL);
 			return false;
-			
+		}
+
 		// Only allow if Breaking Contact Manager exists and game has started
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (!bcm) return false;
-		
+		if (!bcm)
+		{
+			Print("BC Debug - DisableRadioTruck CanBePerformed: FALSE - no BCM", LogLevel.NORMAL);
+			return false;
+		}
+
 		EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
 		// Only allow in GAME phase
 		if (currentPhase != EBreakingContactPhase.GAME)
+		{
+			Print(string.Format("BC Debug - DisableRadioTruck CanBePerformed: FALSE - phase is %1, not GAME", currentPhase), LogLevel.NORMAL);
 			return false;
+		}
 
 		// Ensure component is loaded
 		GRAD_BC_RadioTruckComponent radioComp = GetRadioTruckComponent(GetOwner());
 
 		// Only allow if radio truck is not already disabled
 		if (radioComp && radioComp.GetIsDisabled())
+		{
+			Print("BC Debug - DisableRadioTruck CanBePerformed: FALSE - radio truck is disabled", LogLevel.NORMAL);
 			return false;
-			
+		}
+
+		if (!radioComp)
+		{
+			Print("BC Debug - DisableRadioTruck CanBePerformed: FALSE - radioComp is null", LogLevel.NORMAL);
+			return false;
+		}
+
+		Print("BC Debug - DisableRadioTruck CanBePerformed: TRUE", LogLevel.NORMAL);
 		return true;
 	}
 	
@@ -100,10 +120,19 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
 			return;
 		}
-		
+
+		// Check if we're on the server - only server should execute the actual logic
+		// With CanBroadcastScript() = true, this runs on both server AND clients
+		RplComponent rpl = RplComponent.Cast(pOwnerEntity.GetParent().FindComponent(RplComponent));
+		if (rpl && !rpl.IsMaster())
+		{
+			Print("BC Debug - DisableRadioTruck: Skipping execution on client, only server handles this", LogLevel.NORMAL);
+			return;
+		}
+
 		// This runs on server since HasLocalEffectOnlyScript() returns false
 		// This is called when the action completes (progress reaches 100%)
-		
+
 		// Disable the radio truck permanently
 		m_radioTruckComponent.SetIsDisabled(true);
 	
@@ -164,12 +193,29 @@ class GRAD_BC_DisableRadioTruck : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
+		// Use deferred initialization to handle race condition where parent isn't attached yet
+		GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	void InitComponents(IEntity pOwnerEntity)
+	{
 		IEntity radioTruck = pOwnerEntity.GetParent();
 		if (!radioTruck)
 		{
-			Print("BC Debug - no parent for disableradiotruck action", LogLevel.WARNING);
+			Print("BC Debug - no parent for disableradiotruck action, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
 			return;
 		}
+
 		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		if (!m_radioTruckComponent)
+		{
+			Print("BC Debug - no radio truck component on parent of disableradiotruck action, retrying...", LogLevel.WARNING);
+			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			return;
+		}
+
+		Print("BC Debug - DisableRadioTruck action initialized successfully", LogLevel.NORMAL);
 	}
 }

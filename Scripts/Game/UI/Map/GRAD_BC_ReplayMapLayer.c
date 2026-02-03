@@ -243,6 +243,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             foreach (GRAD_BC_ReplayProjectileMarker proj : m_projectileMarkers) {
                  if (proj.isVisible) DrawLine(proj.position, proj.impactPosition, 2.0, 0xFFFF0000);
             }
+
+            // Draw progress bar during replay
+            DrawProgressBar(replayManager);
         }
     }
 

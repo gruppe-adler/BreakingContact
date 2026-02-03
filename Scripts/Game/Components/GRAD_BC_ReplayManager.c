@@ -780,10 +780,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Rpc(RpcAsk_ReplayDataComplete);
 			
 			// Schedule automatic endscreen broadcast after replay duration
+			// Calculate adaptive speed for dedicated server (clients will use same logic)
+			CalculateAdaptiveSpeed();
 			float replayDuration = m_replayData.totalDuration;
-			float waitTime = (replayDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
+			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
+			float waitTime = (effectiveDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
 			Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-			Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs, buffer: 2s, total wait: %.2fs", replayDuration, waitTime / 1000), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 			Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		}
@@ -832,10 +835,12 @@ void StartLocalReplayPlayback()
 		GetGame().GetCallqueue().CallLater(StartActualPlayback, 800, false); // Reduced from 2000ms to 800ms
 		
 		// Schedule automatic endscreen for local mode
+		// Account for playback speed - if playing at 5x, the replay finishes 5x faster
 		float replayDuration = m_replayData.totalDuration;
-		float waitTime = (replayDuration + 2.0) * 1000;
+		float effectiveDuration = replayDuration / m_fPlaybackSpeed;
+		float waitTime = (effectiveDuration + 2.0) * 1000;
 		Print(string.Format("GRAD_BC_ReplayManager: LOCAL MODE - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs, buffer: 2s, total wait: %.2fs", replayDuration, waitTime / 1000), LogLevel.NORMAL);
+		Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 		Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		

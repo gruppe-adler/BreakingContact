@@ -143,12 +143,14 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			ETransmissionState oldState = m_eTransmissionState;
 			m_eTransmissionState = transmissionState;
 			Replication.BumpMe();
-			
+
 			PrintFormat("TPC: State changed from %1 to %2", oldState, transmissionState);
 
 			// Notify BreakingContactManager of state change for instant map updates
 			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 			if (bcm) {
+				// Update replicated marker data so clients can see markers even when out of streaming distance
+				bcm.UpdateTransmissionMarkerData();
 				bcm.NotifyTransmissionPointListeners();
 			}
 

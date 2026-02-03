@@ -70,11 +70,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // ---------------------------------------------------------
         FrameSlot.SetAlignment(w, 0.5, 0.5);
         
-        // Set default sizes based on type
+        // Set default sizes based on type - DPI scaled for resolution independence
+        float dpiScale = GetGame().GetWorkspace().GetDPIScale();
+        if (dpiScale <= 0) dpiScale = 1.0;
+
         if (isVehicle)
-            FrameSlot.SetSize(w, 128, 128);
+            FrameSlot.SetSize(w, 128 / dpiScale, 128 / dpiScale);
         else
-            FrameSlot.SetSize(w, 64, 64);
+            FrameSlot.SetSize(w, 64 / dpiScale, 64 / dpiScale);
             
         m_ActiveWidgets.Insert(key, w);
         return w;
@@ -114,33 +117,34 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             if (!vehicleMarker.isVisible) continue;
 
             // Check if occupied by player to determine Color/Icon
+            // Also get the occupant's faction to use for vehicle coloring
             bool isOccupied = false;
-            
-            // Optimization: If your snapshot data already has 'isEmpty' reliably populated, 
-            // you can just use "!vehicleMarker.isEmpty". 
-            // Otherwise, keep this loop to double-check against actual players:
+            string occupantFaction = "";
+
             foreach (GRAD_BC_ReplayPlayerMarker p : m_playerMarkers) {
-                if (p.isInVehicle && p.vehicleId == vehicleMarker.entityId) { isOccupied = true; break; }
+                if (p.isInVehicle && p.vehicleId == vehicleMarker.entityId) {
+                    isOccupied = true;
+                    occupantFaction = p.factionKey;
+                    break;
+                }
             }
-            
-            // --- CHANGE 1: DO NOT CONTINUE/SKIP HERE --- 
-            // We want to draw the vehicle using the VehicleMarker data because 
-            // vehicleMarker.direction is the Chassis direction (Correct),
-            // whereas playerMarker.direction is View direction (Wrong).
 
             // Determine if we treat it as empty for the icon key
             bool showAsEmpty = !isOccupied;
 
-            // Get Key based on vehicle state
-            string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, vehicleMarker.factionKey, showAsEmpty);
+            // Use occupant faction if occupied, otherwise use vehicle's own faction
+            string effectiveFaction = isOccupied ? occupantFaction : vehicleMarker.factionKey;
+
+            // Get Key based on vehicle state - use effectiveFaction for correct coloring
+            string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, effectiveFaction, showAsEmpty);
             string texturePath = m_vehicleIconTextures.Get(vehicleIconKey);
-            
+
             // Fallback
             if (texturePath == "") texturePath = m_vehicleIconTextures.Get("M998_closed_empty");
 
             // Update Widget
             string widgetKey = "VEH_" + vehicleMarker.entityId.ToString();
-            
+
             // Pass 'showAsEmpty' to the update function to tint it Gray if needed
             UpdateMarkerWidget(widgetKey, texturePath, vehicleMarker.position, vehicleMarker.direction, true, showAsEmpty);
         }
@@ -172,7 +176,50 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
         }
 
-        // --- 3. Hide Unused Widgets ---
+        // --- 3. Radio Trucks ---
+        array<ref GRAD_BC_ReplayRadioTruckMarker> radioTrucksToRender;
+        if (m_bIsInReplayMode) radioTrucksToRender = m_radioTruckMarkers;
+        else if (m_hasLastFrame) radioTrucksToRender = m_lastFrameRadioTruckMarkers;
+        else radioTrucksToRender = {};
+
+        foreach (GRAD_BC_ReplayRadioTruckMarker radioTruckMarker : radioTrucksToRender)
+        {
+            if (!radioTruckMarker.isVisible) continue;
+
+            // Determine faction color based on occupancy - check if any player is in the radio truck
+            string effectiveFaction = radioTruckMarker.factionKey;
+            foreach (GRAD_BC_ReplayPlayerMarker p : m_playerMarkers) {
+                if (p.isInVehicle) {
+                    // Check if player position is close to radio truck position (they're in it)
+                    float dist = vector.Distance(p.position, radioTruckMarker.position);
+                    if (dist < 10.0) {
+                        effectiveFaction = p.factionKey;
+                        break;
+                    }
+                }
+            }
+
+            // Get the appropriate radio truck icon
+            string radioTruckIconKey;
+            bool isEmpty = radioTruckMarker.isEmpty;
+
+            if (isEmpty || effectiveFaction == "Empty" || effectiveFaction == "")
+                radioTruckIconKey = "Radiotruck_empty";
+            else if (effectiveFaction == "US")
+                radioTruckIconKey = "Radiotruck_blufor";
+            else if (effectiveFaction == "USSR")
+                radioTruckIconKey = "Radiotruck_opfor";
+            else
+                radioTruckIconKey = "Radiotruck_empty";
+
+            string texturePath = m_vehicleIconTextures.Get(radioTruckIconKey);
+            if (texturePath == "") texturePath = m_vehicleIconTextures.Get("Radiotruck_empty");
+
+            string widgetKey = "RADIOTRUCK_0";
+            UpdateMarkerWidget(widgetKey, texturePath, radioTruckMarker.position, radioTruckMarker.direction, true, isEmpty);
+        }
+
+        // --- 4. Hide Unused Widgets ---
         foreach (string key, ImageWidget w : m_ActiveWidgets)
         {
             if (!m_UsedWidgetKeys.Contains(key))

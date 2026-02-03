@@ -66,9 +66,20 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	static float m_iMaxTransmissionDistance = 1000.0;
 
     protected ref array<GRAD_BC_TransmissionComponent> m_aTransmissionComps = {};
-	
+
 	[RplProp(onRplName: "OnTransmissionIdsChanged")]
 	protected ref array<RplId> m_aTransmissionIds = {};
+
+	// Replicated transmission marker data - allows clients to show markers even when entities are out of streaming distance
+	// These arrays are parallel: index 0 of each array corresponds to the same transmission point
+	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
+	protected ref array<vector> m_aTransmissionPositions = {};
+
+	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
+	protected ref array<int> m_aTransmissionStates = {};  // ETransmissionState as int for replication
+
+	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
+	protected ref array<float> m_aTransmissionProgress = {};
 	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
@@ -359,8 +370,19 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	void OnTransmissionIdsChanged()
 	{
 		Print(string.Format("Client: Transmission IDs changed, count: %1", m_aTransmissionIds.Count()), LogLevel.NORMAL);
-		
+
 		// Notify all listeners (e.g., map marker manager) that transmission points have changed
+		NotifyTransmissionPointListeners();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when marker data is replicated from server
+	void OnTransmissionMarkerDataChanged()
+	{
+		Print(string.Format("Client: Transmission marker data changed, count: %1 positions, %2 states",
+			m_aTransmissionPositions.Count(), m_aTransmissionStates.Count()), LogLevel.NORMAL);
+
+		// Notify all listeners that marker data has changed
 		NotifyTransmissionPointListeners();
 	}
 	
@@ -601,23 +623,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	void RegisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		if (!comp) return;
-	
+
 		// Already known?
 		if (m_aTransmissionComps.Find(comp) != -1) return;
-	
+
 		m_aTransmissionComps.Insert(comp);
-	
+
 		//clients need to know the list, store the RplId as well
 		RplComponent rpl = RplComponent.Cast(comp.GetOwner().FindComponent(RplComponent));
 		if (rpl)
 		{
-		RplId transmissionRplId = Replication.FindId(rpl);
-		PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
-		m_aTransmissionIds.Insert(transmissionRplId);
-		Replication.BumpMe(); // replicate the updated array
+			RplId transmissionRplId = Replication.FindId(rpl);
+			PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
+			m_aTransmissionIds.Insert(transmissionRplId);
+		}
+
+		// Update replicated marker data
+		UpdateTransmissionMarkerData();
+		Replication.BumpMe();
+		NotifyTransmissionPointListeners();
 	}
-	NotifyTransmissionPointListeners();
-}
 
 
 void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
@@ -626,24 +651,26 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		int idx = m_aTransmissionComps.Find(comp);
 		if (idx != -1)
 			m_aTransmissionComps.Remove(idx);
-	
+
 		// Clean the replicated Id list
 		for (int i = m_aTransmissionIds.Count() - 1; i >= 0; --i)
 		{
 			IEntity ent = IEntity.Cast(Replication.FindItem(m_aTransmissionIds[i]));
-	
+
 			// 1) Id is dead  → drop it
 			if (!ent)
 			{
 				m_aTransmissionIds.Remove(i);
 				continue;
 			}
-	
+
 			// 2) Id belongs to the component being removed → drop it
 			if (ent.FindComponent(GRAD_BC_TransmissionComponent) == comp)
 				m_aTransmissionIds.Remove(i);
 		}
-	
+
+		// Update replicated marker data
+		UpdateTransmissionMarkerData();
 		Replication.BumpMe();
 		NotifyTransmissionPointListeners();
 	}
@@ -1605,10 +1632,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			return m_aTransmissionComps;
 		}
-		
+
 		// On clients, resolve from replicated RplIds
 		array<GRAD_BC_TransmissionComponent> clientComps = new array<GRAD_BC_TransmissionComponent>();
-		
+
 		foreach (RplId rplId : m_aTransmissionIds)
 		{
 			PrintFormat("BCM - GetTransmissionPoints (client): Trying to resolve RplId %1", rplId);
@@ -1617,20 +1644,106 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				PrintFormat("BCM - GetTransmissionPoints (client): FindItem returned null for RplId %1", rplId);
 				continue;
 			}
-			
+
 			IEntity entity = rpl.GetEntity();
 			if (!entity) {
 				PrintFormat("BCM - GetTransmissionPoints (client): RplComponent has no entity for RplId %1", rplId);
 				continue;
 			}
-			
+
 			GRAD_BC_TransmissionComponent comp = GRAD_BC_TransmissionComponent.Cast(entity.FindComponent(GRAD_BC_TransmissionComponent));
 			if (comp)
 				clientComps.Insert(comp);
 		}
-		
+
 		PrintFormat("BCM - GetTransmissionPoints (client): Found %1 transmission points from %2 RplIds", clientComps.Count(), m_aTransmissionIds.Count());
 		return clientComps;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// SERVER ONLY: Update the replicated marker data arrays from current transmission components
+	// This should be called whenever transmission state changes
+	void UpdateTransmissionMarkerData()
+	{
+		if (!Replication.IsServer())
+			return;
+
+		// Ensure arrays exist
+		if (!m_aTransmissionPositions)
+			m_aTransmissionPositions = {};
+		if (!m_aTransmissionStates)
+			m_aTransmissionStates = {};
+		if (!m_aTransmissionProgress)
+			m_aTransmissionProgress = {};
+
+		// Clear and rebuild
+		m_aTransmissionPositions.Clear();
+		m_aTransmissionStates.Clear();
+		m_aTransmissionProgress.Clear();
+
+		foreach (GRAD_BC_TransmissionComponent comp : m_aTransmissionComps)
+		{
+			if (!comp)
+				continue;
+
+			m_aTransmissionPositions.Insert(comp.GetPosition());
+			m_aTransmissionStates.Insert(comp.GetTransmissionState());  // ETransmissionState is an enum, stores as int
+			m_aTransmissionProgress.Insert(comp.GetTransmissionDuration());
+		}
+
+		// Replicate the updated arrays to clients
+		Replication.BumpMe();
+
+		PrintFormat("BCM - UpdateTransmissionMarkerData: Updated %1 markers", m_aTransmissionPositions.Count());
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Get transmission marker data for map display - works on both server and client
+	// Returns the count of markers, and fills the output arrays with data
+	// This method uses replicated data that works regardless of entity streaming distance
+	int GetTransmissionMarkerData(out array<vector> outPositions, out array<ETransmissionState> outStates, out array<float> outProgress)
+	{
+		// On server, read directly from components for most up-to-date data
+		if (Replication.IsServer())
+		{
+			outPositions = new array<vector>();
+			outStates = new array<ETransmissionState>();
+			outProgress = new array<float>();
+
+			foreach (GRAD_BC_TransmissionComponent comp : m_aTransmissionComps)
+			{
+				if (!comp)
+					continue;
+				outPositions.Insert(comp.GetPosition());
+				outStates.Insert(comp.GetTransmissionState());
+				outProgress.Insert(comp.GetTransmissionDuration());
+			}
+			return outPositions.Count();
+		}
+
+		// On clients, use replicated data arrays (works even when entities are out of streaming distance)
+		outPositions = new array<vector>();
+		outStates = new array<ETransmissionState>();
+		outProgress = new array<float>();
+
+		if (!m_aTransmissionPositions || !m_aTransmissionStates || !m_aTransmissionProgress)
+		{
+			PrintFormat("BCM - GetTransmissionMarkerData (client): Replicated arrays not initialized yet");
+			return 0;
+		}
+
+		int count = Math.Min(m_aTransmissionPositions.Count(),
+					Math.Min(m_aTransmissionStates.Count(), m_aTransmissionProgress.Count()));
+
+		for (int i = 0; i < count; i++)
+		{
+			outPositions.Insert(m_aTransmissionPositions[i]);
+			outStates.Insert(m_aTransmissionStates[i]);  // Cast int back to enum
+			outProgress.Insert(m_aTransmissionProgress[i]);
+		}
+
+		PrintFormat("BCM - GetTransmissionMarkerData (client): Returning %1 markers from replicated data", count);
+		return count;
 	}
 
 

@@ -4,8 +4,9 @@ class TransmissionEntry
     vector              m_Position;
     ETransmissionState  m_State;
     int                 m_Radius;
-    GRAD_BC_TransmissionComponent m_Component; // Store reference to get live progress data
-    
+    GRAD_BC_TransmissionComponent m_Component; // Store reference to get live progress data (null if out of streaming distance)
+    float               m_fCachedProgress = 0;  // Cached progress from replicated data (used when m_Component is null)
+
     // Store map state when static marker was created to detect view changes
     float               m_StoredMapZoom = -1;
     vector              m_StoredMapCenter = vector.Zero;
@@ -477,11 +478,9 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         for (int i = 0; i < m_AllMarkers.Count(); i++)
         {
             TransmissionEntry entry = m_AllMarkers[i];
-            if (!entry.m_Component) {
-                Print(string.Format("GRAD_MapMarkerManager: Marker %1 has no component, skipping", i), LogLevel.NORMAL);
-                continue;
-            }
-            
+            // Note: m_Component may be null if transmission entity is out of streaming distance
+            // In that case, we use m_fCachedProgress from replicated data
+
             // Calculate screen position
             float screenX, screenY;
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
@@ -552,7 +551,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             }
             
             // Get transmission progress percentage
-            float progress = entry.m_Component.GetTransmissionDuration() * 100.0;
+            // Use live component data if available, otherwise use cached replicated data
+            float progress;
+            if (entry.m_Component)
+                progress = entry.m_Component.GetTransmissionDuration() * 100.0;
+            else
+                progress = entry.m_fCachedProgress * 100.0;  // Use cached data from replication
             string progressText = "";
 			
             // Set base text styling - ensure all properties are applied
@@ -691,6 +695,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     }
 
     // Remove retry loop, use only event/callback
+    // Uses replicated marker data that works even when transmission entities are out of streaming distance
     void PopulateMarkers()
     {
         m_AllMarkers.Clear();
@@ -700,31 +705,49 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             Print("GRAD_MapMarkerManager: BreakingContactManager not found!", LogLevel.ERROR);
             return;
         }
-        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
-        if (!tpcs)
+
+        // Use the new GetTransmissionMarkerData method that uses replicated data
+        // This works even when transmission entities are outside streaming distance
+        array<vector> positions;
+        array<ETransmissionState> states;
+        array<float> progress;
+        int count = bcm.GetTransmissionMarkerData(positions, states, progress);
+
+        if (count == 0)
         {
-            Print("GRAD_MapMarkerManager: No TransmissionPoints returned!", LogLevel.WARNING);
+            Print("GRAD_MapMarkerManager: No transmission marker data available", LogLevel.WARNING);
             return;
         }
-        int markerCount = 0;
-        foreach (GRAD_BC_TransmissionComponent tpc : tpcs)
+
+        // Also try to get components for live data updates (will only work within streaming distance)
+        array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
+
+        for (int i = 0; i < count; i++)
         {
-            if (!tpc) {
-                Print("GRAD_MapMarkerManager: Skipping null TPC!", LogLevel.WARNING);
-                continue;
-            }
             TransmissionEntry entry = new TransmissionEntry();
-            entry.m_Position = tpc.GetPosition();
-            entry.m_State    = tpc.GetTransmissionState();
-            entry.m_Radius   = 1000;
-            entry.m_Component = tpc; // Store reference for live progress data
+            entry.m_Position = positions[i];
+            entry.m_State = states[i];
+            entry.m_Radius = 1000;
+            entry.m_fCachedProgress = progress[i];  // Store replicated progress
+
+            // Try to get the component reference for live updates (only works within streaming distance)
+            // If not available, we'll use the cached replicated progress data instead
+            if (tpcs && i < tpcs.Count() && tpcs[i])
+            {
+                entry.m_Component = tpcs[i];
+            }
+            else
+            {
+                entry.m_Component = null;  // Component not available (out of streaming distance)
+            }
+
             m_AllMarkers.Insert(entry);
-            markerCount++;
-            
+
             // Debug state information
-            PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3", markerCount-1, entry.m_Position, entry.m_State);
+            PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3 (component: %4)",
+                i, entry.m_Position, entry.m_State, entry.m_Component != null ? "available" : "replicated data only");
         }
-        PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", markerCount);
+        PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", count);
     }
     
     // ───────────────────────────────────────────────────────────────────────────────

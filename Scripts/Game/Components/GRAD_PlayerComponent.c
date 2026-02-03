@@ -507,7 +507,7 @@ class GRAD_PlayerComponent : ScriptComponent
 				return;
 			}
 		}
-		
+
 		// Check if replay is active
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 		if (replayManager && replayManager.IsPlayingBack())
@@ -515,12 +515,25 @@ class GRAD_PlayerComponent : ScriptComponent
 			Print("GRAD_PlayerComponent: Skipping transmission hint - replay is playing", LogLevel.NORMAL);
 			return;
 		}
-		
+
+		// Get current faction from controlled character (not cached m_faction which may be stale)
+		// This fixes race condition where m_faction could be wrong due to initialization timing
+		string currentFaction = "";
+		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
+		if (ch)
+			currentFaction = ch.GetFactionKey();
+
+		// Fallback to cached faction if character not available
+		if (currentFaction == "")
+			currentFaction = m_faction;
+
+		Print(string.Format("GRAD_PlayerComponent: Transmission hint - using faction: %1 (cached: %2)", currentFaction, m_faction), LogLevel.NORMAL);
+
         // Find the HUD display and call ShowLogo() on it
         array<BaseInfoDisplay> infoDisplays = {};
         GetGame().GetPlayerController().GetHUDManagerComponent().GetInfoDisplays(infoDisplays);
 
-        // Search for our GRAD_BC_Logo instance
+        // Search for our GRAD_BC_Transmission instance
         GRAD_BC_Transmission transmissionDisplay = null;
         foreach (BaseInfoDisplay baseDisp : infoDisplays)
         {
@@ -538,8 +551,8 @@ class GRAD_PlayerComponent : ScriptComponent
             return;
         }
 
-        // Show the logo immediately
-        transmissionDisplay.showTransmissionHint(m_faction, state);
+        // Show the transmission hint with fresh faction
+        transmissionDisplay.showTransmissionHint(currentFaction, state);
     }
 	
 	// RPC wrapper for BC Logo

@@ -46,6 +46,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Static instance for global access
 	protected static GRAD_BC_ReplayManager s_Instance;
 	
+	// Loading progress tracking
+	protected int m_iTotalChunksToSend = 0;
+	protected int m_iChunksSent = 0;
+	protected Widget m_LoadingWidget;
+	protected ProgressBarWidget m_LoadingBar;
+	protected TextWidget m_LoadingText;
+	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_ReplayManager GetInstance()
 	{
@@ -685,22 +692,12 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print("GRAD_BC_ReplayManager: Sending replay initialization RPC", LogLevel.NORMAL);
 			Rpc(RpcAsk_StartReplayPlayback, m_replayData.totalDuration, m_replayData.missionName, m_replayData.mapName, m_replayData.startTime);
 			
-			// Send frames in chunks to avoid network limits
-			const int chunkSize = 10; // Send 10 frames at a time
-			for (int i = 0; i < m_replayData.frames.Count(); i += chunkSize)
-			{
-				int endIndex = Math.Min(i + chunkSize, m_replayData.frames.Count());
-				Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2", i, endIndex-1), LogLevel.NORMAL);
-				SendFrameChunk(i, endIndex);
-			}
-			
-			// Send completion signal
-			Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
-			Rpc(RpcAsk_ReplayDataComplete);
-			
-			// Schedule automatic endscreen broadcast after replay duration
-			// Calculate adaptive speed for dedicated server (clients will use same logic)
-			CalculateAdaptiveSpeed();
+		// Send frames in chunks to avoid network limits with delays
+		const int chunkSize = 30;
+		m_iTotalChunksToSend = Math.Ceil(m_replayData.frames.Count() / 30.0);
+		m_iChunksSent = 0;
+		Print(string.Format("GRAD_BC_ReplayManager: Starting chunked replay data transmission - %1 total chunks", m_iTotalChunksToSend), LogLevel.NORMAL);
+		SendFrameChunksWithDelay(0);
 			float replayDuration = m_replayData.totalDuration;
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
 			float waitTime = (effectiveDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
@@ -910,6 +907,41 @@ void StartLocalReplayPlayback()
 	}
 
 	//------------------------------------------------------------------------------------------------
+	// Send frame chunks with delays to ensure proper data arrival on clients
+	void SendFrameChunksWithDelay(int currentChunkStart)
+	{
+		const int chunkSize = 30; // Send 30 frames at a time
+		const int delayBetweenChunks = 50; // 50ms delay between chunks
+		
+		if (currentChunkStart >= m_replayData.frames.Count())
+		{
+			// All chunks sent, send completion signal after final delay
+			Print("GRAD_BC_ReplayManager: All chunks sent, sending completion RPC in 500ms", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(SendReplayComplete, 500, false);
+			return;
+		}
+		
+		int endIndex = Math.Min(currentChunkStart + chunkSize, m_replayData.frames.Count());
+		m_iChunksSent++;
+		float progress = m_iChunksSent / (float)m_iTotalChunksToSend;
+		Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2 (%3/%4 chunks, %.1f%%)", currentChunkStart, endIndex-1, m_iChunksSent, m_iTotalChunksToSend, progress * 100), LogLevel.NORMAL);
+		SendFrameChunk(currentChunkStart, endIndex);
+		
+		// Update client loading progress
+		Rpc(RpcAsk_UpdateLoadingProgress, progress);
+		
+		// Schedule next chunk
+		GetGame().GetCallqueue().CallLater(SendFrameChunksWithDelay, delayBetweenChunks, false, currentChunkStart + chunkSize);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void SendReplayComplete()
+	{
+		Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
+		Rpc(RpcAsk_ReplayDataComplete);
+	}
+	
+	//------------------------------------------------------------------------------------------------
 	void SendFrameChunk(int startIndex, int endIndex)
 	{
 		// Convert frame data to simple arrays for transmission
@@ -1026,6 +1058,9 @@ void StartLocalReplayPlayback()
 		m_replayData.missionName = missionName;
 		m_replayData.mapName = mapName;
 		m_replayData.startTime = startTime;
+		
+		// Show loading UI
+		ShowLoadingUI();
 		
 		Print(string.Format("GRAD_BC_ReplayManager: Client replay data initialized - Duration: %1", totalDuration), LogLevel.NORMAL);
 	}
@@ -1249,6 +1284,16 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_UpdateLoadingProgress(float progress)
+	{
+		if (Replication.IsServer())
+			return;
+			
+		UpdateLoadingProgress(progress);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcAsk_ReplayDataComplete()
 	{
 		string isServer = "Client";
@@ -1264,6 +1309,9 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: Replay data not available for playback!", LogLevel.ERROR);
 			return;
 		}
+		
+		// Hide loading UI
+		HideLoadingUI();
 			
 		Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 		
@@ -1365,6 +1413,15 @@ void StartLocalReplayPlayback()
 		
 		// Skip empty frames at start
 		SkipEmptyFrames();
+		
+		// Reset playback start time RIGHT BEFORE starting the loop
+		// This ensures accurate timing regardless of previous delays
+		BaseWorld world2 = GetGame().GetWorld();
+		if (world2)
+		{
+			m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
+			Print(string.Format("GRAD_BC_ReplayManager: Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+		}
 		
 		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		// Start playback loop
@@ -2005,5 +2062,100 @@ void StartLocalReplayPlayback()
     }
     
     Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Loading UI methods
+	//------------------------------------------------------------------------------------------------
+	void ShowLoadingUI()
+	{
+		Print("GRAD_BC_ReplayManager: Creating loading UI", LogLevel.NORMAL);
+		
+		WorkspaceWidget workspace = GetGame().GetWorkspace();
+		if (!workspace)
+		{
+			Print("GRAD_BC_ReplayManager: No workspace available for loading UI", LogLevel.ERROR);
+			return;
+		}
+		
+		// Create simple loading widget
+		m_LoadingWidget = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.Black, 0);
+		if (!m_LoadingWidget)
+		{
+			Print("GRAD_BC_ReplayManager: Failed to create loading widget", LogLevel.ERROR);
+			return;
+		}
+		
+		// Center on screen
+		FrameSlot.SetAnchorMin(m_LoadingWidget, 0, 0);
+		FrameSlot.SetAnchorMax(m_LoadingWidget, 1, 1);
+		FrameSlot.SetOffsets(m_LoadingWidget, 0, 0, 0, 0);
+		
+		// Create container for loading elements
+		Widget container = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(0, 0, 0, 200), 0, m_LoadingWidget);
+		FrameSlot.SetAnchorMin(container, 0.3, 0.45);
+		FrameSlot.SetAnchorMax(container, 0.7, 0.55);
+		FrameSlot.SetOffsets(container, 0, 0, 0, 0);
+		
+		// Create loading text
+		m_LoadingText = TextWidget.Cast(workspace.CreateWidget(WidgetType.TextWidgetTypeID, WidgetFlags.VISIBLE, Color.White, 0, container));
+		if (m_LoadingText)
+		{
+			m_LoadingText.SetText("Loading Replay Data...");
+			m_LoadingText.SetExactFontSize(24);
+			FrameSlot.SetAnchorMin(m_LoadingText, 0.1, 0.2);
+			FrameSlot.SetAnchorMax(m_LoadingText, 0.9, 0.4);
+			FrameSlot.SetOffsets(m_LoadingText, 0, 0, 0, 0);
+		}
+		
+		// Create progress bar background
+		Widget progressBg = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(50, 50, 50, 255), 0, container);
+		FrameSlot.SetAnchorMin(progressBg, 0.1, 0.5);
+		FrameSlot.SetAnchorMax(progressBg, 0.9, 0.7);
+		FrameSlot.SetOffsets(progressBg, 0, 0, 0, 0);
+		
+		// Create progress bar
+		m_LoadingBar = ProgressBarWidget.Cast(workspace.CreateWidget(WidgetType.ProgressBarWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(100, 200, 100, 255), 0, progressBg));
+		if (m_LoadingBar)
+		{
+			m_LoadingBar.SetMin(0);
+			m_LoadingBar.SetMax(1);
+			m_LoadingBar.SetCurrent(0);
+			FrameSlot.SetAnchorMin(m_LoadingBar, 0.02, 0.1);
+			FrameSlot.SetAnchorMax(m_LoadingBar, 0.98, 0.9);
+			FrameSlot.SetOffsets(m_LoadingBar, 0, 0, 0, 0);
+		}
+		
+		Print("GRAD_BC_ReplayManager: Loading UI created successfully", LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void UpdateLoadingProgress(float progress)
+	{
+		if (!m_LoadingBar || !m_LoadingText)
+			return;
+			
+		m_LoadingBar.SetCurrent(progress);
+		int percentage = Math.Round(progress * 100);
+		m_LoadingText.SetText(string.Format("Loading Replay Data... %1%%", percentage));
+		
+		Print(string.Format("GRAD_BC_ReplayManager: Loading progress: %1%%", percentage), LogLevel.VERBOSE);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	void HideLoadingUI()
+	{
+		Print("GRAD_BC_ReplayManager: Hiding loading UI", LogLevel.NORMAL);
+		
+		if (m_LoadingWidget)
+		{
+			m_LoadingWidget.RemoveFromHierarchy();
+			m_LoadingWidget = null;
+		}
+		
+		m_LoadingBar = null;
+		m_LoadingText = null;
+		
+		Print("GRAD_BC_ReplayManager: Loading UI hidden", LogLevel.NORMAL);
 	}
 }

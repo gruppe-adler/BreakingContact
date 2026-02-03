@@ -22,7 +22,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		}
 
 		// Hide initially to prevent blocking input in menu/lobby
-		HideLogo();
+		HideGameStateDisplay();
 	}
 	
 	void ShowText(string message)
@@ -32,10 +32,10 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		PrintFormat("GRAD_BC_Gamestate: showText called!", LogLevel.VERBOSE);
 		//	m_logo.SetOpacity(1.0);
-    		GetGame().GetCallqueue().CallLater(HideLogo, 15000);
+    		GetGame().GetCallqueue().CallLater(HideGameStateDisplay, 15000);
     }
 	
-	private void HideLogo()
+	private void HideGameStateDisplay()
     {
         // if (m_logo) { m_logo.SetOpacity(0.0); };
 		super.Show(false, 3.0, EAnimationCurve.EASE_OUT_QUART);

@@ -18,6 +18,7 @@ OverlayWidgetClass {
     VerticalAlign 0
     Padding 0 16 0 0
    }
+   Text ""
    "Font Size" 56
    "Min Font Size" 56
    "Horizontal Alignment" Center

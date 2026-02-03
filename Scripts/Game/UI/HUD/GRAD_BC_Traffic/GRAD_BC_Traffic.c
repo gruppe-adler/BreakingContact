@@ -12,6 +12,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
 		Print("GRAD_BC_Traffic: DisplayInit called", LogLevel.NORMAL);
+		
+		// hide to not block input in lobby
+		FadeOutIfStill(e_currentTrafficDisplay.NONE);
 	}
 	
 	override protected void DisplayStartDraw(IEntity owner) {

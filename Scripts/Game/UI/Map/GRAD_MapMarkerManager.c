@@ -744,8 +744,11 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_AllMarkers.Insert(entry);
 
             // Debug state information
+            string componentStatus = "replicated data only";
+            if (entry.m_Component != null)
+                componentStatus = "available";
             PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3 (component: %4)",
-                i, entry.m_Position, entry.m_State, entry.m_Component != null ? "available" : "replicated data only");
+                i, entry.m_Position, entry.m_State, componentStatus);
         }
         PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", count);
     }

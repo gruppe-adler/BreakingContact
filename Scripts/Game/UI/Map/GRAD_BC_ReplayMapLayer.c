@@ -69,15 +69,19 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // THE FIX: Set Alignment to 0.5, 0.5 (Center)
         // ---------------------------------------------------------
         FrameSlot.SetAlignment(w, 0.5, 0.5);
-        
+
         // Set default sizes based on type - DPI scaled for resolution independence
-        float dpiScale = GetGame().GetWorkspace().GetDPIScale();
-        if (dpiScale <= 0) dpiScale = 1.0;
+        // Compute DPI scale by comparing scaled vs unscaled values
+        // DPIUnscale converts from screen pixels to widget units
+        float unscaled100 = GetGame().GetWorkspace().DPIUnscale(100);
+        float dpiScaleFactor = 100.0 / unscaled100;  // e.g. if DPIUnscale(100) = 50, scale is 2.0
+        if (dpiScaleFactor <= 0)
+            dpiScaleFactor = 1.0;
 
         if (isVehicle)
-            FrameSlot.SetSize(w, 128 / dpiScale, 128 / dpiScale);
+            FrameSlot.SetSize(w, 128 / dpiScaleFactor, 128 / dpiScaleFactor);
         else
-            FrameSlot.SetSize(w, 64 / dpiScale, 64 / dpiScale);
+            FrameSlot.SetSize(w, 64 / dpiScaleFactor, 64 / dpiScaleFactor);
             
         m_ActiveWidgets.Insert(key, w);
         return w;
@@ -133,7 +137,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             bool showAsEmpty = !isOccupied;
 
             // Use occupant faction if occupied, otherwise use vehicle's own faction
-            string effectiveFaction = isOccupied ? occupantFaction : vehicleMarker.factionKey;
+            string effectiveFaction = vehicleMarker.factionKey;
+            if (isOccupied)
+                effectiveFaction = occupantFaction;
 
             // Get Key based on vehicle state - use effectiveFaction for correct coloring
             string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, effectiveFaction, showAsEmpty);

@@ -1460,7 +1460,14 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 	//------------------------------------------------------------------------------------------------
 	void SpawnTransmissionPoint(vector center)
-	{				
+	{
+		// Only server can spawn replicated entities
+		if (!Replication.IsServer())
+		{
+			Print("BCM - SpawnTransmissionPoint called on client, ignoring (server-side only)", LogLevel.WARNING);
+			return;
+		}
+
 		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, center, 15, 3);
 		
 		Print(string.Format("BCM - Transmission Point position search starts at %1", center), LogLevel.NORMAL);

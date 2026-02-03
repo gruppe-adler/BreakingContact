@@ -68,6 +68,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected float m_fAnimationProgress = 0; // 0.0 = retracted, 1.0 = fully extended
 	protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 	private int m_iLastLoggedProgress = -1; // For debug logging
+	private bool m_bAnimationTickRunning = false; // Track if animation tick loop is active
 
 	// Antenna prop spawning
 	[Attribute("{F23A470F0A7A46A0}Assets/Props/Military/Antennas/Antenna_R142_01/Dst/Antenna_R142_01_dst_03.xob", UIWidgets.ResourcePickerThumbnail, "Antenna prop to spawn when extended", "xob")]
@@ -226,6 +227,94 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			// Reset the log flag for next animation
 			// Note: This is a static variable, so we need a different approach
 		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Animation tick function - called via CallLater for reliable animation on all machines
+	// This is used as a fallback when EOnFrame doesn't work (common for vehicle components)
+	//------------------------------------------------------------------------------------------------
+	protected void AnimationTick()
+	{
+		// Stop if animation is no longer active
+		if (!m_bAntennaAnimating)
+		{
+			m_bAnimationTickRunning = false;
+			Print("BC Debug - ANTENNA: AnimationTick stopped - animation no longer active", LogLevel.NORMAL);
+			return;
+		}
+
+		// Calculate time delta (we're called every 16ms = 0.016s for ~60fps)
+		float timeSlice = 0.016;
+
+		// Update progress
+		if (m_bAntennaRaising)
+			m_fAnimationProgress += timeSlice / (m_iAntennaAnimationTime / 1000.0);
+		else
+			m_fAnimationProgress -= timeSlice / (m_iAntennaAnimationTime / 1000.0);
+
+		// Clamp and check for completion
+		m_fAnimationProgress = Math.Clamp(m_fAnimationProgress, 0, 1);
+
+		// Debug: Log animation progress periodically
+		int progressPercent = (int)(m_fAnimationProgress * 100);
+		if (progressPercent % 20 == 0 && progressPercent != m_iLastLoggedProgress)
+		{
+			m_iLastLoggedProgress = progressPercent;
+			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+			Print(string.Format("BC Debug - ANTENNA: AnimationTick - IsMaster=%1, Raising=%2, Progress=%3%%",
+				isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
+		}
+
+		// Apply easing for smooth animation
+		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
+		UpdateAntennaBones(easedProgress);
+
+		// Check for animation completion
+		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
+		{
+			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+			Print(string.Format("BC Debug - ANTENNA: AnimationTick finished - Extended=%1, IsMaster=%2",
+				(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
+
+			m_bAntennaAnimating = false;
+			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
+			m_bAnimationTickRunning = false;
+
+			// Spawn antenna prop when fully extended - only authority sets the replicated flag
+			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
+			{
+				Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
+
+				if (isMaster)
+				{
+					m_bRedLightPropSpawned = true;
+					Replication.BumpMe();
+				}
+				SpawnAntennaProp();
+			}
+
+			return; // Don't schedule next tick
+		}
+
+		// Schedule next tick (16ms = ~60fps)
+		GetGame().GetCallqueue().CallLater(AnimationTick, 16, false);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Start the animation tick loop
+	//------------------------------------------------------------------------------------------------
+	protected void StartAnimationTick()
+	{
+		if (m_bAnimationTickRunning)
+		{
+			Print("BC Debug - ANTENNA: AnimationTick already running, not starting again", LogLevel.NORMAL);
+			return;
+		}
+
+		Print("BC Debug - ANTENNA: Starting AnimationTick loop", LogLevel.NORMAL);
+		m_bAnimationTickRunning = true;
+		// Start immediately
+		GetGame().GetCallqueue().CallLater(AnimationTick, 16, false);
 	}
 
 void UpdateAntennaBones(float progress)
@@ -498,7 +587,8 @@ void UpdateAntennaBones(float progress)
 		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna raise animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = true;
-		// EOnFixedFrame will handle the smooth animation
+		// Start animation tick (CallLater-based for reliable animation)
+		StartAnimationTick();
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -527,7 +617,8 @@ void UpdateAntennaBones(float progress)
 		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = false;
-		// EOnFixedFrame will handle the smooth animation
+		// Start animation tick (CallLater-based for reliable animation)
+		StartAnimationTick();
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -1080,8 +1171,8 @@ void UpdateAntennaBones(float progress)
 				Print("BC Debug - ANTENNA: Client starting raise animation from replication", LogLevel.NORMAL);
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = true;
-				// Ensure frame events are enabled for animation
-				SetEventMask(GetOwner(), EntityEvent.FRAME);
+				// Start animation tick (CallLater-based, more reliable than EOnFrame for vehicles)
+				StartAnimationTick();
 			}
 		}
 		else
@@ -1093,8 +1184,8 @@ void UpdateAntennaBones(float progress)
 				RemoveAntennaProp();  // Remove props immediately on client too
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = false;
-				// Ensure frame events are enabled for animation
-				SetEventMask(GetOwner(), EntityEvent.FRAME);
+				// Start animation tick (CallLater-based, more reliable than EOnFrame for vehicles)
+				StartAnimationTick();
 			}
 			else if (m_bAntennaAnimating && m_bAntennaRaising)
 			{

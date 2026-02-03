@@ -8,6 +8,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
   SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
+   m_iRank CAPTAIN
    m_aBudgetsToEvaluate {
     SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
      m_eBudget PROPS
@@ -49,7 +50,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      }
     }
     SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39BDCFBC3C2}" {
-     m_eBudget RANK_PRIVATE
+     m_eBudget RANK_CAPTAIN
     }
     SCR_CampaignBuildingBudgetToEvaluateData "{68477D29E9006BE7}" {
      m_eBudget CAMPAIGN

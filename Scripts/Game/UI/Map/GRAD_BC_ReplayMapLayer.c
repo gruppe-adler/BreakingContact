@@ -182,47 +182,47 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
         }
 
-        // --- 3. Radio Trucks ---
-        array<ref GRAD_BC_ReplayRadioTruckMarker> radioTrucksToRender;
-        if (m_bIsInReplayMode) radioTrucksToRender = m_radioTruckMarkers;
-        else if (m_hasLastFrame) radioTrucksToRender = m_lastFrameRadioTruckMarkers;
-        else radioTrucksToRender = {};
+        // --- 3. Transmissions ---
+        array<ref GRAD_BC_ReplayTransmissionMarker> transmissionsToRender;
+        if (m_bIsInReplayMode) transmissionsToRender = m_transmissionMarkers;
+        else if (m_hasLastFrame) transmissionsToRender = m_lastFrameTransmissionMarkers;
+        else transmissionsToRender = {};
 
-        foreach (GRAD_BC_ReplayRadioTruckMarker radioTruckMarker : radioTrucksToRender)
+        int transmissionIndex = 0;
+        foreach (GRAD_BC_ReplayTransmissionMarker transMarker : transmissionsToRender)
         {
-            if (!radioTruckMarker.isVisible) continue;
+            if (!transMarker.isVisible) continue;
 
-            // Determine faction color based on occupancy - check if any player is in the radio truck
-            string effectiveFaction = radioTruckMarker.factionKey;
-            foreach (GRAD_BC_ReplayPlayerMarker p : m_playerMarkers) {
-                if (p.isInVehicle) {
-                    // Check if player position is close to radio truck position (they're in it)
-                    float dist = vector.Distance(p.position, radioTruckMarker.position);
-                    if (dist < 10.0) {
-                        effectiveFaction = p.factionKey;
-                        break;
-                    }
-                }
+            // Get icon based on transmission state
+            string iconKey;
+            switch (transMarker.state)
+            {
+                case ETransmissionState.TRANSMITTING:
+                    iconKey = "transmission_active";
+                    break;
+                case ETransmissionState.INTERRUPTED:
+                    iconKey = "transmission_interrupted";
+                    break;
+                case ETransmissionState.DONE:
+                case ETransmissionState.OFF:
+                case ETransmissionState.DISABLED:
+                default:
+                    iconKey = "transmission_default";
+                    break;
             }
 
-            // Get the appropriate radio truck icon
-            string radioTruckIconKey;
-            bool isEmpty = radioTruckMarker.isEmpty;
+            string texturePath = m_transmissionIconPaths.Get(iconKey);
+            if (texturePath == "")
+                texturePath = m_transmissionIconPaths.Get("transmission_default");
 
-            if (isEmpty || effectiveFaction == "Empty" || effectiveFaction == "")
-                radioTruckIconKey = "Radiotruck_empty";
-            else if (effectiveFaction == "US")
-                radioTruckIconKey = "Radiotruck_blufor";
-            else if (effectiveFaction == "USSR")
-                radioTruckIconKey = "Radiotruck_opfor";
-            else
-                radioTruckIconKey = "Radiotruck_empty";
+            // Use index for unique widget key since transmissions don't have entity IDs
+            string widgetKey = "TRANS_" + transmissionIndex.ToString();
+            
+            // Transmissions don't rotate, pass 0 for direction
+            // Use false for isVehicle (different size), false for isEmpty
+            UpdateMarkerWidget(widgetKey, texturePath, transMarker.position, 0, false, false);
 
-            string texturePath = m_vehicleIconTextures.Get(radioTruckIconKey);
-            if (texturePath == "") texturePath = m_vehicleIconTextures.Get("Radiotruck_empty");
-
-            string widgetKey = "RADIOTRUCK_0";
-            UpdateMarkerWidget(widgetKey, texturePath, radioTruckMarker.position, radioTruckMarker.direction, true, isEmpty);
+            transmissionIndex++;
         }
 
         // --- 4. Hide Unused Widgets ---
@@ -237,11 +237,57 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // ---------------------------------------------------------
         // DRAW LINES & PROJECTILES (Keep using Commands for performance on lines)
         // ---------------------------------------------------------
-        // ... (Keep your existing code for Projectiles and Transmission bars here) ...
-        // Example for projectiles (simplified):
+        // Projectiles
         if (m_bIsInReplayMode) {
             foreach (GRAD_BC_ReplayProjectileMarker proj : m_projectileMarkers) {
                  if (proj.isVisible) DrawLine(proj.position, proj.impactPosition, 2.0, 0xFFFF0000);
+            }
+
+            // Transmission progress circles
+            foreach (GRAD_BC_ReplayTransmissionMarker transMarker : m_transmissionMarkers)
+            {
+                if (!transMarker.isVisible) continue;
+
+                // Draw progress circle around transmission icon
+                int circleColor;
+                switch (transMarker.state)
+                {
+                    case ETransmissionState.TRANSMITTING:
+                        circleColor = 0xFF00FF00; // Green - active
+                        break;
+                    case ETransmissionState.INTERRUPTED:
+                        circleColor = 0xFFFF8800; // Orange - interrupted
+                        break;
+                    case ETransmissionState.DONE:
+                        circleColor = 0xFF0080FF; // Blue - completed
+                        break;
+                    case ETransmissionState.DISABLED:
+                        circleColor = 0xFFFF0000; // Red - disabled
+                        break;
+                    case ETransmissionState.OFF:
+                    default:
+                        circleColor = 0xFF808080; // Gray - off
+                        break;
+                }
+
+                // Draw full circle as background
+                DrawCircle(transMarker.position, 30.0, 3.0, 0x40000000); // Semi-transparent black background
+                
+                // Draw progress arc if transmitting or in progress
+                if (transMarker.state == ETransmissionState.TRANSMITTING && transMarker.progress > 0)
+                {
+                    DrawProgressCircle(transMarker.position, 30.0, 3.0, transMarker.progress, circleColor);
+                }
+                else if (transMarker.state == ETransmissionState.DONE)
+                {
+                    // Full circle for completed
+                    DrawCircle(transMarker.position, 30.0, 3.0, circleColor);
+                }
+                else
+                {
+                    // Partial circle for other states
+                    DrawCircle(transMarker.position, 30.0, 3.0, circleColor);
+                }
             }
 
             // Draw progress bar during replay
@@ -433,7 +479,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_playerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_projectileMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayTransmissionMarker> m_transmissionMarkers = {};
-	protected ref array<ref GRAD_BC_ReplayRadioTruckMarker> m_radioTruckMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayVehicleMarker> m_vehicleMarkers = {};
 	
 	// Replay mode flag - true when actively viewing replay, false for normal map use
@@ -450,7 +495,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	protected ref array<ref GRAD_BC_ReplayPlayerMarker> m_lastFramePlayerMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayProjectileMarker> m_lastFrameProjectileMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayTransmissionMarker> m_lastFrameTransmissionMarkers = {};
-	protected ref array<ref GRAD_BC_ReplayRadioTruckMarker> m_lastFrameRadioTruckMarkers = {};
 	protected ref array<ref GRAD_BC_ReplayVehicleMarker> m_lastFrameVehicleMarkers = {};
 	protected bool m_hasLastFrame = false;
 	
@@ -805,15 +849,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		frameUpdateCount++;
 		if (frameUpdateCount % 20 == 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 radio trucks, %5 vehicles",
-				frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.radioTrucks.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 vehicles",
+				frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
 		}
 
 		// Build new marker arrays first (don't clear existing ones yet to avoid empty frames)
 		array<ref GRAD_BC_ReplayPlayerMarker> newPlayerMarkers = {};
 		array<ref GRAD_BC_ReplayProjectileMarker> newProjectileMarkers = {};
 		array<ref GRAD_BC_ReplayTransmissionMarker> newTransmissionMarkers = {};
-		array<ref GRAD_BC_ReplayRadioTruckMarker> newRadioTruckMarkers = {};
 		array<ref GRAD_BC_ReplayVehicleMarker> newVehicleMarkers = {};
 		
 		// Create player markers
@@ -891,21 +934,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			newTransmissionMarkers.Insert(marker);
 		}
 		
-		// Create radio truck markers
-		foreach (GRAD_BC_RadioTruckSnapshot truckSnapshot : frame.radioTrucks)
-		{
-			GRAD_BC_ReplayRadioTruckMarker marker = new GRAD_BC_ReplayRadioTruckMarker();
-			marker.position = truckSnapshot.position;
-			marker.direction = truckSnapshot.angles[0]; // Yaw
-			marker.isActive = truckSnapshot.isActive;
-			marker.isDestroyed = truckSnapshot.isDestroyed;
-			marker.isEmpty = truckSnapshot.isEmpty;
-			marker.factionKey = truckSnapshot.factionKey;
-			marker.isVisible = true;
-			
-			newRadioTruckMarkers.Insert(marker);
-		}
-		
 		// Create vehicle markers
 		foreach (GRAD_BC_VehicleSnapshot vehicleSnapshot : frame.vehicles)
 		{
@@ -922,12 +950,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		
 		// PERFORMANCE FIX: Before swapping, save current markers as last frame (by reference, not deep copy)
 		// This is much faster than deep copying all marker data
-		if (m_playerMarkers.Count() > 0 || m_projectileMarkers.Count() > 0 || m_transmissionMarkers.Count() > 0 || m_radioTruckMarkers.Count() > 0 || m_vehicleMarkers.Count() > 0)
+		if (m_playerMarkers.Count() > 0 || m_projectileMarkers.Count() > 0 || m_transmissionMarkers.Count() > 0 || m_vehicleMarkers.Count() > 0)
 		{
 			m_lastFramePlayerMarkers = m_playerMarkers;
 			m_lastFrameProjectileMarkers = m_projectileMarkers;
 			m_lastFrameTransmissionMarkers = m_transmissionMarkers;
-			m_lastFrameRadioTruckMarkers = m_radioTruckMarkers;
 			m_lastFrameVehicleMarkers = m_vehicleMarkers;
 			m_hasLastFrame = true;
 		}
@@ -936,7 +963,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_playerMarkers = newPlayerMarkers;
 		m_projectileMarkers = newProjectileMarkers;
 		m_transmissionMarkers = newTransmissionMarkers;
-		m_radioTruckMarkers = newRadioTruckMarkers;
 		m_vehicleMarkers = newVehicleMarkers;
 
 		m_bIsInReplayMode = true; // Mark that we're in replay mode
@@ -1111,6 +1137,63 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		
 		m_Commands.Insert(cmd);
 	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw a progress circle/arc around a point showing percentage complete (0.0 to 1.0)
+	void DrawProgressCircle(vector center, float radius, float width, float progress, int color)
+	{
+		// Clamp progress to valid range
+		progress = Math.Clamp(progress, 0.0, 1.0);
+		
+		float screenX, screenY;
+		m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
+		
+		// Number of segments for the arc (more = smoother circle)
+		int totalSegments = 32;
+		int progressSegments = Math.Max(1, (int)(totalSegments * progress));
+		
+		// Draw the arc as a series of triangles
+		for (int i = 0; i < progressSegments; i++)
+		{
+			float angle1 = ((float)i / (float)totalSegments) * Math.PI2 - Math.PI_HALF; // Start from top
+			float angle2 = ((float)(i + 1) / (float)totalSegments) * Math.PI2 - Math.PI_HALF;
+			
+			// Outer vertices
+			float x1outer = screenX + Math.Cos(angle1) * (radius + width * 0.5);
+			float y1outer = screenY + Math.Sin(angle1) * (radius + width * 0.5);
+			float x2outer = screenX + Math.Cos(angle2) * (radius + width * 0.5);
+			float y2outer = screenY + Math.Sin(angle2) * (radius + width * 0.5);
+			
+			// Inner vertices
+			float x1inner = screenX + Math.Cos(angle1) * (radius - width * 0.5);
+			float y1inner = screenY + Math.Sin(angle1) * (radius - width * 0.5);
+			float x2inner = screenX + Math.Cos(angle2) * (radius - width * 0.5);
+			float y2inner = screenY + Math.Sin(angle2) * (radius - width * 0.5);
+			
+			// Draw quad as two triangles
+			PolygonDrawCommand cmd = new PolygonDrawCommand();
+			cmd.m_iColor = color;
+			cmd.m_Vertices = new array<float>;
+			
+			// Triangle 1
+			cmd.m_Vertices.Insert(x1outer); cmd.m_Vertices.Insert(y1outer);
+			cmd.m_Vertices.Insert(x2outer); cmd.m_Vertices.Insert(y2outer);
+			cmd.m_Vertices.Insert(x1inner); cmd.m_Vertices.Insert(y1inner);
+			
+			m_Commands.Insert(cmd);
+			
+			// Triangle 2
+			PolygonDrawCommand cmd2 = new PolygonDrawCommand();
+			cmd2.m_iColor = color;
+			cmd2.m_Vertices = new array<float>;
+			
+			cmd2.m_Vertices.Insert(x2outer); cmd2.m_Vertices.Insert(y2outer);
+			cmd2.m_Vertices.Insert(x2inner); cmd2.m_Vertices.Insert(y2inner);
+			cmd2.m_Vertices.Insert(x1inner); cmd2.m_Vertices.Insert(y1inner);
+			
+			m_Commands.Insert(cmd2);
+		}
+	}
 }
 
 // Marker classes for replay display
@@ -1143,17 +1226,6 @@ class GRAD_BC_ReplayTransmissionMarker : Managed
 	vector position;
 	ETransmissionState state;
 	float progress; // 0.0 to 1.0
-	bool isVisible;
-}
-
-class GRAD_BC_ReplayRadioTruckMarker : Managed
-{
-	vector position;
-	float direction;
-	bool isActive; // whether radio truck is transmitting
-	bool isDestroyed; // whether radio truck is destroyed
-	bool isEmpty;
-	string factionKey;
 	bool isVisible;
 }
 

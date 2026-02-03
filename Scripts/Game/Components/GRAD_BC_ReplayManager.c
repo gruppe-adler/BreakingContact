@@ -378,9 +378,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Record transmission states
 		RecordTransmissions(frame);
 		
-		// Record radio truck
-		RecordRadioTruck(frame);
-		
 		// Add frame to replay data
 		m_replayData.frames.Insert(frame);
 		m_fLastRecordTime = currentTime;
@@ -393,11 +390,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			return;
 			
 		Print(string.Format("GRAD_BC_ReplayManager: Recording %1 tracked vehicles", m_trackedVehicles.Count()), LogLevel.NORMAL);
-			
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		IEntity radioTruck = null;
-		if (bcm)
-			radioTruck = bcm.GetRadioTruck();
 	
 		foreach (IEntity entity : m_trackedVehicles)
 		{
@@ -407,16 +399,10 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Vehicle vehicle = Vehicle.Cast(entity);
 			if (!vehicle)
 				continue;
-			
-			if (vehicle == radioTruck)
-			{
-				Print(string.Format("GRAD_BC_ReplayManager: Skipping radio truck, already handled"), LogLevel.NORMAL);
-				continue;
-			}
 	
-			// No longer skip vehicles with players inside; always record all vehicles
+			// Record all vehicles - no exceptions
 	
-			// Now we have an empty vehicle. Record it.
+			// Now we have a vehicle. Record it.
 			vector position = vehicle.GetOrigin();
 			vector angles = vehicle.GetYawPitchRoll();
 			string vehicleType = vehicle.GetPrefabData().GetPrefabName();
@@ -656,73 +642,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			
 			frame.transmissions.Insert(snapshot);
 		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void RecordRadioTruck(GRAD_BC_ReplayFrame frame)
-	{
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (!bcm)
-			return;
-			
-		IEntity radioTruck = bcm.GetRadioTruck();
-		if (!radioTruck)
-			return;
-			
-		// Get radio truck component to check if transmitting
-		GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
-		bool isActive = false;
-		bool isDestroyed = false;
-		
-		if (rtc)
-		{
-			isActive = rtc.GetTransmissionActive();
-			isDestroyed = rtc.GetIsDisabled();
-		}
-		
-		// Get position and orientation
-		vector position = radioTruck.GetOrigin();
-		vector angles = radioTruck.GetYawPitchRoll();
-		
-		// Check occupancy
-		Vehicle vehicle = Vehicle.Cast(radioTruck);
-		bool isEmpty = true;
-		if (vehicle)
-		{
-			BaseCompartmentManagerComponent compartmentManager = BaseCompartmentManagerComponent.Cast(vehicle.FindComponent(BaseCompartmentManagerComponent));
-			if (compartmentManager)
-			{
-				array<BaseCompartmentSlot> compartments = {};
-				compartmentManager.GetCompartments(compartments);
-				foreach (BaseCompartmentSlot slot : compartments)
-				{
-					if (slot.GetOccupant())
-					{
-						isEmpty = false;
-						break;
-					}
-				}
-			}
-		}
-		
-		// Check faction
-		string factionKey = "Empty";
-		FactionAffiliationComponent factionComponent = FactionAffiliationComponent.Cast(radioTruck.FindComponent(FactionAffiliationComponent));
-		if (factionComponent && factionComponent.GetAffiliatedFaction())
-		{
-			factionKey = factionComponent.GetAffiliatedFaction().GetFactionKey();
-		}
-		
-		GRAD_BC_RadioTruckSnapshot snapshot = GRAD_BC_RadioTruckSnapshot.Create(
-			position,
-			angles,
-			isActive,
-			isDestroyed,
-			isEmpty,
-			factionKey
-		);
-		
-		frame.radioTrucks.Insert(snapshot);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -2049,8 +1968,7 @@ void StartLocalReplayPlayback()
         {
             if (frame.projectiles.Count() > 0 || 
                 frame.transmissions.Count() > 0 || 
-                frame.vehicles.Count() > 0 ||
-                frame.radioTrucks.Count() > 0)
+                frame.vehicles.Count() > 0)
             {
                 hasVisualContent = true;
             }

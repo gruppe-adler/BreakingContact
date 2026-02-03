@@ -75,7 +75,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	// Red Light on Top spawning
 	[Attribute("{5A9683E2DC0239EC}Prefabs/Vehicles/Helicopters/UH1H/Lights/VehicleLight_UH1H_Navigating_Base.et", UIWidgets.ResourcePickerThumbnail, "Red light prop to spawn on top when extended", "et")]
 	protected ResourceName m_sRedLightPropResource;
-	
+
+	// Replicated state for red light prop - ensures all clients spawn/despawn in sync
+	[RplProp(onRplName: "OnRedLightPropStateReplicated")]
+	protected bool m_bRedLightPropSpawned = false;
 
 	private IEntity m_AntennaPropEntity = null;
 	private IEntity m_RedLightPropEntity = null;
@@ -118,6 +121,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 		// Delay antenna bone initialization to ensure entity hierarchy is fully constructed
 		GetGame().GetCallqueue().CallLater(InitializeAntennaBones, 500, false);
+
+		// Schedule JIP sync for clients - applies current replicated state after initialization
+		GetGame().GetCallqueue().CallLater(SyncJIPState, 1000, false);
 
 		Print("BC Debug - ANTENNA: Antenna bones initialization scheduled", LogLevel.NORMAL);
 
@@ -163,9 +169,16 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
 		UpdateAntennaBones(easedProgress);
 
-		// Spawn antenna prop when fully extended
-		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_AntennaPropEntity)
+		// Spawn antenna prop when fully extended - only authority sets the replicated flag
+		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
 		{
+			// On authority, set the replicated flag which triggers spawning on all machines
+			if (m_RplComponent && m_RplComponent.IsMaster())
+			{
+				m_bRedLightPropSpawned = true;
+				Replication.BumpMe();
+			}
+			// Always spawn locally (authority does it here, clients via replication callback)
 			SpawnAntennaProp();
 		}
 
@@ -446,6 +459,13 @@ void UpdateAntennaBones(float progress)
 		{
 			Print("BC Debug - ANTENNA: Antenna already retracted or animating, aborting", LogLevel.NORMAL);
 			return;
+		}
+
+		// On authority, set the replicated flag to false which triggers removal on all machines
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			m_bRedLightPropSpawned = false;
+			Replication.BumpMe();
 		}
 
 		// Remove antenna prop as soon as retraction starts
@@ -881,6 +901,64 @@ void UpdateAntennaBones(float progress)
 		
 
 	//------------------------------------------------------------------------------------------------
+	// Sync visual state for Join-In-Progress clients
+	// Called after initialization to apply the current replicated state
+	//------------------------------------------------------------------------------------------------
+	protected void SyncJIPState()
+	{
+		bool isMaster;
+		if (m_RplComponent)
+			isMaster = m_RplComponent.IsMaster();
+		else
+			isMaster = false;
+		
+		Print(string.Format("BC Debug - JIP: SyncJIPState called. IsMaster=%1, AntennaRaised=%2, LampOn=%3, RedLightSpawned=%4",
+			isMaster, m_bAntennaStateRaised, m_bLampStateOn, m_bRedLightPropSpawned), LogLevel.NORMAL);
+
+		// Only process JIP sync on clients (proxies)
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			Print("BC Debug - JIP: Skipping JIP sync - we are master", LogLevel.NORMAL);
+			return;
+		}
+
+		// Apply antenna state - if antenna should be raised, instantly set it to raised position
+		if (m_bAntennaStateRaised)
+		{
+			Print("BC Debug - JIP: Antenna should be raised - applying instant state", LogLevel.NORMAL);
+			// Set animation to fully extended instantly (no animation for JIP)
+			m_fAnimationProgress = 1.0;
+			m_bAntennaExtended = true;
+			m_bAntennaAnimating = false;
+			UpdateAntennaBones(1.0);  // Apply full extension
+		}
+		else
+		{
+			Print("BC Debug - JIP: Antenna should be retracted - applying instant state", LogLevel.NORMAL);
+			m_fAnimationProgress = 0.0;
+			m_bAntennaExtended = false;
+			m_bAntennaAnimating = false;
+			UpdateAntennaBones(0.0);  // Apply full retraction
+		}
+
+		// Apply red light prop state
+		if (m_bRedLightPropSpawned && !m_RedLightPropEntity)
+		{
+			Print("BC Debug - JIP: Red light should be spawned - spawning now", LogLevel.NORMAL);
+			SpawnAntennaProp();
+		}
+		else if (!m_bRedLightPropSpawned && m_RedLightPropEntity)
+		{
+			Print("BC Debug - JIP: Red light should be removed - removing now", LogLevel.NORMAL);
+			RemoveAntennaProp();
+		}
+
+		// Apply lamp state
+		Print(string.Format("BC Debug - JIP: Applying lamp state: %1", m_bLampStateOn), LogLevel.NORMAL);
+		ApplyLampState(m_bLampStateOn);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void SyncVariables()
 	{
 		Rpc(RpcAsk_Authority_SyncVariables);
@@ -971,9 +1049,45 @@ void UpdateAntennaBones(float progress)
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Apply lamp visual state (called both on server and via replication on clients)
+	// Called on clients when m_bRedLightPropSpawned changes via replication
+	// This triggers local spawn/despawn of the red light prop on antenna
 	//------------------------------------------------------------------------------------------------
-	void ApplyLampState(bool lampOn)
+	protected void OnRedLightPropStateReplicated()
+	{
+		Print(string.Format("BC Debug - ANTENNA: OnRedLightPropStateReplicated - m_bRedLightPropSpawned=%1", m_bRedLightPropSpawned), LogLevel.NORMAL);
+
+		// Only process if we're a proxy (client)
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			Print("BC Debug - ANTENNA: Skipping client-side prop spawn - we are master", LogLevel.NORMAL);
+			return;
+		}
+
+		if (m_bRedLightPropSpawned)
+		{
+			// Spawn the red light prop locally
+			if (!m_RedLightPropEntity)
+			{
+				Print("BC Debug - ANTENNA: Client spawning red light prop from replication", LogLevel.NORMAL);
+				SpawnAntennaProp();
+			}
+		}
+		else
+		{
+			// Remove the red light prop locally
+			if (m_RedLightPropEntity)
+			{
+				Print("BC Debug - ANTENNA: Client removing red light prop from replication", LogLevel.NORMAL);
+				RemoveAntennaProp();
+			}
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Apply lamp visual state (called both on server and via replication on clients)
+	// Uses retry mechanism for clients where slot entities may not be loaded yet
+	//------------------------------------------------------------------------------------------------
+	void ApplyLampState(bool lampOn, int retryCount = 0)
 	{
 		if (!m_radioTruck)
 		{
@@ -1002,7 +1116,16 @@ void UpdateAntennaBones(float progress)
 
 		if (!lamp_on || !lamp_off)
 		{
-			Print("BC Debug - LAMP: Cannot apply lamp state - lamp entities not attached yet", LogLevel.WARNING);
+			// On clients, slot entities may not be streamed in yet - retry a few times
+			if (retryCount < 5)
+			{
+				Print(string.Format("BC Debug - LAMP: Lamp entities not attached yet, retry %1/5", retryCount + 1), LogLevel.NORMAL);
+				GetGame().GetCallqueue().CallLater(ApplyLampStateRetry, 200, false, lampOn, retryCount + 1);
+			}
+			else
+			{
+				Print("BC Debug - LAMP: Cannot apply lamp state - lamp entities not attached after retries", LogLevel.WARNING);
+			}
 			return;
 		}
 
@@ -1040,6 +1163,14 @@ void UpdateAntennaBones(float progress)
 				child = child.GetSibling();
 			}
 		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Helper for delayed lamp state retry (wrapper to match CallLater signature)
+	//------------------------------------------------------------------------------------------------
+	protected void ApplyLampStateRetry(bool lampOn, int retryCount)
+	{
+		ApplyLampState(lampOn, retryCount);
 	}
 
 	//------------------------------------------------------------------------------------------------

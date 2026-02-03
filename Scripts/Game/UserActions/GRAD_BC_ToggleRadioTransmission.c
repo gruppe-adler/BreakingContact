@@ -100,14 +100,16 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
 			return;
 		}
-		
-		if(m_radioTruckComponent.GetTransmissionActive()) {
+
+		// Toggle transmission state - this now handles antenna animation and lamp state
+		// via replication in GRAD_BC_RadioTruckComponent.SetTransmissionActive()
+		if (m_radioTruckComponent.GetTransmissionActive())
+		{
 			m_radioTruckComponent.SetTransmissionActive(false);
-			ToggleLampState(pOwnerEntity.GetParent(), false); // Turn off lamps
 		}
-		else {
+		else
+		{
 			m_radioTruckComponent.SetTransmissionActive(true);
-			ToggleLampState(pOwnerEntity.GetParent(), true); // Turn on lamps
 		}
 	}
 	
@@ -175,88 +177,20 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		// Try to get the slot
 		EntitySlotInfo slot = slotManager.GetSlotByName("lamp_on");
 
-		// 3. Safety Check: Is the slot there AND is the entity attached?
+		// Safety Check: Is the slot there AND is the entity attached?
 		if (slot && slot.GetAttachedEntity())
 		{
-			// FOUND IT! Hide it immediately.
-			// (Assuming you want it off by default)
-			ToggleLampState(radioTruck, false);
-			Print("Lamps initialized and hidden.");
+			// Initialize lamp state to off by default using the component's method
+			// This ensures consistent state management through replication
+			m_radioTruckComponent.ApplyLampState(false);
+			Print("BC Debug - Lamps initialized and hidden via component.");
 		}
 		else
 		{
 			// NOT FOUND YET.
 			// The attachment hasn't spawned. Try again in another 100ms.
-			Print("Lamp not ready yet, retrying...");
+			Print("BC Debug - Lamp not ready yet, retrying...");
 			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
-		}
-	}
-	
-
-	void ToggleLampState(IEntity vehicle, bool state)
-	{
-		SlotManagerComponent slotManager = SlotManagerComponent.Cast(vehicle.FindComponent(SlotManagerComponent));
-		
-		if (slotManager)
-		{
-		    // Try to find the slot info directly by string name
-		    EntitySlotInfo slotInfoOn = slotManager.GetSlotByName("lamp_on");
-			EntitySlotInfo slotInfoOff = slotManager.GetSlotByName("lamp_off");
-		
-		    if (slotInfoOn && slotInfoOff)
-		    {
-		        IEntity lamp_on = slotInfoOn.GetAttachedEntity();
-				IEntity lamp_off = slotInfoOff.GetAttachedEntity();
-		        if (lamp_on && lamp_off && state)
-		        {
-		            // Toggle visibility of the lamp models
-		            lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-					lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-		            Print("Success: Lamp turned on");
-
-					IEntity child = lamp_on.GetChildren();
-					while (child)
-					{
-						// Find the actual light entity and enable it
-						LightEntity lightEntity = LightEntity.Cast(child);
-						if (lightEntity)
-							lightEntity.SetEnabled(true);
-						
-						// Also ensure the child model is visible
-						child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-						child = child.GetSibling();
-					}
-		        }
-		        else if (lamp_on && lamp_off && !state)
-		        {
-					// Toggle visibility of the lamp models
-					lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-					lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-		            Print("Success: Lamp turned off");
-
-					IEntity child = lamp_on.GetChildren();
-					while (child)
-					{
-						// Find the actual light entity and disable it
-						LightEntity lightEntity = LightEntity.Cast(child);
-						if (lightEntity) { lightEntity.SetEnabled(false);
-							Print("Lamp set disabled light entity");
-							
-							Print(string.Format("BC Debug - Lamp set disabled light entity %1", lightEntity.IsEnabled()), LogLevel.NORMAL);
-						} else {
-							Print("Lamp shit cant find light entity");
-						}
-						
-						// Also hide the child model
-						child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
-						child = child.GetSibling();
-					}
-		        }
-		    }
-		    else
-		    {
-		        Print("Error: Could not find any slot named 'lamp_on' or 'lamp_off'", LogLevel.ERROR);
-		    }
 		}
 	}
 }

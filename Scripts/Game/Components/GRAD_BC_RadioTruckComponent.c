@@ -10,11 +10,19 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	static float m_iMaxTransmissionDistance = 500.0;
 
-	[RplProp()]
+	[RplProp(onRplName: "OnTransmissionStateReplicated")]
 	protected bool m_bIsTransmitting;
-	
+
 	[RplProp()]
 	protected bool m_bIsDisabled = false;
+
+	// Replicated antenna state - when changed, clients start their local animation
+	[RplProp(onRplName: "OnAntennaStateReplicated")]
+	protected bool m_bAntennaStateRaised = false;
+
+	// Replicated lamp state - when changed, clients toggle their local lamp visuals
+	[RplProp(onRplName: "OnLampStateReplicated")]
+	protected bool m_bLampStateOn = false;
 
 	private Vehicle m_radioTruck;
 	private IEntity m_commandBox; // The command box entity that has the antenna bones
@@ -658,14 +666,8 @@ void UpdateAntennaBones(float progress)
 		m_bIsDisabled = disabled;
 		if (disabled)
 		{
-			// Stop any active transmission when disabled
+			// Stop any active transmission when disabled - this handles antenna and lamp via SetTransmissionActive
 			SetTransmissionActive(false);
-
-			// Force retract antenna if extended
-			if (m_bAntennaExtended || m_bAntennaAnimating)
-			{
-				LowerAntenna();
-			}
 		}
 		Replication.BumpMe();
 		Print(string.Format("Breaking Contact RTC - Radio truck disabled state set to %1", m_bIsDisabled), LogLevel.NORMAL);
@@ -687,11 +689,20 @@ void UpdateAntennaBones(float progress)
 		}
 
 		m_bIsTransmitting = setTo;
+
+		// Set replicated antenna state - this triggers client-side animations via OnAntennaStateReplicated
+		m_bAntennaStateRaised = setTo;
+
+		// Set replicated lamp state - this triggers client-side lamp toggle via OnLampStateReplicated
+		m_bLampStateOn = setTo;
+
+		// Bump replication to send all state changes to clients
 		Replication.BumpMe();
 
-		Print(string.Format("Breaking Contact RTC -  Setting m_bIsTransmitting to %1", m_bIsTransmitting), LogLevel.NORMAL);
+		Print(string.Format("Breaking Contact RTC - Setting m_bIsTransmitting=%1, m_bAntennaStateRaised=%2, m_bLampStateOn=%3",
+			m_bIsTransmitting, m_bAntennaStateRaised, m_bLampStateOn), LogLevel.NORMAL);
 
-		// Trigger antenna animation
+		// Trigger antenna animation locally on server
 		if (setTo)
 		{
 			RaiseAntenna();
@@ -700,6 +711,9 @@ void UpdateAntennaBones(float progress)
 		{
 			LowerAntenna();
 		}
+
+		// Apply lamp state locally on server
+		ApplyLampState(setTo);
 		
 		// Immediately notify the BreakingContactManager to handle transmission points
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -879,6 +893,166 @@ void UpdateAntennaBones(float progress)
 		//Print("BC Debug - RpcAsk_Authority_SyncTransmissionDuration()", LogLevel.NORMAL);
 
 		Replication.BumpMe();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when m_bIsTransmitting is replicated
+	//------------------------------------------------------------------------------------------------
+	protected void OnTransmissionStateReplicated()
+	{
+		Print(string.Format("BC Debug - ANTENNA: OnTransmissionStateReplicated - m_bIsTransmitting=%1", m_bIsTransmitting), LogLevel.NORMAL);
+		// Note: Antenna animation is triggered separately via m_bAntennaStateRaised replication
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when m_bAntennaStateRaised changes via replication
+	// This triggers the local animation on each client
+	//------------------------------------------------------------------------------------------------
+	protected void OnAntennaStateReplicated()
+	{
+		Print(string.Format("BC Debug - ANTENNA: OnAntennaStateReplicated - m_bAntennaStateRaised=%1 (current extended=%2, animating=%3)",
+			m_bAntennaStateRaised, m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+
+		// Only process if we're a proxy (client)
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			Print("BC Debug - ANTENNA: Skipping client-side animation trigger - we are master", LogLevel.NORMAL);
+			return;
+		}
+
+		// Trigger local animation based on the replicated state
+		if (m_bAntennaStateRaised)
+		{
+			// Server says antenna should be raised - start raising animation locally
+			if (!m_bAntennaExtended && !m_bAntennaAnimating)
+			{
+				Print("BC Debug - ANTENNA: Client starting raise animation from replication", LogLevel.NORMAL);
+				m_bAntennaAnimating = true;
+				m_bAntennaRaising = true;
+			}
+		}
+		else
+		{
+			// Server says antenna should be lowered - start lowering animation locally
+			if (m_bAntennaExtended && !m_bAntennaAnimating)
+			{
+				Print("BC Debug - ANTENNA: Client starting lower animation from replication", LogLevel.NORMAL);
+				RemoveAntennaProp();  // Remove props immediately on client too
+				m_bAntennaAnimating = true;
+				m_bAntennaRaising = false;
+			}
+			else if (m_bAntennaAnimating && m_bAntennaRaising)
+			{
+				// Animation was in progress raising, now reverse it
+				Print("BC Debug - ANTENNA: Client reversing raise animation from replication", LogLevel.NORMAL);
+				RemoveAntennaProp();
+				m_bAntennaRaising = false;
+			}
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Called on clients when m_bLampStateOn changes via replication
+	// This triggers the local lamp visual toggle
+	//------------------------------------------------------------------------------------------------
+	protected void OnLampStateReplicated()
+	{
+		Print(string.Format("BC Debug - LAMP: OnLampStateReplicated - m_bLampStateOn=%1", m_bLampStateOn), LogLevel.NORMAL);
+
+		// Only process if we're a proxy (client)
+		if (m_RplComponent && m_RplComponent.IsMaster())
+		{
+			Print("BC Debug - LAMP: Skipping client-side lamp toggle - we are master", LogLevel.NORMAL);
+			return;
+		}
+
+		// Toggle lamp visuals locally
+		ApplyLampState(m_bLampStateOn);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Apply lamp visual state (called both on server and via replication on clients)
+	//------------------------------------------------------------------------------------------------
+	void ApplyLampState(bool lampOn)
+	{
+		if (!m_radioTruck)
+		{
+			Print("BC Debug - LAMP: Cannot apply lamp state - no radio truck reference", LogLevel.WARNING);
+			return;
+		}
+
+		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
+		if (!slotManager)
+		{
+			Print("BC Debug - LAMP: Cannot apply lamp state - no slot manager", LogLevel.WARNING);
+			return;
+		}
+
+		EntitySlotInfo slotInfoOn = slotManager.GetSlotByName("lamp_on");
+		EntitySlotInfo slotInfoOff = slotManager.GetSlotByName("lamp_off");
+
+		if (!slotInfoOn || !slotInfoOff)
+		{
+			Print("BC Debug - LAMP: Cannot apply lamp state - lamp slots not found", LogLevel.WARNING);
+			return;
+		}
+
+		IEntity lamp_on = slotInfoOn.GetAttachedEntity();
+		IEntity lamp_off = slotInfoOff.GetAttachedEntity();
+
+		if (!lamp_on || !lamp_off)
+		{
+			Print("BC Debug - LAMP: Cannot apply lamp state - lamp entities not attached yet", LogLevel.WARNING);
+			return;
+		}
+
+		if (lampOn)
+		{
+			lamp_on.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+			lamp_off.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+			Print("BC Debug - LAMP: Lamp turned ON", LogLevel.NORMAL);
+
+			// Enable light entities on lamp_on
+			IEntity child = lamp_on.GetChildren();
+			while (child)
+			{
+				LightEntity lightEntity = LightEntity.Cast(child);
+				if (lightEntity)
+					lightEntity.SetEnabled(true);
+				child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+				child = child.GetSibling();
+			}
+		}
+		else
+		{
+			lamp_off.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+			lamp_on.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+			Print("BC Debug - LAMP: Lamp turned OFF", LogLevel.NORMAL);
+
+			// Disable light entities on lamp_on
+			IEntity child = lamp_on.GetChildren();
+			while (child)
+			{
+				LightEntity lightEntity = LightEntity.Cast(child);
+				if (lightEntity)
+					lightEntity.SetEnabled(false);
+				child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+				child = child.GetSibling();
+			}
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Set lamp state and replicate to clients
+	//------------------------------------------------------------------------------------------------
+	void SetLampState(bool lampOn)
+	{
+		m_bLampStateOn = lampOn;
+		Replication.BumpMe();
+		Print(string.Format("BC Debug - LAMP: SetLampState called with lampOn=%1", lampOn), LogLevel.NORMAL);
+
+		// Also apply locally on server
+		ApplyLampState(lampOn);
 	}
 	
 	//------------------------------------------------------------------------------------------------

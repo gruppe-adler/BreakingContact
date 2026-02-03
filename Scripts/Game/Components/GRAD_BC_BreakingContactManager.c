@@ -2172,10 +2172,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", location), LogLevel.NORMAL);
 		
-		// Skip on dedicated server (no UI)
-		if (Replication.IsServer() && !GetGame().GetPlayerController())
+		// Only show on clients with player controller (skip on pure dedicated server)
+		if (!GetGame().GetPlayerController())
 		{
-			Print("BCM: Skipping UI on dedicated server (no player controller)", LogLevel.NORMAL);
+			Print("BCM: No player controller, skipping UI (pure dedicated server)", LogLevel.NORMAL);
 			return;
 		}
 		

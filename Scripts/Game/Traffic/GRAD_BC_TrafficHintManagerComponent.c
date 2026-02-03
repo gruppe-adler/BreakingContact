@@ -60,7 +60,14 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		GRAD_BC_Traffic display = GRAD_BC_Traffic.Cast(hudManager.FindInfoDisplay(GRAD_BC_Traffic));
 		if (display)
 		{
-			display.showTrafficHint(displayType);
+			// Schedule hint and marker to appear after 5-second delay
+			GetGame().GetCallqueue().CallLater(
+				display.showTrafficHint,
+				5000,  // 5 seconds delay
+				false,
+				displayType,
+				location
+			);
 		} else {
 			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: No display", eventtype), LogLevel.ERROR);
 		}

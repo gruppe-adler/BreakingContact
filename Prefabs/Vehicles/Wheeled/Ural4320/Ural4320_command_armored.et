@@ -18,6 +18,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     Angles 0 90 180
     Prefab "{5326C298427D91A3}PrefabLibrary/DefaultLibrary/Walls/Metal/TinWall_01_3m.et"
     DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
    }
   }
   BaseSlotComponent "{684D3E0A159D78C6}" {
@@ -47,6 +48,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     Angles 0 90 180
     Prefab "{F2D8A2E5B619B82C}PrefabLibrary/CainLibrary/Walls/Metal/TinWall_01_3m_rusty.et"
     DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
    }
   }
   BaseSlotComponent "{684D3E0CF53ADA75}" {
@@ -76,6 +78,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     Angles 0 90 180
     Prefab "{F2D8A2E5B619B82C}PrefabLibrary/CainLibrary/Walls/Metal/TinWall_01_3m_rusty.et"
     DisablePhysicsInteraction 1
+    DeactivatePhysicsOnAtaching 1
    }
   }
   BaseSlotComponent "{684D3E0E8669AE74}" {
@@ -120,7 +123,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
      DisablePhysicsInteraction 1
     }
     EntitySlotInfo wheelcover_right_1 {
-     PivotID "v_wheel_R01_link"
+     PivotID "v_wheel_R01_rotator"
      Offset 0.7 0.5 0.25
      Angles 90 90 0
      Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
@@ -128,9 +131,9 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
      DeactivatePhysicsOnAtaching 1
     }
     EntitySlotInfo wheelcover_right_2 {
-     PivotID "v_wheel_R01_link"
+     PivotID "v_wheel_R01_rotator"
      Offset 0.7 0 0.25
-     Angles 90 90 0
+     Angles 92.90007 90 0
      Prefab "{DBC50A9B639F46E2}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_US_01_short.et"
      DisablePhysicsInteraction 1
      DeactivatePhysicsOnAtaching 1

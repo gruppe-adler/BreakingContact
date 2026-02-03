@@ -1348,6 +1348,10 @@ void StartLocalReplayPlayback()
 			
 		Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 		
+		// Calculate adaptive playback speed
+		CalculateAdaptiveSpeed();
+		Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
+		
 		// Open map and start playback
 		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
@@ -1406,7 +1410,9 @@ void StartLocalReplayPlayback()
 		}
 		
 		// Start playback
+		Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
 		m_bIsPlayingBack = true;
+		m_bPlaybackPaused = false;
 		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
@@ -1446,13 +1452,14 @@ void StartLocalReplayPlayback()
 		{
 			static int updatePlaybackSkipCounter = 0;
 			updatePlaybackSkipCounter++;
-			if (updatePlaybackSkipCounter % 50 == 0)
+			if (updatePlaybackSkipCounter % 10 == 0)
 			{
-				Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback skipped - IsPlayingBack: %1, HasData: %2, IsPaused: %3", 
-					m_bIsPlayingBack, m_replayData != null, m_bPlaybackPaused), LogLevel.WARNING);
+				Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback skipped (#%1) - IsPlayingBack: %2, HasData: %3, IsPaused: %4", 
+					updatePlaybackSkipCounter, m_bIsPlayingBack, m_replayData != null, m_bPlaybackPaused), LogLevel.WARNING);
 				if (m_replayData)
 				{
-					Print(string.Format("GRAD_BC_ReplayManager: Replay data exists with %1 frames", m_replayData.frames.Count()), LogLevel.WARNING);
+					Print(string.Format("GRAD_BC_ReplayManager: Replay data exists with %1 frames, startTime: %.2f, totalDuration: %.2f", 
+						m_replayData.frames.Count(), m_replayData.startTime, m_replayData.totalDuration), LogLevel.WARNING);
 				}
 			}
 			return;

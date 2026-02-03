@@ -154,8 +154,18 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	override void EOnFrame(IEntity owner, float timeSlice)
 	{
-		if (!m_bAntennaAnimating)
+		// Debug: Log once when animation becomes active to confirm EOnFrame is being called
+		static bool s_bLoggedAnimationStart = false;
+		if (m_bAntennaAnimating && !s_bLoggedAnimationStart)
+		{
+			Print(string.Format("BC Debug - ANTENNA: EOnFrame FIRST CALL with animation active - owner=%1", owner), LogLevel.NORMAL);
+			s_bLoggedAnimationStart = true;
+		}
+		else if (!m_bAntennaAnimating)
+		{
+			s_bLoggedAnimationStart = false; // Reset for next animation
 			return;
+		}
 
 		// Debug: Log that EOnFrame is running with animation
 		static int frameCounter = 0;
@@ -1070,6 +1080,8 @@ void UpdateAntennaBones(float progress)
 				Print("BC Debug - ANTENNA: Client starting raise animation from replication", LogLevel.NORMAL);
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = true;
+				// Ensure frame events are enabled for animation
+				SetEventMask(GetOwner(), EntityEvent.FRAME);
 			}
 		}
 		else
@@ -1081,6 +1093,8 @@ void UpdateAntennaBones(float progress)
 				RemoveAntennaProp();  // Remove props immediately on client too
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = false;
+				// Ensure frame events are enabled for animation
+				SetEventMask(GetOwner(), EntityEvent.FRAME);
 			}
 			else if (m_bAntennaAnimating && m_bAntennaRaising)
 			{

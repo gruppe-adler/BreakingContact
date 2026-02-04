@@ -43,10 +43,6 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 		Show(false, 0.0, EAnimationCurve.LINEAR);
 		Print("GRAD_BC_Transmission: Display hidden by default", LogLevel.NORMAL);
 		
-		// Disable input on the root widget to prevent blocking lobby/map interactions
-		if (m_wRoot)
-			m_wRoot.SetFlags(WidgetFlags.NOFOCUS);
-		
 		Print("GRAD_BC_Transmission: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	

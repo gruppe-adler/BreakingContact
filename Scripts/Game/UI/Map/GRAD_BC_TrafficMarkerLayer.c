@@ -88,10 +88,6 @@ class GRAD_BC_TrafficMarkerLayer : GRAD_MapMarkerLayer
     {
         if (!m_TrafficMarkers || !m_Canvas)
             return;
-        
-        // CRITICAL: Clear commands array before drawing (this was missing!)
-        if (m_Commands)
-            m_Commands.Clear();
             
         // Clean up old markers
         float currentTime = System.GetTickCount() / 1000.0;
@@ -186,10 +182,12 @@ class GRAD_BC_TrafficMarkerLayer : GRAD_MapMarkerLayer
         }
         m_MarkerTextWidgets.Clear();
         
-        // Draw (which clears and fills m_Commands)
+        // Clear draw commands
+        if (m_Commands)
+            m_Commands.Clear();
+        
         Draw();
         
-        // Apply draw commands to canvas
         if (m_Commands && m_Commands.Count() > 0)
         {
             m_Canvas.SetDrawCommands(m_Commands);

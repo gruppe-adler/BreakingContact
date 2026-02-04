@@ -1,18 +1,22 @@
-FrameWidgetClass {
- Name "rootFrame"
+OverlayWidgetClass {
+ Name "GRAD_BC_Gamestate"
+ Clipping False
  {
+  ImageWidgetClass "{6606FC361C0D313C}" {
+   Name "Image0"
+   Slot OverlayWidgetSlot "{6606FC36E15BD1FA}" {
+    HorizontalAlign 3
+    VerticalAlign 0
+   }
+   Clipping False
+   Color 0 0 0 0.5882
+   Size 32 96
+  }
   RichTextWidgetClass "{6606FC350BE2F12E}" {
    Name "GRAD_BC_Gamestate_text"
-   Slot FrameWidgetSlot "{6606FC36E15BD1F6}" {
-    Anchor 0.5 0 0.5 0
-    PositionX -256
-    OffsetLeft -256
-    PositionY 16
-    OffsetTop 16
-    SizeX 512
-    OffsetRight -256
-    SizeY 96
-    OffsetBottom -112
+   Slot OverlayWidgetSlot "{6606FC36E15BD1F6}" {
+    VerticalAlign 0
+    Padding 0 16 0 0
    }
    Text ""
    "Font Size" 56

@@ -580,9 +580,6 @@ void UpdateAntennaBones(float progress)
 			TNodeId boneId = anim.GetBoneIndex(boneName);
 			m_aAntennaBoneIds.Insert(boneId);
 		}
-		
-		// Initialize channel selector bone as well
-		InitializeChannelSelectorBone();
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -906,30 +903,6 @@ void UpdateAntennaBones(float progress)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Apply channel selector rotation with retry mechanism for clients
-	//------------------------------------------------------------------------------------------------
-	void ApplyChannelSelectorRotationWithRetry(bool rotated, int retryCount)
-	{
-		if (!m_radioEntity || m_ChannelSelectorBoneId == -1)
-		{
-			// Bone not initialized yet - retry if we haven't exceeded max retries
-			if (retryCount < 10)
-			{
-				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Bone not initialized yet, retry %1/10", retryCount + 1), LogLevel.NORMAL);
-				GetGame().GetCallqueue().CallLater(ApplyChannelSelectorRotationWithRetry, 300, false, rotated, retryCount + 1);
-				return;
-			}
-			else
-			{
-				Print("BC Debug - CHANNEL_SELECTOR: FAILED - Cannot apply rotation after retries - bone not initialized", LogLevel.WARNING);
-				return;
-			}
-		}
-		
-		ApplyChannelSelectorRotation(rotated);
-	}
-	
-	//------------------------------------------------------------------------------------------------
 	// Apply channel selector rotation
 	//------------------------------------------------------------------------------------------------
 	void ApplyChannelSelectorRotation(bool rotated)
@@ -970,9 +943,7 @@ void UpdateAntennaBones(float progress)
 	void OnChannelSelectorStateReplicated()
 	{
 		Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
-		
-		// On clients, the bone might not be initialized yet - use retry mechanism
-		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
+		ApplyChannelSelectorRotation(m_bChannelSelectorRotated);
 	}
 
 	void SetTransmissionActive(bool setTo) {
@@ -1257,9 +1228,9 @@ void UpdateAntennaBones(float progress)
 		Print(string.Format("BC Debug - JIP: Applying lamp state: %1", m_bLampStateOn), LogLevel.NORMAL);
 		ApplyLampState(m_bLampStateOn);
 		
-		// Apply channel selector rotation for JIP clients (with retry mechanism)
+		// Apply channel selector rotation for JIP clients
 		Print(string.Format("BC Debug - JIP: Applying channel selector rotation: %1", m_bChannelSelectorRotated), LogLevel.NORMAL);
-		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
+		ApplyChannelSelectorRotation(m_bChannelSelectorRotated);
 	}
 
 	//------------------------------------------------------------------------------------------------

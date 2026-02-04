@@ -13,7 +13,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		super.DisplayInit(owner);
 		Print("GRAD_BC_Traffic: DisplayInit called", LogLevel.NORMAL);
 		
-		// Hide to not block input in lobby
+		// hide to not block input in lobby
 		FadeOutIfStill(e_currentTrafficDisplay.NONE);
 	}
 	
@@ -53,10 +53,6 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		// Ensure the display starts hidden
 		Show(false, 0.0, EAnimationCurve.LINEAR);
 		Print("GRAD_BC_Traffic: Display hidden by default", LogLevel.NORMAL);
-		
-		// Disable input on the root widget to prevent blocking lobby/map interactions
-		if (m_wRoot)
-			m_wRoot.SetFlags(WidgetFlags.NOFOCUS);
 		
 		Print("GRAD_BC_Traffic: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
@@ -113,7 +109,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 			{
 				case e_currentTrafficDisplay.GUNFIGHT: {
 					m_currentDisplayCached = e_currentTrafficDisplay.GUNFIGHT;
-				m_infoImage.LoadImageTexture(0, "{36041F3E1CA58B61}UI/Textures/Tasks/TaskIcons/64/Icon_Task_Neutralize.edds");	
+					m_infoImage.LoadImageTexture(0, "{17A6DE75995ABA67}UI/Traffic/civ_gunfight_badge_bca.edds");	
+					markerLabel = "GUNFIGHT";
+					
 					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 					if (playerComponent == null)
 						return;
@@ -129,7 +127,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 
 				case e_currentTrafficDisplay.KILLED: {
 					m_currentDisplayCached = e_currentTrafficDisplay.KILLED;
-				m_infoImage.LoadImageTexture(0, "{1CD3939995A5E6E8}UI/Textures/InventoryIcons/Medical/bleeding_icon_inner_UI.edds");	
+					m_infoImage.LoadImageTexture(0, "{35D18D8D98313BBF}UI/Traffic/civ_killed_badge_bca.edds");	
+					markerLabel = "CIV KILLED";
+					
 					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 					if (playerComponent == null)
 						return;

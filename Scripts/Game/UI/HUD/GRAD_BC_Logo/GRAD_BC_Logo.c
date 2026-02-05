@@ -21,6 +21,7 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 			return;
 		}
 		
+		// Ensure logo starts hidden and doesn't block input
 		HideLogo();
 	}
 	

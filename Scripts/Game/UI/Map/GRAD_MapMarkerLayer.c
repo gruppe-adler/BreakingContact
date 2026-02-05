@@ -109,8 +109,9 @@ class GRAD_MapMarkerLayer: SCR_MapModuleBase
 		m_Commands = new array<ref CanvasWidgetCommand>();
 		
 		m_Widget = GetGame().GetWorkspace().CreateWidgets(m_Layout);
+		m_Widget.SetFlags(WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR);
 
-		m_Canvas = CanvasWidget.Cast(m_Widget.FindAnyWidget("Canvas"));
+		m_Canvas = CanvasWidget.Cast(m_Widget.FindAnyWidget("Canvas"));	
 	}
 	
 	override void OnMapClose(MapConfiguration config)

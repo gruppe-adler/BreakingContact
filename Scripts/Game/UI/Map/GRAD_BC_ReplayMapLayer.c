@@ -17,7 +17,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // We attach it to the workspace. You might want to attach it to m_MapEntity.GetMapWidget() if available.
         if (!m_WidgetsRoot)
         {
-            m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS, Color.White, 0, null);
+            m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, null);
             FrameSlot.SetSize(m_WidgetsRoot, 1, 1); // Fill parent or set specific size logic if needed
             // Ensure it covers the screen for WorldToScreen mapping
             FrameSlot.SetAnchorMin(m_WidgetsRoot, 0, 0);

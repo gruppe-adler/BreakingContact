@@ -118,6 +118,7 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
 
         // Create the widget & canvas from the layout (inherited from GRAD_MapMarkerLayer)
         m_Widget = GetGame().GetWorkspace().CreateWidgets(m_Layout);
+        m_Widget.SetFlags(WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR);
         m_Canvas = CanvasWidget.Cast(m_Widget.FindAnyWidget("Canvas"));
 
         // ─── Lazy Initialization ───────────────────────────────────────────────

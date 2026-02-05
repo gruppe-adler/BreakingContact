@@ -800,10 +800,6 @@ void StartLocalReplayPlayback()
 		Print("GRAD_BC_ReplayManager: Calling GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true)", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
 		Print("GRAD_BC_ReplayManager: CallLater executed successfully", LogLevel.NORMAL);
-		
-		// Show replay controls
-		Print("GRAD_BC_ReplayManager: About to show replay controls", LogLevel.NORMAL);
-		ShowReplayControls();
 		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback COMPLETE =====", LogLevel.NORMAL);
 	}
 	
@@ -1426,10 +1422,6 @@ void StartLocalReplayPlayback()
 		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		// Start playback loop
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
-		
-		// Show replay controls
-		Print("GRAD_BC_ReplayManager: Scheduling UI creation", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(ShowReplayControls, 500, false);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1584,31 +1576,6 @@ void StartLocalReplayPlayback()
 					noMapCounter), LogLevel.WARNING);
 			}
 		}
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void ShowReplayControls()
-	{
-		Print("GRAD_BC_ReplayManager: Showing replay controls", LogLevel.NORMAL);
-		
-		// Replay controls disabled - using only progress bar on map for now
-		// The controls layout has visibility issues, progress bar works fine
-		/*
-		// Create and show replay controls UI
-		WorkspaceWidget workspace = GetGame().GetWorkspace();
-		if (workspace)
-		{
-			Print("GRAD_BC_ReplayManager: Workspace found, creating replay controls", LogLevel.NORMAL);
-			GRAD_BC_ReplayControls replayControls = new GRAD_BC_ReplayControls();
-			replayControls.DisplayInit(null);
-		}
-		else
-		{
-			Print("GRAD_BC_ReplayManager: ERROR - No workspace found! Retrying in 1 second...", LogLevel.ERROR);
-			// Retry after a short delay
-			GetGame().GetCallqueue().CallLater(ShowReplayControls, 1000, false);
-		}
-		*/
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1879,43 +1846,7 @@ void StartLocalReplayPlayback()
 		}
 	}
 	
-	//------------------------------------------------------------------------------------------------
-	// DEBUG: Manual test function to trigger replay UI for testing
-	void DebugStartTestReplay()
-	{
-		Print("GRAD_BC_ReplayManager: === DEBUG TEST REPLAY STARTED ===", LogLevel.NORMAL);
-		
-		// Create minimal test data
-		if (!m_replayData)
-		{
-			m_replayData = GRAD_BC_ReplayData.Create();
-			m_replayData.totalDuration = 60.0; // 1 minute test replay
-			m_replayData.missionName = "Test Replay";
-			m_replayData.mapName = "Test Map";
-			
-			// Create a few test frames
-			for (int i = 0; i < 10; i++)
-			{
-				GRAD_BC_ReplayFrame frame = GRAD_BC_ReplayFrame.Create(i * 6.0); // Every 6 seconds
-				m_replayData.frames.Insert(frame);
-			}
-		}
-		
-		// Force start playback
-		m_bIsPlayingBack = true;
-		m_fPlaybackStartTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-		m_fCurrentPlaybackTime = 0;
-		m_iCurrentFrameIndex = 0;
-		m_bPlaybackPaused = false;
-		
-		Print("GRAD_BC_ReplayManager: Test replay data created, showing controls", LogLevel.NORMAL);
-		ShowReplayControls();
-		
-		// Start the playback update loop
-		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
-		
-		Print("GRAD_BC_ReplayManager: === DEBUG TEST REPLAY INITIALIZATION COMPLETE ===", LogLevel.NORMAL);
-	}
+	
 	
 	//------------------------------------------------------------------------------------------------
 	// Calculate adaptive playback speed to fit replay into max duration

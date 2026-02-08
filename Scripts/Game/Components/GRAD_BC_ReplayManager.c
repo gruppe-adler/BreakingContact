@@ -49,6 +49,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Loading progress tracking
 	protected int m_iTotalChunksToSend = 0;
 	protected int m_iChunksSent = 0;
+
+	// First frame tracking - loading screen stays until first frame renders
+	protected bool m_bFirstFrameDisplayed = false;
 	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_ReplayManager GetInstance()
@@ -348,12 +351,21 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		{
 			// Remove empty frames (frames with no players/markers)
 			CleanupEmptyFrames();
-			
-			GRAD_BC_ReplayFrame lastFrame = m_replayData.frames[m_replayData.frames.Count() - 1];
-			m_replayData.totalDuration = lastFrame.timestamp - m_replayData.startTime;
-			
-			Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds", 
-				m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
+
+			if (m_replayData.frames.Count() > 0)
+			{
+				// Update startTime to first remaining frame to eliminate pre-game time gap
+				// (startTime was set at component init, which can be minutes before GAME phase)
+				GRAD_BC_ReplayFrame firstFrame = m_replayData.frames[0];
+				float oldStartTime = m_replayData.startTime;
+				m_replayData.startTime = firstFrame.timestamp;
+
+				GRAD_BC_ReplayFrame lastFrame = m_replayData.frames[m_replayData.frames.Count() - 1];
+				m_replayData.totalDuration = lastFrame.timestamp - m_replayData.startTime;
+
+				Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %.2f to %.2f)",
+					m_replayData.frames.Count(), m_replayData.totalDuration, oldStartTime, m_replayData.startTime), LogLevel.NORMAL);
+			}
 		}
 	}
 	
@@ -794,22 +806,14 @@ void StartLocalReplayPlayback()
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		m_bPlaybackPaused = false;
+		m_bFirstFrameDisplayed = false;
 
-		// Hide gamestate loading text, then open map and start playback
-		// Delay opening the map so the gamestate loading screen is visible first and not hidden behind it
+		// Delay opening the map so the gamestate loading screen is visible first
 		Print("GRAD_BC_ReplayManager: Scheduling map open and playback start in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(OpenMapAndStartLocalPlayback, 500, false);
-		
-		// Schedule automatic endscreen for local mode
-		// Account for playback speed - if playing at 5x, the replay finishes 5x faster
-		float replayDuration = m_replayData.totalDuration;
-		float effectiveDuration = replayDuration / m_fPlaybackSpeed;
-		float waitTime = (effectiveDuration + 2.0) * 1000;
-		Print(string.Format("GRAD_BC_ReplayManager: LOCAL MODE - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
-		Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
-		
+
+		// NOTE: Endscreen timer is now scheduled in StartActualPlayback() when playback truly begins
+
 		Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
 	}
 	
@@ -850,6 +854,17 @@ void StartLocalReplayPlayback()
 		Print("GRAD_BC_ReplayManager: Calling GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true)", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
 		Print("GRAD_BC_ReplayManager: CallLater executed successfully", LogLevel.NORMAL);
+
+		// Schedule endscreen now that playback has truly started
+		if (m_replayData)
+		{
+			float replayDuration = m_replayData.totalDuration;
+			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
+			float waitTime = (effectiveDuration + 2.0) * 1000;
+			Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
+		}
+
 		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback COMPLETE =====", LogLevel.NORMAL);
 	}
 	
@@ -859,20 +874,13 @@ void StartLocalReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Opening map and starting local playback", LogLevel.NORMAL);
 
-		// Hide gamestate loading text before opening map so it doesn't get hidden behind it
-		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
-		if (gamestateDisplay)
-		{
-			gamestateDisplay.HideText();
-			Print("GRAD_BC_ReplayManager: Hidden gamestate loading text before opening map", LogLevel.NORMAL);
-		}
-
-		// Now open the map
+		// Keep loading text visible - it will be hidden when first frame renders
+		// Open the map
 		OpenMapForLocalPlayback();
 
-		// Start actual playback after a short delay for the map to initialize
-		Print("GRAD_BC_ReplayManager: Scheduling actual playback start in 500ms", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(StartActualPlayback, 500, false);
+		// Wait for map + replay layer to be ready before starting playback
+		Print("GRAD_BC_ReplayManager: Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
+		WaitForReplayMapAndStartPlayback(0);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -899,30 +907,56 @@ void StartLocalReplayPlayback()
 		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
 
-		// Verify map is ready for replay markers
-		GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
+		// Map readiness is now gated by WaitForReplayMapAndStartPlayback() called from the caller
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	void VerifyReplayMapReady()
+	// Polls until map entity + replay layer are ready, then starts playback
+	void WaitForReplayMapAndStartPlayback(int attempt)
 	{
+		int maxAttempts = 50; // 50 * 200ms = 10 seconds max
+
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (!mapEntity)
 		{
-			Print("GRAD_BC_ReplayManager: Map entity not ready yet, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
-			return;
+			if (attempt < maxAttempts)
+			{
+				Print("GRAD_BC_ReplayManager: Map entity not ready yet, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(WaitForReplayMapAndStartPlayback, 200, false, attempt + 1);
+				return;
+			}
+			Print("GRAD_BC_ReplayManager: Map entity not ready after max retries, forcing playback start", LogLevel.ERROR);
 		}
-		
-		GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
-		if (!replayLayer)
+
+		GRAD_BC_ReplayMapLayer replayLayer;
+		if (mapEntity)
+		{
+			replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
+		}
+
+		if (!replayLayer && attempt < maxAttempts)
 		{
 			Print("GRAD_BC_ReplayManager: Replay map layer not found yet, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
+			GetGame().GetCallqueue().CallLater(WaitForReplayMapAndStartPlayback, 200, false, attempt + 1);
 			return;
 		}
-		
-		Print("GRAD_BC_ReplayManager: Map and replay layer verified ready for playback", LogLevel.NORMAL);
+
+		if (!replayLayer)
+		{
+			Print("GRAD_BC_ReplayManager: Replay map layer not ready after max retries, forcing playback start", LogLevel.ERROR);
+		}
+
+		Print(string.Format("GRAD_BC_ReplayManager: Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
+
+		// Set replay mode on the layer BEFORE first frame arrives
+		if (replayLayer)
+		{
+			replayLayer.SetReplayMode(true);
+			Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
+		}
+
+		// Now start actual playback
+		StartActualPlayback();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1390,17 +1424,16 @@ void StartLocalReplayPlayback()
 		CalculateAdaptiveSpeed();
 		Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
 
-		// Hide gamestate loading text and progress bar BEFORE opening the map
-		// so the loading screen is not hidden behind the map
+		// Keep loading text visible - update message. It will be hidden when first frame renders.
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
-			gamestateDisplay.HideText();
-			Print("GRAD_BC_ReplayManager: Hidden gamestate loading text", LogLevel.NORMAL);
+			gamestateDisplay.UpdateText("Starting replay...");
+			Print("GRAD_BC_ReplayManager: Updated loading text to 'Starting replay...'", LogLevel.NORMAL);
 		}
 
-		// Open map and start playback after a short delay for the hide animation to complete
-		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms (after loading screen hides)", LogLevel.NORMAL);
+		// Open map and start playback
+		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
 	}
 	
@@ -1408,7 +1441,7 @@ void StartLocalReplayPlayback()
 	void StartClientReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
-		
+
 		// Open map for replay viewing
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController)
@@ -1448,53 +1481,91 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
 			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		}
-		
-		// Verify world is available before starting playback
-		BaseWorld world = GetGame().GetWorld();
-		if (!world)
+
+		// Wait for map + replay layer to be ready before starting playback
+		Print("GRAD_BC_ReplayManager: CLIENT - Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
+		WaitForReplayMapAndStartClientPlayback(0);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Polls until map entity + replay layer are ready on client, then starts playback
+	void WaitForReplayMapAndStartClientPlayback(int attempt)
+	{
+		int maxAttempts = 50; // 50 * 200ms = 10 seconds max
+
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (!mapEntity)
 		{
-			Print("GRAD_BC_ReplayManager: World not available in StartClientReplayPlayback", LogLevel.ERROR);
+			if (attempt < maxAttempts)
+			{
+				GetGame().GetCallqueue().CallLater(WaitForReplayMapAndStartClientPlayback, 200, false, attempt + 1);
+				return;
+			}
+			Print("GRAD_BC_ReplayManager: CLIENT - Map entity not ready after max retries", LogLevel.ERROR);
+		}
+
+		GRAD_BC_ReplayMapLayer replayLayer;
+		if (mapEntity)
+		{
+			replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
+		}
+
+		if (!replayLayer && attempt < maxAttempts)
+		{
+			GetGame().GetCallqueue().CallLater(WaitForReplayMapAndStartClientPlayback, 200, false, attempt + 1);
 			return;
 		}
-		
-		// Start playback
-		Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
-		m_bIsPlayingBack = true;
-		m_bPlaybackPaused = false;
-		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
-		m_fCurrentPlaybackTime = 0;
-		m_iCurrentFrameIndex = 0;
-		
-		// Disable live markers
-		// Note: SCR_MapEntity must be available before disabling markers
-		/*
-		SCR_MapEntity mapEntity2 = SCR_MapEntity.GetMapInstance();
-		if (mapEntity2)
+
+		Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
+
+		// Set replay mode on both layers
+		if (replayLayer)
 		{
-			GRAD_MapMarkerManager markerMgr = GRAD_MapMarkerManager.Cast(mapEntity2.GetMapModule(GRAD_MapMarkerManager));
+			replayLayer.SetReplayMode(true);
+		}
+
+		if (mapEntity)
+		{
+			GRAD_MapMarkerManager markerMgr = GRAD_MapMarkerManager.Cast(mapEntity.GetMapModule(GRAD_MapMarkerManager));
 			if (markerMgr)
 			{
 				markerMgr.SetReplayMode(true);
-				Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
+				Print("GRAD_BC_ReplayManager: CLIENT - Enabled replay mode on marker manager", LogLevel.NORMAL);
 			}
 		}
-		*/
-		
+
+		// Start playback
+		BaseWorld world = GetGame().GetWorld();
+		if (!world)
+		{
+			Print("GRAD_BC_ReplayManager: CLIENT - World not available", LogLevel.ERROR);
+			return;
+		}
+
+		Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
+		m_bIsPlayingBack = true;
+		m_bPlaybackPaused = false;
+		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
+		m_fCurrentPlaybackTime = 0;
+		m_iCurrentFrameIndex = 0;
+		m_bFirstFrameDisplayed = false;
+
 		// Skip empty frames at start
 		SkipEmptyFrames();
-		
-		// Reset playback start time RIGHT BEFORE starting the loop
-		// This ensures accurate timing regardless of previous delays
+
+		// Reset start time right before loop
 		BaseWorld world2 = GetGame().GetWorld();
 		if (world2)
 		{
 			m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
-			Print(string.Format("GRAD_BC_ReplayManager: Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		}
-		
-		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
-		// Start playback loop
+
+		Print("GRAD_BC_ReplayManager: CLIENT - Starting playback loop", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
+
+		// NOTE: Endscreen is scheduled server-side in StartPlaybackForAllClients.
+		// TriggerEndscreen is server-only so no client-side scheduling needed.
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1622,6 +1693,12 @@ void StartLocalReplayPlayback()
 						frame.players.Count()), LogLevel.NORMAL);
 				}
 				replayLayer.UpdateReplayFrame(frame);
+
+				// Hide loading screen after first frame is successfully sent to map layer
+				if (!m_bFirstFrameDisplayed)
+				{
+					OnFirstFrameDisplayed();
+				}
 			}
 			else
 			{
@@ -1651,6 +1728,21 @@ void StartLocalReplayPlayback()
 		}
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Called when the first replay frame has been successfully rendered on the map layer.
+	// Hides the loading screen since markers are now visible.
+	void OnFirstFrameDisplayed()
+	{
+		m_bFirstFrameDisplayed = true;
+		Print("GRAD_BC_ReplayManager: First replay frame rendered, hiding loading screen", LogLevel.NORMAL);
+
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.HideText();
+		}
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void SetPlaybackSpeed(float speed)
 	{
@@ -2002,36 +2094,21 @@ void StartLocalReplayPlayback()
     {
         GRAD_BC_ReplayFrame frame = m_replayData.frames[i];
 
-        // --- FIX: Check for VISUAL content, not just list count ---
+        // Check for player content — only players with valid positions count as visual content.
+        // Vehicles/projectiles/transmissions alone don't constitute meaningful replay content
+        // since they're supplementary to player markers.
         bool hasVisualContent = false;
 
-        // 1. Check Players 
-        // Players often exist in data before they physically spawn on the map.
-        // We check if their position is non-zero (assuming 0,0,0 is the loading limbo).
         if (frame.players.Count() > 0)
         {
-            // Assuming the type is GRAD_BC_ReplayPlayer based on your naming convention
-            // If the type is different, replace 'GRAD_BC_ReplayPlayer' with the correct class name.
             foreach (GRAD_BC_PlayerSnapshot player : frame.players)
             {
-                // Ensure player has a valid coordinate (Vector Length check)
-                if (player.position.Length() > 0.1) 
+                // Any real map position will have position.Length() in the thousands
+                if (player.position.Length() > 100)
                 {
                     hasVisualContent = true;
-                    break; 
+                    break;
                 }
-            }
-        }
-
-        // 2. Check other entities
-        // If these lists have items, the game is usually active.
-        if (!hasVisualContent)
-        {
-            if (frame.projectiles.Count() > 0 || 
-                frame.transmissions.Count() > 0 || 
-                frame.vehicles.Count() > 0)
-            {
-                hasVisualContent = true;
             }
         }
 

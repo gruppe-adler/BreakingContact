@@ -231,10 +231,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                         break;
                 }
 
-                // Draw center dot for visibility (scales with zoom like other map elements)
+                // Draw center dot at fixed screen size (does not scale with zoom)
                 float screenX, screenY;
                 m_MapEntity.WorldToScreen(transMarker.position[0], transMarker.position[2], screenX, screenY, true);
-                float dotRadius = 8.0 * m_MapEntity.GetCurrentZoom();
+                float dotRadius = 8.0;
                 DrawScreenCircle(screenX, screenY, dotRadius, 0xFF000000, 12);
                 
                 // Draw background ring
@@ -385,13 +385,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			else if (factionKey == "US") key = "BTR_blufor";
 			else if (factionKey == "USSR") key = "BTR_opfor";
 		}
-		else if (pf.Contains("S1203"))
+		else if (pf.Contains("s1203"))
 		{
 			if (isEmpty) key = "S1203_empty";
 			else if (factionKey == "US") key = "S1203_blufor";
 			else if (factionKey == "USSR") key = "S1203_opfor";
 		}
-		else if (pf.Contains("S105"))
+		else if (pf.Contains("s105"))
 		{
 			if (isEmpty) key = "S105_empty";
 			else if (factionKey == "US") key = "S105_blufor";

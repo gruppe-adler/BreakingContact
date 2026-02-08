@@ -29,6 +29,7 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	// ------------------------------------------------------------------------------------------------
 	// MEMBERS
 	// ------------------------------------------------------------------------------------------------
+	protected ref array<ResourceName> m_aResolvedVehiclePrefabs;
 	protected int m_iSpawnedCount = 0;
 	protected int m_iTotalAttempts = 0;
 	protected bool m_bBuildingFound = false; // Helper for query callback
@@ -48,11 +49,141 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	}
 	
 	// ------------------------------------------------------------------------------------------------
+	// VEHICLE RESOLUTION (priority: mission header override > faction catalog > hardcoded defaults)
+	// ------------------------------------------------------------------------------------------------
+	protected void ResolveVehiclePrefabs()
+	{
+		m_aResolvedVehiclePrefabs = new array<ResourceName>();
+
+		// Priority 1: Mission header override
+		if (TryGetMissionHeaderOverrides())
+		{
+			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from mission header override.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			return;
+		}
+
+		// Priority 2: Auto-detect from civilian faction catalog
+		if (TryGetFactionCatalogVehicles())
+		{
+			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from civilian faction catalog.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			return;
+		}
+
+		// Priority 3: Hardcoded defaults from attribute
+		if (m_aVehiclePrefabs && !m_aVehiclePrefabs.IsEmpty())
+		{
+			foreach (ResourceName rn : m_aVehiclePrefabs)
+			{
+				m_aResolvedVehiclePrefabs.Insert(rn);
+			}
+			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 hardcoded default vehicle prefabs.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			return;
+		}
+
+		Print("GRAD_BC_AmbientVehicleManager: No vehicle prefabs available from any source!", LogLevel.ERROR);
+	}
+
+	// ------------------------------------------------------------------------------------------------
+	protected bool TryGetMissionHeaderOverrides()
+	{
+		MissionHeader header = GetGame().GetMissionHeader();
+		if (!header)
+			return false;
+
+		GRAD_BC_MissionHeader bcHeader = GRAD_BC_MissionHeader.Cast(header);
+		if (!bcHeader)
+			return false;
+
+		if (!bcHeader.HasTrafficVehicleOverrides())
+			return false;
+
+		bcHeader.GetTrafficVehicleOverrides(m_aResolvedVehiclePrefabs);
+		return !m_aResolvedVehiclePrefabs.IsEmpty();
+	}
+
+	// ------------------------------------------------------------------------------------------------
+	protected bool TryGetFactionCatalogVehicles()
+	{
+		// Determine civilian faction key
+		string civFactionKey = "CIV";
+
+		MissionHeader header = GetGame().GetMissionHeader();
+		if (header)
+		{
+			GRAD_BC_MissionHeader bcHeader = GRAD_BC_MissionHeader.Cast(header);
+			if (bcHeader)
+				civFactionKey = bcHeader.GetCivilianFactionKey();
+		}
+
+		// Get faction manager
+		FactionManager factionMgr = GetGame().GetFactionManager();
+		if (!factionMgr)
+		{
+			Print("GRAD_BC_AmbientVehicleManager: No FactionManager found.", LogLevel.WARNING);
+			return false;
+		}
+
+		// Get civilian faction
+		SCR_Faction civFaction = SCR_Faction.Cast(factionMgr.GetFactionByKey(civFactionKey));
+		if (!civFaction)
+		{
+			Print(string.Format("GRAD_BC_AmbientVehicleManager: Faction '%1' not found.", civFactionKey), LogLevel.WARNING);
+			return false;
+		}
+
+		// Get vehicle entity catalog
+		SCR_EntityCatalog catalog = civFaction.GetFactionEntityCatalogOfType(EEntityCatalogType.VEHICLE);
+		if (!catalog)
+		{
+			Print(string.Format("GRAD_BC_AmbientVehicleManager: No vehicle catalog found for faction '%1'.", civFactionKey), LogLevel.WARNING);
+			return false;
+		}
+
+		// Extract enabled entries
+		array<SCR_EntityCatalogEntry> entries = {};
+		catalog.GetEntityList(entries);
+
+		foreach (SCR_EntityCatalogEntry entry : entries)
+		{
+			if (!entry.IsEnabled())
+				continue;
+
+			ResourceName prefab = entry.GetPrefab();
+			if (prefab.IsEmpty())
+				continue;
+
+			// Skip air assets - only spawn land vehicles
+			string prefabStr = prefab;
+			prefabStr.ToLower();
+			if (prefabStr.Contains("helicopter") || prefabStr.Contains("plane") || prefabStr.Contains("aircraft") || prefabStr.Contains("/air/"))
+			{
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Skipping air asset from catalog: %1", prefab), LogLevel.NORMAL);
+				continue;
+			}
+
+			Resource res = Resource.Load(prefab);
+			if (!res || !res.IsValid())
+			{
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Skipping invalid prefab from catalog: %1", prefab), LogLevel.WARNING);
+				continue;
+			}
+
+			m_aResolvedVehiclePrefabs.Insert(prefab);
+		}
+
+		return !m_aResolvedVehiclePrefabs.IsEmpty();
+	}
+
+	// ------------------------------------------------------------------------------------------------
 	protected void SpawnAmbientVehicles()
 	{
-		if (!m_aVehiclePrefabs || m_aVehiclePrefabs.IsEmpty())
+		// Resolve vehicle prefabs on first call
+		if (!m_aResolvedVehiclePrefabs)
+			ResolveVehiclePrefabs();
+
+		if (!m_aResolvedVehiclePrefabs || m_aResolvedVehiclePrefabs.IsEmpty())
 		{
-			Print("GRAD_BC_AmbientVehicleManager: No vehicle prefabs defined!", LogLevel.WARNING);
+			Print("GRAD_BC_AmbientVehicleManager: No vehicle prefabs available!", LogLevel.WARNING);
 			return;
 		}
 		
@@ -132,8 +263,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	// ------------------------------------------------------------------------------------------------
 	protected void SpawnVehicle(vector pos, vector roadDir)
 	{
-		// Pick random prefab
-		ResourceName prefab = m_aVehiclePrefabs.GetRandomElement();
+		// Pick random prefab from resolved list
+		ResourceName prefab = m_aResolvedVehiclePrefabs.GetRandomElement();
 		
 		EntitySpawnParams params = new EntitySpawnParams();
 		params.TransformMode = ETransformMode.WORLD;

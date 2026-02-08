@@ -21,17 +21,6 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     DeactivatePhysicsOnAtaching 1
    }
   }
-  BaseSlotComponent "{684D3E0A159D78C6}" {
-   AttachType EntitySlotInfo wheelcover2 {
-    PivotID "v_wheel_L01_rotator"
-    Offset -0.4 0 0
-    Angles 90 90 0
-    MergePhysics 1
-    Prefab "{1E9C77D99D7F8A15}Prefabs/Structures/Military/Camps/AirfieldMatting_01/AirfieldMatting_US_01_short.et"
-    DisablePhysicsInteraction 1
-    DeactivatePhysicsOnAtaching 1
-   }
-  }
   BaseSlotComponent "{684D3E0A49C867DA}" {
    AttachType EntitySlotInfo wheelcover2 {
     PivotID "Scene_Root"
@@ -59,17 +48,6 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     Angles 0 90 90
     Prefab "{413B033B8B2EBA9F}Prefabs/Structures/BuildingParts/Doors/Door_TinWall_01_Small_LEFT_EXT_COV_B.et"
     DisablePhysicsInteraction 1
-   }
-  }
-  BaseSlotComponent "{684D3E0D4DEBDAD7}" {
-   AttachType EntitySlotInfo wheelcover_1 {
-    PivotID "v_wheel_L01_rotator"
-    Offset -0.4 0.5 0
-    Angles 90 90 0
-    MergePhysics 1
-    Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
-    DisablePhysicsInteraction 1
-    DeactivatePhysicsOnAtaching 1
    }
   }
   BaseSlotComponent "{684D3E0E47E3750E}" {
@@ -103,7 +81,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
    AttachType EntitySlotInfo backoftruck3 {
     PivotID "Scene_Root"
     Offset -1.5 0.5 -4
-    Prefab "{703FE974C4A6572C}Prefabs/Structures/BuildingParts/Doors/Door_WoodenWall_02_LEFT_EXT_COV_B.et"
+    Prefab "{835879314FC5533F}Prefabs/Structures/BuildingParts/Doors/TruckArmorDoorBack.et"
     DisablePhysicsInteraction 1
    }
   }
@@ -125,19 +103,33 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     }
     EntitySlotInfo wheelcover_right_1 {
      PivotID "v_wheel_R01_rotator"
-     Offset 0.7 0.5 0.25
+     Offset 0.45 0.5 0.25
      Angles 90 90 0
-     MergePhysics 1
      Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
      DisablePhysicsInteraction 1
      DeactivatePhysicsOnAtaching 1
     }
     EntitySlotInfo wheelcover_right_2 {
      PivotID "v_wheel_R01_rotator"
-     Offset 0.7 0 0.25
+     Offset 0.45 0 0.25
      Angles 92.90007 90 0
-     MergePhysics 1
      Prefab "{DBC50A9B639F46E2}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_US_01_short.et"
+     DisablePhysicsInteraction 1
+     DeactivatePhysicsOnAtaching 1
+    }
+    EntitySlotInfo wheelcover_left_1 {
+     PivotID "v_wheel_L01_rotator"
+     Offset -0.35 0.5 0.25
+     Angles 92.90007 90 0
+     Prefab "{DBC50A9B639F46E2}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_US_01_short.et"
+     DisablePhysicsInteraction 1
+     DeactivatePhysicsOnAtaching 1
+    }
+    EntitySlotInfo wheelcover_left_2 {
+     PivotID "v_wheel_L01_rotator"
+     Offset -0.35 0 0.25
+     Angles 92.90007 90 0
+     Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
      DisablePhysicsInteraction 1
      DeactivatePhysicsOnAtaching 1
     }

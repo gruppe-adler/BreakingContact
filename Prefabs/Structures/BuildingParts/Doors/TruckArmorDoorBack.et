@@ -1,0 +1,68 @@
+GenericEntity : "{F1793FE006FDF888}Prefabs/Structures/BuildingParts/Doors/Door_Base.et" {
+ ID "627CE52CCB2692FE"
+ components {
+  DoorComponent "{221C667A9F7D4B69}" {
+   DoorAction SCR_DoorUserAction "{50888D3646A61640}" {
+    ParentContextList {
+     ""
+    }
+   }
+   SoundFilename "{ADA3FF564F687A49}Sounds/Structures/_ShaderData/Doors/Structures_Door_Wooden_Large_NoHandle.acp"
+   SoundPoints {
+    SoundPointEventInfo "{6890F7956D1B196E}" {
+     Offset 1.8567 1.4153 0
+    }
+    SoundPointEventInfo "{6890F7956D1B0922}" {
+     Offset 1.8567 1.4153 0
+     Event SOUND_OPEN_FINISH
+    }
+    SoundPointEventInfo "{6890F7956D1B092F}" {
+     Offset 1.8567 1.4153 0
+     Event SOUND_CLOSE_START
+    }
+    SoundPointEventInfo "{6890F7956D1B092C}" {
+     Offset 1.8567 1.4153 0
+     Event SOUND_CLOSE_FINISH
+    }
+    SoundPointEventInfo "{6890F7956D1B092D}" {
+     Offset 0 1.0885 0
+     Event SOUND_MOVEMENT
+    }
+   }
+   AngleRange -90
+   TestContacts 1
+   TestCollider "UBX_Door_WoodenWall_02_RIGHT_EXT_COV_B.001"
+  }
+  MeshObject "{309366462BDAFB24}" {
+   Object "{8B5EA930AAB3C065}Assets/Structures/BuildingsParts/Doors/Door_WoodenWall_02/Door_WoodenWall_02_LEFT_EXT_COV_B.xob"
+  }
+  RigidBody "{309366462BDAFB2D}" {
+   ResponseIndex "HugeDestructible"
+  }
+  SCR_AISmartActionComponent "{5890ED6117CBB20D}" {
+   Tags {
+   }
+  }
+  SCR_DestructionMultiPhaseComponent "{5534CAAEEB088884}" : "{76DA308CC9E2AB84}Prefabs/Props/Core/DestructionMultiPhase_Base.ct" {
+   Enabled 1
+   m_fBaseHealth 800
+   m_fDamageThresholdMaximum 30000
+   m_DestroySpawnObjects {
+    SCR_DebrisSpawnable "{6890F7956D1B0918}" {
+     m_ModelPrefabs {
+      "{FAEBA9D544F30275}Assets/Structures/Walls/Wooden/Dst/WoodenWall_02/WoodenWall_02_2m_DST_01.xob" "{13388295CB306656}Assets/Structures/Walls/Wooden/Dst/WoodenWall_02/WoodenWall_02_2m_DST_04.xob" "{FD2C53842275B8B6}Assets/Structures/Walls/Wooden/Dst/WoodenWall_02/WoodenWall_02_2m_DST_06.xob" "{8A263B0CD6D757C6}Assets/Structures/Walls/Wooden/Dst/WoodenWall_02/WoodenWall_02_2m_DST_07.xob" "{F2A3A726EF78CD30}Assets/Structures/Walls/Wooden/Dst/WoodenWall_02/WoodenWall_02_2m_DST_08.xob"
+     }
+     m_fMass 5
+     m_fDamageToImpulse 1
+     m_fRandomVelocityLinear 1
+     m_eMaterialSoundType WOOD_PLANK_SMALL
+    }
+    SCR_ParticleSpawnable "{6890F7956D1B0904}" {
+     m_Particle "{CEE298DA573A1161}Particles/Props/Dest_WoodenWall.ptc"
+     m_bDirectional 0
+    }
+   }
+   m_eMaterialSoundType BREAK_WOOD_SOLID
+  }
+ }
+}

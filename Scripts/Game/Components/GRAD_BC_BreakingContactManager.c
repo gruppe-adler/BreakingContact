@@ -105,7 +105,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	protected ref array<float> m_aDisabledTransmissionTimes = {};
 	
 	protected PlayerManager m_PlayerManager;
-	
+
+	// Group naming
+	protected static const ref array<string> GROUP_NATO_NAMES = {"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel"};
+	protected ref map<string, int> m_mGroupNameCounters = new map<string, int>();
+
 	// Endscreen text storage - replicated to clients
 	[RplProp()]
 	protected string m_sLastEndscreenTitle;
@@ -1543,56 +1547,6 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		Print(string.Format("BCM - No road found near %1 (Max Radius: 200m), using original position", position.ToString()), LogLevel.WARNING);
 		return position; // Use player-selected position as absolute fallback
 	}
-	
-	// Method to find the second closest road position for e.g. road direction
-	protected vector FindNextSpawnPointOnRoad(vector position, vector excludePos = vector.Zero, float minDistanceFromExclude = 0)
-	{
-	    array<vector> roadPoints = GetNearestRoadPos(position,100);
-	    if (roadPoints.IsEmpty())
-	        return position; // no road points at all
-
-	    // Track best and runner-up
-	    float   bestDist    = float.MAX;
-	    float   secondDist  = float.MAX;
-	    vector  bestPos     = position;
-	    vector  secondPos   = position;
-
-	    foreach (vector roadPoint : roadPoints)
-	    {
-	        float d = vector.Distance(position, roadPoint);
-			
-			// Skip road points too close to exclusion position (e.g., OPFOR spawn)
-			if (excludePos != vector.Zero && minDistanceFromExclude > 0)
-			{
-				float distToExclude = vector.Distance(roadPoint, excludePos);
-				if (distToExclude < minDistanceFromExclude)
-					continue;
-			}
-	        if (d < bestDist)
-	        {
-	            // shift best → second, then update best
-	            secondDist = bestDist;
-	            secondPos  = bestPos;
-	
-	            bestDist   = d;
-	            bestPos    = roadPoint;
-	        }
-	        else if (d < secondDist)
-	        {
-	            // it's worse than best but better than current second
-	            secondDist = d;
-	            secondPos  = roadPoint;
-	        }
-	    }
-	
-	    // If we never found a true second, fall back to the nearest
-	    if (secondDist < float.MAX)
-	        return secondPos;
-	    else
-	        return bestPos;
-	}
-
-	
 	// Method to get road points using RoadNetworkManager
 	protected array<vector> GetNearestRoadPos(vector center, int searchRadius)
 	{
@@ -1630,7 +1584,72 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// in case we dont find return null
 		return null;
 	}
-	
+
+	// Find the closest point on a road and the road's heading direction at that point
+	// Uses consecutive ordered road points for accurate direction (not second-closest point)
+	protected bool GetRoadPointAndDir(vector targetPos, float searchRadius, out vector outPos, out vector outDir)
+	{
+		SCR_AIWorld aiWorld = SCR_AIWorld.Cast(GetGame().GetAIWorld());
+		if (!aiWorld)
+			return false;
+
+		RoadNetworkManager roadMgr = aiWorld.GetRoadNetworkManager();
+		if (!roadMgr)
+			return false;
+
+		vector aabbMin = targetPos - Vector(searchRadius, searchRadius, searchRadius);
+		vector aabbMax = targetPos + Vector(searchRadius, searchRadius, searchRadius);
+
+		array<BaseRoad> roads = {};
+		int roadCount = roadMgr.GetRoadsInAABB(aabbMin, aabbMax, roads);
+
+		if (roadCount <= 0 || roads.IsEmpty())
+			return false;
+
+		// Search all roads to find the globally closest point
+		float globalClosestDist = float.MAX;
+		int globalClosestIdx = 0;
+		array<vector> globalClosestPoints;
+
+		foreach (BaseRoad road : roads)
+		{
+			array<vector> points = {};
+			road.GetPoints(points);
+
+			if (points.Count() < 2)
+				continue;
+
+			for (int i = 0; i < points.Count(); i++)
+			{
+				float d = vector.DistanceSq(targetPos, points[i]);
+				if (d < globalClosestDist)
+				{
+					globalClosestDist = d;
+					globalClosestIdx = i;
+					globalClosestPoints = points;
+				}
+			}
+		}
+
+		if (!globalClosestPoints || globalClosestPoints.Count() < 2)
+			return false;
+
+		outPos = globalClosestPoints[globalClosestIdx];
+
+		// Direction from consecutive road points: look forward, or backward at end
+		if (globalClosestIdx < globalClosestPoints.Count() - 1)
+			outDir = vector.Direction(globalClosestPoints[globalClosestIdx], globalClosestPoints[globalClosestIdx + 1]);
+		else
+			outDir = vector.Direction(globalClosestPoints[globalClosestIdx - 1], globalClosestPoints[globalClosestIdx]);
+
+		outDir.Normalize();
+
+		Print(string.Format("BCM - GetRoadPointAndDir: pos=%1, dir=%2 (idx %3/%4)",
+			outPos.ToString(), outDir.ToString(), globalClosestIdx, globalClosestPoints.Count()), LogLevel.VERBOSE);
+
+		return true;
+	}
+
 	//------------------------------------------------------------------------------------------------
 	array<GRAD_BC_TransmissionComponent> GetTransmissionPoints()
 	{
@@ -1785,42 +1804,24 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        // Get initial point on circle
 	        vector candidatePos = GetPointOnCircle(opforPosition, randomDistance, degrees);
 	        
-	        // Single road search with 500m radius instead of progressive expansion
-	        array<vector> roadPositions = GetNearestRoadPos(candidatePos, 500);
-	        
-	        // Skip this iteration if no roads found
-	        if (!roadPositions || roadPositions.IsEmpty())
+	        // Find road position + direction using consecutive road points
+	        vector roadDir;
+	        if (!GetRoadPointAndDir(candidatePos, 500, roadPosition, roadDir))
 	            continue;
-	        
-	        // Find the closest road position to the candidate position (optimized single pass)
-	        float closestDist = vector.Distance(candidatePos, roadPositions[0]);
-	        vector closestRoadPos = roadPositions[0];
-	        
-	        for (int i = 1, count = roadPositions.Count(); i < count; i++) {
-	            float dist = vector.Distance(candidatePos, roadPositions[i]);
-	            if (dist < closestDist) {
-	                closestDist = dist;
-	                closestRoadPos = roadPositions[i];
-	            }
-	        }
-	        
-	        roadPosition = closestRoadPos;
-	        
+
 	        // Quick checks first (cheaper operations)
 	        float distanceToOpfor = vector.Distance(roadPosition, opforPosition);
-	        
+
 	        // Ensure we respect the minimum distance
 	        if (distanceToOpfor < minDistance)
 	            continue;
-	        
+
 	        // Water check (more expensive)
 	        if (SurfaceIsWater(roadPosition))
 	            continue;
-	        
-	        // Get direction point for vehicle orientation (exclude nearby OPFOR roads)
-	        vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition, opforPosition, minDistance * 0.8);
+
 	        vector finalSpawnPos = roadPosition;
-	        
+
 	        // Basic collision check using trace
 	        bool hasCollision = false;
 	        if (GetGame().GetWorld())
@@ -1830,22 +1831,20 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	            trace.End = finalSpawnPos + Vector(0, -2, 0);
 	            trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
 	            trace.LayerMask = EPhysicsLayerPresets.Projectile;
-	            
+
 	            float traceResult = GetGame().GetWorld().TraceMove(trace, null);
 	            hasCollision = (traceResult < 0.95);
 	        }
-	        
+
 	        if (!hasCollision)
 	        {
-	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m", 
+	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m",
 	                loopCount, distanceToOpfor), LogLevel.NORMAL);
-	            
-	            vector direction = vector.Direction(roadPosition, roadPosition2);
-	            
+
 	            array<vector> output = new array<vector>();
 	            output.Insert(finalSpawnPos);
-	            output.Insert(direction);
-	            
+	            output.Insert(roadDir);
+
 	            return output;
 	        }
 	    }
@@ -2031,47 +2030,57 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	protected array<vector> GetSpawnPos(vector spawnPos)
 	{
-		vector roadPosition = FindSpawnPointOnRoad(spawnPos);
-		
-		// NEVER return empty array - always provide a valid spawn position
-		// FindSpawnPointOnRoad now returns original position if no road found
+		// Progressive search for road position + direction using consecutive road points
+		vector roadPosition;
+		vector direction;
+		bool foundRoad = false;
+
+		array<int> searchRadii = {20, 50, 100, 200};
+		foreach (int radius : searchRadii)
+		{
+			if (GetRoadPointAndDir(spawnPos, radius, roadPosition, direction))
+			{
+				foundRoad = true;
+				break;
+			}
+		}
+
+		if (!foundRoad)
+		{
+			Print(string.Format("BCM - WARNING: No road found near %1, using original position with default direction", spawnPos.ToString()), LogLevel.WARNING);
+			roadPosition = spawnPos;
+			direction = Vector(1, 0, 0);
+		}
+
 		if (roadPosition == vector.Zero)
 		{
 			Print(string.Format("BCM - WARNING: roadPosition is vector.Zero, using original spawn position %1 as fallback", spawnPos.ToString()), LogLevel.ERROR);
-			roadPosition = spawnPos; // Ultimate fallback to player-selected position
+			roadPosition = spawnPos;
 		}
-		
-		// Get next road point for direction (no exclusion needed for OPFOR)
-		vector roadPosition2 = FindNextSpawnPointOnRoad(roadPosition);
-		vector direction = vector.Direction(roadPosition, roadPosition2);
-		
-		// Use the validated road position directly, not midpoint
-		vector finalPosition = roadPosition;
-		
+
 		// Basic collision check
 		bool hasCollision = false;
 		if (GetGame().GetWorld())
 		{
 			autoptr TraceParam trace = new TraceParam();
-			trace.Start = finalPosition + Vector(0, 5, 0); // Start 5m above ground
-			trace.End = finalPosition + Vector(0, -2, 0);   // End 2m below ground
+			trace.Start = roadPosition + Vector(0, 5, 0);
+			trace.End = roadPosition + Vector(0, -2, 0);
 			trace.Flags = TraceFlags.ENTS | TraceFlags.WORLD;
 			trace.LayerMask = EPhysicsLayerPresets.Projectile;
-			
+
 			float traceResult = GetGame().GetWorld().TraceMove(trace, null);
 			if (traceResult < 0.95)
 			{
 				hasCollision = true;
 				Print(string.Format("BCM - OPFOR position has collision (trace: %1), using anyway as fallback", traceResult), LogLevel.WARNING);
-				// For OPFOR, we still use it but log the warning
 			}
 		}
-		
+
 		array<vector> output = new array<vector>();
-		output.Insert(finalPosition);
+		output.Insert(roadPosition);
 		output.Insert(direction);
-		
-		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", finalPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
+
+		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", roadPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
 		return output;
 	}
 
@@ -2193,9 +2202,89 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	protected void OnPlayableGroupCreated(SCR_AIGroup group)
+	{
+		if (!group)
+			return;
+
+		Faction faction = group.GetFaction();
+		if (!faction)
+			return;
+
+		string factionKey = faction.GetFactionKey();
+
+		if (!m_mGroupNameCounters.Contains(factionKey))
+			m_mGroupNameCounters.Set(factionKey, 0);
+
+		int idx = m_mGroupNameCounters.Get(factionKey);
+
+		// Check if this group contains a commander character
+		bool isCommandGroup = false;
+		array<AIAgent> agents = {};
+		group.GetAgents(agents);
+		foreach (AIAgent agent : agents)
+		{
+			IEntity controlledEntity = agent.GetControlledEntity();
+			if (!controlledEntity)
+				continue;
+
+			GRAD_CharacterRoleComponent roleComp = GRAD_CharacterRoleComponent.Cast(controlledEntity.FindComponent(GRAD_CharacterRoleComponent));
+			if (roleComp && roleComp.GetCharacterRole().Contains("Commander"))
+			{
+				isCommandGroup = true;
+				break;
+			}
+		}
+
+		string groupName;
+		if (isCommandGroup)
+		{
+			groupName = "Command";
+		}
+		else
+		{
+			if (idx < GROUP_NATO_NAMES.Count())
+			{
+				groupName = GROUP_NATO_NAMES[idx];
+			}
+			else
+			{
+				groupName = string.Format("Squad %1", idx + 1);
+			}
+			m_mGroupNameCounters.Set(factionKey, idx + 1);
+		}
+
+		// Reassign callsign so main title in deploy menu uses the name
+		SCR_CallsignGroupComponent callsignComp = SCR_CallsignGroupComponent.Cast(group.FindComponent(SCR_CallsignGroupComponent));
+		if (callsignComp)
+			callsignComp.ReAssignGroupCallsign(idx, 0, 0);
+
+		// Set custom description (prominent display in deploy menu)
+		group.SetCustomDescription(groupName, 0);
+
+		// Set custom name (subtitle in deploy menu)
+		group.SetCustomName(groupName, 0);
+
+		Print(string.Format("BC Debug - Named %1 group: %2 (command: %3)", factionKey, groupName, isCommandGroup), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		SetEventMask(owner, EntityEvent.INIT);
+
+		if (Replication.IsServer())
+		{
+			SCR_GroupsManagerComponent groupsManager = SCR_GroupsManagerComponent.GetInstance();
+			if (groupsManager)
+			{
+				groupsManager.GetOnPlayableGroupCreated().Insert(OnPlayableGroupCreated);
+			}
+			else
+			{
+				Print("BC Debug - SCR_GroupsManagerComponent not found, group naming disabled", LogLevel.WARNING);
+			}
+		}
 	}
 }
 

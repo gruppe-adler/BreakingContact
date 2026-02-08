@@ -49,9 +49,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Loading progress tracking
 	protected int m_iTotalChunksToSend = 0;
 	protected int m_iChunksSent = 0;
-	protected Widget m_LoadingWidget;
-	protected ProgressBarWidget m_LoadingBar;
-	protected TextWidget m_LoadingText;
 	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_ReplayManager GetInstance()
@@ -766,11 +763,21 @@ void StartLocalReplayPlayback()
 		
 		// Calculate adaptive playback speed to fit within 2 minutes
 		CalculateAdaptiveSpeed();
-		
-		// Open debriefing screen with global VoN (cross-faction voice)
-		Print("GRAD_BC_ReplayManager: Scheduling debriefing screen open in 100ms", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(OpenMapForLocalPlayback, 100, false);
-		
+
+		// Show loading text in gamestate HUD first (map opens later after loading is done)
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.ShowPersistentText("Preparing replay...");
+			Print("GRAD_BC_ReplayManager: Showing replay preparation text in gamestate HUD", LogLevel.NORMAL);
+		}
+
+		// Set up VoN for cross-faction voice
+		if (Replication.IsServer())
+		{
+			SetAllPlayersToGlobalVoN();
+		}
+
 		// Initialize playback state
 		BaseWorld world = GetGame().GetWorld();
 		if (world)
@@ -783,14 +790,15 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: WARNING - World not available yet, will initialize timing later", LogLevel.WARNING);
 			m_fPlaybackStartTime = 0;
 		}
-		
+
 		m_fCurrentPlaybackTime = 0;
 		m_iCurrentFrameIndex = 0;
 		m_bPlaybackPaused = false;
-		
-		// Start playback after map opens
-		Print("GRAD_BC_ReplayManager: Scheduling actual playback start in 800ms", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(StartActualPlayback, 800, false); // Reduced from 2000ms to 800ms
+
+		// Hide gamestate loading text, then open map and start playback
+		// Delay opening the map so the gamestate loading screen is visible first and not hidden behind it
+		Print("GRAD_BC_ReplayManager: Scheduling map open and playback start in 500ms", LogLevel.NORMAL);
+		GetGame().GetCallqueue().CallLater(OpenMapAndStartLocalPlayback, 500, false);
 		
 		// Schedule automatic endscreen for local mode
 		// Account for playback speed - if playing at 5x, the replay finishes 5x faster
@@ -846,13 +854,35 @@ void StartLocalReplayPlayback()
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Called after loading completes in local/singleplayer mode to open map and start playback
+	void OpenMapAndStartLocalPlayback()
+	{
+		Print("GRAD_BC_ReplayManager: Opening map and starting local playback", LogLevel.NORMAL);
+
+		// Hide gamestate loading text before opening map so it doesn't get hidden behind it
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.HideText();
+			Print("GRAD_BC_ReplayManager: Hidden gamestate loading text before opening map", LogLevel.NORMAL);
+		}
+
+		// Now open the map
+		OpenMapForLocalPlayback();
+
+		// Start actual playback after a short delay for the map to initialize
+		Print("GRAD_BC_ReplayManager: Scheduling actual playback start in 500ms", LogLevel.NORMAL);
+		GetGame().GetCallqueue().CallLater(StartActualPlayback, 500, false);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void OpenMapForLocalPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
-		
+
 		// Clear all live markers before starting replay
 		Print("GRAD_BC_ReplayManager: Clearing live transmission and player markers", LogLevel.NORMAL);
-		
+
 		// Clear live transmission markers
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity)
@@ -863,27 +893,12 @@ void StartLocalReplayPlayback()
 				markerMgr.SetReplayMode(true);
 				Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
 			}
-			
-			// Note: GRAD_IconMarkerUI is per-player component, not a map module
-			// Player icon markers will be hidden when players are removed/hidden for replay
 		}
-		
-		// Trigger server-side VoN setup via RPC
-		if (Replication.IsServer())
-		{
-			Print("GRAD_BC_ReplayManager: Server detected, setting up VoN directly", LogLevel.NORMAL);
-			SetAllPlayersToGlobalVoN();
-		}
-		else
-		{
-			Print("GRAD_BC_ReplayManager: Client detected, requesting server to setup VoN", LogLevel.NORMAL);
-			Rpc(RpcAsk_SetupReplayVoN);
-		}
-		
+
 		// Open map fullscreen for replay visualization
 		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
-		
+
 		// Verify map is ready for replay markers
 		GetGame().GetCallqueue().CallLater(VerifyReplayMapReady, 200, false);
 	}
@@ -1097,9 +1112,15 @@ void StartLocalReplayPlayback()
 		m_replayData.mapName = mapName;
 		m_replayData.startTime = startTime;
 		
-		// Show loading UI
-		ShowLoadingUI();
-		
+		// Show loading progress in gamestate HUD
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.ShowPersistentText("Replay loading... 0%");
+			gamestateDisplay.UpdateProgress(0);
+			Print("GRAD_BC_ReplayManager: Showed persistent loading text in gamestate HUD", LogLevel.NORMAL);
+		}
+
 		Print(string.Format("GRAD_BC_ReplayManager: Client replay data initialized - Duration: %1", totalDuration), LogLevel.NORMAL);
 	}
 	
@@ -1326,8 +1347,11 @@ void StartLocalReplayPlayback()
 	{
 		if (Replication.IsServer())
 			return;
-			
-		UpdateLoadingProgress(progress);
+
+		// Update gamestate HUD with loading progress
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+			gamestateDisplay.UpdateProgress(progress);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1348,11 +1372,8 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		// Hide loading UI
-		HideLoadingUI();
-			
 		Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
-		
+
 		// Enable replay mode immediately for map layer
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity)
@@ -1364,13 +1385,22 @@ void StartLocalReplayPlayback()
 				Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
 			}
 		}
-		
+
 		// Calculate adaptive playback speed
 		CalculateAdaptiveSpeed();
 		Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
-		
-		// Open map and start playback
-		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
+
+		// Hide gamestate loading text and progress bar BEFORE opening the map
+		// so the loading screen is not hidden behind the map
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+		{
+			gamestateDisplay.HideText();
+			Print("GRAD_BC_ReplayManager: Hidden gamestate loading text", LogLevel.NORMAL);
+		}
+
+		// Open map and start playback after a short delay for the hide animation to complete
+		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms (after loading screen hides)", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
 	}
 	
@@ -1379,44 +1409,45 @@ void StartLocalReplayPlayback()
 	{
 		Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
 		
-		// Open map for replay viewing using gadget manager approach
+		// Open map for replay viewing
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 		if (!playerController)
 		{
 			Print("GRAD_BC_ReplayManager: No player controller found", LogLevel.ERROR);
 			return;
 		}
-		
-		Print("GRAD_BC_ReplayManager: Player controller found, getting character", LogLevel.NORMAL);
-		
+
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (!ch)
+		if (ch)
 		{
-			Print("GRAD_BC_ReplayManager: No controlled character found", LogLevel.ERROR);
-			return;
+			// Player has a controlled entity - try gadget manager to open map
+			Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
+			bool mapOpened = false;
+
+			SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
+			if (gadgetManager)
+			{
+				IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+				if (mapGadget)
+				{
+					gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND, true);
+					mapOpened = true;
+					Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
+				}
+			}
+
+			if (!mapOpened)
+			{
+				Print("GRAD_BC_ReplayManager: Gadget manager fallback, opening map via menu manager", LogLevel.WARNING);
+				GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
+			}
 		}
-		
-		Print("GRAD_BC_ReplayManager: Character found, getting gadget manager", LogLevel.NORMAL);
-		
-		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
-		if (!gadgetManager)
+		else
 		{
-			Print("GRAD_BC_ReplayManager: No gadget manager found", LogLevel.ERROR);
-			return;
+			// Spectator - no controlled entity - use menu manager approach
+			Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
+			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		}
-		
-		Print("GRAD_BC_ReplayManager: Gadget manager found, getting map gadget", LogLevel.NORMAL);
-		
-		IEntity mapEntity = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-		if (!mapEntity)
-		{
-			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.ERROR);
-			return;
-		}
-		
-		Print("GRAD_BC_ReplayManager: Map gadget found, opening map", LogLevel.NORMAL);
-		gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_HAND, true);
-		Print("GRAD_BC_ReplayManager: Map opened successfully", LogLevel.NORMAL);
 		
 		// Verify world is available before starting playback
 		BaseWorld world = GetGame().GetWorld();
@@ -2038,97 +2069,29 @@ void StartLocalReplayPlayback()
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Loading UI methods
+	// Find the GRAD_BC_Gamestate HUD display for showing loading progress
 	//------------------------------------------------------------------------------------------------
-	void ShowLoadingUI()
+	GRAD_BC_Gamestate FindGamestateDisplay()
 	{
-		Print("GRAD_BC_ReplayManager: Creating loading UI", LogLevel.NORMAL);
-		
-		WorkspaceWidget workspace = GetGame().GetWorkspace();
-		if (!workspace)
+		PlayerController pc = GetGame().GetPlayerController();
+		if (!pc)
+			return null;
+
+		SCR_HUDManagerComponent hudMgr = SCR_HUDManagerComponent.Cast(pc.FindComponent(SCR_HUDManagerComponent));
+		if (!hudMgr)
+			return null;
+
+		array<BaseInfoDisplay> infoDisplays = {};
+		hudMgr.GetInfoDisplays(infoDisplays);
+
+		foreach (BaseInfoDisplay baseDisp : infoDisplays)
 		{
-			Print("GRAD_BC_ReplayManager: No workspace available for loading UI", LogLevel.ERROR);
-			return;
+			GRAD_BC_Gamestate candidate = GRAD_BC_Gamestate.Cast(baseDisp);
+			if (candidate)
+				return candidate;
 		}
-		
-		// Create simple loading widget
-		m_LoadingWidget = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.Black, 0);
-		if (!m_LoadingWidget)
-		{
-			Print("GRAD_BC_ReplayManager: Failed to create loading widget", LogLevel.ERROR);
-			return;
-		}
-		
-		// Center on screen
-		FrameSlot.SetAnchorMin(m_LoadingWidget, 0, 0);
-		FrameSlot.SetAnchorMax(m_LoadingWidget, 1, 1);
-		FrameSlot.SetOffsets(m_LoadingWidget, 0, 0, 0, 0);
-		
-		// Create container for loading elements
-		Widget container = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(0, 0, 0, 200), 0, m_LoadingWidget);
-		FrameSlot.SetAnchorMin(container, 0.3, 0.45);
-		FrameSlot.SetAnchorMax(container, 0.7, 0.55);
-		FrameSlot.SetOffsets(container, 0, 0, 0, 0);
-		
-		// Create loading text
-		m_LoadingText = TextWidget.Cast(workspace.CreateWidget(WidgetType.TextWidgetTypeID, WidgetFlags.VISIBLE, Color.White, 0, container));
-		if (m_LoadingText)
-		{
-			m_LoadingText.SetText("Loading Replay Data...");
-			m_LoadingText.SetExactFontSize(24);
-			FrameSlot.SetAnchorMin(m_LoadingText, 0.1, 0.2);
-			FrameSlot.SetAnchorMax(m_LoadingText, 0.9, 0.4);
-			FrameSlot.SetOffsets(m_LoadingText, 0, 0, 0, 0);
-		}
-		
-		// Create progress bar background
-		Widget progressBg = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(50, 50, 50, 255), 0, container);
-		FrameSlot.SetAnchorMin(progressBg, 0.1, 0.5);
-		FrameSlot.SetAnchorMax(progressBg, 0.9, 0.7);
-		FrameSlot.SetOffsets(progressBg, 0, 0, 0, 0);
-		
-		// Create progress bar
-		m_LoadingBar = ProgressBarWidget.Cast(workspace.CreateWidget(WidgetType.ProgressBarWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(100, 200, 100, 255), 0, progressBg));
-		if (m_LoadingBar)
-		{
-			m_LoadingBar.SetMin(0);
-			m_LoadingBar.SetMax(1);
-			m_LoadingBar.SetCurrent(0);
-			FrameSlot.SetAnchorMin(m_LoadingBar, 0.02, 0.1);
-			FrameSlot.SetAnchorMax(m_LoadingBar, 0.98, 0.9);
-			FrameSlot.SetOffsets(m_LoadingBar, 0, 0, 0, 0);
-		}
-		
-		Print("GRAD_BC_ReplayManager: Loading UI created successfully", LogLevel.NORMAL);
+
+		return null;
 	}
-	
-	//------------------------------------------------------------------------------------------------
-	void UpdateLoadingProgress(float progress)
-	{
-		if (!m_LoadingBar || !m_LoadingText)
-			return;
-			
-		m_LoadingBar.SetCurrent(progress);
-		int percentage = Math.Round(progress * 100);
-		m_LoadingText.SetText(string.Format("Loading Replay Data... %1%%", percentage));
-		
-		Print(string.Format("GRAD_BC_ReplayManager: Loading progress: %1%%", percentage), LogLevel.VERBOSE);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	void HideLoadingUI()
-	{
-		Print("GRAD_BC_ReplayManager: Hiding loading UI", LogLevel.NORMAL);
-		
-		if (m_LoadingWidget)
-		{
-			m_LoadingWidget.RemoveFromHierarchy();
-			m_LoadingWidget = null;
-		}
-		
-		m_LoadingBar = null;
-		m_LoadingText = null;
-		
-		Print("GRAD_BC_ReplayManager: Loading UI hidden", LogLevel.NORMAL);
-	}
+
 }

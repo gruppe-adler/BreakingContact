@@ -68,14 +68,24 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
 }
 $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
  {
+  components {
+   PS_GroupCallsignAssigner "{689178553C2E2044}" {
+   }
+  }
   coords 6643.517 423.01 6301.586
   m_aUnitPrefabSlots {
    "{E74FC9AB1A057CB1}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF_Commander.et"
    "{E58AC2E6219C4C2C}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_RTO_P_OTF.et"
   }
+  m_sCustomNameSet "Commander"
  }
  {
-  coords 6646.5 425.0 6305.0
+  components {
+   PS_GroupCallsignAssigner "{689178554DAABE98}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 6646.5 425 6305
   m_aUnitPrefabSlots {
    "{799D27E8052F07DD}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF.et"
    "{9514A265A2DA2F44}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_AR_P_OTF.et"
@@ -89,6 +99,11 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{6891785545F6FCEC}" {
+    m_iSquadCallsign 2
+   }
+  }
   coords 6650.268 429.179 6310.94
   m_aUnitPrefabSlots {
    "{799D27E8052F07DD}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF.et"
@@ -103,6 +118,11 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{689178554170E7CE}" {
+    m_iSquadCallsign 3
+   }
+  }
   coords 6660.898 421.871 6304.729
   m_aUnitPrefabSlots {
    "{799D27E8052F07DD}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF.et"
@@ -117,6 +137,11 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{6891785542F85530}" {
+    m_iSquadCallsign 4
+   }
+  }
   coords 6656.916 422.971 6308.386
   m_aUnitPrefabSlots {
    "{799D27E8052F07DD}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF.et"
@@ -131,6 +156,11 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{689178557F9D8397}" {
+    m_iSquadCallsign 5
+   }
+  }
   coords 6658.143 420.81 6298.965
   m_aUnitPrefabSlots {
    "{799D27E8052F07DD}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_SL_P_OTF.et"
@@ -147,14 +177,24 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
 }
 $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
  {
+  components {
+   PS_GroupCallsignAssigner "{689178557B6720D2}" {
+   }
+  }
   coords 6633.683 463.116 6512.069
   m_aUnitPrefabSlots {
    "{E370BE864F610A10}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF_Commander.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_sCustomNameSet "Commander"
  }
  {
-  coords 6636.0 465.0 6510.0
+  components {
+   PS_GroupCallsignAssigner "{689178557A95B398}" {
+    m_iSquadCallsign 1
+   }
+  }
+  coords 6636 465 6510
   m_aUnitPrefabSlots {
    "{A4AACA979466213D}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF.et"
    "{48234F1A339309A4}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_AR_P_OTF.et"
@@ -166,6 +206,11 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{6891785577AC9004}" {
+    m_iSquadCallsign 3
+   }
+  }
   coords 6640.33 471.663 6504.626
   m_aUnitPrefabSlots {
    "{A4AACA979466213D}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF.et"
@@ -178,6 +223,11 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{689178557022A1EA}" {
+    m_iSquadCallsign 4
+   }
+  }
   coords 6637.819 471.836 6502.98
   m_aUnitPrefabSlots {
    "{A4AACA979466213D}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF.et"
@@ -190,6 +240,11 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{689178556D35C72C}" {
+    m_iSquadCallsign 4
+   }
+  }
   coords 6635.921 472.535 6502.342
   m_aUnitPrefabSlots {
    "{A4AACA979466213D}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF.et"
@@ -202,6 +257,11 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
   }
  }
  {
+  components {
+   PS_GroupCallsignAssigner "{68917855683C4308}" {
+    m_iSquadCallsign 5
+   }
+  }
   coords 6637.354 473.018 6502.78
   m_aUnitPrefabSlots {
    "{A4AACA979466213D}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_SL_P_OTF.et"

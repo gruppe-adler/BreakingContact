@@ -133,8 +133,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                 }
             }
 
-            // Determine if we treat it as empty for the icon key
-            bool showAsEmpty = !isOccupied;
+            // Show as empty only if no player is inside AND the recorded snapshot says empty
+            bool showAsEmpty = !isOccupied && vehicleMarker.isEmpty;
 
             // Use occupant faction if occupied, otherwise use vehicle's own faction
             string effectiveFaction = vehicleMarker.factionKey;
@@ -175,6 +175,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             if (roleStr == "") roleStr = "Rifleman";
             string key = roleStr + "_" + playerMarker.factionKey;
             string texturePath = m_unitTypeTextures.Get(key);
+
+            // CIV faction fallback: civilians don't have military roles, use Rifleman_CIV
+            if (texturePath == "" && playerMarker.factionKey == "CIV")
+                texturePath = m_unitTypeTextures.Get("Rifleman_CIV");
 
             if (texturePath == "") texturePath = m_unitTypeTextures.Get("Default");
 
@@ -324,6 +328,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			if (isEmpty) key = "LAV_empty";
 			else if (factionKey == "US") key = "LAV_blufor";
 			else if (factionKey == "USSR") key = "LAV_opfor";
+			else if (factionKey == "CIV") key = "LAV_civ";
 		}
 		else if (pf.Contains("m151a2"))
 		{
@@ -332,18 +337,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				if (isEmpty) key = "M151A2_closed_empty";
 				else if (factionKey == "US") key = "M151A2_closed_blufor";
 				else if (factionKey == "USSR") key = "M151A2_closed_opfor";
+				else if (factionKey == "CIV") key = "M151A2_civ";
 			}
 			else if (pf.Contains("open"))
 			{
 				if (isEmpty) key = "M151A2_open_empty";
 				else if (factionKey == "US") key = "M151A2_open_blufor";
 				else if (factionKey == "USSR") key = "M151A2_open_opfor";
+				else if (factionKey == "CIV") key = "M151A2_open_civ";
 			}
 			else
 			{
 				if (isEmpty) key = "M151A2_empty";
 				else if (factionKey == "US") key = "M151A2_blufor";
 				else if (factionKey == "USSR") key = "M151A2_opfor";
+				else if (factionKey == "CIV") key = "M151A2_civ";
 			}
 		}
 		else if (pf.Contains("m923"))
@@ -351,6 +359,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			if (isEmpty) key = "M923A1_closed_empty";
 			else if (factionKey == "US") key = "M923A1_closed_blufor";
 			else if (factionKey == "USSR") key = "M923A1_closed_opfor";
+			else if (factionKey == "CIV") key = "M923A1_closed_civ";
 		}
 		else if (pf.Contains("m998"))
 		{
@@ -359,18 +368,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				if (isEmpty) key = "M998_M2HB_empty";
 				else if (factionKey == "US") key = "M998_M2HB_blufor";
 				else if (factionKey == "USSR") key = "M998_M2HB_opfor";
+				else if (factionKey == "CIV") key = "M998_M2HB_civ";
 			}
 			else if (pf.Contains("transport"))
 			{
 				if (isEmpty) key = "M998_closed_empty";
 				else if (factionKey == "US") key = "M998_closed_blufor";
 				else if (factionKey == "USSR") key = "M998_closed_opfor";
+				else if (factionKey == "CIV") key = "M998_closed_civ";
 			}
 			else
 			{
 				if (isEmpty) key = "M998_open_empty";
 				else if (factionKey == "US") key = "M998_open_blufor";
 				else if (factionKey == "USSR") key = "M998_open_opfor";
+				else if (factionKey == "CIV") key = "M998_open_civ";
 			}
 		}
 		else if (pf.Contains("uaz452") || pf.Contains("uaz_452"))
@@ -378,24 +390,28 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			if (isEmpty) key = "UAZ_452_empty";
 			else if (factionKey == "US") key = "UAZ_452_blufor";
 			else if (factionKey == "USSR") key = "UAZ_452_opfor";
+			else if (factionKey == "CIV") key = "UAZ_452_civ";
 		}
 		else if (pf.Contains("btr"))
 		{
 			if (isEmpty) key = "BTR_empty";
 			else if (factionKey == "US") key = "BTR_blufor";
 			else if (factionKey == "USSR") key = "BTR_opfor";
+			else if (factionKey == "CIV") key = "BTR_civ";
 		}
 		else if (pf.Contains("s1203"))
 		{
 			if (isEmpty) key = "S1203_empty";
 			else if (factionKey == "US") key = "S1203_blufor";
 			else if (factionKey == "USSR") key = "S1203_opfor";
+			else if (factionKey == "CIV") key = "S1203_civ";
 		}
 		else if (pf.Contains("s105"))
 		{
 			if (isEmpty) key = "S105_empty";
 			else if (factionKey == "US") key = "S105_blufor";
 			else if (factionKey == "USSR") key = "S105_opfor";
+			else if (factionKey == "CIV") key = "S105_civ";
 		}
 		else if (pf.Contains("uaz469") || pf.Contains("uaz_469"))
 		{
@@ -404,18 +420,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				if (isEmpty) key = "UAZ_469_PKM_empty";
 				else if (factionKey == "US") key = "UAZ_469_PKM_blufor";
 				else if (factionKey == "USSR") key = "UAZ_469_PKM_opfor";
+				else if (factionKey == "CIV") key = "UAZ_469_PKM_civ";
 			}
 			else if (pf.Contains("open"))
 			{
 				if (isEmpty) key = "UAZ_469_Open_empty";
 				else if (factionKey == "US") key = "UAZ_469_Open_blufor";
 				else if (factionKey == "USSR") key = "UAZ_469_Open_opfor";
+				else if (factionKey == "CIV") key = "UAZ_469_Open_civ";
 			}
 			else
 			{
 				if (isEmpty) key = "UAZ_469_closed_empty";
 				else if (factionKey == "US") key = "UAZ_469_closed_blufor";
 				else if (factionKey == "USSR") key = "UAZ_469_closed_opfor";
+				else if (factionKey == "CIV") key = "UAZ_469_closed_civ";
 			}
 		}
 		else if (pf.Contains("uh1h1"))
@@ -423,6 +442,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			if (isEmpty) key = "UH1H1_empty";
 			else if (factionKey == "US") key = "UH1H1_blufor";
 			else if (factionKey == "USSR") key = "UH1H1_opfor";
+			else if (factionKey == "CIV") key = "UH1H1_civ";
 		}
 		else if (pf.Contains("ural4320") || pf.Contains("ural_4320"))
 		{
@@ -431,18 +451,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				if (isEmpty) key = "Radiotruck_empty";
 				else if (factionKey == "US") key = "Radiotruck_blufor";
 				else if (factionKey == "USSR") key = "Radiotruck_opfor";
+				else if (factionKey == "CIV") key = "Radiotruck_civ";
 			}
 			else if (pf.Contains("transport") || pf.Contains("covered"))
 			{
 				if (isEmpty) key = "Ural_empty";
 				else if (factionKey == "US") key = "Ural_blufor";
 				else if (factionKey == "USSR") key = "Ural_opfor";
+				else if (factionKey == "CIV") key = "Ural_civ";
 			}
 			else
 			{
 				if (isEmpty) key = "Ural_Open_empty";
 				else if (factionKey == "US") key = "Ural_Open_blufor";
 				else if (factionKey == "USSR") key = "UralOpen_opfor";
+				else if (factionKey == "CIV") key = "UralOpen_civ";
 			}
 		}
 		
@@ -495,72 +518,93 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_vehicleIconTextures.Set("LAV_blufor", "{1D2C64090C772F84}UI/Textures/Icons/LAV_blufor.edds");
 		m_vehicleIconTextures.Set("LAV_empty", "{AD78B1EE505E01FC}UI/Textures/Icons/LAV_empty.edds");
 		m_vehicleIconTextures.Set("LAV_opfor", "{2F20DFA7DAF579E3}UI/Textures/Icons/LAV_opfor.edds");
+		m_vehicleIconTextures.Set("LAV_civ", "{827076D9B9D20772}UI/Textures/Icons/LAV_civ.edds");
 
 		m_vehicleIconTextures.Set("BTR_blufor", "{06FB93A5E254D29E}UI/Textures/Icons/BTR70_blufor.edds");
 		m_vehicleIconTextures.Set("BTR_empty", "{4F0602CC01556B32}UI/Textures/Icons/BTR70_empty.edds");
 		m_vehicleIconTextures.Set("BTR_opfor", "{CD5E6C858BFE132D}UI/Textures/Icons/BTR70_opfor.edds");
+		m_vehicleIconTextures.Set("BTR_civ", "{69281F7FCBAE7D15}UI/Textures/Icons/BTR70_civ.edds");
+		m_vehicleIconTextures.Set("BRDM_civ", "{8E3E453BF4A75D2A}UI/Textures/Icons/BRDM_civ.edds");
 
 		m_vehicleIconTextures.Set("M151A2_blufor", "{F134996BEE493C80}UI/Textures/Icons/M151A2_blufor.edds");
 		m_vehicleIconTextures.Set("M151A2_empty", "{3F818F4DDA023873}UI/Textures/Icons/M151A2_empty.edds");
+		m_vehicleIconTextures.Set("M151A2_civ", "{17D3D81B53B15BA2}UI/Textures/Icons/M151A2_civ.edds");
+
 		m_vehicleIconTextures.Set("M151A2_open_blufor", "{77AC2D8B6883E41F}UI/Textures/Icons/M151A2_open_blufor.edds");
 		m_vehicleIconTextures.Set("M151A2_open_empty", "{CA8A6C10410526AA}UI/Textures/Icons/M151A2_open_empty.edds");
 		m_vehicleIconTextures.Set("M151A2_open_opfor", "{48D20259CBAE5EB5}UI/Textures/Icons/M151A2_open_opfor.edds");
+		m_vehicleIconTextures.Set("M151A2_open_civ", "{6FEE5FD13872E495}UI/Textures/Icons/M151A2_open_civ.edds");
 		m_vehicleIconTextures.Set("M151A2_opfor", "{BDD9E10450A9406C}UI/Textures/Icons/M151A2_opfor.edds");
 		
 		m_vehicleIconTextures.Set("M923A1_closed_blufor", "{92B598738E1468A1}UI/Textures/Icons/M923A1_closed_blufor.edds");
 		m_vehicleIconTextures.Set("M923A1_closed_empty", "{C2FD136933FF34FF}UI/Textures/Icons/M923A1_closed_empty.edds");
 		m_vehicleIconTextures.Set("M923A1_closed_opfor", "{40A57D20B9544CE0}UI/Textures/Icons/M923A1_closed_opfor.edds");
+		m_vehicleIconTextures.Set("M923A1_closed_civ", "{BB674722C29F5930}UI/Textures/Icons/M923A1_closed_civ.edds");
 
 		m_vehicleIconTextures.Set("M998_closed_blufor", "{6BC2F3B2C876C86F}UI/Textures/Icons/M998_closed_blufor.edds");
 		m_vehicleIconTextures.Set("M998_closed_empty", "{2F7D445FFCB4E602}UI/Textures/Icons/M998_closed_empty.edds");
 		m_vehicleIconTextures.Set("M998_closed_opfor", "{AD252A16761F9E1D}UI/Textures/Icons/M998_closed_opfor.edds");
+		m_vehicleIconTextures.Set("M998_closed_civ", "{720F1A9CDAF14450}UI/Textures/Icons/M998_closed_civ.edds");
 		m_vehicleIconTextures.Set("M998_M2HB_blufor", "{BDE1B2689B13B6D4}UI/Textures/Icons/M998_M2HB_blufor.edds");
 		m_vehicleIconTextures.Set("M998_M2HB_empty", "{91A96E1BFE6A80DE}UI/Textures/Icons/M998_M2HB_empty.edds");
 		m_vehicleIconTextures.Set("M998_M2HB_opfor", "{13F1005274C1F8C1}UI/Textures/Icons/M998_M2HB_opfor.edds");
+		m_vehicleIconTextures.Set("M998_M2HB_civ", "{670B9C5E7F097111}UI/Textures/Icons/M998_M2HB_civ.edds");
 		m_vehicleIconTextures.Set("M998_open_blufor", "{13D8AB44ACDAB597}UI/Textures/Icons/M998_open_blufor.edds");
 		m_vehicleIconTextures.Set("M998_open_empty", "{0D4CC53522A25D19}UI/Textures/Icons/M998_open_empty.edds");
 		m_vehicleIconTextures.Set("M998_open_opfor", "{8F14AB7CA8092506}UI/Textures/Icons/M998_open_opfor.edds");
+		m_vehicleIconTextures.Set("M998_open_civ", "{C3D7950D32B9AA42}UI/Textures/Icons/M998_open_civ.edds");
 
 		m_vehicleIconTextures.Set("UAZ_452_opfor", "{D5FBFD6881DC4B58}UI/Textures/Icons/UAZ_452_opfor.edds");
 		m_vehicleIconTextures.Set("UAZ_452_blufor", "{5731CADA4C68FBCF}UI/Textures/Icons/UAZ_452_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_452_empty", "{57A393210B773347}UI/Textures/Icons/UAZ_452_empty.edds");
+		m_vehicleIconTextures.Set("UAZ_452_civ", "{EE03A452BB1CB947}UI/Textures/Icons/UAZ_452_civ.edds");
 
 		m_vehicleIconTextures.Set("UAZ_469_closed_blufor", "{613ACF2847FB8583}UI/Textures/Icons/UAZ_469 closed_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_closed_empty", "{529E5BA357DB08E3}UI/Textures/Icons/UAZ_469 closed_empty.edds");
+		m_vehicleIconTextures.Set("UAZ_469_closed_civ", "{212869E8ADEA2CB4}UI/Textures/Icons/UAZ_469_closed_civ.edds");
 		m_vehicleIconTextures.Set("UAZ_469_Open_blufor", "{BE066D044B960605}UI/Textures/Icons/UAZ_469 Open_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_Open_empty", "{2826A28533C37A7B}UI/Textures/Icons/UAZ_469 Open_empty.edds");
 		m_vehicleIconTextures.Set("UAZ_469_Open_opfor", "{AA7ECCCCB9680264}UI/Textures/Icons/UAZ_469 Open_opfor.edds");
+		m_vehicleIconTextures.Set("UAZ_469_Open_civ", "{DCCC9D184B70C18D}UI/Textures/Icons/UAZ_469 Open_civ.edds");
 		m_vehicleIconTextures.Set("UAZ_469_PKM_blufor", "{8BF3272F9BF556DD}UI/Textures/Icons/UAZ_469 PKM_blufor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_PKM_empty", "{D3C0984F7BD3DE72}UI/Textures/Icons/UAZ_469 PKM_empty.edds");
 		m_vehicleIconTextures.Set("UAZ_469_closed_opfor", "{90645BA8C54E7ABC}UI/Textures/Icons/UAZ_469_closed_opfor.edds");
 		m_vehicleIconTextures.Set("UAZ_469_PKM_opfor", "{2B897E967D0AC339}UI/Textures/Icons/UAZ_469_PKM_opfor.edds");
+		m_vehicleIconTextures.Set("UAZ_469_PKM_civ", "{8B123D01D64150A6}UI/Textures/Icons/UAZ_469_PKM_civ.edds");
 
 		m_vehicleIconTextures.Set("UH1H1_blufor", "{A4FDF3DA7E1BF136}UI/Textures/Icons/UH1H1_blufor.edds");
 		m_vehicleIconTextures.Set("UH1H1_empty", "{519C8DBD9918D6CC}UI/Textures/Icons/UH1H1_empty.edds");
 		m_vehicleIconTextures.Set("UH1H1_opfor", "{D3C4E3F413B3AED3}UI/Textures/Icons/UH1H1_opfor.edds");
+		m_vehicleIconTextures.Set("UH1H1_civ", "{8AF6C3FF1127D54E}UI/Textures/Icons/UH1H1_civ.edds");
 
 		m_vehicleIconTextures.Set("Ural_blufor", "{87808F1F7D6839E4}UI/Textures/Icons/Ural_blufor.edds");
 		m_vehicleIconTextures.Set("Ural_empty", "{8020A00CF179274D}UI/Textures/Icons/Ural_empty.edds");
+		m_vehicleIconTextures.Set("Ural_civ", "{8E69A2A9E2146781}UI/Textures/Icons/Ural_civ.edds");
 		m_vehicleIconTextures.Set("Ural_Open_blufor", "{16ED7010CF5FA66B}UI/Textures/Icons/Ural_Open_blufor.edds");
 		m_vehicleIconTextures.Set("Ural_Open_empty", "{BD154D82B60DC8F0}UI/Textures/Icons/Ural_Open_empty.edds");
 		m_vehicleIconTextures.Set("Ural_opfor", "{07E46F71B9B92027}UI/Textures/Icons/Ural_opfor.edds");
 		m_vehicleIconTextures.Set("UralOpen_opfor", "{AD63B0D696D2577D}UI/Textures/Icons/UralOpen_opfor.edds");
+		m_vehicleIconTextures.Set("UralOpen_civ", "{B4C769843A8E510F}UI/Textures/Icons/UralOpen_civ.edds");
 
 		m_vehicleIconTextures.Set("Radiotruck_blufor", "{ABB9C00A86D1437D}UI/Textures/Icons/Radiotruck_blufor.edds");
 		m_vehicleIconTextures.Set("Radiotruck_empty", "{AB02F6EFC1893111}UI/Textures/Icons/Radiotruck_empty.edds");
 		m_vehicleIconTextures.Set("Radiotruck_opfor", "{295A98A64B22490E}UI/Textures/Icons/Radiotruck_opfor.edds");
+		m_vehicleIconTextures.Set("Radiotruck_civ", "{6C972D729BAFD741}UI/Textures/Icons/Radiotruck_civ.edds");
 
 		m_vehicleIconTextures.Set("Commandvehicle_blufor", "{2CCAAB5BEDD7BAA1}UI/Textures/Icons/Commandvehicle_blufor.edds");
 		m_vehicleIconTextures.Set("Commandvehicle_empty", "{C2436C5A1B9CF72D}UI/Textures/Icons/Commandvehicle_Empty.edds");
 		m_vehicleIconTextures.Set("Commandvehicle_opfor", "{401B021391378F32}UI/Textures/Icons/Commandvehicle_opfor.edds");
+		m_vehicleIconTextures.Set("Commandvehicle_civ", "{666023B94A7FEA7D}UI/Textures/Icons/Commandvehicle_civ.edds");
 
 		m_vehicleIconTextures.Set("S105_blufor", "{8705E23234AE5219}UI/Textures/Icons/S105_blufor.edds");
 		m_vehicleIconTextures.Set("S105_empty", "{116570AE64B80F4E}UI/Textures/Icons/S105_empty.edds");
 		m_vehicleIconTextures.Set("S105_opfor", "{933D1EE7EE137751}UI/Textures/Icons/S105_opfor.edds");
+		m_vehicleIconTextures.Set("S105_civ", "{0BAAFBE11D405AB4}UI/Textures/Icons/S105_civ.edds");
 
 		m_vehicleIconTextures.Set("S1203_blufor", "{E04DE98D3C890A8A}UI/Textures/Icons/S1203_blufor.edds");
 		m_vehicleIconTextures.Set("S1203_empty", "{1040C8443019C220}UI/Textures/Icons/S1203_empty.edds");
 		m_vehicleIconTextures.Set("S1203_opfor", "{9218A60DBAB2BA3F}UI/Textures/Icons/S1203_opfor.edds");
+		m_vehicleIconTextures.Set("S1203_civ", "{5906B87982121DA7}UI/Textures/Icons/S1203_civ.edds");
 
 		
 	
@@ -774,11 +818,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		        string roleStr = unitType;
 		        if (roleStr == "")
 		           roleStr = "Rifleman";
-		
+
 		        string key = roleStr + "_" + factionKey;
 		        texturePath = m_unitTypeTextures.Get(key);
+
+		        // CIV faction fallback: civilians don't have military roles, use Rifleman_CIV
+		        if (texturePath == "" && factionKey == "CIV")
+		            texturePath = m_unitTypeTextures.Get("Rifleman_CIV");
 		    }
-		
+
 		    // Centralized fallback
 		    if (texturePath == "")
 		    {

@@ -207,6 +207,22 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		{
 			Print("GRAD_BC_ReplayManager: Building manager not found, cannot track spawned vehicles", LogLevel.WARNING);
 		}
+
+		// Subscribe to grad-traffic vehicle spawn/despawn events (if grad-traffic mod is loaded)
+		if (SCR_TrafficEvents.OnTrafficVehicleSpawned)
+		{
+			SCR_TrafficEvents.OnTrafficVehicleSpawned.Insert(OnTrafficVehicleSpawned);
+			Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle spawn events", LogLevel.NORMAL);
+		}
+		if (SCR_TrafficEvents.OnTrafficVehicleDespawned)
+		{
+			SCR_TrafficEvents.OnTrafficVehicleDespawned.Insert(OnTrafficVehicleDespawned);
+			Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle despawn events", LogLevel.NORMAL);
+		}
+		if (!SCR_TrafficEvents.OnTrafficVehicleSpawned && !SCR_TrafficEvents.OnTrafficVehicleDespawned)
+		{
+			Print("GRAD_BC_ReplayManager: grad-traffic events not available, traffic vehicles won't be tracked in replay", LogLevel.NORMAL);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -234,7 +250,33 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			}
 		}
 	}
-	
+
+	//------------------------------------------------------------------------------------------------
+	// Called by grad-traffic when a civilian traffic vehicle is spawned
+	void OnTrafficVehicleSpawned(Vehicle vehicle)
+	{
+		if (!vehicle)
+			return;
+
+		RegisterTrackedVehicle(vehicle);
+		Print(string.Format("GRAD_BC_ReplayManager: Registered grad-traffic vehicle: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Called by grad-traffic when a civilian traffic vehicle is despawned
+	void OnTrafficVehicleDespawned(Vehicle vehicle)
+	{
+		if (!vehicle || !m_trackedVehicles)
+			return;
+
+		int idx = m_trackedVehicles.Find(vehicle);
+		if (idx != -1)
+		{
+			m_trackedVehicles.Remove(idx);
+			Print(string.Format("GRAD_BC_ReplayManager: Unregistered grad-traffic vehicle (total: %1)", m_trackedVehicles.Count()), LogLevel.NORMAL);
+		}
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void CheckGameState()
 	{

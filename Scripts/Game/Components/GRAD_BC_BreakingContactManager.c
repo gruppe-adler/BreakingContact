@@ -188,7 +188,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		switch (m_iBreakingContactPhase) {
 			case EBreakingContactPhase.PREPTIME :
 			{
-				message = "Pretime still running.";
+				message = "Preptime still running.";
 				break;
 			}
 			case EBreakingContactPhase.OPFOR :

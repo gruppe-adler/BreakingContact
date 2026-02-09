@@ -6,6 +6,23 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	protected RplComponent m_RplComponent;
 	protected bool m_bSubscribed = false;
 	
+	// Cooldown tracking: recent event positions and their timestamps (server only)
+	protected ref array<vector> m_aCooldownPositions;
+	protected ref array<float> m_aCooldownTimes;
+	
+	// Active vanilla markers for scheduled removal (server only)
+	protected ref array<ref SCR_MapMarkerBase> m_aActiveMarkers;
+	
+	static const float COOLDOWN_DISTANCE = 500.0;    // meters
+	static const float MARKER_LIFETIME = 180.0;      // seconds
+	static const float COOLDOWN_LIFETIME = 180.0;    // same as marker lifetime
+	
+	// Placeholder icon entries - replace with actual resource IDs when known
+	static const int ICON_KILLED = 8;       // placeholder icon index for killed events
+	static const int ICON_GUNFIGHT = 9;     // placeholder icon index for gunfight events
+	static const int COLOR_KILLED = 4;      // placeholder color index for killed (red-ish)
+	static const int COLOR_GUNFIGHT = 5;    // placeholder color index for gunfight (yellow-ish)
+	
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -18,6 +35,10 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 			Print("GRAD_BC_TrafficHintManagerComponent: Warning - No RplComponent found", LogLevel.WARNING);
 		else
 			Print("GRAD_BC_TrafficHintManagerComponent: RplComponent found successfully", LogLevel.NORMAL);
+		
+		m_aCooldownPositions = new array<vector>();
+		m_aCooldownTimes = new array<float>();
+		m_aActiveMarkers = new array<ref SCR_MapMarkerBase>();
 	}
 	
 	override void EOnFrame(IEntity owner, float timeSlice)
@@ -56,6 +77,40 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	protected bool IsOnCooldown(vector location)
+	{
+		float currentTime = System.GetTickCount() / 1000.0;
+		
+		// Clean up expired cooldown entries (iterate backwards for safe removal)
+		for (int i = m_aCooldownTimes.Count() - 1; i >= 0; i--)
+		{
+			if (currentTime - m_aCooldownTimes[i] > COOLDOWN_LIFETIME)
+			{
+				m_aCooldownPositions.Remove(i);
+				m_aCooldownTimes.Remove(i);
+			}
+		}
+		
+		// Check if any active cooldown position is within 500m
+		foreach (vector pos : m_aCooldownPositions)
+		{
+			float dist = vector.Distance(location, pos);
+			if (dist < COOLDOWN_DISTANCE)
+				return true;
+		}
+		
+		return false;
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void RegisterCooldown(vector location)
+	{
+		float currentTime = System.GetTickCount() / 1000.0;
+		m_aCooldownPositions.Insert(location);
+		m_aCooldownTimes.Insert(currentTime);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	protected void OnCivilianEvent(vector location, string eventtype)
 	{
 		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Civilian event detected at %1, type: %2", location, eventtype), LogLevel.NORMAL);
@@ -67,9 +122,22 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 			return;
 		}
 		
+		// Check 500m proximity cooldown
+		if (IsOnCooldown(location))
+		{
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Event at %1 is on cooldown (within %2m of recent event), skipping", location, COOLDOWN_DISTANCE), LogLevel.NORMAL);
+			return;
+		}
+		
+		// Register cooldown for this location
+		RegisterCooldown(location);
+		
 		Print("GRAD_BC_TrafficHintManagerComponent: Server handling event, broadcasting to all clients", LogLevel.NORMAL);
 		
-		// Broadcast event to all clients via RPC
+		// Create vanilla map marker on server (visible to all players via replication)
+		CreateVanillaMapMarker(location, eventtype);
+		
+		// Broadcast event to all clients via RPC (for HUD notification)
 		if (m_RplComponent)
 		{
 			Rpc(RpcAsk_BroadcastTrafficEvent, location, eventtype);
@@ -87,6 +155,75 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 			Print("GRAD_BC_TrafficHintManagerComponent: Server has local player, showing event locally", LogLevel.NORMAL);
 			ShowTrafficEventUI(location, eventtype);
 		}
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void CreateVanillaMapMarker(vector location, string eventtype)
+	{
+		SCR_MapMarkerManagerComponent markerManager = SCR_MapMarkerManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_MapMarkerManagerComponent));
+		if (!markerManager)
+		{
+			Print("GRAD_BC_TrafficHintManagerComponent: No SCR_MapMarkerManagerComponent found", LogLevel.ERROR);
+			return;
+		}
+		
+		SCR_MapMarkerBase marker = new SCR_MapMarkerBase();
+		marker.SetType(SCR_EMapMarkerType.PLACED_CUSTOM);
+		
+		int worldPos[2];
+		worldPos[0] = location[0];
+		worldPos[1] = location[2];
+		marker.SetWorldPos(worldPos[0], worldPos[1]);
+		
+		string markerText;
+		int iconEntry;
+		int colorEntry;
+		
+		if (eventtype == "killed")
+		{
+			markerText = "CIV KILLED";
+			iconEntry = ICON_KILLED;
+			colorEntry = COLOR_KILLED;
+		}
+		else
+		{
+			markerText = "GUNFIGHT";
+			iconEntry = ICON_GUNFIGHT;
+			colorEntry = COLOR_GUNFIGHT;
+		}
+		
+		marker.SetCustomText(markerText);
+		marker.SetIconEntry(iconEntry);
+		marker.SetColorEntry(colorEntry);
+		
+		markerManager.InsertStaticMarker(marker, true, true);
+		m_aActiveMarkers.Insert(marker);
+		
+		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Created vanilla marker '%1' at %2", markerText, location), LogLevel.NORMAL);
+		
+		// Schedule marker removal after MARKER_LIFETIME seconds
+		GetGame().GetCallqueue().CallLater(
+			RemoveMarker,
+			MARKER_LIFETIME * 1000,
+			false,
+			marker
+		);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void RemoveMarker(SCR_MapMarkerBase marker)
+	{
+		if (!marker)
+			return;
+		
+		SCR_MapMarkerManagerComponent markerManager = SCR_MapMarkerManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_MapMarkerManagerComponent));
+		if (markerManager)
+		{
+			markerManager.RemoveStaticMarker(marker);
+			Print("GRAD_BC_TrafficHintManagerComponent: Removed expired traffic marker", LogLevel.NORMAL);
+		}
+		
+		m_aActiveMarkers.RemoveItem(marker);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -139,7 +276,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		if (display)
 		{
 			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Found traffic display, scheduling hint for type %1", displayType), LogLevel.NORMAL);
-			// Schedule hint and marker to appear after 5-second delay
+			// Schedule hint to appear after 5-second delay (HUD only, no custom map marker)
 			GetGame().GetCallqueue().CallLater(
 				display.showTrafficHint,
 				5000,  // 5 seconds delay

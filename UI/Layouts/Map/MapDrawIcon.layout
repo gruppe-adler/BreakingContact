@@ -1,12 +1,13 @@
 FrameWidgetClass {
  Name "DrawIconRoot"
  Slot FrameWidgetSlot "{6050DBD59AEABB32}" {
-  Anchor 0.5 0.5 0.5 0.5
   OffsetLeft 0
   OffsetTop 0
-  OffsetRight 0
-  OffsetBottom 0
-  SizeToContent 0
+  SizeX 256
+  OffsetRight -256
+  SizeY 256
+  OffsetBottom -256
+  SizeToContent 1
  }
  "Z Order" 70
  Clipping False
@@ -14,15 +15,43 @@ FrameWidgetClass {
   ImageWidgetClass "{60454C504CE75F99}" {
    Name "DrawIconImage"
    Slot FrameWidgetSlot "{60454C504CE75FF2}" {
-    Anchor 0.5 0.5 0.5 0.5
+    Anchor 0 0 0 0
     OffsetLeft 0
     OffsetTop 0
-    OffsetRight 0
-    OffsetBottom 0
-    SizeToContent 0
+    SizeX 256
+    OffsetRight -256
+    SizeY 256
+    OffsetBottom -256
+    SizeToContent 1
    }
    Texture "{243D963F2E18E435}UI/Textures/Map/radiotruck_active.edds"
    Size 256 256
+  }
+  TextWidgetClass "{67A8F3C1D2E4B509}" {
+   Name "DrawIconLabel"
+   Slot FrameWidgetSlot "{67A8F3C1D2E4B50A}" {
+    Anchor 0 0 0 0
+    OffsetLeft 0
+    OffsetTop 76
+    OffsetRight 0
+    OffsetBottom 0
+    SizeToContent 1
+   }
+   Visible False
+   Color 0 0 0 1
+   "Exact Size" 1
+   "Font Size" 18
+   "Min Font Size" 18
+   FontProperties FontProperties "{67A8F3C1D2E4B50B}" {
+    Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
+    OutlineSize 0
+    OutlineColor 1 1 1 1
+    OutlineOpacity 1
+    ShadowSize 2
+    ShadowColor 1 1 1 1
+    ShadowOffset 1 1
+    ShadowOpacity 1
+   }
   }
  }
 }

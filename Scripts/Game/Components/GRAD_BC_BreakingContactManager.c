@@ -1129,6 +1129,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		bool opforEliminated = factionEliminated("USSR") && !m_debug;
         bool isOver;
 
+		// testing in singleplayer skips blufor elimination
+		#ifdef WORKBENCH
+			bluforEliminated = false;
+		#endif
+
 		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
 		
 		// Validate transmission count - if set to 0, transmissions are disabled/infinite

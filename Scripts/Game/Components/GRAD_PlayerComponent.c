@@ -70,18 +70,21 @@ class GRAD_PlayerComponent : ScriptComponent
 		
 		if (gameMode) {
 			if (gameMode.GetState() == SCR_EGameModeState.GAME) {
-				Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 1000, false);
 				GetGame().GetCallqueue().CallLater(ForceOpenMap, 1500, false);
 				
 				SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 				if (!ch)  {
-					Print(string.Format("SCR_ChimeraCharacter missing in m_playerController"), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("SCR_ChimeraCharacter missing in m_playerController"), LogLevel.NORMAL);
 					return;
 				}
 				
 				m_faction = ch.GetFactionKey();
-				Print(string.Format("faction detected: %1", m_faction), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("faction detected: %1", m_faction), LogLevel.NORMAL);
 			
 				return;
 			}
@@ -104,7 +107,8 @@ class GRAD_PlayerComponent : ScriptComponent
 			}
 		}
 		
-		Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
 	}
 	
@@ -118,7 +122,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	void SetSpawnPositionReady(bool ready)
 	{
 		m_bSpawnPositionReady = ready;
-		Print(string.Format("PlayerComponent: Spawn position ready set to %1", ready), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("PlayerComponent: Spawn position ready set to %1", ready), LogLevel.NORMAL);
 	}
 	
 	void setChoosingSpawn(bool choosing) {
@@ -128,7 +133,8 @@ class GRAD_PlayerComponent : ScriptComponent
 		if (choosing)
 		{
 			m_bSpawnPositionReady = false;
-			Print("PlayerComponent: Started choosing spawn, resetting spawn ready flag", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("PlayerComponent: Started choosing spawn, resetting spawn ready flag", LogLevel.NORMAL);
 		}
 	}
 	
@@ -181,7 +187,8 @@ class GRAD_PlayerComponent : ScriptComponent
 			m_bChoosingSpawn = true;
 		}
 
-		Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC ForceOpenMap"), LogLevel.NORMAL);
 		ToggleMap(true);
 
 	}
@@ -190,11 +197,13 @@ class GRAD_PlayerComponent : ScriptComponent
 	void ConfirmSpawn()
 	{
 		if (Replication.IsServer()) {
-			Print(string.Format("ConfirmSpawn executed on server too"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("ConfirmSpawn executed on server too"), LogLevel.NORMAL);
 		}
  
 		if (!m_playerController) {
-			Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("ConfirmSpawn missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
@@ -208,18 +217,21 @@ class GRAD_PlayerComponent : ScriptComponent
 		
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (!BCM) {
-			Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
 		EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
 		
 		
-		Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2 - SpawnReady: %3", m_faction, phase, m_bSpawnPositionReady), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("ConfirmSpawn: factionKey: %1 - phase: %2 - SpawnReady: %3", m_faction, phase, m_bSpawnPositionReady), LogLevel.NORMAL);
 		
 		if (m_faction == "USSR") {
 			if (phase != EBreakingContactPhase.OPFOR) {
-				Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
 				return;
 			}
 			if (phase == EBreakingContactPhase.OPFOR) {				
@@ -228,13 +240,15 @@ class GRAD_PlayerComponent : ScriptComponent
 				
 				RequestInitiateOpforSpawnLocal();
 				RemoveSpawnMarker();
-				Print(string.Format("ConfirmSpawn - m_faction: %1 - phase: %2 - Removing spawn marker for opfor.", m_faction, phase), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("ConfirmSpawn - m_faction: %1 - phase: %2 - Removing spawn marker for opfor.", m_faction, phase), LogLevel.NORMAL);
 				return;
 			}
 		}
 		
 		if (m_faction == "US" && phase == EBreakingContactPhase.GAME) {
-			Print(string.Format("Removing spawn marker for blufor"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Removing spawn marker for blufor"), LogLevel.NORMAL);
 			RemoveSpawnMarker();
 			return;
 		}
@@ -246,7 +260,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	{
 		// Reset spawn ready flag when new position is being calculated
 		m_bSpawnPositionReady = false;
-		Print("PlayerComponent: Setting new spawn position, marking as not ready", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("PlayerComponent: Setting new spawn position, marking as not ready", LogLevel.NORMAL);
 		
 		int playerId = GetGame().GetPlayerController().GetPlayerId();
 		Rpc(RpcDo_SetOpforSpawn, worldPos, playerId);
@@ -271,7 +286,8 @@ class GRAD_PlayerComponent : ScriptComponent
 				text = "OK - Spawn ready";
 				// Mark spawn position as ready when calculation succeeds
 				m_bSpawnPositionReady = true;
-				Print("PlayerComponent: Spawn position calculation complete and READY", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("PlayerComponent: Spawn position calculation complete and READY", LogLevel.NORMAL);
 				break;
 			case GRAD_SpawnPointResponse.OPFOR_NOTFOUND:
 				text = "Couldn't find suitable OPFOR spawn pos";
@@ -294,7 +310,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	//------------------------------------------------------------------------------------------------
 	void RequestInitiateOpforSpawnLocal() {
-		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - RequestInitiateOpforSpawnLocal"), LogLevel.NORMAL);
 		
 		Rpc(RequestInitiateOpforSpawn);
 	}
@@ -304,10 +321,12 @@ class GRAD_PlayerComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RequestInitiateOpforSpawn() {
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
-		Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		
 		if (!BCM) {
-			Print("PANIC, no BCM in PC");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("PANIC, no BCM in PC");
 			return;
 		}
 		BCM.Rpc_RequestInitiateOpforSpawn();
@@ -412,7 +431,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	void AddCircleMarker(float startX, float startY, float endX, float endY, RplId rplId, bool spawnMarker = false)
 	{
 		m_MapMarkerUI.AddCircle(startX, startY, endX, endY, rplId, spawnMarker);
-		PrintFormat("AddCircleMarker in GRAD_PlayerComponent");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("AddCircleMarker in GRAD_PlayerComponent");
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -508,7 +528,8 @@ class GRAD_PlayerComponent : ScriptComponent
 			EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
 			if (currentPhase == EBreakingContactPhase.GAMEOVER || currentPhase == EBreakingContactPhase.GAMEOVERDONE)
 			{
-				Print("GRAD_PlayerComponent: Skipping transmission hint - in replay/gameover phase", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_PlayerComponent: Skipping transmission hint - in replay/gameover phase", LogLevel.NORMAL);
 				return;
 			}
 		}
@@ -517,7 +538,8 @@ class GRAD_PlayerComponent : ScriptComponent
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 		if (replayManager && replayManager.IsPlayingBack())
 		{
-			Print("GRAD_PlayerComponent: Skipping transmission hint - replay is playing", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_PlayerComponent: Skipping transmission hint - replay is playing", LogLevel.NORMAL);
 			return;
 		}
 
@@ -532,7 +554,8 @@ class GRAD_PlayerComponent : ScriptComponent
 		if (currentFaction == "")
 			currentFaction = m_faction;
 
-		Print(string.Format("GRAD_PlayerComponent: Transmission hint - using faction: %1 (cached: %2)", currentFaction, m_faction), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_PlayerComponent: Transmission hint - using faction: %1 (cached: %2)", currentFaction, m_faction), LogLevel.NORMAL);
 
         // Find the HUD display and call ShowLogo() on it
         array<BaseInfoDisplay> infoDisplays = {};

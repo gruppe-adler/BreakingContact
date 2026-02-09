@@ -37,10 +37,12 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	override void EOnInit(IEntity owner)
 	{
-		PrintFormat("TPC EOnInit: owner=%1, position=%2, RplId=%3, IsServer=%4", owner, owner.GetOrigin(), Replication.FindItemId(owner), Replication.IsServer());
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("TPC EOnInit: owner=%1, position=%2, RplId=%3, IsServer=%4", owner, owner.GetOrigin(), Replication.FindItemId(owner), Replication.IsServer());
 		m_position = owner.GetOrigin();
 		Replication.BumpMe();
-		PrintFormat("TPC parent: %1", owner.GetParent());
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("TPC parent: %1", owner.GetParent());
 
 		if (!Replication.IsServer())
 			return;
@@ -48,7 +50,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 		if (m_RplComponent)
 		{
-			PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC RplComponent: IsMaster=%1, IsProxy=%2, IsOwner=%3", m_RplComponent.IsMaster(), m_RplComponent.IsProxy(), m_RplComponent.IsOwner());
 			if (m_RplComponent.IsMaster())
 			{
 				// Defer registration until next frame to allow RplId to be assigned
@@ -72,7 +75,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm) {
 			bcm.RegisterTransmissionComponent(this);
-			PrintFormat("TPC Registered with BCM (deferred): %1, RplId=%2", bcm, Replication.FindItemId(owner));
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC Registered with BCM (deferred): %1, RplId=%2", bcm, Replication.FindItemId(owner));
 			m_iTransmissionDuration = bcm.GetTransmissionDuration();
 			m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 			
@@ -92,7 +96,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 
 	override void OnDelete(IEntity owner)
 	{
-		PrintFormat("TPC OnDelete: owner=%1, position=%2", owner, m_position);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("TPC OnDelete: owner=%1, position=%2", owner, m_position);
 		if (!GetGame() || !GetGame().GetGameMode())
 			return;
 
@@ -144,7 +149,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			m_eTransmissionState = transmissionState;
 			Replication.BumpMe();
 
-			PrintFormat("TPC: State changed from %1 to %2", oldState, transmissionState);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC: State changed from %1 to %2", oldState, transmissionState);
 
 			// Notify BreakingContactManager of state change for instant map updates
 			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -172,11 +178,13 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	}
 	
 	void SetTransmissionActive(bool setState) {
-		PrintFormat("TPC SetTransmissionActive called: setState=%1, current m_bTransmissionActive=%2, current state=%3", setState, m_bTransmissionActive, GetTransmissionState());
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("TPC SetTransmissionActive called: setState=%1, current m_bTransmissionActive=%2, current state=%3", setState, m_bTransmissionActive, GetTransmissionState());
 		
 		if (m_bTransmissionActive != setState) {
 			m_bTransmissionActive = setState;
-			PrintFormat("TPC SetTransmissionActive: Changed m_bTransmissionActive to %1", setState);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC SetTransmissionActive: Changed m_bTransmissionActive to %1", setState);
 			
 			if (m_bTransmissionActive &&
 				(
@@ -184,7 +192,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.INTERRUPTED
 				)
 			) {
-				PrintFormat("TPC SetTransmissionActive: Starting transmission (setState=true, current state=%1)", GetTransmissionState());
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					PrintFormat("TPC SetTransmissionActive: Starting transmission (setState=true, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.TRANSMITTING);
 			};
 
@@ -193,13 +202,16 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 					GetTransmissionState() == ETransmissionState.TRANSMITTING
 				)
 			) {
-				PrintFormat("TPC SetTransmissionActive: Interrupting transmission (setState=false, current state=%1)", GetTransmissionState());
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					PrintFormat("TPC SetTransmissionActive: Interrupting transmission (setState=false, current state=%1)", GetTransmissionState());
 				SetTransmissionState(ETransmissionState.INTERRUPTED);
 			};
-			PrintFormat("TPC - SetTransmissionActive final state: %1", GetTransmissionState());
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC - SetTransmissionActive final state: %1", GetTransmissionState());
 
 		} else {
-			PrintFormat("TPC SetTransmissionActive: No change needed, setState=%1 equals current m_bTransmissionActive=%2", setState, m_bTransmissionActive);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("TPC SetTransmissionActive: No change needed, setState=%1 equals current m_bTransmissionActive=%2", setState, m_bTransmissionActive);
 		}
 	}
 
@@ -212,7 +224,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		ETransmissionState currentState = GetTransmissionState();
 
 		if (currentState == ETransmissionState.DONE) {
-			Print("TPC - skipping mainloop due to transmission state done", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("TPC - skipping mainloop due to transmission state done", LogLevel.NORMAL);
 			return;
 		}
 		
@@ -220,7 +233,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
         float currentProgress = Math.Floor(m_iTransmissionProgress * 100);
 		string progressString = string.Format("Antenna: %1\% ...", currentProgress); // % needs to be escaped
 		
-		Print(("TPC mainloop, progress is " + progressString + " and state is " + currentState), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(("TPC mainloop, progress is " + progressString + " and state is " + currentState), LogLevel.NORMAL);
 		
 		// 
 		if (currentProgress >= 100) {
@@ -235,7 +249,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	   		 case ETransmissionState.TRANSMITTING: {
 		        m_iTransmissionProgress += m_iTransmissionUpdateTickSize;
 				Replication.BumpMe();
-				PrintFormat("m_iTransmissionProgress %1", m_iTransmissionProgress);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					PrintFormat("m_iTransmissionProgress %1", m_iTransmissionProgress);
 	        	break;
 			}
 					

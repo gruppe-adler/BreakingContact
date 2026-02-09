@@ -40,7 +40,8 @@ class GRAD_BC_ProjectileTracker : ScriptComponent
 		// Hook into firing events
 		SetupFiringEvents();
 		
-		Print(string.Format("GRAD_BC_ProjectileTracker: Initialized for weapon %1", owner.GetName()), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ProjectileTracker: Initialized for weapon %1", owner.GetName()), LogLevel.VERBOSE);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -54,7 +55,8 @@ class GRAD_BC_ProjectileTracker : ScriptComponent
 		{
 			// Register for muzzle events if available
 			// Note: This is conceptual - actual API may differ
-			Print("GRAD_BC_ProjectileTracker: Weapon firing event setup complete", LogLevel.VERBOSE);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ProjectileTracker: Weapon firing event setup complete", LogLevel.VERBOSE);
 		}
 	}
 	
@@ -75,7 +77,8 @@ class GRAD_BC_ProjectileTracker : ScriptComponent
 		// Register projectile data with replay manager
 		replayManager.RecordProjectileFired(muzzlePos, velocity, ammoType);
 		
-		Print(string.Format("GRAD_BC_ProjectileTracker: Recorded projectile fire - Type: %1, Pos: %2, Vel: %3", 
-			ammoType, muzzlePos.ToString(), velocity.ToString()), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ProjectileTracker: Recorded projectile fire - Type: %1, Pos: %2, Vel: %3", 
+				ammoType, muzzlePos.ToString(), velocity.ToString()), LogLevel.VERBOSE);
 	}
 }

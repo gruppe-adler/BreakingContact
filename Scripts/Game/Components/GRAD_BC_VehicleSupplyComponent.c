@@ -21,8 +21,10 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 		if (m_iMaxSupplies == 0)
 			m_iMaxSupplies = 1000;
 		
-		Print(string.Format("[GRAD BC Supply Component] Initialized on entity: %1", owner), LogLevel.NORMAL);
-		Print(string.Format("[GRAD BC Supply Component] Supplies: %1/%2", m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[GRAD BC Supply Component] Initialized on entity: %1", owner), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[GRAD BC Supply Component] Supplies: %1/%2", m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
 		
 		// Sync with vanilla resource system so budget checking works
 		SyncToVanillaResourceSystem(owner);
@@ -39,7 +41,8 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 		if (container)
 		{
 			container.SetResourceValue(m_iCurrentSupplies);
-			Print(string.Format("[GRAD BC Supply] Synced %1 supplies to vanilla container", m_iCurrentSupplies), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("[GRAD BC Supply] Synced %1 supplies to vanilla container", m_iCurrentSupplies), LogLevel.NORMAL);
 		}
 	}
 	
@@ -71,7 +74,8 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 		}
 			
 		m_iCurrentSupplies -= cost;
-		Print(string.Format("[GRAD BC Supply] Deducted %1 supplies. Remaining: %2/%3", cost, m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[GRAD BC Supply] Deducted %1 supplies. Remaining: %2/%3", cost, m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
 		return true;
 	}
 	
@@ -79,7 +83,8 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 	void AddSupplies(int amount)
 	{
 		m_iCurrentSupplies = Math.Min(m_iCurrentSupplies + amount, m_iMaxSupplies);
-		Print(string.Format("[GRAD BC Supply] Added %1 supplies. Current: %2/%3", amount, m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[GRAD BC Supply] Added %1 supplies. Current: %2/%3", amount, m_iCurrentSupplies, m_iMaxSupplies), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -87,7 +92,8 @@ class GRAD_BC_VehicleSupplyComponent : ScriptComponent
 	{
 		int oldValue = m_iCurrentSupplies;
 		m_iCurrentSupplies = Math.Clamp(amount, 0, m_iMaxSupplies);
-		Print(string.Format("[GRAD BC Supply] SetSupplies: %1 -> %2 (requested %3)", oldValue, m_iCurrentSupplies, amount), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[GRAD BC Supply] SetSupplies: %1 -> %2 (requested %3)", oldValue, m_iCurrentSupplies, amount), LogLevel.NORMAL);
 		
 		// Sync to vanilla resource system for budget checking
 		IEntity owner = GetOwner();

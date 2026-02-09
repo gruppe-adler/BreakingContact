@@ -752,7 +752,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	PlayerController playerController = GetGame().GetPlayerController();
 	bool isDedicatedServer = (playerController == null);
 	
-	PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
+	if (GRAD_BC_BreakingContactManager.IsDebugMode())
+		PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
 	
 	if (!isDedicatedServer)
 	{

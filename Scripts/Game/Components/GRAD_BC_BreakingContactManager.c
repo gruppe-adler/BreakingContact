@@ -148,7 +148,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
             return null;
         }
 
-        Print(string.Format("Breaking Contact BCM - m_instance initialized: %1", m_instance), LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print(string.Format("Breaking Contact BCM - m_instance initialized: %1", m_instance), LogLevel.NORMAL);
         
         // Initialize replay manager
         GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
@@ -678,7 +679,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		if (rpl)
 		{
 			RplId transmissionRplId = Replication.FindId(rpl);
-			PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
 			m_aTransmissionIds.Insert(transmissionRplId);
 		}
 
@@ -1765,16 +1767,19 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		foreach (RplId rplId : m_aTransmissionIds)
 		{
-			PrintFormat("BCM - GetTransmissionPoints (client): Trying to resolve RplId %1", rplId);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("BCM - GetTransmissionPoints (client): Trying to resolve RplId %1", rplId);
 			RplComponent rpl = RplComponent.Cast(Replication.FindItem(rplId));
 			if (!rpl) {
-				PrintFormat("BCM - GetTransmissionPoints (client): FindItem returned null for RplId %1", rplId);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					PrintFormat("BCM - GetTransmissionPoints (client): FindItem returned null for RplId %1", rplId);
 				continue;
 			}
 
 			IEntity entity = rpl.GetEntity();
 			if (!entity) {
-				PrintFormat("BCM - GetTransmissionPoints (client): RplComponent has no entity for RplId %1", rplId);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					PrintFormat("BCM - GetTransmissionPoints (client): RplComponent has no entity for RplId %1", rplId);
 				continue;
 			}
 
@@ -1783,7 +1788,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				clientComps.Insert(comp);
 		}
 
-		PrintFormat("BCM - GetTransmissionPoints (client): Found %1 transmission points from %2 RplIds", clientComps.Count(), m_aTransmissionIds.Count());
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("BCM - GetTransmissionPoints (client): Found %1 transmission points from %2 RplIds", clientComps.Count(), m_aTransmissionIds.Count());
 		return clientComps;
 	}
 
@@ -1821,7 +1827,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Replicate the updated arrays to clients
 		Replication.BumpMe();
 
-		PrintFormat("BCM - UpdateTransmissionMarkerData: Updated %1 markers", m_aTransmissionPositions.Count());
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("BCM - UpdateTransmissionMarkerData: Updated %1 markers", m_aTransmissionPositions.Count());
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -1855,7 +1862,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		if (!m_aTransmissionPositions || !m_aTransmissionStates || !m_aTransmissionProgress)
 		{
-			PrintFormat("BCM - GetTransmissionMarkerData (client): Replicated arrays not initialized yet");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				PrintFormat("BCM - GetTransmissionMarkerData (client): Replicated arrays not initialized yet");
 			return 0;
 		}
 
@@ -1869,7 +1877,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			outProgress.Insert(m_aTransmissionProgress[i]);
 		}
 
-		PrintFormat("BCM - GetTransmissionMarkerData (client): Returning %1 markers from replicated data", count);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("BCM - GetTransmissionMarkerData (client): Returning %1 markers from replicated data", count);
 		return count;
 	}
 

@@ -34,7 +34,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
-	protected bool m_debug = true;
+	protected bool m_debug = false;
 	
 	protected int m_spawnLock = 0;
 	
@@ -159,6 +159,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
     }
 
     return m_instance;
+	}
+
+	// Cached debug flag from mission header - avoids repeated lookups
+	protected static int m_iDebugModeCache = -1; // -1 = not cached, 0 = off, 1 = on
+
+	static bool IsDebugMode()
+	{
+		if (m_iDebugModeCache >= 0)
+			return m_iDebugModeCache == 1;
+
+		m_iDebugModeCache = 0;
+		MissionHeader header = GetGame().GetMissionHeader();
+		if (header)
+		{
+			GRAD_BC_MissionHeader bcHeader = GRAD_BC_MissionHeader.Cast(header);
+			if (bcHeader && bcHeader.IsDebugLogsEnabled())
+				m_iDebugModeCache = 1;
+		}
+
+		return m_iDebugModeCache == 1;
 	}
 	
     //------------------------------------------------------------------------------------------------

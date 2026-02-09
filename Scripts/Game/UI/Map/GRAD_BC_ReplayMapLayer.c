@@ -2,6 +2,12 @@
 [BaseContainerProps()]
 class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven working class
 {
+	protected static GRAD_BC_ReplayMapLayer s_Instance;
+	
+	static GRAD_BC_ReplayMapLayer GetInstance()
+	{
+		return s_Instance;
+	}
 	
 	protected Widget m_WidgetsRoot;
     protected ref map<string, ImageWidget> m_ActiveWidgets = new map<string, ImageWidget>();
@@ -31,6 +37,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     override void OnMapClose(MapConfiguration config)
     {
         super.OnMapClose(config);
+        
+        UnregisterToggleInputs();
         
         // Cleanup widgets
         if (m_WidgetsRoot)
@@ -136,10 +144,18 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // Show as empty only if no player is inside AND the recorded snapshot says empty
             bool showAsEmpty = !isOccupied && vehicleMarker.isEmpty;
 
+            // Filter: Hide empty vehicles if toggle is active
+            if (m_bHideEmptyVehicles && showAsEmpty)
+                continue;
+
             // Use occupant faction if occupied, otherwise use vehicle's own faction
             string effectiveFaction = vehicleMarker.factionKey;
             if (isOccupied)
                 effectiveFaction = occupantFaction;
+
+            // Filter: Hide civilian faction vehicles if toggle is active
+            if (m_bHideCivilians && effectiveFaction == "CIV")
+                continue;
 
             // Get Key based on vehicle state - use effectiveFaction for correct coloring
             string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, effectiveFaction, showAsEmpty);
@@ -169,6 +185,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // The vehicle loop above has already drawn the vehicle.
             // Drawing it here again would use the wrong rotation (Player Look Dir).
             if (playerMarker.isInVehicle) continue;
+            
+            // Filter: Hide civilian faction infantry if toggle is active
+            if (m_bHideCivilians && playerMarker.factionKey == "CIV")
+                continue;
             
             // Logic below now only handles foot mobile units
             string roleStr = playerMarker.unitType;
@@ -488,11 +508,83 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Replay mode flag - true when actively viewing replay, false for normal map use
 	protected bool m_bIsInReplayMode = false;
 	
+	// Toggle filters for replay display
+	protected bool m_bHideEmptyVehicles = false;
+	protected bool m_bHideCivilians = false;
+	
 	// Public method to enable/disable replay mode
 	void SetReplayMode(bool enabled)
 	{
 		m_bIsInReplayMode = enabled;
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
+		
+		if (enabled)
+			RegisterToggleInputs();
+		else
+			UnregisterToggleInputs();
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Register input listeners for replay toggle keys
+	protected void RegisterToggleInputs()
+	{
+		InputManager inputManager = GetGame().GetInputManager();
+		if (!inputManager)
+			return;
+		
+		inputManager.AddActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
+		inputManager.AddActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Unregister input listeners for replay toggle keys
+	protected void UnregisterToggleInputs()
+	{
+		InputManager inputManager = GetGame().GetInputManager();
+		if (!inputManager)
+			return;
+		
+		inputManager.RemoveActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
+		inputManager.RemoveActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Toggle hiding empty vehicles
+	protected void OnToggleEmptyVehicles()
+	{
+		if (!m_bIsInReplayMode)
+			return;
+		
+		m_bHideEmptyVehicles = !m_bHideEmptyVehicles;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide empty vehicles: %1", m_bHideEmptyVehicles), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Toggle hiding civilian faction markers
+	protected void OnToggleCivilians()
+	{
+		if (!m_bIsInReplayMode)
+			return;
+		
+		m_bHideCivilians = !m_bHideCivilians;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide civilians: %1", m_bHideCivilians), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Public getters for toggle states (used by vanilla available action conditions)
+	bool IsInReplayMode()
+	{
+		return m_bIsInReplayMode;
+	}
+	
+	bool IsHidingEmptyVehicles()
+	{
+		return m_bHideEmptyVehicles;
+	}
+	
+	bool IsHidingCivilians()
+	{
+		return m_bHideCivilians;
 	}
 	
 	// Keep last frame data for persistent display
@@ -514,6 +606,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	//------------------------------------------------------------------------------------------------
 	override void Init()
 	{
+		s_Instance = this;
+		
 		// Vehicle icon mapping
 		m_vehicleIconTextures.Set("LAV_blufor", "{1D2C64090C772F84}UI/Textures/Icons/LAV_blufor.edds");
 		m_vehicleIconTextures.Set("LAV_empty", "{AD78B1EE505E01FC}UI/Textures/Icons/LAV_empty.edds");

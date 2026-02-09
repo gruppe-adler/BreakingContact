@@ -145,8 +145,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             bool showAsEmpty = !isOccupied && vehicleMarker.isEmpty;
 
             // Filter: Hide empty vehicles if toggle is active
-            // Also hide previously-used vehicles that are now empty
-            if (m_bHideEmptyVehicles && (showAsEmpty || (!isOccupied && vehicleMarker.wasUsed)))
+            // But keep previously-used vehicles visible (wasUsed exempts from hiding)
+            if (m_bHideEmptyVehicles && showAsEmpty && !vehicleMarker.wasUsed)
                 continue;
 
             // Use occupant faction if occupied, otherwise use vehicle's own faction

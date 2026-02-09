@@ -310,7 +310,8 @@ class GRAD_MapMarkerUI
         
         if (factionKey != currentfaction) return;
         
-        Print(string.Format("GRAD MapmarkerUI: creating spawn marker for faction %1", factionKey), LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print(string.Format("GRAD MapmarkerUI: creating spawn marker for faction %1", factionKey), LogLevel.NORMAL);
         
         // Create spawn marker circle: center at coords, radius 500m
         GRAD_PlayerComponent.GetInstance().AddCircleMarker(
@@ -334,7 +335,8 @@ class GRAD_MapMarkerUI
         }
         // Then clear the array
         m_aSpawnCircles.Clear();
-        Print("GRAD CirclemarkerUI: Cleared spawn markers", LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("GRAD CirclemarkerUI: Cleared spawn markers", LogLevel.NORMAL);
     }
 
     //------------------------------------------------------------------------------------------------

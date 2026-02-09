@@ -31,7 +31,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             FrameSlot.SetOffsets(m_WidgetsRoot, 0, 0, 0, 0);
         }
         
-        Print("GRAD_BC_ReplayMapLayer: Widget Root Created", LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("GRAD_BC_ReplayMapLayer: Widget Root Created", LogLevel.NORMAL);
     }
 
     override void OnMapClose(MapConfiguration config)
@@ -335,7 +336,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		vehicleLogCount++;
 		if (vehicleLogCount <= 20)
 		{
-			Print(string.Format("BC Debug - GetVehicleIconKey: prefab='%1', faction='%2', isEmpty=%3", pf, factionKey, isEmpty), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - GetVehicleIconKey: prefab='%1', faction='%2', isEmpty=%3", pf, factionKey, isEmpty), LogLevel.NORMAL);
 		}
 		// Special case: ambient/empty vehicles (no faction)
 		if (factionKey == "Empty")
@@ -516,7 +518,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	void SetReplayMode(bool enabled)
 	{
 		m_bIsInReplayMode = enabled;
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
 		
 		if (enabled)
 			RegisterToggleInputs();
@@ -556,7 +559,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			return;
 		
 		m_bHideEmptyVehicles = !m_bHideEmptyVehicles;
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide empty vehicles: %1", m_bHideEmptyVehicles), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Hide empty vehicles: %1", m_bHideEmptyVehicles), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -567,7 +571,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			return;
 		
 		m_bHideCivilians = !m_bHideCivilians;
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide civilians: %1", m_bHideCivilians), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Hide civilians: %1", m_bHideCivilians), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -704,7 +709,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	
 		super.Init();
 		
-		Print("GRAD_BC_ReplayMapLayer: Initializing replay map layer", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayMapLayer: Initializing replay map layer", LogLevel.NORMAL);
 		
 		// Initialize transmission and radio truck icon paths
 		m_transmissionIconPaths.Set("transmission_active", "{3E2F061E35D2DA76}UI/Textures/Icons/GRAD_BC_mapIcons.imageset:transmission_active");
@@ -792,7 +798,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		// Default fallback for unknown unit types
 		m_unitTypeTextures.Set("Default", "{9912E888E7CC2E28}UI/Textures/Icons/iconman_rifleman_blufor.edds");
-		Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with faction-sensitive unit type textures", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayMapLayer: Replay map layer ready with faction-sensitive unit type textures", LogLevel.NORMAL);
 	}
 	
 	
@@ -972,8 +979,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		frameUpdateCount++;
 		if (frameUpdateCount % 20 == 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 vehicles",
-				frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Received frame with %1 players, %2 projectiles, %3 transmissions, %4 vehicles",
+					frame.players.Count(), frame.projectiles.Count(), frame.transmissions.Count(), frame.vehicles.Count()), LogLevel.NORMAL);
 		}
 
 		// Build new marker arrays first (don't clear existing ones yet to avoid empty frames)
@@ -1003,9 +1011,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			positionLogCount++;
 			if (positionLogCount <= 10)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7°, type: %8", 
-					marker.playerId, marker.playerName, marker.factionKey, marker.position[0], marker.position[1], marker.position[2], 
-					marker.direction, marker.unitType));
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayMapLayer: Player %1 (%2) faction: '%3', position: [%4, %5, %6], direction: %7°, type: %8", 
+						marker.playerId, marker.playerName, marker.factionKey, marker.position[0], marker.position[1], marker.position[2], 
+						marker.direction, marker.unitType));
 			}
 			
 			newPlayerMarkers.Insert(marker);
@@ -1026,10 +1035,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			projLogCount++;
 			if (projLogCount <= 5)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Projectile %1 - Type: %2, From: [%3, %4, %5], To: [%6, %7, %8]",
-					projLogCount, marker.projectileType,
-					marker.position[0], marker.position[1], marker.position[2],
-					marker.impactPosition[0], marker.impactPosition[1], marker.impactPosition[2]));
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayMapLayer: Projectile %1 - Type: %2, From: [%3, %4, %5], To: [%6, %7, %8]",
+						projLogCount, marker.projectileType,
+						marker.position[0], marker.position[1], marker.position[2],
+						marker.impactPosition[0], marker.impactPosition[1], marker.impactPosition[2]));
 			}
 			
 			newProjectileMarkers.Insert(marker);
@@ -1049,9 +1059,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			transLogCount++;
 			if (transLogCount <= 5)
 			{
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Transmission %1 - State: %2, Progress: %3%%, Position: [%4, %5, %6]",
-					transLogCount, marker.state, marker.progress * 100,
-					marker.position[0], marker.position[1], marker.position[2]));
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayMapLayer: Transmission %1 - State: %2, Progress: %3%%, Position: [%4, %5, %6]",
+						transLogCount, marker.state, marker.progress * 100,
+						marker.position[0], marker.position[1], marker.position[2]));
 			}
 			
 			newTransmissionMarkers.Insert(marker);
@@ -1093,8 +1104,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		// Reduced logging
 		if (frameUpdateCount % 20 == 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 vehicles (last frame: %3 players)",
-				m_playerMarkers.Count(), m_vehicleMarkers.Count(), m_lastFramePlayerMarkers.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Updated frame with %1 players, %2 vehicles (last frame: %3 players)",
+					m_playerMarkers.Count(), m_vehicleMarkers.Count(), m_lastFramePlayerMarkers.Count()), LogLevel.NORMAL);
 		}
 	}
 	
@@ -1206,8 +1218,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		// Note: Text rendering in map layers is limited, so we'll use the progress bar as the primary indicator
 		// The time display will be in the replay controls widget
 		
-		Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
-			progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
+				progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
 	}
 	
 	//------------------------------------------------------------------------------------------------

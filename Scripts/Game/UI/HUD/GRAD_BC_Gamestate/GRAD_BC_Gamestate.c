@@ -34,7 +34,8 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		m_bPersistent = false;
 		m_text.SetText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
-		PrintFormat("GRAD_BC_Gamestate: showText called!", LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("GRAD_BC_Gamestate: showText called!", LogLevel.VERBOSE);
     	GetGame().GetCallqueue().CallLater(HideLogo, 15000);
     }
 
@@ -45,7 +46,8 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		if (m_text)
 			m_text.SetText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
-		Print(string.Format("GRAD_BC_Gamestate: ShowPersistentText: %1", message), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_Gamestate: ShowPersistentText: %1", message), LogLevel.NORMAL);
 	}
 
 	// Update text without changing visibility or resetting timers
@@ -87,7 +89,8 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 			m_progressContainer.SetVisible(false);
 
 		super.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
-		Print("GRAD_BC_Gamestate: HideText called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Gamestate: HideText called", LogLevel.NORMAL);
 	}
 
 	private void HideLogo()
@@ -96,6 +99,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 			return;
 
 		super.Show(false, 3.0, EAnimationCurve.EASE_OUT_QUART);
-		PrintFormat("GRAD_BC_Gamestate: hiding m_text", LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			PrintFormat("GRAD_BC_Gamestate: hiding m_text", LogLevel.VERBOSE);
     }
 }

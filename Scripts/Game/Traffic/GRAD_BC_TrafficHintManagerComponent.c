@@ -1,6 +1,18 @@
 [ComponentEditorProps(category: "GRAD/Breaking Contact", description: "Manager for civilian death events and UI triggers.")]
 class GRAD_BC_TrafficHintManagerComponentClass : ScriptComponentClass {}
 
+// Tracks a single traffic marker with its metadata for fade-out
+class GRAD_BC_TrafficMarkerData
+{
+	SCR_MapMarkerBase m_Marker;
+	float m_fCreationTime;         // System.GetTickCount() / 1000.0 at creation
+	string m_sEventType;           // "killed" or "gunfight"
+	string m_sTimestamp;           // formatted time string for display
+	vector m_vLocation;            // world position
+	int m_iColorEntry;             // original color entry
+	int m_iIconEntry;              // original icon entry
+}
+
 class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 {
 	protected RplComponent m_RplComponent;
@@ -10,12 +22,14 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	protected ref array<vector> m_aCooldownPositions;
 	protected ref array<float> m_aCooldownTimes;
 	
-	// Active vanilla markers for scheduled removal (server only)
-	protected ref array<ref SCR_MapMarkerBase> m_aActiveMarkers;
+	// Active vanilla markers with metadata for fade-out (server only)
+	protected ref array<ref GRAD_BC_TrafficMarkerData> m_aActiveMarkerData;
 	
 	static const float COOLDOWN_DISTANCE = 500.0;    // meters
 	static const float MARKER_LIFETIME = 180.0;      // seconds
 	static const float COOLDOWN_LIFETIME = 180.0;    // same as marker lifetime
+	static const float FADE_START = 10.0;            // seconds before fade begins
+	static const float FADE_UPDATE_INTERVAL = 15.0;  // base seconds between fade updates (decreases as marker ages)
 	
 	// Placeholder icon entries - TODO: replace with actual resource IDs when known
 	static const int ICON_KILLED = 8;       // placeholder icon index for killed events
@@ -38,7 +52,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		
 		m_aCooldownPositions = new array<vector>();
 		m_aCooldownTimes = new array<float>();
-		m_aActiveMarkers = new array<ref SCR_MapMarkerBase>();
+		m_aActiveMarkerData = new array<ref GRAD_BC_TrafficMarkerData>();
 	}
 	
 	override void EOnFrame(IEntity owner, float timeSlice)
@@ -167,6 +181,29 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 			return;
 		}
 		
+		float creationTime = System.GetTickCount() / 1000.0;
+		string timestamp = FormatTimestamp();
+		
+		string eventLabel;
+		int iconEntry;
+		int colorEntry;
+		
+		if (eventtype == "killed")
+		{
+			eventLabel = "CIV KILLED";
+			iconEntry = ICON_KILLED;
+			colorEntry = COLOR_KILLED;
+		}
+		else
+		{
+			eventLabel = "GUNFIGHT";
+			iconEntry = ICON_GUNFIGHT;
+			colorEntry = COLOR_GUNFIGHT;
+		}
+		
+		// Build marker text with timestamp
+		string markerText = string.Format("%1 [%2]", eventLabel, timestamp);
+		
 		SCR_MapMarkerBase marker = new SCR_MapMarkerBase();
 		marker.SetType(SCR_EMapMarkerType.PLACED_CUSTOM);
 		
@@ -175,56 +212,172 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		worldPos[0] = location[0];
 		worldPos[1] = location[2];
 		marker.SetWorldPos(worldPos[0], worldPos[1]);
-		
-		string markerText;
-		int iconEntry;
-		int colorEntry;
-		
-		if (eventtype == "killed")
-		{
-			markerText = "CIV KILLED";
-			iconEntry = ICON_KILLED;
-			colorEntry = COLOR_KILLED;
-		}
-		else
-		{
-			markerText = "GUNFIGHT";
-			iconEntry = ICON_GUNFIGHT;
-			colorEntry = COLOR_GUNFIGHT;
-		}
-		
 		marker.SetCustomText(markerText);
 		marker.SetIconEntry(iconEntry);
 		marker.SetColorEntry(colorEntry);
 		
 		markerManager.InsertStaticMarker(marker, true, true);
-		m_aActiveMarkers.Insert(marker);
+		
+		// Track marker data for fade-out
+		GRAD_BC_TrafficMarkerData data = new GRAD_BC_TrafficMarkerData();
+		data.m_Marker = marker;
+		data.m_fCreationTime = creationTime;
+		data.m_sEventType = eventtype;
+		data.m_sTimestamp = timestamp;
+		data.m_vLocation = location;
+		data.m_iColorEntry = colorEntry;
+		data.m_iIconEntry = iconEntry;
+		m_aActiveMarkerData.Insert(data);
 		
 		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Created vanilla marker '%1' at %2", markerText, location), LogLevel.NORMAL);
 		
-		// Schedule marker removal after MARKER_LIFETIME seconds
+		// Start periodic fade update after FADE_START seconds
 		GetGame().GetCallqueue().CallLater(
-			RemoveMarker,
-			MARKER_LIFETIME * 1000,
+			UpdateMarkerFade,
+			FADE_START * 1000,
 			false,
-			marker
+			data
 		);
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	protected void RemoveMarker(SCR_MapMarkerBase marker)
+	// Calculates fade-out opacity using a power curve: starts slow, gets progressively faster
+	// Returns 1.0 at FADE_START, decreases to 0.0 at MARKER_LIFETIME
+	protected float CalculateFadeOpacity(float elapsedTime)
 	{
-		if (!marker)
+		if (elapsedTime <= FADE_START)
+			return 1.0;
+		
+		if (elapsedTime >= MARKER_LIFETIME)
+			return 0.0;
+		
+		// Normalized progress from 0.0 (at FADE_START) to 1.0 (at MARKER_LIFETIME)
+		float fadeProgress = (elapsedTime - FADE_START) / (MARKER_LIFETIME - FADE_START);
+		
+		// Power curve (exponent > 1): starts slow, accelerates toward the end
+		float opacity = 1.0 - Math.Pow(fadeProgress, 2.5);
+		
+		return Math.Clamp(opacity, 0.0, 1.0);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Periodic update for marker fade-out
+	protected void UpdateMarkerFade(GRAD_BC_TrafficMarkerData data)
+	{
+		if (!data || !data.m_Marker)
 			return;
 		
-		SCR_MapMarkerManagerComponent markerManager = SCR_MapMarkerManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_MapMarkerManagerComponent));
-		if (markerManager)
+		float currentTime = System.GetTickCount() / 1000.0;
+		float elapsed = currentTime - data.m_fCreationTime;
+		
+		// If past lifetime, remove the marker entirely
+		if (elapsed >= MARKER_LIFETIME)
 		{
-			markerManager.RemoveStaticMarker(marker);
-			Print("GRAD_BC_TrafficHintManagerComponent: Removed expired traffic marker", LogLevel.NORMAL);
+			RemoveMarker(data);
+			return;
 		}
 		
-		m_aActiveMarkers.RemoveItem(marker);
+		float opacity = CalculateFadeOpacity(elapsed);
+		
+		// Build updated marker text with timestamp and elapsed time
+		// Note: opacity value drives the update interval (faster updates as marker ages)
+		// but cannot be applied as visual transparency since vanilla markers don't support per-marker opacity
+		int elapsedSeconds = elapsed;
+		int minutes = elapsedSeconds / 60;
+		int seconds = elapsedSeconds % 60;
+		
+		string eventLabel;
+		if (data.m_sEventType == "killed")
+			eventLabel = "CIV KILLED";
+		else
+			eventLabel = "GUNFIGHT";
+		
+		string ageText;
+		if (minutes > 0)
+			ageText = string.Format("%1m %2s ago", minutes, seconds);
+		else
+			ageText = string.Format("%1s ago", seconds);
+		
+		string markerText = string.Format("%1 [%2] (%3)", eventLabel, data.m_sTimestamp, ageText);
+		
+		// Remove old marker and insert updated one to reflect fade state
+		SCR_MapMarkerManagerComponent markerManager = SCR_MapMarkerManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_MapMarkerManagerComponent));
+		if (!markerManager)
+			return;
+		
+		markerManager.RemoveStaticMarker(data.m_Marker);
+		
+		SCR_MapMarkerBase newMarker = new SCR_MapMarkerBase();
+		newMarker.SetType(SCR_EMapMarkerType.PLACED_CUSTOM);
+		
+		int worldPos[2];
+		worldPos[0] = data.m_vLocation[0];
+		worldPos[1] = data.m_vLocation[2];
+		newMarker.SetWorldPos(worldPos[0], worldPos[1]);
+		newMarker.SetCustomText(markerText);
+		newMarker.SetIconEntry(data.m_iIconEntry);
+		newMarker.SetColorEntry(data.m_iColorEntry);
+		
+		markerManager.InsertStaticMarker(newMarker, true, true);
+		data.m_Marker = newMarker;
+		
+		// Schedule next update - interval decreases as opacity drops (faster updates toward the end)
+		// Scale interval: at full opacity use FADE_UPDATE_INTERVAL, at low opacity update more frequently
+		float nextInterval = FADE_UPDATE_INTERVAL * opacity;
+		if (nextInterval < 2.0)
+			nextInterval = 2.0;
+		
+		GetGame().GetCallqueue().CallLater(
+			UpdateMarkerFade,
+			nextInterval * 1000,
+			false,
+			data
+		);
+		
+		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Fade update - opacity: %1, age: %2s, next in: %3s", opacity, elapsedSeconds, nextInterval), LogLevel.VERBOSE);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	protected void RemoveMarker(GRAD_BC_TrafficMarkerData data)
+	{
+		if (!data)
+			return;
+		
+		if (data.m_Marker)
+		{
+			SCR_MapMarkerManagerComponent markerManager = SCR_MapMarkerManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_MapMarkerManagerComponent));
+			if (markerManager)
+			{
+				markerManager.RemoveStaticMarker(data.m_Marker);
+				Print("GRAD_BC_TrafficHintManagerComponent: Removed expired traffic marker", LogLevel.NORMAL);
+			}
+		}
+		
+		m_aActiveMarkerData.RemoveItem(data);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Format current time as HH:MM:SS for marker timestamp
+	protected string FormatTimestamp()
+	{
+		// Use system tick to derive a session-relative timestamp
+		int totalSeconds = System.GetTickCount() / 1000;
+		int hours = (totalSeconds / 3600) % 24;
+		int minutes = (totalSeconds / 60) % 60;
+		int secs = totalSeconds % 60;
+		
+		string hh = hours.ToString();
+		string mm = minutes.ToString();
+		string ss = secs.ToString();
+		
+		if (hours < 10)
+			hh = "0" + hh;
+		if (minutes < 10)
+			mm = "0" + mm;
+		if (secs < 10)
+			ss = "0" + ss;
+		
+		return string.Format("%1:%2:%3", hh, mm, ss);
 	}
 	
 	//------------------------------------------------------------------------------------------------

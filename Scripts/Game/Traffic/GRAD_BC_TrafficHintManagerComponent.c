@@ -43,7 +43,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		{
 			SCR_TrafficEvents.OnCivilianEvent.Insert(OnCivilianEvent);
 			m_bSubscribed = true;
-			Print("GRAD_BC_TrafficHintManagerComponent: SERVER - Subscribed to traffic events", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_TrafficHintManagerComponent: SERVER - Subscribed to traffic events", LogLevel.NORMAL);
 			ClearEventMask(owner, EntityEvent.FRAME);
 			return;
 		}
@@ -52,7 +53,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		if (!Replication.IsServer() && pc && pc == owner && !m_bSubscribed)
 		{
 			m_bSubscribed = true;
-			Print("GRAD_BC_TrafficHintManagerComponent: CLIENT - PlayerController ready", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_TrafficHintManagerComponent: CLIENT - PlayerController ready", LogLevel.NORMAL);
 			ClearEventMask(owner, EntityEvent.FRAME);
 		}
 	}
@@ -63,7 +65,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		if (m_bSubscribed && Replication.IsServer())
 		{
 			SCR_TrafficEvents.OnCivilianEvent.Remove(OnCivilianEvent);
-			Print("GRAD_BC_TrafficHintManagerComponent: Unsubscribed from traffic events", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_TrafficHintManagerComponent: Unsubscribed from traffic events", LogLevel.NORMAL);
 		}
 		super.OnDelete(owner);
 	}
@@ -105,7 +108,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	protected void OnCivilianEvent(vector location, string eventtype)
 	{
-		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Civilian event detected at %1, type: %2", location, eventtype), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Civilian event detected at %1, type: %2", location, eventtype), LogLevel.NORMAL);
 
 		// Only handle this on server
 		if (!Replication.IsServer())
@@ -114,7 +118,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		// Check 500m proximity cooldown
 		if (IsOnCooldown(location))
 		{
-			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Event at %1 is on cooldown, skipping", location), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Event at %1 is on cooldown, skipping", location), LogLevel.NORMAL);
 			return;
 		}
 
@@ -124,7 +129,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		if (m_RplComponent)
 		{
 			Rpc(RpcAsk_BroadcastTrafficEvent, location, eventtype);
-			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Broadcasted RPC for event type '%1'", eventtype), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Broadcasted RPC for event type '%1'", eventtype), LogLevel.NORMAL);
 		}
 
 		// Also trigger locally if server has a player controller (listen server)
@@ -160,7 +166,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	protected void RpcAsk_BroadcastTrafficEvent(vector location, string eventtype)
 	{
-		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: RPC received - event type '%1' at %2", eventtype, location), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: RPC received - event type '%1' at %2", eventtype, location), LogLevel.NORMAL);
 
 		// Only handle on clients (server already handled it locally if needed)
 		if (Replication.IsServer())
@@ -172,7 +179,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	protected void ShowTrafficEventUI(vector location, string eventtype)
 	{
-		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: ShowTrafficEventUI called for type '%1'", eventtype), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: ShowTrafficEventUI called for type '%1'", eventtype), LogLevel.NORMAL);
 
 		// Add custom icon to the map via GRAD_IconMarkerUI
 		CreateTrafficMapIcon(location, eventtype);
@@ -256,7 +264,8 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		// AddIcon uses world X/Z coordinates; pass same point for start and end (static icon, no rotation)
 		int iconId = iconMarkerUI.AddIcon(location[0], location[2], location[0], location[2], iconTexture, -1, false, label);
 
-		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Created map icon id=%1 for '%2' at %3", iconId, eventtype, location), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Created map icon id=%1 for '%2' at %3", iconId, eventtype, location), LogLevel.NORMAL);
 
 		// Schedule removal after MARKER_LIFETIME
 		GetGame().GetCallqueue().CallLater(
@@ -279,6 +288,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 			return;
 
 		iconMarkerUI.RemoveIcon(iconId);
-		Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Removed expired traffic icon id=%1", iconId), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_TrafficHintManagerComponent: Removed expired traffic icon id=%1", iconId), LogLevel.NORMAL);
 	}
 }

@@ -192,7 +192,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
         m_LastStateChangeTime = currentTime;
         
-        PrintFormat("GRAD_MapMarkerManager: Transmission state changed - triggering instant update");
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	PrintFormat("GRAD_MapMarkerManager: Transmission state changed - triggering instant update");
         PopulateMarkers();
         CheckForStateChanges();
         m_NeedsRedraw = true;
@@ -214,7 +215,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         // Resize tracking array if needed
         if (m_LastStates.Count() != markerCount) {
             stateChanged = true;
-            PrintFormat("GRAD_MapMarkerManager: Marker count changed from %1 to %2", m_LastStates.Count(), markerCount);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: Marker count changed from %1 to %2", m_LastStates.Count(), markerCount);
             m_LastStates.Clear();
             m_LastStates.Resize(markerCount);
             // Initialize new states
@@ -228,7 +230,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     stateChanged = true;
                     ETransmissionState oldState = m_LastStates[i];
                     ETransmissionState newState = m_AllMarkers[i].m_State;
-                    PrintFormat("GRAD_MapMarkerManager: State changed for marker %1: %2 -> %3", i, oldState, newState);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	PrintFormat("GRAD_MapMarkerManager: State changed for marker %1: %2 -> %3", i, oldState, newState);
                     
                     // Update state immediately
                     m_LastStates[i] = newState;
@@ -373,7 +376,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 
                 // Safety bounds checking to prevent GPU crashes from invalid coordinates
                 if (useScreenX < -10000 || useScreenX > 10000 || useScreenY < -10000 || useScreenY > 10000 || useRadius < 0 || useRadius > 5000) {
-                    PrintFormat("GRAD_MapMarkerManager: Invalid coordinates detected, skipping marker - Screen: %1,%2, Radius: %3", useScreenX, useScreenY, useRadius);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	PrintFormat("GRAD_MapMarkerManager: Invalid coordinates detected, skipping marker - Screen: %1,%2, Radius: %3", useScreenX, useScreenY, useRadius);
                     continue; // Skip this marker to prevent GPU issues
                 }
                 
@@ -437,7 +441,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         bool shouldLog = (debugCounter % 600 == 0); // Log every 60 calls (~1 second)
         
         if (shouldLog) {
-            PrintFormat("GRAD_MapMarkerManager: DEBUG V2 - UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count());
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: DEBUG V2 - UpdateTransmissionTextMarkers called with %1 markers", m_AllMarkers.Count());
         }
         
         // Remove old text widgets
@@ -468,11 +473,13 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
         
         if (shouldLog) {
-            PrintFormat("GRAD_MapMarkerManager: Using official map frame widget '%1' (same as SCR_MapMarkerEntity)", mapFrame.GetName());
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: Using official map frame widget '%1' (same as SCR_MapMarkerEntity)", mapFrame.GetName());
         }
         
         if (shouldLog) {
-            PrintFormat("GRAD_MapMarkerManager: Using widget '%1' as parent for text widgets", mapFrame.GetName());
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: Using widget '%1' as parent for text widgets", mapFrame.GetName());
         }
         
         // Create text markers for each transmission point
@@ -487,23 +494,27 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             m_MapEntity.WorldToScreen(entry.m_Position[0], entry.m_Position[2], screenX, screenY, true);
             
             if (shouldLog) {
-                Print(string.Format("GRAD_MapMarkerManager: Creating text widget for marker %1 at screen pos %2,%3", i, screenX, screenY), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	Print(string.Format("GRAD_MapMarkerManager: Creating text widget for marker %1 at screen pos %2,%3", i, screenX, screenY), LogLevel.NORMAL);
             }
             
             // Create text widget from layout
             Widget textWidget = GetGame().GetWorkspace().CreateWidgets("{BF487CF20D30CF50}UI/Layouts/Map/MapDrawText.layout", mapFrame);
             if (!textWidget) {
                 if (shouldLog) {
-                    Print(string.Format("GRAD_MapMarkerManager: Failed to create text widget for marker %1", i), LogLevel.NORMAL);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	Print(string.Format("GRAD_MapMarkerManager: Failed to create text widget for marker %1", i), LogLevel.NORMAL);
                 }
                 continue;
             }
             
             if (shouldLog) {
-                Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	Print(string.Format("GRAD_MapMarkerManager: Text widget created successfully for marker %1", i), LogLevel.NORMAL);
                 
                 // Debug frame properties
-                Print(string.Format("GRAD_MapMarkerManager: Frame widget type: %1, visible: %2", textWidget.Type().ToString(), textWidget.IsVisible()), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	Print(string.Format("GRAD_MapMarkerManager: Frame widget type: %1, visible: %2", textWidget.Type().ToString(), textWidget.IsVisible()), LogLevel.NORMAL);
             }
             
             // Ensure frame widget is properly configured for background
@@ -513,11 +524,13 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 frameComp.SetVisible(true);
                 frameComp.SetOpacity(1.0);
                 if (shouldLog) {
-                    Print(string.Format("GRAD_MapMarkerManager: Frame background configured (RED) for marker %1", i), LogLevel.NORMAL);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	Print(string.Format("GRAD_MapMarkerManager: Frame background configured (RED) for marker %1", i), LogLevel.NORMAL);
                 }
             } else {
                 if (shouldLog) {
-                    Print(string.Format("GRAD_MapMarkerManager: Warning - Root widget is not a FrameWidget for marker %1", i), LogLevel.NORMAL);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	Print(string.Format("GRAD_MapMarkerManager: Warning - Root widget is not a FrameWidget for marker %1", i), LogLevel.NORMAL);
                 }
             }
             
@@ -535,7 +548,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                         if (!textComp) {
                             textComp = TextWidget.Cast(textWidget.FindAnyWidget("Label"));
                             if (!textComp) {
-                                PrintFormat("GRAD_MapMarkerManager: Could not find TextWidget in layout for marker %1", i);
+                                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                                	PrintFormat("GRAD_MapMarkerManager: Could not find TextWidget in layout for marker %1", i);
                                 textWidget.RemoveFromHierarchy();
                                 continue;
                             }
@@ -545,10 +559,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             }
             
             if (shouldLog) {
-                Print(string.Format("GRAD_MapMarkerManager: Found TextWidget for marker %1", i), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	Print(string.Format("GRAD_MapMarkerManager: Found TextWidget for marker %1", i), LogLevel.NORMAL);
                 
                 // Debug widget properties - only log occasionally
-                Print(string.Format("GRAD_MapMarkerManager: TextWidget visible: %1, enabled: %2", textComp.IsVisible(), textComp.IsEnabled()), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	Print(string.Format("GRAD_MapMarkerManager: TextWidget visible: %1, enabled: %2", textComp.IsVisible(), textComp.IsEnabled()), LogLevel.NORMAL);
             }
             
             // Get transmission progress percentage
@@ -593,7 +609,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             
             textComp.SetText(progressText);
             if (shouldLog) {
-                PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	PrintFormat("GRAD_MapMarkerManager: Set text '%1' for marker %2", progressText, i);
             }
             
             // Position text widget above the marker center using EXACT same method as SCR_MapMarkerEntity
@@ -602,7 +619,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             float textY = GetGame().GetWorkspace().DPIUnscale(screenY - 40); // 40 pixels above marker
             
             if (shouldLog) {
-                PrintFormat("GRAD_MapMarkerManager: DPI scaling - Screen: %1,%2 -> Unscaled: %3,%4", screenX, screenY, textX, textY);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	PrintFormat("GRAD_MapMarkerManager: DPI scaling - Screen: %1,%2 -> Unscaled: %3,%4", screenX, screenY, textX, textY);
             }
             
             // Set widget position using EXACT same method as SCR_MapMarkerEntity
@@ -610,7 +628,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             FrameSlot.SetPos(textWidget, textX, textY);
             
             if (shouldLog) {
-                PrintFormat("GRAD_MapMarkerManager: Positioned text widget at unscaled %1,%2 for marker %3", textX, textY, i);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	PrintFormat("GRAD_MapMarkerManager: Positioned text widget at unscaled %1,%2 for marker %3", textX, textY, i);
             }
             
             // Add to our tracking array
@@ -662,7 +681,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // ───────────────────────────────────────────────────────────────────────────────
     void ClearAllMarkers()
     {
-        Print("GRAD_MapMarkerManager: Clearing all live transmission markers for replay", LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("GRAD_MapMarkerManager: Clearing all live transmission markers for replay", LogLevel.NORMAL);
         
         // Enable replay mode to stop drawing and updating markers
         m_bIsReplayMode = true;
@@ -692,7 +712,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         if (m_Commands)
             m_Commands.Clear();
         
-        Print("GRAD_MapMarkerManager: All live markers cleared", LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("GRAD_MapMarkerManager: All live markers cleared", LogLevel.NORMAL);
     }
 
     // Remove retry loop, use only event/callback
@@ -748,10 +769,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             string componentStatus = "replicated data only";
             if (entry.m_Component != null)
                 componentStatus = "available";
-            PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3 (component: %4)",
-                i, entry.m_Position, entry.m_State, componentStatus);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: Added marker %1 at %2 with state %3 (component: %4)",
+	                i, entry.m_Position, entry.m_State, componentStatus);
         }
-        PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", count);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", count);
     }
     
     // ───────────────────────────────────────────────────────────────────────────────
@@ -772,7 +795,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             return;
         }
         
-        Print("GRAD_MapMarkerManager: Attempting to dismiss mission description panel", LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("GRAD_MapMarkerManager: Attempting to dismiss mission description panel", LogLevel.NORMAL);
         
         // Try to find the mission description panel widget
         array<string> possibleNames = {
@@ -786,10 +810,12 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 // Check if it's actually visible before hiding
                 if (descriptionPanel.IsVisible()) {
                     descriptionPanel.SetVisible(false);
-                    PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' automatically dismissed", widgetName);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' automatically dismissed", widgetName);
                     panelFound = true;
                 } else {
-                    PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' found but already hidden", widgetName);
+                    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    	PrintFormat("GRAD_MapMarkerManager: Mission description panel '%1' found but already hidden", widgetName);
                 }
                 break; // Only process the first one found
             }
@@ -797,7 +823,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         
         if (!panelFound) {
             // Try a more aggressive search by looking for any widget containing relevant keywords
-            Print("GRAD_MapMarkerManager: Standard mission description panel not found, trying recursive search", LogLevel.NORMAL);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	Print("GRAD_MapMarkerManager: Standard mission description panel not found, trying recursive search", LogLevel.NORMAL);
             SearchAndHideMissionPanel(mapRoot);
         }
         
@@ -832,7 +859,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         
         if (isMissionPanel && parent.IsVisible()) {
             parent.SetVisible(false);
-            PrintFormat("GRAD_MapMarkerManager: Found and hid mission panel: '%1'", widgetName);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_MapMarkerManager: Found and hid mission panel: '%1'", widgetName);
             return; // Found and hidden, no need to search children
         }
         
@@ -859,7 +887,8 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
             Widget modal = mapRoot.FindAnyWidget(modalName);
             if (modal && modal.IsVisible()) {
                 modal.SetVisible(false);
-                PrintFormat("GRAD_MapMarkerManager: Dismissed modal panel: '%1'", modalName);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                	PrintFormat("GRAD_MapMarkerManager: Dismissed modal panel: '%1'", modalName);
             }
         }
     }

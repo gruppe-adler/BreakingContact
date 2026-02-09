@@ -77,7 +77,8 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 							// Only prevent starting new transmission if within 1000m of DONE or DISABLED transmission points
 							// Allow starting near INTERRUPTED (state 2) or OFF (state 0) transmission points
 							if (distance <= 1000.0 && (state == ETransmissionState.DONE || state == ETransmissionState.DISABLED)) {
-								Print(string.Format("BC Debug - Cannot start transmission: Too close to DONE/DISABLED transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
+								if (GRAD_BC_BreakingContactManager.IsDebugMode())
+									Print(string.Format("BC Debug - Cannot start transmission: Too close to DONE/DISABLED transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
 								return false;
 							}
 						}
@@ -93,7 +94,8 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
-		Print("BC Debug - PerformAction() ToggleRadioTransmission", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - PerformAction() ToggleRadioTransmission", LogLevel.NORMAL);
 
 		if (!m_radioTruckComponent)
 		{
@@ -187,13 +189,15 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			// Initialize lamp state to off by default using the component's method
 			// This ensures consistent state management through replication
 			m_radioTruckComponent.ApplyLampState(false);
-			Print("BC Debug - Lamps initialized and hidden via component.");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - Lamps initialized and hidden via component.");
 		}
 		else
 		{
 			// NOT FOUND YET.
 			// The attachment hasn't spawned. Try again in another 100ms.
-			Print("BC Debug - Lamp not ready yet, retrying...");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - Lamp not ready yet, retrying...");
 			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
 		}
 	}

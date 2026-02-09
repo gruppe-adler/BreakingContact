@@ -9,7 +9,8 @@ class GRAD_BC_EndScreenComponent : ScriptedWidgetComponent
 	{
 		m_wRoot = w;
 		
-		Print("GRAD_BC_EndScreenComponent: HandlerAttached called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_EndScreenComponent: HandlerAttached called", LogLevel.NORMAL);
 		
 		m_TitleText = TextWidget.Cast(m_wRoot.FindAnyWidget("TitleText"));
 		m_SubtitleText = TextWidget.Cast(m_wRoot.FindAnyWidget("SubtitleText"));
@@ -42,18 +43,21 @@ class GRAD_BC_EndScreenComponent : ScriptedWidgetComponent
 		string title, subtitle;
 		bcm.GetEndscreenText(title, subtitle);
 		
-		Print(string.Format("GRAD_BC_EndScreenComponent: Got from BCM: title='%1', subtitle='%2'", title, subtitle), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_EndScreenComponent: Got from BCM: title='%1', subtitle='%2'", title, subtitle), LogLevel.NORMAL);
 		
 		if (m_TitleText)
 		{
 			m_TitleText.SetText(title);
-			Print(string.Format("GRAD_BC_EndScreenComponent: Set TitleText to '%1'", title), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_EndScreenComponent: Set TitleText to '%1'", title), LogLevel.NORMAL);
 		}
 		
 		if (m_SubtitleText)
 		{
 			m_SubtitleText.SetText(subtitle);
-			Print(string.Format("GRAD_BC_EndScreenComponent: Set SubtitleText to '%1'", subtitle), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_EndScreenComponent: Set SubtitleText to '%1'", subtitle), LogLevel.NORMAL);
 		}
 	}
 }

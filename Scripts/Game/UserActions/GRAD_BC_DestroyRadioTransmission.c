@@ -92,7 +92,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		GRAD_BC_BreakingContactManager bcManager = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcManager)
 		{
-			Print(string.Format("BC Debug - Registering destroyed transmission at position %1", currentPos.ToString()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Registering destroyed transmission at position %1", currentPos.ToString()), LogLevel.NORMAL);
 			bcManager.RegisterDestroyedTransmissionPosition(currentPos);
 			
 			// Also register the disabled component for re-enabling after cooldown
@@ -109,7 +110,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// Spawn debris pieces around the destroyed antenna
 		SpawnAntennaDebris(currentPos, currentAngles);
 		
-		Print("BC Debug - Antenna disabled and hidden on server", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - Antenna disabled and hidden on server", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -125,7 +127,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// Hide the visual representation of the antenna
 		antennaEntity.ClearFlags(EntityFlags.VISIBLE, false);
 		
-		Print("BC Debug - Antenna model hidden", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - Antenna model hidden", LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -134,7 +137,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// For now, skip spawning destroyed antenna visual since .xob files can't be spawned directly
 		// The antenna destruction effect will be the disappearance of the original antenna
 		// and the spawning of debris pieces
-		Print("BC Debug - Antenna destroyed (visual destruction skipped - .xob files cannot be spawned as entities)", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - Antenna destroyed (visual destruction skipped - .xob files cannot be spawned as entities)", LogLevel.NORMAL);
 		
 		// Spawn debris pieces around the destroyed antenna position
 		SpawnAntennaDebris(position, angles);
@@ -220,7 +224,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			
 			if (debris)
 			{
-				Print(string.Format("BC Debug - Debris piece %1 spawned successfully at %2", i, debrisPos.ToString()), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - Debris piece %1 spawned successfully at %2", i, debrisPos.ToString()), LogLevel.NORMAL);
 			}
 			else
 			{
@@ -228,7 +233,8 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			}
 		}
 		
-		Print(string.Format("BC Debug - Antenna destruction complete with %1 debris pieces", debrisCount), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - Antenna destruction complete with %1 debris pieces", debrisCount), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

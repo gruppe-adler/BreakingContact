@@ -88,11 +88,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			if (m_trackedVehicles.Find(vehicle) == -1)
 			{
 				m_trackedVehicles.Insert(vehicle);
-				Print(string.Format("GRAD_BC_ReplayManager: Registered vehicle for tracking: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: Registered vehicle for tracking: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
 			}
 			else
 			{
-				Print(string.Format("GRAD_BC_ReplayManager: Vehicle already tracked: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.VERBOSE);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: Vehicle already tracked: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.VERBOSE);
 			}
 			return;
 		}
@@ -100,7 +102,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		// Retry up to 20 times (2 seconds total if called every 100ms)
 		if (attempt < 20)
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Waiting for RplComponent on vehicle %1 (attempt %2)", vehicle.GetPrefabData().GetPrefabName(), attempt+1), LogLevel.VERBOSE);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Waiting for RplComponent on vehicle %1 (attempt %2)", vehicle.GetPrefabData().GetPrefabName(), attempt+1), LogLevel.VERBOSE);
 			GetGame().GetCallqueue().CallLater(WaitForVehicleRplComponent, 100, false, vehicle, attempt+1);
 		}
 		else
@@ -115,7 +118,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		super.EOnInit(owner);
 		
 		// VERSION IDENTIFIER - This log will change when code updates
-		Print("GRAD_BC_ReplayManager: VERSION 2025-08-20-14:30 - Single-player detection enabled", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: VERSION 2025-08-20-14:30 - Single-player detection enabled", LogLevel.NORMAL);
 		
 		// Force initialization on both server and client
 		if (!s_Instance)
@@ -123,7 +127,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			s_Instance = this;
 			string isServer = "Client";
 			if (Replication.IsServer()) { isServer = "Server"; }
-			Print(string.Format("GRAD_BC_ReplayManager: Force initialized via EOnInit on %1", isServer), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Force initialized via EOnInit on %1", isServer), LogLevel.NORMAL);
 		}
 		
 		SetEventMask(owner, EntityEvent.INIT);
@@ -141,7 +146,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: Instance created and initialized on %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Instance created and initialized on %1", isServer), LogLevel.NORMAL);
 		
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 		if (!m_RplComponent)
@@ -150,27 +156,31 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		}
 		else
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: RplComponent found on %1", isServer), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: RplComponent found on %1", isServer), LogLevel.NORMAL);
 		}
 		
 		// Only record on server
 		if (Replication.IsServer())
 		{
-			Print("GRAD_BC_ReplayManager: Running on server, setting up recording", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Running on server, setting up recording", LogLevel.NORMAL);
 			
 			// Delay initialization to ensure world is ready
 			GetGame().GetCallqueue().CallLater(InitializeReplaySystem, 100, false);
 		}
 		else
 		{
-			Print("GRAD_BC_ReplayManager: Running on client, ready to receive RPCs", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Running on client, ready to receive RPCs", LogLevel.NORMAL);
 			// Initialize client-side replay manager to receive RPCs
 			s_Instance = this;
 			
 			// Add debug info
 			if (m_RplComponent)
 			{
-				Print("GRAD_BC_ReplayManager: Client has RplComponent, RPCs should work", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Client has RplComponent, RPCs should work", LogLevel.NORMAL);
 			}
 			else
 			{
@@ -182,7 +192,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void InitializeReplaySystem()
 	{
-		Print("GRAD_BC_ReplayManager: Initializing replay system", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Initializing replay system", LogLevel.NORMAL);
 		
 		// Initialize replay data now that world should be ready
 		m_replayData = GRAD_BC_ReplayData.Create();
@@ -191,7 +202,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm)
 		{
-			Print("GRAD_BC_ReplayManager: BCM found, starting game state monitoring", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: BCM found, starting game state monitoring", LogLevel.NORMAL);
 			// Start recording when game phase begins
 			GetGame().GetCallqueue().CallLater(CheckGameState, 1000, true);
 		}
@@ -204,7 +216,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (buildingManager)
 		{
 			buildingManager.GetOnEntitySpawnedByProvider().Insert(OnVehicleSpawned);
-			Print("GRAD_BC_ReplayManager: Hooked into vehicle spawn event", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Hooked into vehicle spawn event", LogLevel.NORMAL);
 		}
 		else
 		{
@@ -215,16 +228,19 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (SCR_TrafficEvents.OnTrafficVehicleSpawned)
 		{
 			SCR_TrafficEvents.OnTrafficVehicleSpawned.Insert(OnTrafficVehicleSpawned);
-			Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle spawn events", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle spawn events", LogLevel.NORMAL);
 		}
 		if (SCR_TrafficEvents.OnTrafficVehicleDespawned)
 		{
 			SCR_TrafficEvents.OnTrafficVehicleDespawned.Insert(OnTrafficVehicleDespawned);
-			Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle despawn events", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Subscribed to grad-traffic vehicle despawn events", LogLevel.NORMAL);
 		}
 		if (!SCR_TrafficEvents.OnTrafficVehicleSpawned && !SCR_TrafficEvents.OnTrafficVehicleDespawned)
 		{
-			Print("GRAD_BC_ReplayManager: grad-traffic events not available, traffic vehicles won't be tracked in replay", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: grad-traffic events not available, traffic vehicles won't be tracked in replay", LogLevel.NORMAL);
 		}
 	}
 	
@@ -238,7 +254,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (!spawnedEntity)
 			return;
 
-		Print(string.Format("GRAD_BC_ReplayManager: Entity spawned: %1", spawnedEntity.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Entity spawned: %1", spawnedEntity.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
 
 		Vehicle vehicle = Vehicle.Cast(spawnedEntity);
 		if (vehicle)
@@ -249,7 +266,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			if (m_trackedVehicles.Find(vehicle) == -1)
 			{
 				m_trackedVehicles.Insert(vehicle);
-				Print(string.Format("GRAD_BC_ReplayManager: Tracked new vehicle: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: Tracked new vehicle: %1 (total: %2)", vehicle.GetPrefabData().GetPrefabName(), m_trackedVehicles.Count()), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -262,7 +280,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			return;
 
 		RegisterTrackedVehicle(vehicle);
-		Print(string.Format("GRAD_BC_ReplayManager: Registered grad-traffic vehicle: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Registered grad-traffic vehicle: %1", vehicle.GetPrefabData().GetPrefabName()), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -276,7 +295,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (idx != -1)
 		{
 			m_trackedVehicles.Remove(idx);
-			Print(string.Format("GRAD_BC_ReplayManager: Unregistered grad-traffic vehicle (total: %1)", m_trackedVehicles.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Unregistered grad-traffic vehicle (total: %1)", m_trackedVehicles.Count()), LogLevel.NORMAL);
 		}
 	}
 
@@ -291,20 +311,23 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		}
 			
 		EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
-		Print(string.Format("GRAD_BC_ReplayManager: Current phase: %1, Recording: %2", 
-			currentPhase, m_bIsRecording), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Current phase: %1, Recording: %2", 
+				currentPhase, m_bIsRecording), LogLevel.NORMAL);
 			
 		// Start recording when game begins
 		if (!m_bIsRecording && currentPhase == EBreakingContactPhase.GAME)
 		{
-			Print("GRAD_BC_ReplayManager: Game phase detected, starting recording", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Game phase detected, starting recording", LogLevel.NORMAL);
 			StartRecording();
 		}
 		
 		// Stop recording and start playback when game ends
 		if (m_bIsRecording && currentPhase == EBreakingContactPhase.GAMEOVER)
 		{
-			Print("GRAD_BC_ReplayManager: GAMEOVER phase detected, stopping recording", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: GAMEOVER phase detected, stopping recording", LogLevel.NORMAL);
 			StopRecording();
 			GetGame().GetCallqueue().CallLater(StartPlaybackForAllClients, 500, false); // Reduced from 3000ms to 500ms
 		}
@@ -331,7 +354,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			return;
 		}
 			
-		Print("GRAD_BC_ReplayManager: Starting replay recording", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Starting replay recording", LogLevel.NORMAL);
 		m_bIsRecording = true;
 		m_fLastRecordTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
 		
@@ -345,7 +369,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (!m_bIsRecording)
 			return;
 			
-		Print("GRAD_BC_ReplayManager: Stopping replay recording", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Stopping replay recording", LogLevel.NORMAL);
 		m_bIsRecording = false;
 		GetGame().GetCallqueue().Remove(RecordFrame);
 		
@@ -366,8 +391,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				GRAD_BC_ReplayFrame lastFrame = m_replayData.frames[m_replayData.frames.Count() - 1];
 				m_replayData.totalDuration = lastFrame.timestamp - m_replayData.startTime;
 
-				Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %.2f to %.2f)",
-					m_replayData.frames.Count(), m_replayData.totalDuration, oldStartTime, m_replayData.startTime), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %.2f to %.2f)",
+						m_replayData.frames.Count(), m_replayData.totalDuration, oldStartTime, m_replayData.startTime), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -396,8 +422,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		int removedCount = originalCount - cleanedFrames.Count();
 		if (removedCount > 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Removed %1 empty frames (%2 -> %3)", 
-				removedCount, originalCount, cleanedFrames.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Removed %1 empty frames (%2 -> %3)", 
+					removedCount, originalCount, cleanedFrames.Count()), LogLevel.NORMAL);
 		}
 	}
 	
@@ -450,7 +477,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (!m_trackedVehicles)
 			return;
 			
-		Print(string.Format("GRAD_BC_ReplayManager: Recording %1 tracked vehicles", m_trackedVehicles.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Recording %1 tracked vehicles", m_trackedVehicles.Count()), LogLevel.NORMAL);
 	
 		foreach (IEntity entity : m_trackedVehicles)
 		{
@@ -477,7 +505,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			else
 			{
 				factionKey = "Empty";
-				Print("GRAD_BC_ReplayManager: Vehicle has no FactionAffiliationComponent or AffiliatedFaction, using 'Empty'", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Vehicle has no FactionAffiliationComponent or AffiliatedFaction, using 'Empty'", LogLevel.NORMAL);
 			}
 				
 			RplComponent rpl = RplComponent.Cast(vehicle.FindComponent(RplComponent));
@@ -580,18 +609,20 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			vehicleRecordDebugCount++;
 			if (vehicleRecordDebugCount <= 20)
 			{
-				Print(string.Format(
-					"GRAD_BC_ReplayManager: PlayerRecord id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitRole='%5'",
-					playerId, playerName, isInVehicle, vehicleType, unitRole
-				), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format(
+						"GRAD_BC_ReplayManager: PlayerRecord id=%1 name=%2 isInVehicle=%3 vehicleType='%4' unitRole='%5'",
+						playerId, playerName, isInVehicle, vehicleType, unitRole
+					), LogLevel.NORMAL);
 			}
 			// Debug: Log recording positions and angles for first few frames
 			static int recordLogCount = 0;
 			recordLogCount++;
 			if (recordLogCount <= 10)
 			{
-				Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5], yaw=%6°", 
-					playerId, playerName, position[0], position[1], position[2], angles[0]));
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: Recording player %1 (%2) at position [%3, %4, %5], yaw=%6°", 
+						playerId, playerName, position[0], position[1], position[2], angles[0]));
 			}
 			
 			frame.players.Insert(snapshot);
@@ -727,18 +758,21 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			return;
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Starting replay transmission, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Starting replay transmission, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 	
 	// Check if we have a local player controller (null on dedicated server)
 	PlayerController playerController = GetGame().GetPlayerController();
 	bool isDedicatedServer = (playerController == null);
 	
-	PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
+	if (GRAD_BC_BreakingContactManager.IsDebugMode())
+		PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
 	
 	if (!isDedicatedServer)
 	{
 		// We have a local player - use direct local playback
-		Print("GRAD_BC_ReplayManager: Local player detected, starting direct local playback", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Local player detected, starting direct local playback", LogLevel.NORMAL);
 		StartLocalReplayPlayback();
 	}
 	else
@@ -753,29 +787,35 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			}
 			
 			// Send basic replay info first
-			Print("GRAD_BC_ReplayManager: Sending replay initialization RPC", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Sending replay initialization RPC", LogLevel.NORMAL);
 			Rpc(RpcAsk_StartReplayPlayback, m_replayData.totalDuration, m_replayData.missionName, m_replayData.mapName, m_replayData.startTime);
 			
 		// Send frames in chunks to avoid network limits with delays
 		const int chunkSize = 30;
 		m_iTotalChunksToSend = Math.Ceil(m_replayData.frames.Count() / 30.0);
 		m_iChunksSent = 0;
-		Print(string.Format("GRAD_BC_ReplayManager: Starting chunked replay data transmission - %1 total chunks", m_iTotalChunksToSend), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Starting chunked replay data transmission - %1 total chunks", m_iTotalChunksToSend), LogLevel.NORMAL);
 		SendFrameChunksWithDelay(0);
 			float replayDuration = m_replayData.totalDuration;
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
 			float waitTime = (effectiveDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
-			Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-			Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
-			Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		}
 	}
 
 //------------------------------------------------------------------------------------------------
 void StartLocalReplayPlayback()
 {
-	Print("GRAD_BC_ReplayManager: ========== Starting local single-player replay playback ==========", LogLevel.NORMAL);
+	if (GRAD_BC_BreakingContactManager.IsDebugMode())
+		Print("GRAD_BC_ReplayManager: ========== Starting local single-player replay playback ==========", LogLevel.NORMAL);
 		
 		if (!m_replayData)
 		{
@@ -783,8 +823,9 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
-			m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
+				m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
 		
 		// Calculate adaptive playback speed to fit within 2 minutes
 		CalculateAdaptiveSpeed();
@@ -794,7 +835,8 @@ void StartLocalReplayPlayback()
 		if (gamestateDisplay)
 		{
 			gamestateDisplay.ShowPersistentText("Preparing replay...");
-			Print("GRAD_BC_ReplayManager: Showing replay preparation text in gamestate HUD", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Showing replay preparation text in gamestate HUD", LogLevel.NORMAL);
 		}
 
 		// Set up VoN for cross-faction voice
@@ -808,7 +850,8 @@ void StartLocalReplayPlayback()
 		if (world)
 		{
 			m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
-			Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		}
 		else
 		{
@@ -822,22 +865,27 @@ void StartLocalReplayPlayback()
 		m_bFirstFrameDisplayed = false;
 
 		// Delay opening the map so the gamestate loading screen is visible first
-		Print("GRAD_BC_ReplayManager: Scheduling map open and playback start in 500ms", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Scheduling map open and playback start in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(OpenMapAndStartLocalPlayback, 500, false);
 
 		// NOTE: Endscreen timer is now scheduled in StartActualPlayback() when playback truly begins
 
-		Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Local playback initialization complete", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	void StartActualPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback CALLED =====", LogLevel.NORMAL);
-		Print("GRAD_BC_ReplayManager: Starting actual playback sequence", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: ===== StartActualPlayback CALLED =====", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Starting actual playback sequence", LogLevel.NORMAL);
 		
 		// Verify world is available
-		Print("GRAD_BC_ReplayManager: Checking if world is available...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Checking if world is available...", LogLevel.NORMAL);
 		BaseWorld world = GetGame().GetWorld();
 		if (!world)
 		{
@@ -846,27 +894,35 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		Print("GRAD_BC_ReplayManager: World is available, proceeding...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: World is available, proceeding...", LogLevel.NORMAL);
 		
 		// Reset timing
 		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
-		Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to: %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to: %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		
 		// Enable playback flag - CRITICAL for UpdatePlayback to run
-		Print("GRAD_BC_ReplayManager: Setting m_bIsPlayingBack to TRUE", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Setting m_bIsPlayingBack to TRUE", LogLevel.NORMAL);
 		m_bIsPlayingBack = true;
-		Print(string.Format("GRAD_BC_ReplayManager: m_bIsPlayingBack is now: %1", m_bIsPlayingBack), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: m_bIsPlayingBack is now: %1", m_bIsPlayingBack), LogLevel.NORMAL);
 		
 		// Skip empty frames at start
 		SkipEmptyFrames();
 		
-		Print("GRAD_BC_ReplayManager: About to start playback loop", LogLevel.NORMAL);
-		Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: About to start playback loop", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Starting playback loop", LogLevel.NORMAL);
 		
 		// Start playback loop
-		Print("GRAD_BC_ReplayManager: Calling GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true)", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Calling GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true)", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
-		Print("GRAD_BC_ReplayManager: CallLater executed successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: CallLater executed successfully", LogLevel.NORMAL);
 
 		// Schedule endscreen now that playback has truly started
 		if (m_replayData)
@@ -874,35 +930,41 @@ void StartLocalReplayPlayback()
 			float replayDuration = m_replayData.totalDuration;
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
 			float waitTime = (effectiveDuration + 2.0) * 1000;
-			Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 		}
 
-		Print("GRAD_BC_ReplayManager: ===== StartActualPlayback COMPLETE =====", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: ===== StartActualPlayback COMPLETE =====", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	// Called after loading completes in local/singleplayer mode to open map and start playback
 	void OpenMapAndStartLocalPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: Opening map and starting local playback", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Opening map and starting local playback", LogLevel.NORMAL);
 
 		// Keep loading text visible - it will be hidden when first frame renders
 		// Open the map
 		OpenMapForLocalPlayback();
 
 		// Wait for map + replay layer to be ready before starting playback
-		Print("GRAD_BC_ReplayManager: Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
 		WaitForReplayMapAndStartPlayback(0);
 	}
 
 	//------------------------------------------------------------------------------------------------
 	void OpenMapForLocalPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
 
 		// Clear all live markers before starting replay
-		Print("GRAD_BC_ReplayManager: Clearing live transmission and player markers", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Clearing live transmission and player markers", LogLevel.NORMAL);
 
 		// Clear live transmission markers
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
@@ -912,13 +974,15 @@ void StartLocalReplayPlayback()
 			if (markerMgr)
 			{
 				markerMgr.SetReplayMode(true);
-				Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Enabled replay mode on marker manager", LogLevel.NORMAL);
 			}
 		}
 
 		// Open map fullscreen for replay visualization
 		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
-		Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
 
 		// Map readiness is now gated by WaitForReplayMapAndStartPlayback() called from the caller
 	}
@@ -959,13 +1023,15 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: Replay map layer not ready after max retries, forcing playback start", LogLevel.ERROR);
 		}
 
-		Print(string.Format("GRAD_BC_ReplayManager: Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
 
 		// Set replay mode on the layer BEFORE first frame arrives
 		if (replayLayer)
 		{
 			replayLayer.SetReplayMode(true);
-			Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
 		}
 
 		// Now start actual playback
@@ -976,14 +1042,16 @@ void StartLocalReplayPlayback()
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	void RpcAsk_SetupReplayVoN()
 	{
-		Print("GRAD_BC_ReplayManager: Server received VoN setup request", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Server received VoN setup request", LogLevel.NORMAL);
 		SetAllPlayersToGlobalVoN();
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	void SetAllPlayersToGlobalVoN()
 	{
-		Print("GRAD_BC_ReplayManager: Moving all players to global VoN room", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Moving all players to global VoN room", LogLevel.NORMAL);
 		
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
@@ -1000,10 +1068,12 @@ void StartLocalReplayPlayback()
 		foreach (int playerId : playerIds)
 		{
 			vonManager.MoveToRoom(playerId, "", ""); // Empty faction + room = global
-			Print(string.Format("GRAD_BC_ReplayManager: Player %1 moved to global voice room", playerId), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Player %1 moved to global voice room", playerId), LogLevel.NORMAL);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: %1 players in global voice room for replay", playerIds.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: %1 players in global voice room for replay", playerIds.Count()), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -1016,7 +1086,8 @@ void StartLocalReplayPlayback()
 		if (currentChunkStart >= m_replayData.frames.Count())
 		{
 			// All chunks sent, send completion signal after final delay
-			Print("GRAD_BC_ReplayManager: All chunks sent, sending completion RPC in 500ms", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: All chunks sent, sending completion RPC in 500ms", LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(SendReplayComplete, 500, false);
 			return;
 		}
@@ -1024,7 +1095,8 @@ void StartLocalReplayPlayback()
 		int endIndex = Math.Min(currentChunkStart + chunkSize, m_replayData.frames.Count());
 		m_iChunksSent++;
 		float progress = m_iChunksSent / (float)m_iTotalChunksToSend;
-		Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2 (%3/%4 chunks, %.1f%%)", currentChunkStart, endIndex-1, m_iChunksSent, m_iTotalChunksToSend, progress * 100), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2 (%3/%4 chunks, %.1f%%)", currentChunkStart, endIndex-1, m_iChunksSent, m_iTotalChunksToSend, progress * 100), LogLevel.NORMAL);
 		SendFrameChunk(currentChunkStart, endIndex);
 		
 		// Update client loading progress
@@ -1037,7 +1109,8 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	void SendReplayComplete()
 	{
-		Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
 		Rpc(RpcAsk_ReplayDataComplete);
 	}
 	
@@ -1146,13 +1219,16 @@ void StartLocalReplayPlayback()
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_StartReplayPlayback on %1",isServer), LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_StartReplayPlayback received - Server: %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_StartReplayPlayback on %1",isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_StartReplayPlayback received - Server: %1", isServer), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return; // Don't run on server
 			
-		Print("GRAD_BC_ReplayManager: Client initializing replay data", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Client initializing replay data", LogLevel.NORMAL);
 		
 		// Initialize replay data structure
 		m_replayData = GRAD_BC_ReplayData.Create();
@@ -1167,10 +1243,12 @@ void StartLocalReplayPlayback()
 		{
 			gamestateDisplay.ShowPersistentText("Replay loading... 0%");
 			gamestateDisplay.UpdateProgress(0);
-			Print("GRAD_BC_ReplayManager: Showed persistent loading text in gamestate HUD", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Showed persistent loading text in gamestate HUD", LogLevel.NORMAL);
 		}
 
-		Print(string.Format("GRAD_BC_ReplayManager: Client replay data initialized - Duration: %1", totalDuration), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Client replay data initialized - Duration: %1", totalDuration), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1224,7 +1302,8 @@ void StartLocalReplayPlayback()
 			frame.vehicles.Insert(vehicleData);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Received vehicle chunk with %1 vehicles", timestamps.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Received vehicle chunk with %1 vehicles", timestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1234,7 +1313,8 @@ void StartLocalReplayPlayback()
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceivePlayerChunk on %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceivePlayerChunk on %1", isServer), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return;
@@ -1284,7 +1364,8 @@ void StartLocalReplayPlayback()
 			frame.players.Insert(playerData);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Received player chunk with %1 players", timestamps.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Received player chunk with %1 players", timestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1294,7 +1375,8 @@ void StartLocalReplayPlayback()
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveProjectileChunk on %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveProjectileChunk on %1", isServer), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return;
@@ -1339,7 +1421,8 @@ void StartLocalReplayPlayback()
 			frame.projectiles.Insert(projData);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Received projectile chunk with %1 projectiles", projTimestamps.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Received projectile chunk with %1 projectiles", projTimestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1349,7 +1432,8 @@ void StartLocalReplayPlayback()
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveTransmissionChunk on %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReceiveTransmissionChunk on %1", isServer), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return;
@@ -1392,7 +1476,8 @@ void StartLocalReplayPlayback()
 			frame.transmissions.Insert(transData);
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Received transmission chunk with %1 transmissions", transTimestamps.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Received transmission chunk with %1 transmissions", transTimestamps.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1414,8 +1499,10 @@ void StartLocalReplayPlayback()
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
-		Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReplayDataComplete on %1", isServer), LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_ReplayDataComplete received - Server: %1", Replication.IsServer()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReplayDataComplete on %1", isServer), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_ReplayDataComplete received - Server: %1", Replication.IsServer()), LogLevel.NORMAL);
 		
 		if (Replication.IsServer())
 			return;
@@ -1426,7 +1513,8 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 
 		// Enable replay mode immediately for map layer
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
@@ -1436,31 +1524,36 @@ void StartLocalReplayPlayback()
 			if (replayLayer)
 			{
 				replayLayer.SetReplayMode(true);
-				Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
 			}
 		}
 
 		// Calculate adaptive playback speed
 		CalculateAdaptiveSpeed();
-		Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
 
 		// Keep loading text visible - update message. It will be hidden when first frame renders.
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
 			gamestateDisplay.UpdateText("Starting replay...");
-			Print("GRAD_BC_ReplayManager: Updated loading text to 'Starting replay...'", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Updated loading text to 'Starting replay...'", LogLevel.NORMAL);
 		}
 
 		// Open map and start playback
-		Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	void StartClientReplayPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
 
 		// Open map for replay viewing
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
@@ -1474,7 +1567,8 @@ void StartLocalReplayPlayback()
 		if (ch)
 		{
 			// Player has a controlled entity - try gadget manager to open map
-			Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
 			bool mapOpened = false;
 
 			SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
@@ -1485,7 +1579,8 @@ void StartLocalReplayPlayback()
 				{
 					gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND, true);
 					mapOpened = true;
-					Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
 				}
 			}
 
@@ -1498,12 +1593,14 @@ void StartLocalReplayPlayback()
 		else
 		{
 			// Spectator - no controlled entity - use menu manager approach
-			Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
 			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		}
 
 		// Wait for map + replay layer to be ready before starting playback
-		Print("GRAD_BC_ReplayManager: CLIENT - Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: CLIENT - Waiting for map and replay layer to be ready...", LogLevel.NORMAL);
 		WaitForReplayMapAndStartClientPlayback(0);
 	}
 
@@ -1536,7 +1633,8 @@ void StartLocalReplayPlayback()
 			return;
 		}
 
-		Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
 
 		// Set replay mode on both layers
 		if (replayLayer)
@@ -1550,7 +1648,8 @@ void StartLocalReplayPlayback()
 			if (markerMgr)
 			{
 				markerMgr.SetReplayMode(true);
-				Print("GRAD_BC_ReplayManager: CLIENT - Enabled replay mode on marker manager", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: CLIENT - Enabled replay mode on marker manager", LogLevel.NORMAL);
 			}
 		}
 
@@ -1562,7 +1661,8 @@ void StartLocalReplayPlayback()
 			return;
 		}
 
-		Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
 		m_bIsPlayingBack = true;
 		m_bPlaybackPaused = false;
 		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
@@ -1578,10 +1678,12 @@ void StartLocalReplayPlayback()
 		if (world2)
 		{
 			m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
-			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		}
 
-		Print("GRAD_BC_ReplayManager: CLIENT - Starting playback loop", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: CLIENT - Starting playback loop", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
 
 		// NOTE: Endscreen is scheduled server-side in StartPlaybackForAllClients.
@@ -1614,8 +1716,9 @@ void StartLocalReplayPlayback()
 		updatePlaybackCallCounter++;
 		if (updatePlaybackCallCounter <= 5 || updatePlaybackCallCounter % 50 == 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback called (#%1) - Current frame: %2/%3", 
-				updatePlaybackCallCounter, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: UpdatePlayback called (#%1) - Current frame: %2/%3", 
+					updatePlaybackCallCounter, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
 		}
 			
 		// Calculate elapsed time since playback started (in seconds)
@@ -1633,8 +1736,9 @@ void StartLocalReplayPlayback()
 		
 		if (updatePlaybackCallCounter <= 5 || updatePlaybackCallCounter % 50 == 0)
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Playback time: %.2f, Speed: %.2f, Frame: %3/%4", 
-				m_fCurrentPlaybackTime, m_fPlaybackSpeed, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Playback time: %.2f, Speed: %.2f, Frame: %3/%4", 
+					m_fCurrentPlaybackTime, m_fPlaybackSpeed, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
 		}
 		
 		// Find current frame to display
@@ -1650,8 +1754,9 @@ void StartLocalReplayPlayback()
 				// Display this frame
 				if (updatePlaybackCallCounter <= 10 || m_iCurrentFrameIndex % 20 == 0)
 				{
-					Print(string.Format("GRAD_BC_ReplayManager: Displaying frame %1 (time: %.2f vs %.2f)", 
-						m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("GRAD_BC_ReplayManager: Displaying frame %1 (time: %.2f vs %.2f)", 
+							m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
 				}
 				DisplayReplayFrame(frame);
 				m_iCurrentFrameIndex++;
@@ -1660,8 +1765,9 @@ void StartLocalReplayPlayback()
 			{
 				if (updatePlaybackCallCounter <= 5)
 				{
-					Print(string.Format("GRAD_BC_ReplayManager: Waiting for frame %1 (time: %.2f, current: %.2f)", 
-						m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("GRAD_BC_ReplayManager: Waiting for frame %1 (time: %.2f, current: %.2f)", 
+							m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
 				}
 				break; // Wait for next update
 			}
@@ -1669,13 +1775,15 @@ void StartLocalReplayPlayback()
 		
 		if (framesProcessedThisUpdate > 0 && (updatePlaybackCallCounter <= 10 || updatePlaybackCallCounter % 25 == 0))
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Processed %1 frames in this update cycle", framesProcessedThisUpdate), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Processed %1 frames in this update cycle", framesProcessedThisUpdate), LogLevel.NORMAL);
 		}
 		
 		// Check if playback finished
 		if (m_fCurrentPlaybackTime >= m_replayData.totalDuration)
 		{
-			Print("GRAD_BC_ReplayManager: Playback finished, stopping", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Playback finished, stopping", LogLevel.NORMAL);
 			StopPlayback();
 		}
 	}
@@ -1689,8 +1797,9 @@ void StartLocalReplayPlayback()
 		
 		if (frameLogCounter % 10 == 0) // Only log every 10th frame
 		{
-			Print(string.Format("GRAD_BC_ReplayManager: Displaying frame at %1s: %2 players, %3 projectiles", 
-				frame.timestamp, frame.players.Count(), frame.projectiles.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Displaying frame at %1s: %2 players, %3 projectiles", 
+					frame.timestamp, frame.players.Count(), frame.projectiles.Count()), LogLevel.NORMAL);
 		}
 			
 		// Update map layer with current frame
@@ -1700,7 +1809,8 @@ void StartLocalReplayPlayback()
 			// Debug: Log map entity found
 			if (frameLogCounter <= 3)
 			{
-				Print("GRAD_BC_ReplayManager: Map entity found, searching for replay layer...", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Map entity found, searching for replay layer...", LogLevel.NORMAL);
 			}
 			
 			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
@@ -1709,8 +1819,9 @@ void StartLocalReplayPlayback()
 				// Debug: Confirm replay layer found
 				if (frameLogCounter <= 3)
 				{
-					Print(string.Format("GRAD_BC_ReplayManager: Replay layer found! Sending frame with %1 players", 
-						frame.players.Count()), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("GRAD_BC_ReplayManager: Replay layer found! Sending frame with %1 players", 
+							frame.players.Count()), LogLevel.NORMAL);
 				}
 				replayLayer.UpdateReplayFrame(frame);
 
@@ -1754,7 +1865,8 @@ void StartLocalReplayPlayback()
 	void OnFirstFrameDisplayed()
 	{
 		m_bFirstFrameDisplayed = true;
-		Print("GRAD_BC_ReplayManager: First replay frame rendered, hiding loading screen", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: First replay frame rendered, hiding loading screen", LogLevel.NORMAL);
 
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
@@ -1767,7 +1879,8 @@ void StartLocalReplayPlayback()
 	void SetPlaybackSpeed(float speed)
 	{
 		m_fPlaybackSpeed = speed;
-		Print(string.Format("GRAD_BC_ReplayManager: Playback speed set to %.1fx", speed), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Playback speed set to %.1fx", speed), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1794,7 +1907,8 @@ void StartLocalReplayPlayback()
 	void PausePlayback()
 	{
 		m_bPlaybackPaused = true;
-		Print("GRAD_BC_ReplayManager: Playback paused", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Playback paused", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1806,14 +1920,16 @@ void StartLocalReplayPlayback()
 			// Adjust start time to account for pause duration
 			float currentWorldTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
 			m_fPlaybackStartTime = currentWorldTime - (m_fCurrentPlaybackTime / m_fPlaybackSpeed);
-			Print("GRAD_BC_ReplayManager: Playback resumed", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Playback resumed", LogLevel.NORMAL);
 		}
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	void StopPlayback()
 	{
-		Print("GRAD_BC_ReplayManager: StopPlayback called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: StopPlayback called", LogLevel.NORMAL);
 		
 		m_bIsPlayingBack = false;
 		m_bPlaybackPaused = false;
@@ -1827,32 +1943,38 @@ void StartLocalReplayPlayback()
 			if (markerMgr)
 			{
 				markerMgr.SetReplayMode(false);
-				Print("GRAD_BC_ReplayManager: Disabled replay mode on marker manager", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Disabled replay mode on marker manager", LogLevel.NORMAL);
 			}
 			
 			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
 			if (replayLayer)
 			{
 				replayLayer.SetReplayMode(false);
-				Print("GRAD_BC_ReplayManager: Disabled replay mode on replay map layer", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Disabled replay mode on replay map layer", LogLevel.NORMAL);
 			}
 		}
 		
-		Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
 		
 		// Close the map
 		CloseMap();
 		
 		// Endscreen will be triggered by server after scheduled time
-		Print("GRAD_BC_ReplayManager: Endscreen will be triggered by server", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Endscreen will be triggered by server", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	// Server automatically triggers endscreen after replay duration
 	void TriggerEndscreen()
 	{
-		Print("GRAD_BC_ReplayManager: ===== TriggerEndscreen CALLED =====", LogLevel.NORMAL);
-		Print(string.Format("GRAD_BC_ReplayManager: IsServer: %1", Replication.IsServer()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: ===== TriggerEndscreen CALLED =====", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: IsServer: %1", Replication.IsServer()), LogLevel.NORMAL);
 		
 		if (!Replication.IsServer())
 		{
@@ -1860,7 +1982,8 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
-		Print("GRAD_BC_ReplayManager: Server triggering endscreen NOW", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Server triggering endscreen NOW", LogLevel.NORMAL);
 		
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm)
@@ -1873,7 +1996,8 @@ void StartLocalReplayPlayback()
 			PlayerController pc = GetGame().GetPlayerController();
 			if (pc)
 			{
-				Print("GRAD_BC_ReplayManager: Local player detected, calling endscreen RPC handler directly", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Local player detected, calling endscreen RPC handler directly", LogLevel.NORMAL);
 				bcm.RpcDo_ShowGameOverScreen();
 			}
 		}
@@ -1886,7 +2010,8 @@ void StartLocalReplayPlayback()
 	//------------------------------------------------------------------------------------------------
 	void CloseMap()
 	{
-		Print("GRAD_BC_ReplayManager: Attempting to close map", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Attempting to close map", LogLevel.NORMAL);
 		
 		PlayerController playerController = GetGame().GetPlayerController();
 		if (!playerController)
@@ -1918,7 +2043,8 @@ void StartLocalReplayPlayback()
 		
 		// Put map back into inventory
 		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
-		Print("GRAD_BC_ReplayManager: Map closed successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Map closed successfully", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1947,8 +2073,9 @@ void StartLocalReplayPlayback()
 			}
 		}
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Seeked to time %1s (frame %2)", 
-			timeSeconds, m_iCurrentFrameIndex), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Seeked to time %1s (frame %2)", 
+				timeSeconds, m_iCurrentFrameIndex), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1977,8 +2104,9 @@ void StartLocalReplayPlayback()
 	// New method for recording projectile firing events
 	void RecordProjectileFired(vector position, vector velocity, string ammoType)
 	{
-		Print(string.Format("GRAD_BC_ReplayManager: RecordProjectileFired called - Recording=%1, RecordProj=%2, AmmoType=%3", 
-			m_bIsRecording, m_bRecordProjectiles, ammoType), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: RecordProjectileFired called - Recording=%1, RecordProj=%2, AmmoType=%3", 
+				m_bIsRecording, m_bRecordProjectiles, ammoType), LogLevel.NORMAL);
 		
 		if (!m_bIsRecording)
 		{
@@ -2001,8 +2129,9 @@ void StartLocalReplayPlayback()
 		
 		m_pendingProjectiles.Insert(projData);
 		
-		Print(string.Format("GRAD_BC_ReplayManager: Successfully queued projectile - %1 at %2 (pending count: %3)", 
-			ammoType, position.ToString(), m_pendingProjectiles.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Successfully queued projectile - %1 at %2 (pending count: %3)", 
+				ammoType, position.ToString(), m_pendingProjectiles.Count()), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -2011,7 +2140,8 @@ void StartLocalReplayPlayback()
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity && mapEntity.IsOpen())
 		{
-			Print("GRAD_BC_ReplayManager: Map verified as open", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Map verified as open", LogLevel.NORMAL);
 		}
 		else
 		{
@@ -2021,7 +2151,8 @@ void StartLocalReplayPlayback()
 			GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 			if (playerComponent)
 			{
-				Print("GRAD_BC_ReplayManager: Using Breaking Contact player component to open map", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Using Breaking Contact player component to open map", LogLevel.NORMAL);
 				playerComponent.ToggleMap(true);
 			}
 			else
@@ -2049,14 +2180,16 @@ void StartLocalReplayPlayback()
 		if (actualDuration > m_fMaxReplayDuration)
 		{
 			m_fAdaptiveSpeed = actualDuration / m_fMaxReplayDuration;
-			Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs exceeds max %.1fs, using adaptive speed %.2fx", 
-				actualDuration, m_fMaxReplayDuration, m_fAdaptiveSpeed), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs exceeds max %.1fs, using adaptive speed %.2fx", 
+					actualDuration, m_fMaxReplayDuration, m_fAdaptiveSpeed), LogLevel.NORMAL);
 		}
 		else
 		{
 			m_fAdaptiveSpeed = 1.0;
-			Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs fits within max %.1fs, using normal speed", 
-				actualDuration, m_fMaxReplayDuration), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs fits within max %.1fs, using normal speed", 
+					actualDuration, m_fMaxReplayDuration), LogLevel.NORMAL);
 		}
 		
 		// Set the playback speed to the adaptive speed
@@ -2106,7 +2239,8 @@ void StartLocalReplayPlayback()
     if (!m_replayData || m_replayData.frames.Count() == 0)
         return;
         
-    Print("GRAD_BC_ReplayManager: Checking for empty frames to skip...", LogLevel.NORMAL);
+    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        Print("GRAD_BC_ReplayManager: Checking for empty frames to skip...", LogLevel.NORMAL);
     
     int startIndex = m_iCurrentFrameIndex;
     
@@ -2151,12 +2285,14 @@ void StartLocalReplayPlayback()
                 
                 m_fPlaybackStartTime = currentWorldTime - (m_fCurrentPlaybackTime / speed);
                 
-                Print(string.Format("GRAD_BC_ReplayManager: Skipped %1 empty frames. Starting at frame %2", 
-                    i - startIndex, i), LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    Print(string.Format("GRAD_BC_ReplayManager: Skipped %1 empty frames. Starting at frame %2", 
+                        i - startIndex, i), LogLevel.NORMAL);
             }
             else
             {
-                Print("GRAD_BC_ReplayManager: Content found immediately (Frame " + i + ")", LogLevel.NORMAL);
+                if (GRAD_BC_BreakingContactManager.IsDebugMode())
+                    Print("GRAD_BC_ReplayManager: Content found immediately (Frame " + i + ")", LogLevel.NORMAL);
             }
             return;
         }

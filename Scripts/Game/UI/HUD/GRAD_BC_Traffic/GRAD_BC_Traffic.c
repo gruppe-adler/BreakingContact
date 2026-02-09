@@ -11,7 +11,8 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 	
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
-		Print("GRAD_BC_Traffic: DisplayInit called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: DisplayInit called", LogLevel.NORMAL);
 		
 		// hide to not block input in lobby
 		FadeOutIfStill(e_currentTrafficDisplay.NONE);
@@ -20,41 +21,49 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 	override protected void DisplayStartDraw(IEntity owner) {
 		super.DisplayStartDraw(owner);
 		
-		Print("GRAD_BC_Traffic: DisplayStartDraw called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: DisplayStartDraw called", LogLevel.NORMAL);
 		
 		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{71FCB653E258569E}UI/Layouts/HUD/GRAD_BC_Traffic/GRAD_BC_Traffic.layout", null);
 		
 		if (!m_wRoot) {
-			Print("GRAD_BC_Traffic: no m_wRoot found", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Traffic: no m_wRoot found", LogLevel.NORMAL);
 			return;
 		}
 
 		if (m_wRoot) {
-        Print("--- DUMPING WIDGET HIERARCHY ---");
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print("--- DUMPING WIDGET HIERARCHY ---");
         DumpWidgets(m_wRoot, 0);
         
         m_infoImage = ImageWidget.Cast(m_wRoot.FindAnyWidget("GRAD_BC_Traffic_Widget"));
     }
 
 		
-		Print("GRAD_BC_Traffic: m_wRoot created successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: m_wRoot created successfully", LogLevel.NORMAL);
 		
 		Widget w = m_wRoot.FindAnyWidget("GRAD_BC_Traffic_Widget");
    		m_infoImage = ImageWidget.Cast(w);
 		
 		if (!m_infoImage) {
-			Print("GRAD_BC_Traffic_Widget: no GRAD_BC_Traffic_Widget found", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Traffic_Widget: no GRAD_BC_Traffic_Widget found", LogLevel.NORMAL);
 			return;
 
 		}
 		
-		Print("GRAD_BC_Traffic: m_infoImage found and initialized", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: m_infoImage found and initialized", LogLevel.NORMAL);
 		
 		// Ensure the display starts hidden
 		Show(false, 0.0, EAnimationCurve.LINEAR);
-		Print("GRAD_BC_Traffic: Display hidden by default", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: Display hidden by default", LogLevel.NORMAL);
 		
-		Print("GRAD_BC_Traffic: DisplayStartDraw completed successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	
 	
@@ -64,7 +73,8 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		string space = "";
 		for(int i=0; i<indent; i++) space += "  ";
 		
-		Print(space + "- : " + w.GetName() + " [Type: " + w.GetTypeName() + "]");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(space + "- : " + w.GetName() + " [Type: " + w.GetTypeName() + "]");
 		
 		Widget child = w.GetChildren();
 		while (child) {
@@ -76,11 +86,13 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 	void showTrafficHint(e_currentTrafficDisplay currentHint, vector eventLocation) {
 		
 		if (!m_infoImage) {
-			Print("GRAD_BC_Traffic: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Traffic: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
 			return;
 		}
 
-		Print("GRAD_BC_Traffic: m_infoImage is valid, proceeding with hint display", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Traffic: m_infoImage is valid, proceeding with hint display", LogLevel.NORMAL);
 
 		// Only show for valid states
 		bool shouldShow = false;
@@ -116,7 +128,8 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
-					Print("BC Traffic UI: Civ in gunfight", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Traffic UI: Civ in gunfight", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
 					break;
@@ -132,7 +145,8 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
-					Print("BC Traffic UI: Civ had been killed", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Traffic UI: Civ had been killed", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
 					break;
@@ -164,12 +178,14 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
         if (m_currentDisplayCached == stateToCheck)
         {
             super.Show(false, 0.5, EAnimationCurve.EASE_IN_QUART);
-            PrintFormat("GRAD_BC_Traffic: Fading out state %1", stateToCheck, LogLevel.DEBUG);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_BC_Traffic: Fading out state %1", stateToCheck, LogLevel.DEBUG);
         }
         else
         {
             // Something else replaced it in the meantime; do nothing.
-            PrintFormat(
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat(
                 "GRAD_BC_Traffic: Skipping fade‐out for %1 because current is %2",
                 stateToCheck,
                 m_currentDisplayCached,

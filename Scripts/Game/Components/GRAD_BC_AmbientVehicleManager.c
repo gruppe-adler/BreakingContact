@@ -58,14 +58,16 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		// Priority 1: Mission header override
 		if (TryGetMissionHeaderOverrides())
 		{
-			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from mission header override.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from mission header override.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
 			return;
 		}
 
 		// Priority 2: Auto-detect from civilian faction catalog
 		if (TryGetFactionCatalogVehicles())
 		{
-			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from civilian faction catalog.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 vehicle prefabs from civilian faction catalog.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
 			return;
 		}
 
@@ -76,7 +78,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 			{
 				m_aResolvedVehiclePrefabs.Insert(rn);
 			}
-			Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 hardcoded default vehicle prefabs.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Using %1 hardcoded default vehicle prefabs.", m_aResolvedVehiclePrefabs.Count()), LogLevel.NORMAL);
 			return;
 		}
 
@@ -157,7 +160,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 			prefabStr.ToLower();
 			if (prefabStr.Contains("helicopter") || prefabStr.Contains("plane") || prefabStr.Contains("aircraft") || prefabStr.Contains("/air/"))
 			{
-				Print(string.Format("GRAD_BC_AmbientVehicleManager: Skipping air asset from catalog: %1", prefab), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_AmbientVehicleManager: Skipping air asset from catalog: %1", prefab), LogLevel.NORMAL);
 				continue;
 			}
 
@@ -196,7 +200,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		int currentBatchAttempts = 0;
 		
 		if (m_iTotalAttempts == 0)
-			Print(string.Format("GRAD_BC_AmbientVehicleManager: Starting spawn loop. Target: %1", TARGET_VEHICLE_COUNT), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Starting spawn loop. Target: %1", TARGET_VEHICLE_COUNT), LogLevel.NORMAL);
 		
 		while (m_iSpawnedCount < TARGET_VEHICLE_COUNT && m_iTotalAttempts < MAX_SPAWN_ATTEMPTS && currentBatchAttempts < BATCH_SIZE)
 		{
@@ -256,7 +261,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 		}
 		else
 		{
-			Print(string.Format("GRAD_BC_AmbientVehicleManager: Finished. Spawned %1 vehicles in %2 attempts.", m_iSpawnedCount, m_iTotalAttempts), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_AmbientVehicleManager: Finished. Spawned %1 vehicles in %2 attempts.", m_iSpawnedCount, m_iTotalAttempts), LogLevel.NORMAL);
 		}
 	}
 	
@@ -284,7 +290,8 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 			if (replayMgr)
 			{
 				replayMgr.RegisterTrackedVehicle(v);
-				Print("BC Debug - Registered ambient vehicle with replay manager", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - Registered ambient vehicle with replay manager", LogLevel.NORMAL);
 			}
 		}
 		

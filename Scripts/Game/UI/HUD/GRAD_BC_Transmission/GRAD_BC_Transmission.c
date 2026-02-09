@@ -12,49 +12,60 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 	
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
-		Print("GRAD_BC_Transmission: DisplayInit called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: DisplayInit called", LogLevel.NORMAL);
 	}
 	
 	override protected void DisplayStartDraw(IEntity owner) {
 		super.DisplayStartDraw(owner);
 		
-		Print("GRAD_BC_Transmission: DisplayStartDraw called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: DisplayStartDraw called", LogLevel.NORMAL);
 		
 		m_wRoot = GetGame().GetWorkspace().CreateWidgets("{B03FBF0B1B06AD12}UI/Layouts/HUD/GRAD_BC_Transmission/GRAD_BC_Transmission.layout", null);
 		
 		if (!m_wRoot) {
-			Print("GRAD_BC_Transmission: no m_wRoot found", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Transmission: no m_wRoot found", LogLevel.NORMAL);
 			return;
 		}
 		
-		Print("GRAD_BC_Transmission: m_wRoot created successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: m_wRoot created successfully", LogLevel.NORMAL);
 		
 		Widget w = m_wRoot.FindAnyWidget("GRAD_BC_Transmission_Widget");
    		m_infoImage = ImageWidget.Cast(w);
 		
 		if (!m_infoImage) {
-			Print("GRAD_BC_Transmission_Widget: no GRAD_BC_Transmission_Widget found", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Transmission_Widget: no GRAD_BC_Transmission_Widget found", LogLevel.NORMAL);
 			return;
 		}
 		
-		Print("GRAD_BC_Transmission: m_infoImage found and initialized", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: m_infoImage found and initialized", LogLevel.NORMAL);
 		
 		// Ensure the display starts hidden
 		Show(false, 0.0, EAnimationCurve.LINEAR);
-		Print("GRAD_BC_Transmission: Display hidden by default", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: Display hidden by default", LogLevel.NORMAL);
 		
-		Print("GRAD_BC_Transmission: DisplayStartDraw completed successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: DisplayStartDraw completed successfully", LogLevel.NORMAL);
 	}
 	
 	void showTransmissionHint(string faction, ETransmissionState state) {
-		Print(string.Format("BC Transmission UI - showTransmissionHint called: faction=%1, state=%2", faction, state), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Transmission UI - showTransmissionHint called: faction=%1, state=%2", faction, state), LogLevel.NORMAL);
 		
 		if (!m_infoImage) {
-			Print("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
 			return;
 		}
 
-		Print("GRAD_BC_Transmission: m_infoImage is valid, proceeding with hint display", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Transmission: m_infoImage is valid, proceeding with hint display", LogLevel.NORMAL);
 
 		// Only show for valid states
 		bool shouldShow = false;
@@ -92,7 +103,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission established sound
-					Print("BC Transmission UI - Playing transmission established sound", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Transmission UI - Playing transmission established sound", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
 					break;
@@ -113,7 +125,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					vector location = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
-					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{DAA9FC51E2DA5D16}sounds/BC_signal_lost.acp", "signal_lost", location);
 				
 					break;
@@ -134,7 +147,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					vector location = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
-					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{DAA9FC51E2DA5D16}sounds/BC_signal_lost.acp", "signal_lost", location);
 				
 					break;
@@ -155,7 +169,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission interrupted sound
-					Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Transmission UI - Playing transmission interrupted sound", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{DAA9FC51E2DA5D16}sounds/BC_signal_lost.acp", "signal_lost", location);
 				
 					break;
@@ -185,17 +200,19 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
         if (m_currentDisplayCached == stateToCheck)
         {
             super.Show(false, 0.5, EAnimationCurve.EASE_IN_QUART);
-            PrintFormat("GRAD_BC_Transmission: Fading out state %1", stateToCheck, LogLevel.DEBUG);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_BC_Transmission: Fading out state %1", stateToCheck, LogLevel.DEBUG);
         }
         else
         {
             // Something else replaced it in the meantime; do nothing.
-            PrintFormat(
-                "GRAD_BC_Transmission: Skipping fade‐out for %1 because current is %2",
-                stateToCheck,
-                m_currentDisplayCached,
-                LogLevel.DEBUG
-            );
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat(
+                	"GRAD_BC_Transmission: Skipping fade‐out for %1 because current is %2",
+                	stateToCheck,
+                	m_currentDisplayCached,
+                	LogLevel.DEBUG
+            	);
         }
     }
 }

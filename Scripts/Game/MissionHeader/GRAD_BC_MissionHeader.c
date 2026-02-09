@@ -7,6 +7,9 @@ class GRAD_BC_MissionHeader : SCR_MissionHeader
 	[Attribute(defvalue: "CIV", desc: "Faction key used to auto-detect civilian vehicles when no override list is set.")]
 	protected string m_sCivilianFactionKey;
 
+	[Attribute(defvalue: "0", desc: "Enable verbose debug logging for all Breaking Contact components. Disable for production to improve performance.", category: "Breaking Contact - Debug")]
+	protected bool m_bDebugLogs;
+
 	bool HasTrafficVehicleOverrides()
 	{
 		return (m_aTrafficVehicleOverrides && !m_aTrafficVehicleOverrides.IsEmpty());
@@ -26,5 +29,10 @@ class GRAD_BC_MissionHeader : SCR_MissionHeader
 	string GetCivilianFactionKey()
 	{
 		return m_sCivilianFactionKey;
+	}
+
+	bool IsDebugLogsEnabled()
+	{
+		return m_bDebugLogs;
 	}
 }

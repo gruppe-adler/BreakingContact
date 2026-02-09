@@ -41,7 +41,8 @@ class GRAD_BC_WeaponFireTracker : ScriptGameComponent
 		// Register for weapon fire events
 		eventHandlerManager.RegisterScriptHandler("OnProjectileShot", this, OnWeaponFired);
 		
-		Print("GRAD_BC_WeaponFireTracker: Registered for OnProjectileShot events", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_WeaponFireTracker: Registered for OnProjectileShot events", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -93,8 +94,9 @@ class GRAD_BC_WeaponFireTracker : ScriptGameComponent
 		// Record projectile to replay system
 		replayManager.RecordProjectileFired(firingPos, velocity, ammoType);
 		
-		Print(string.Format("GRAD_BC_WeaponFireTracker: Recorded projectile - %1 at %2 with velocity %3 m/s", 
-			ammoType, firingPos.ToString(), velocity.Length()), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_WeaponFireTracker: Recorded projectile - %1 at %2 with velocity %3 m/s", 
+				ammoType, firingPos.ToString(), velocity.Length()), LogLevel.VERBOSE);
 	}
 	
 	//------------------------------------------------------------------------------------------------

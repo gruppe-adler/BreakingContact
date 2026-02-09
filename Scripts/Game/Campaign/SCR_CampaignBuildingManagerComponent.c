@@ -216,25 +216,30 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 	//------------------------------------------------------------------------------------------------
 	protected void OnEntityCoreBudgetUpdated(EEditableEntityBudget entityBudget, int originalBudgetValue, int budgetChange, int updatedBudgetValue, SCR_EditableEntityComponent entity)
 	{
-		Print("[DEBUG] OnEntityCoreBudgetUpdated called");
-		Print(string.Format("[DEBUG] entityBudget: %1, m_BudgetType: %2, budgetChange: %3", entityBudget, m_BudgetType, budgetChange));
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("[DEBUG] OnEntityCoreBudgetUpdated called");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] entityBudget: %1, m_BudgetType: %2, budgetChange: %3", entityBudget, m_BudgetType, budgetChange));
 
 		if (IsProxy())
 		{
-			Print("[DEBUG] Early return: IsProxy()");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Early return: IsProxy()");
 			return;
 		}
 
 		if (entityBudget != m_BudgetType)
 		{
-			Print(string.Format("[DEBUG] Early return: entityBudget (%1) != m_BudgetType (%2)", entityBudget, m_BudgetType));
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("[DEBUG] Early return: entityBudget (%1) != m_BudgetType (%2)", entityBudget, m_BudgetType));
 			return;
 		}
 
 		// Continue with compositions placed in WB only when refund is about to happen.
 		if (entity.GetOwner().IsLoaded() && budgetChange > 0)
 		{
-			Print(string.Format("[DEBUG] Early return: IsLoaded && budgetChange > 0 (%1)", budgetChange));
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("[DEBUG] Early return: IsLoaded && budgetChange > 0 (%1)", budgetChange));
 			return;
 		}
 
@@ -248,11 +253,13 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		// Do not react to changes during loading of session
 		if (SCR_PersistenceSystem.IsLoadInProgress())
 		{
-			Print("[DEBUG] Early return: Persistence system loading in progress");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Early return: Persistence system loading in progress");
 			return; 
 		}
 
-		Print("[DEBUG] Continuing to resource component lookup...");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("[DEBUG] Continuing to resource component lookup...");
 
 		int propBudgetValue;
 		array<ref SCR_EntityBudgetValue> budgets = {};
@@ -268,7 +275,8 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 			break;
 		}
 
-		Print(string.Format("[DEBUG] Props budget value: %1", propBudgetValue));
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] Props budget value: %1", propBudgetValue));
 
 		IEntity entityOwner = entity.GetOwnerScripted();
 		SCR_ResourceComponent resourceComponent;
@@ -277,12 +285,14 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		// If resource component was not found on deconstruction, spawn a custom one , find again the resource component at this spawned box and fill it with refund supply.
 		if (!GetResourceComponent(entityOwner, resourceComponent))
 		{
-			Print("[DEBUG] No resource component found");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] No resource component found");
 			//Spawn a resource holder only when the refunded object is a composition.
 			SCR_CampaignBuildingCompositionComponent compositionComponent = SCR_CampaignBuildingCompositionComponent.Cast(entityOwner.FindComponent(SCR_CampaignBuildingCompositionComponent));
 			if (compositionComponent && budgetChange < 0)
 			{
-				Print("[DEBUG] Spawning custom resource holder");
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("[DEBUG] Spawning custom resource holder");
 				SpawnCustomResourceHolder(entityOwner, resourceComponent);
 				wasContainerSpawned = true;
 			}
@@ -290,38 +300,46 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 
 		if (!resourceComponent)
 		{
-			Print("[DEBUG] Early return: No resource component after lookup");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Early return: No resource component after lookup");
 			return;
 		}
 
-		Print("[DEBUG] Resource component found");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("[DEBUG] Resource component found");
 
 		//~ Supplies not enabled so no need to remove any
 		if (!resourceComponent.IsResourceTypeEnabled())
 		{
-			Print("[DEBUG] Early return: Resource type not enabled");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Early return: Resource type not enabled");
 			return;
 		}
 
-		Print("[DEBUG] Resource type enabled");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("[DEBUG] Resource type enabled");
 
 		IEntity providerEntity = resourceComponent.GetOwner();
 
 		if (!providerEntity)
 		{
-			Print("[DEBUG] Early return: No provider entity");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Early return: No provider entity");
 			return;
 		}
 
-		Print(string.Format("[DEBUG] Provider entity: %1", providerEntity));
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] Provider entity: %1", providerEntity));
 
 		SCR_CampaignBuildingProviderComponent providerComponent = SCR_CampaignBuildingProviderComponent.Cast(providerEntity.FindComponent(SCR_CampaignBuildingProviderComponent));
 
-		Print(string.Format("[DEBUG] Processing budget change: %1", budgetChange));
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] Processing budget change: %1", budgetChange));
 
 		if (budgetChange < 0)
 		{
-			Print("[DEBUG] REFUND LOGIC - Giving back supplies");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] REFUND LOGIC - Giving back supplies");
 			budgetChange = Math.Round(budgetChange * m_iCompositionRefundPercentage * 0.01);
 
 			if (providerComponent)
@@ -344,7 +362,8 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		}
 		else
 		{
-			Print("[DEBUG] CONSUMPTION LOGIC - Taking away supplies");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] CONSUMPTION LOGIC - Taking away supplies");
 			if (providerComponent)
 				providerComponent.AddPropValue(propBudgetValue);
 
@@ -352,15 +371,18 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 			GRAD_BC_VehicleSupplyComponent gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(providerEntity.FindComponent(GRAD_BC_VehicleSupplyComponent));
 			if (gradSupply)
 			{
-				Print("[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system");
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system");
 				int currentSupplies = gradSupply.GetCurrentSupplies();
 				int newSupplies = currentSupplies - budgetChange;
-				Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, AFTER: %2", currentSupplies, newSupplies));
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, AFTER: %2", currentSupplies, newSupplies));
 				gradSupply.SetSupplies(newSupplies);
 			}
 			else
 			{
-				Print("[DEBUG] No custom component - using vanilla resource container");
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("[DEBUG] No custom component - using vanilla resource container");
 				// Fallback to vanilla resource container
 				SCR_ResourceContainer container = resourceComponent.GetContainer(EResourceType.SUPPLIES);
 				
@@ -368,12 +390,14 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 				{
 					float currentValue = container.GetResourceValue();
 					float newValue = currentValue - budgetChange;
-					Print(string.Format("[DEBUG] Container BEFORE: %1, AFTER: %2", currentValue, newValue));
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("[DEBUG] Container BEFORE: %1, AFTER: %2", currentValue, newValue));
 					container.SetResourceValue(newValue);
 				}
 				else
 				{
-					Print("[DEBUG] ERROR: No resource container found!");
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("[DEBUG] ERROR: No resource container found!");
 				}
 			}
 		}
@@ -407,21 +431,25 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 
 		if (!GetGameMode().IsMaster())
 		{
-			Print("[DEBUG] Not master, skipping budget event registration");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Not master, skipping budget event registration");
 			return;
 		}
 
 		// Supplies are disabled in this mode. No need for an event.
 		bool suppliesEnabled = SCR_ResourceSystemHelper.IsGlobalResourceTypeEnabled(EResourceType.SUPPLIES);
-		Print(string.Format("[DEBUG] Resource system - Supplies enabled: %1", suppliesEnabled));
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] Resource system - Supplies enabled: %1", suppliesEnabled));
 		
 		if (!suppliesEnabled)
 		{
-			Print("[DEBUG] Supplies disabled, not registering budget event");
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("[DEBUG] Supplies disabled, not registering budget event");
 			return;
 		}
 
-		Print("[DEBUG] Registering OnEntityCoreBudgetUpdated event");
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("[DEBUG] Registering OnEntityCoreBudgetUpdated event");
 		m_EntityCore.Event_OnEntityBudgetUpdatedPerEntity.Insert(OnEntityCoreBudgetUpdated);
 	}
 
@@ -591,6 +619,7 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 				if (replayMgr)
 				{
 					replayMgr.RegisterTrackedVehicle(vehicle);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print("BC Debug - Registered spawned vehicle with replay manager", LogLevel.NORMAL);
 				}
 			}

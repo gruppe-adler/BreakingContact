@@ -79,7 +79,8 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 	override void OnActionStart(IEntity pUserEntity)
 	{
 		m_bActionCompleted = false;
-		Print("BC Debug - DisableRadioTruck: OnActionStart called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DisableRadioTruck: OnActionStart called", LogLevel.NORMAL);
 		super.OnActionStart(pUserEntity);
 	}
 
@@ -87,7 +88,8 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 	override void OnActionCanceled(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
 		m_bActionCompleted = false;
-		Print("BC Debug - DisableRadioTruck: OnActionCanceled called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DisableRadioTruck: OnActionCanceled called", LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -108,7 +110,8 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
-		Print("BC Debug - PerformAction() DisableRadioTruck - Action Complete!", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - PerformAction() DisableRadioTruck - Action Complete!", LogLevel.NORMAL);
 
 		// Ensure component is loaded
 		GetRadioTruckComponent(pOwnerEntity);
@@ -137,18 +140,21 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 
 		if (!rpl.IsMaster())
 		{
-			Print("BC Debug - DisableRadioTruck: Skipping execution on client, only server handles this", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - DisableRadioTruck: Skipping execution on client, only server handles this", LogLevel.NORMAL);
 			return;
 		}
 
 		// Prevent multiple executions - check if already disabled
 		if (m_radioTruckComponent.GetIsDisabled())
 		{
-			Print("BC Debug - DisableRadioTruck: Already disabled, skipping", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - DisableRadioTruck: Already disabled, skipping", LogLevel.NORMAL);
 			return;
 		}
 
-		Print("BC Debug - DisableRadioTruck: Executing on server (IsMaster=true)", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DisableRadioTruck: Executing on server (IsMaster=true)", LogLevel.NORMAL);
 
 		// Disable the radio truck permanently
 		m_radioTruckComponent.SetIsDisabled(true);
@@ -169,7 +175,8 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 		if (bcm)
 		{
 			bcm.SetBluforWin();
-			Print("BC Debug - BLUFOR win condition triggered: Radio truck disabled", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - BLUFOR win condition triggered: Radio truck disabled", LogLevel.NORMAL);
 		}
 		else
 		{
@@ -229,6 +236,7 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 			return;
 		}
 
-		Print("BC Debug - DisableRadioTruck action initialized successfully", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DisableRadioTruck action initialized successfully", LogLevel.NORMAL);
 	}
 }

@@ -301,7 +301,8 @@ class GRAD_IconMarkerUI
 			{
 				icon.m_bIsVehicle = isInVehicle;
 				icon.UpdateIcon();
-				Print(string.Format("GRAD IconMarkerUI: Vehicle state changed for RplId %1, isVehicle=%2", icon.rplId, isInVehicle), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD IconMarkerUI: Vehicle state changed for RplId %1, isVehicle=%2", icon.rplId, isInVehicle), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -316,7 +317,8 @@ class GRAD_IconMarkerUI
 				icon.m_wicon.RemoveFromHierarchy();
 		}
 		m_aicons.Clear();
-		Print("GRAD IconMarkerUI: All icons cleared", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD IconMarkerUI: All icons cleared", LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -335,7 +337,8 @@ class GRAD_IconMarkerUI
 		icon.m_iUniqueId = s_iNextUniqueId;
 		s_iNextUniqueId++;
 
-		Print(string.Format("GRAD IconMarkerUI: AddIcon id=%1, rplId=%2, label='%3'", icon.m_iUniqueId, rplId, label), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD IconMarkerUI: AddIcon id=%1, rplId=%2, label='%3'", icon.m_iUniqueId, rplId, label), LogLevel.NORMAL);
 
 		m_aicons.Insert(icon);
 
@@ -343,11 +346,13 @@ class GRAD_IconMarkerUI
 		{
 			icon.CreateIcon(m_wDrawingContainer);
 			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
-			Print(string.Format("GRAD IconMarkerUI: Icon id=%1 created immediately (map open)", icon.m_iUniqueId), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD IconMarkerUI: Icon id=%1 created immediately (map open)", icon.m_iUniqueId), LogLevel.NORMAL);
 		}
 		else
 		{
-			Print(string.Format("GRAD IconMarkerUI: Icon id=%1 deferred (map closed, will create on open)", icon.m_iUniqueId), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD IconMarkerUI: Icon id=%1 deferred (map closed, will create on open)", icon.m_iUniqueId), LogLevel.NORMAL);
 		}
 
 		return icon.m_iUniqueId;
@@ -367,7 +372,8 @@ class GRAD_IconMarkerUI
 			if (icon.rplId == rplId) {
 				icon.SetType(type);
 				icon.m_bIsVehicle = isVehicle;
-				Print(string.Format("GRAD IconMarkerUI SetIcon: m_sType is set to %1, isVehicle=%2", icon.m_sType, isVehicle), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD IconMarkerUI SetIcon: m_sType is set to %1, isVehicle=%2", icon.m_sType, isVehicle), LogLevel.NORMAL);
 				icon.UpdateIcon();
 			};
 		}	
@@ -384,7 +390,8 @@ class GRAD_IconMarkerUI
 				if (icon.m_wicon)
 					icon.m_wicon.RemoveFromHierarchy();
 				m_aicons.Remove(i);
-				Print(string.Format("GRAD IconMarkerUI: Removed icon id=%1", uniqueId), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD IconMarkerUI: Removed icon id=%1", uniqueId), LogLevel.NORMAL);
 				return;
 			}
 		}

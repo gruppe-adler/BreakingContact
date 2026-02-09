@@ -95,7 +95,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
-		Print("BC Debug - ANTENNA: OnPostInit() START", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: OnPostInit() START", LogLevel.NORMAL);
 
 		m_radioTruck = Vehicle.Cast(GetOwner());
 
@@ -105,29 +106,35 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			return;
 		}
 
-		Print(string.Format("BC Debug - ANTENNA: Radio truck entity found: %1", m_radioTruck.GetName()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Radio truck entity found: %1", m_radioTruck.GetName()), LogLevel.NORMAL);
 
 		m_mapDescriptorComponent = SCR_MapDescriptorComponent.Cast(m_radioTruck.FindComponent(SCR_MapDescriptorComponent));
-		Print(string.Format("BC Debug - ANTENNA: Map descriptor component: %1", m_mapDescriptorComponent != null), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Map descriptor component: %1", m_mapDescriptorComponent != null), LogLevel.NORMAL);
 
 		m_VehicleWheeledSimulationComponent = VehicleWheeledSimulation_SA_B.Cast(m_radioTruck.FindComponent(VehicleWheeledSimulation_SA_B));
-		Print(string.Format("BC Debug - ANTENNA: Vehicle simulation component: %1", m_VehicleWheeledSimulationComponent != null), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Vehicle simulation component: %1", m_VehicleWheeledSimulationComponent != null), LogLevel.NORMAL);
 
 		m_RplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
-		Print(string.Format("BC Debug - ANTENNA: RplComponent: %1", m_RplComponent != null), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: RplComponent: %1", m_RplComponent != null), LogLevel.NORMAL);
 
 		// Set up damage manager for fire detection
 		m_DamageManager = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 		if (m_DamageManager)
 		{
-			Print(string.Format("BC Debug - Found damage manager for fire detection"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Found damage manager for fire detection"), LogLevel.NORMAL);
 		}
 		else
 		{
 			Print("BC Debug - Warning: Could not find damage manager component for radio truck", LogLevel.WARNING);
 		}
 
-		Print("BC Debug - ANTENNA: Scheduling delayed antenna bones initialization...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: Scheduling delayed antenna bones initialization...", LogLevel.NORMAL);
 
 		// Delay antenna bone initialization to ensure entity hierarchy is fully constructed
 		GetGame().GetCallqueue().CallLater(InitializeAntennaBones, 500, false);
@@ -135,7 +142,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Schedule JIP sync for clients - applies current replicated state after initialization
 		GetGame().GetCallqueue().CallLater(SyncJIPState, 1000, false);
 
-		Print("BC Debug - ANTENNA: Antenna bones initialization scheduled", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: Antenna bones initialization scheduled", LogLevel.NORMAL);
 
 		//PrintFormat("BC Debug - IsMaster(): %1", m_RplComponent.IsMaster()); // IsMaster() does not mean Authority
 		//PrintFormat("BC Debug - IsProxy(): %1", m_RplComponent.IsProxy());
@@ -167,7 +175,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		static bool s_bLoggedAnimationStart = false;
 		if (m_bAntennaAnimating && !s_bLoggedAnimationStart)
 		{
-			Print(string.Format("BC Debug - ANTENNA: EOnFrame FIRST CALL with animation active - owner=%1", owner), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: EOnFrame FIRST CALL with animation active - owner=%1", owner), LogLevel.NORMAL);
 			s_bLoggedAnimationStart = true;
 		}
 		else if (!m_bAntennaAnimating)
@@ -181,8 +190,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		frameCounter++;
 		if (frameCounter % 60 == 1) // Log once per ~60 frames to avoid spam
 		{
-			Print(string.Format("BC Debug - ANTENNA: EOnFrame RUNNING - frame=%1, progress=%2, commandBox=%3, boneCount=%4",
-				frameCounter, m_fAnimationProgress, m_commandBox != null, m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: EOnFrame RUNNING - frame=%1, progress=%2, commandBox=%3, boneCount=%4",
+					frameCounter, m_fAnimationProgress, m_commandBox != null, m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
 		}
 
 		// Debug: Log animation progress periodically (every ~10% progress)
@@ -191,8 +201,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		{
 			m_iLastLoggedProgress = progressPercent;
 			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
-			Print(string.Format("BC Debug - ANTENNA: EOnFrame animation - IsMaster=%1, Raising=%2, Progress=%3%%",
-				isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: EOnFrame animation - IsMaster=%1, Raising=%2, Progress=%3%%",
+					isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
 		}
 
 		// Update progress - convert milliseconds to seconds for timeSlice
@@ -212,7 +223,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
 		{
 			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
-			Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
 
 			// On authority, set the replicated flag which triggers spawning on all machines
 			if (isMaster)
@@ -227,8 +239,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
 		{
 			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
-			Print(string.Format("BC Debug - ANTENNA: Animation finished - Extended=%1, IsMaster=%2",
-				(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: Animation finished - Extended=%1, IsMaster=%2",
+					(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
 
@@ -247,7 +260,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (!m_bAntennaAnimating)
 		{
 			m_bAnimationTickRunning = false;
-			Print("BC Debug - ANTENNA: AnimationTick stopped - animation no longer active", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: AnimationTick stopped - animation no longer active", LogLevel.NORMAL);
 			return;
 		}
 
@@ -269,8 +283,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		{
 			m_iLastLoggedProgress = progressPercent;
 			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
-			Print(string.Format("BC Debug - ANTENNA: AnimationTick - IsMaster=%1, Raising=%2, Progress=%3%%",
-				isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: AnimationTick - IsMaster=%1, Raising=%2, Progress=%3%%",
+					isMaster, m_bAntennaRaising, progressPercent), LogLevel.NORMAL);
 		}
 
 		// Apply easing for smooth animation
@@ -281,8 +296,9 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
 		{
 			bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
-			Print(string.Format("BC Debug - ANTENNA: AnimationTick finished - Extended=%1, IsMaster=%2",
-				(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: AnimationTick finished - Extended=%1, IsMaster=%2",
+					(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
 
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
@@ -291,7 +307,8 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			// Spawn antenna prop when fully extended - only authority sets the replicated flag
 			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
 			{
-				Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: Animation complete, spawning red light - IsMaster=%1", isMaster), LogLevel.NORMAL);
 
 				if (isMaster)
 				{
@@ -315,11 +332,13 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	{
 		if (m_bAnimationTickRunning)
 		{
-			Print("BC Debug - ANTENNA: AnimationTick already running, not starting again", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: AnimationTick already running, not starting again", LogLevel.NORMAL);
 			return;
 		}
 
-		Print("BC Debug - ANTENNA: Starting AnimationTick loop", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: Starting AnimationTick loop", LogLevel.NORMAL);
 		m_bAnimationTickRunning = true;
 		// Start immediately
 		GetGame().GetCallqueue().CallLater(AnimationTick, 16, false);
@@ -389,7 +408,8 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	IEntity FindCommandBoxViaSlots(IEntity parent)
 	{
-		Print("BC Debug - ANTENNA: Searching via SlotManagerComponent...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: Searching via SlotManagerComponent...", LogLevel.NORMAL);
 
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(parent.FindComponent(SlotManagerComponent));
 		if (!slotManager)
@@ -401,7 +421,8 @@ void UpdateAntennaBones(float progress)
 		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
 		slotManager.GetSlotInfos(slots);
 
-		Print(string.Format("BC Debug - ANTENNA: Found %1 slots", slots.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Found %1 slots", slots.Count()), LogLevel.NORMAL);
 
 		foreach (EntitySlotInfo slotInfo : slots)
 		{
@@ -413,7 +434,8 @@ void UpdateAntennaBones(float progress)
 			string entityName = attachedEntity.GetName();
 			string className = attachedEntity.ClassName();
 
-			Print(string.Format("BC Debug - ANTENNA: Slot - Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: Slot - Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
 
 			// Check if this entity has the antenna bones
 			Animation anim = attachedEntity.GetAnimation();
@@ -422,7 +444,8 @@ void UpdateAntennaBones(float progress)
 				TNodeId testBoneId = anim.GetBoneIndex("v_antenna_01");
 				if (testBoneId != -1)
 				{
-					Print(string.Format("BC Debug - ANTENNA: >>> FOUND COMMAND BOX - has v_antenna_01 bone! Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BC Debug - ANTENNA: >>> FOUND COMMAND BOX - has v_antenna_01 bone! Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
 					return attachedEntity;
 				}
 			}
@@ -439,7 +462,8 @@ void UpdateAntennaBones(float progress)
 	{
 		if (depth == 0)
 		{
-			Print("BC Debug - ANTENNA: Starting command box search...", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Starting command box search...", LogLevel.NORMAL);
 		}
 
 		string indent = "";
@@ -452,7 +476,8 @@ void UpdateAntennaBones(float progress)
 
 		if (!child)
 		{
-			Print(string.Format("BC Debug - ANTENNA: %1No children found for entity %2", indent, parent.GetName()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: %1No children found for entity %2", indent, parent.GetName()), LogLevel.NORMAL);
 			return null;
 		}
 
@@ -460,7 +485,8 @@ void UpdateAntennaBones(float progress)
 		{
 			string childName = child.GetName();
 			string className = child.ClassName();
-			Print(string.Format("BC Debug - ANTENNA: %1Child [depth %2]: Name:'%3' Class:'%4'", indent, depth, childName, className), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: %1Child [depth %2]: Name:'%3' Class:'%4'", indent, depth, childName, className), LogLevel.NORMAL);
 
 			// Check if this is the command box by name or class
 			string childNameLower = childName;
@@ -470,7 +496,8 @@ void UpdateAntennaBones(float progress)
 
 			if (childNameLower.Contains("combox") || childNameLower.Contains("command") || classNameLower.Contains("combox") || classNameLower.Contains("command"))
 			{
-				Print(string.Format("BC Debug - ANTENNA: %1>>> FOUND COMMAND BOX: %2 (%3)", indent, childName, className), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: %1>>> FOUND COMMAND BOX: %2 (%3)", indent, childName, className), LogLevel.NORMAL);
 				return child;
 			}
 
@@ -493,7 +520,8 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void InitializeAntennaBones()
 	{
-		Print("BC Debug - ANTENNA: InitializeAntennaBones() called (delayed)", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: InitializeAntennaBones() called (delayed)", LogLevel.NORMAL);
 
 		// Try method 1: Search child entities
 		m_commandBox = FindCommandBox(m_radioTruck);
@@ -501,7 +529,8 @@ void UpdateAntennaBones(float progress)
 		// Try method 2: Search via SlotManagerComponent if method 1 failed
 		if (!m_commandBox)
 		{
-			Print("BC Debug - ANTENNA: Trying SlotManagerComponent method...", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Trying SlotManagerComponent method...", LogLevel.NORMAL);
 			m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
 		}
 
@@ -512,7 +541,8 @@ void UpdateAntennaBones(float progress)
 		}
 		else
 		{
-			Print(string.Format("BC Debug - ANTENNA: Using command box entity: %1", m_commandBox.GetName()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - ANTENNA: Using command box entity: %1", m_commandBox.GetName()), LogLevel.NORMAL);
 		}
 
 		Animation anim = m_commandBox.GetAnimation();
@@ -522,7 +552,8 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		Print("BC Debug - ANTENNA: Animation object found, searching for bones...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - ANTENNA: Animation object found, searching for bones...", LogLevel.NORMAL);
 
 		// Find all 8 antenna segment bones (v_antenna_01 through v_antenna_08)
 		for (int i = 1; i <= ANTENNA_SEGMENT_COUNT; i++)
@@ -536,13 +567,15 @@ void UpdateAntennaBones(float progress)
 			}
 			else
 			{
-				Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", boneName, boneId), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", boneName, boneId), LogLevel.NORMAL);
 			}
 
 			m_aAntennaBoneIds.Insert(boneId);
 		}
 
-		Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones in array: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones in array: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
 		
 		// Initialize channel selector bone
 		InitializeChannelSelectorBone();
@@ -590,15 +623,18 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void RaiseAntenna()
 	{
-		Print(string.Format("BC Debug - ANTENNA: RaiseAntenna() called. Extended: %1, Animating: %2", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: RaiseAntenna() called. Extended: %1, Animating: %2", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
 
 		if (m_bAntennaExtended || m_bAntennaAnimating)
 		{
-			Print("BC Debug - ANTENNA: Antenna already extended or animating, aborting", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Antenna already extended or animating, aborting", LogLevel.NORMAL);
 			return;
 		}
 
-		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna raise animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna raise animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = true;
 		// Start animation tick (CallLater-based for reliable animation)
@@ -610,11 +646,13 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void LowerAntenna()
 	{
-		Print(string.Format("BC Debug - ANTENNA: LowerAntenna() called. Extended: %1, Animating: %2", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: LowerAntenna() called. Extended: %1, Animating: %2", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
 
 		if (!m_bAntennaExtended || m_bAntennaAnimating)
 		{
-			Print("BC Debug - ANTENNA: Antenna already retracted or animating, aborting", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Antenna already retracted or animating, aborting", LogLevel.NORMAL);
 			return;
 		}
 
@@ -628,7 +666,8 @@ void UpdateAntennaBones(float progress)
 		// Remove antenna prop as soon as retraction starts
 		RemoveAntennaProp();
 
-		Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: Starting smooth antenna lower animation. Animation time: %1ms", m_iAntennaAnimationTime), LogLevel.NORMAL);
 		m_bAntennaAnimating = true;
 		m_bAntennaRaising = false;
 		// Start animation tick (CallLater-based for reliable animation)
@@ -702,7 +741,8 @@ void UpdateAntennaBones(float progress)
 			// Attach to the command box at the top bone with pivot ID
 			m_RedLightPropEntity.SetOrigin(vector.Zero);
 			m_commandBox.AddChild(m_RedLightPropEntity, topBoneId, EAddChildFlags.AUTO_TRANSFORM);
-			Print("BC Debug - ANTENNA: Red light prop spawned and attached successfully", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Red light prop spawned and attached successfully", LogLevel.NORMAL);
 		}
 		else
 		{
@@ -717,14 +757,16 @@ void UpdateAntennaBones(float progress)
 	{
 		if (m_AntennaPropEntity)
 		{
-			Print("BC Debug - ANTENNA: Removing antenna prop", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Removing antenna prop", LogLevel.NORMAL);
 			SCR_EntityHelper.DeleteEntityAndChildren(m_AntennaPropEntity);
 			m_AntennaPropEntity = null;
 		}
 
 		if (m_RedLightPropEntity)
 		{
-			Print("BC Debug - ANTENNA: Removing red light prop", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Removing red light prop", LogLevel.NORMAL);
 			SCR_EntityHelper.DeleteEntityAndChildren(m_RedLightPropEntity);
 			m_RedLightPropEntity = null;
 		}
@@ -759,14 +801,16 @@ void UpdateAntennaBones(float progress)
 			debugCounter++;
 			if (debugCounter % 10 == 0) // Every 10 iterations
 			{
-				Print(string.Format("BC Debug - Movement check: canMove=%1, State=%2", 
-					canMove, m_DamageManager.GetState()), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - Movement check: canMove=%1, State=%2", 
+						canMove, m_DamageManager.GetState()), LogLevel.NORMAL);
 			}
 			
 			// Consider destroyed if vehicle cannot move (players can't flee)
 			if (!canMove)
 			{
-				Print("BC Debug - MAINLOOP: Radio truck cannot move - considering it destroyed!", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - MAINLOOP: Radio truck cannot move - considering it destroyed!", LogLevel.NORMAL);
 				m_bDestructionProcessed = true;
 
 				// Force retract antenna on destruction
@@ -791,11 +835,13 @@ void UpdateAntennaBones(float progress)
 				if (destroyerFaction == "")
 				{
 					destroyerFaction = "DISABLED";
-					Print("BC Debug - MAINLOOP: Radio truck disabled (no damage instigator) - BLUFOR wins", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Debug - MAINLOOP: Radio truck disabled (no damage instigator) - BLUFOR wins", LogLevel.NORMAL);
 				}
 				else
 				{
-					Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 				}
 
 				// Notify the Breaking Contact Manager
@@ -819,13 +865,15 @@ void UpdateAntennaBones(float progress)
 		// apparently this does not work?
 		if (carController && !carController.GetPersistentHandBrake()) {
 			carController.SetPersistentHandBrake(true);
-			Print(string.Format("Breaking Contact RTC - setting handbrake (Antenna extended: %1, Animating: %2)", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact RTC - setting handbrake (Antenna extended: %1, Animating: %2)", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
 		}
 
 		VehicleWheeledSimulation simulation = carController.GetSimulation();
 		if (simulation && !simulation.GetBrake()) {
 			simulation.SetBreak(1.0, true);
-			Print(string.Format("Breaking Contact RTC - setting brake (Antenna extended: %1, Animating: %2)", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact RTC - setting brake (Antenna extended: %1, Animating: %2)", m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
 		}
 	}
 	
@@ -848,7 +896,8 @@ void UpdateAntennaBones(float progress)
 			SetTransmissionActive(false);
 		}
 		Replication.BumpMe();
-		Print(string.Format("Breaking Contact RTC - Radio truck disabled state set to %1", m_bIsDisabled), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact RTC - Radio truck disabled state set to %1", m_bIsDisabled), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -856,7 +905,8 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void InitializeChannelSelectorBone()
 	{
-		Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
 		
 		// Find the radio entity - search through slots
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
@@ -893,8 +943,9 @@ void UpdateAntennaBones(float progress)
 						{
 							m_radioEntity = attachedEntity;
 							m_ChannelSelectorBoneId = channelSelectorId;
-							Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found channel_selector bone (ID: %1) in entity: %2", 
-								channelSelectorId, attachedEntity.GetName()), LogLevel.NORMAL);
+							if (GRAD_BC_BreakingContactManager.IsDebugMode())
+								Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found channel_selector bone (ID: %1) in entity: %2", 
+									channelSelectorId, attachedEntity.GetName()), LogLevel.NORMAL);
 							return;
 						}
 					}
@@ -915,7 +966,8 @@ void UpdateAntennaBones(float progress)
 			// Bone not initialized yet - retry if we haven't exceeded max retries
 			if (retryCount < 10)
 			{
-				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Bone not initialized yet, retry %1/10", retryCount + 1), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - CHANNEL_SELECTOR: Bone not initialized yet, retry %1/10", retryCount + 1), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(ApplyChannelSelectorRotationWithRetry, 300, false, rotated, retryCount + 1);
 				return;
 			}
@@ -961,7 +1013,8 @@ void UpdateAntennaBones(float progress)
 		
 		anim.SetBoneMatrix(m_radioEntity, m_ChannelSelectorBoneId, mat);
 		
-		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Applied rotation - rotated=%1", rotated), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - CHANNEL_SELECTOR: Applied rotation - rotated=%1", rotated), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -969,7 +1022,8 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void OnChannelSelectorStateReplicated()
 	{
-		Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
 		
 		// On clients, the bone might not be initialized yet - use retry mechanism
 		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
@@ -1014,10 +1068,12 @@ void UpdateAntennaBones(float progress)
 
 		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
 		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
-		Print(string.Format("BC Debug - LAMP: SetTransmissionActive called - setTo=%1, IsMaster=%2, IsProxy=%3",
-			setTo, isMaster, isProxy), LogLevel.NORMAL);
-		Print(string.Format("Breaking Contact RTC - Setting m_bIsTransmitting=%1, m_bAntennaStateRaised=%2, m_bLampStateOn=%3",
-			m_bIsTransmitting, m_bAntennaStateRaised, m_bLampStateOn), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: SetTransmissionActive called - setTo=%1, IsMaster=%2, IsProxy=%3",
+				setTo, isMaster, isProxy), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact RTC - Setting m_bIsTransmitting=%1, m_bAntennaStateRaised=%2, m_bLampStateOn=%3",
+				m_bIsTransmitting, m_bAntennaStateRaised, m_bLampStateOn), LogLevel.NORMAL);
 
 		// Trigger antenna animation locally on server
 		if (setTo)
@@ -1048,7 +1104,8 @@ void UpdateAntennaBones(float progress)
 			if (VDMC) {
 				EnableVehicleAndRestoreFuel(m_radioTruck);
 				
-				Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("Breaking Contact RTC -  Enabling Engine due to transmission ended"), LogLevel.NORMAL);
 			}
 		} else {
 			if (VDMC) {
@@ -1063,11 +1120,14 @@ void UpdateAntennaBones(float progress)
 				    // 2. Den Watchdog starten (ruft die Funktion KeepFuelEmpty alle 1000ms auf)
 				    GetGame().GetCallqueue().CallLater(KeepFuelEmpty, 1000, true, m_radioTruck);
 				    
-				    Print("Fahrzeug stillgelegt (Kein Treibstoff).");
+				    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				    	Print("Fahrzeug stillgelegt (Kein Treibstoff).");
 				} else {
-					Print(string.Format("Breaking Contact RTC - No Car Controller found"), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("Breaking Contact RTC - No Car Controller found"), LogLevel.NORMAL);
 				}
-				Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("Breaking Contact RTC -  Disabling Engine due to transmission started"), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -1100,7 +1160,8 @@ void UpdateAntennaBones(float progress)
 	        if (!fuelNodes.IsEmpty() && fuelNodes[0].GetMaxFuel() > 0)
 	        {
 	            m_fSavedFuelRatio = fuelNodes[0].GetFuel() / fuelNodes[0].GetMaxFuel();
-	            Print(string.Format("Fuel gespeichert: %1 Prozent", m_fSavedFuelRatio * 100));
+	            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	            	Print(string.Format("Fuel gespeichert: %1 Prozent", m_fSavedFuelRatio * 100));
 	        }
 	        else
 	        {
@@ -1129,7 +1190,8 @@ void UpdateAntennaBones(float progress)
 		SCR_DamageManagerComponent damageManager = SCR_DamageManagerComponent.Cast(vehicleEntity.FindComponent(SCR_DamageManagerComponent));
 	    if (damageManager && damageManager.IsDestroyed())
 	    {
-	        Print("Warnung: Versuch, zerstörtes Fahrzeug wiederherzustellen abgebrochen.");
+	        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	        	Print("Warnung: Versuch, zerstörtes Fahrzeug wiederherzustellen abgebrochen.");
 	        m_fSavedFuelRatio = -1.0; // Reset
 	        return;
 	    }
@@ -1151,7 +1213,8 @@ void UpdateAntennaBones(float progress)
 	                node.SetFuel(fuelToSet);
 	            }
 	        }
-	        Print(string.Format("Fuel wiederhergestellt auf %1 Prozent", m_fSavedFuelRatio * 100));
+	        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	        	Print(string.Format("Fuel wiederhergestellt auf %1 Prozent", m_fSavedFuelRatio * 100));
 	        
 	        // Reset der Variable (optional, zur Sicherheit)
 	        m_fSavedFuelRatio = -1.0;
@@ -1174,7 +1237,8 @@ void UpdateAntennaBones(float progress)
 	        // Fahrzeug ist Schrott -> Wir brauchen keinen Sprit mehr entziehen.
 	        // Loop stoppen, um Server-Ressourcen zu sparen.
 	        GetGame().GetCallqueue().Remove(KeepFuelEmpty);
-	        Print("Fahrzeug wurde zerstört - Fuel-Lock Script gestoppt.");
+	        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	        	Print("Fahrzeug wurde zerstört - Fuel-Lock Script gestoppt.");
 	        return;
 	    }
 	
@@ -1186,7 +1250,8 @@ void UpdateAntennaBones(float progress)
 	        array<BaseFuelNode> fuelNodes = {};
 	        fuelManager.GetFuelNodesList(fuelNodes);
 			
-			Print(string.Format("Breaking Contact RTC - Keeping fuel at zero"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact RTC - Keeping fuel at zero"), LogLevel.NORMAL);
 	        
 	        foreach (BaseFuelNode node : fuelNodes)
 	        {
@@ -1212,20 +1277,23 @@ void UpdateAntennaBones(float progress)
 		else
 			isMaster = false;
 		
-		Print(string.Format("BC Debug - JIP: SyncJIPState called. IsMaster=%1, AntennaRaised=%2, LampOn=%3, RedLightSpawned=%4",
-			isMaster, m_bAntennaStateRaised, m_bLampStateOn, m_bRedLightPropSpawned), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - JIP: SyncJIPState called. IsMaster=%1, AntennaRaised=%2, LampOn=%3, RedLightSpawned=%4",
+				isMaster, m_bAntennaStateRaised, m_bLampStateOn, m_bRedLightPropSpawned), LogLevel.NORMAL);
 
 		// Only process JIP sync on clients (proxies)
 		if (m_RplComponent && m_RplComponent.IsMaster())
 		{
-			Print("BC Debug - JIP: Skipping JIP sync - we are master", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Skipping JIP sync - we are master", LogLevel.NORMAL);
 			return;
 		}
 
 		// Apply antenna state - if antenna should be raised, instantly set it to raised position
 		if (m_bAntennaStateRaised)
 		{
-			Print("BC Debug - JIP: Antenna should be raised - applying instant state", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Antenna should be raised - applying instant state", LogLevel.NORMAL);
 			// Set animation to fully extended instantly (no animation for JIP)
 			m_fAnimationProgress = 1.0;
 			m_bAntennaExtended = true;
@@ -1234,7 +1302,8 @@ void UpdateAntennaBones(float progress)
 		}
 		else
 		{
-			Print("BC Debug - JIP: Antenna should be retracted - applying instant state", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Antenna should be retracted - applying instant state", LogLevel.NORMAL);
 			m_fAnimationProgress = 0.0;
 			m_bAntennaExtended = false;
 			m_bAntennaAnimating = false;
@@ -1244,21 +1313,25 @@ void UpdateAntennaBones(float progress)
 		// Apply red light prop state
 		if (m_bRedLightPropSpawned && !m_RedLightPropEntity)
 		{
-			Print("BC Debug - JIP: Red light should be spawned - spawning now", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Red light should be spawned - spawning now", LogLevel.NORMAL);
 			SpawnAntennaProp();
 		}
 		else if (!m_bRedLightPropSpawned && m_RedLightPropEntity)
 		{
-			Print("BC Debug - JIP: Red light should be removed - removing now", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Red light should be removed - removing now", LogLevel.NORMAL);
 			RemoveAntennaProp();
 		}
 
 		// Apply lamp state
-		Print(string.Format("BC Debug - JIP: Applying lamp state: %1", m_bLampStateOn), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - JIP: Applying lamp state: %1", m_bLampStateOn), LogLevel.NORMAL);
 		ApplyLampState(m_bLampStateOn);
 		
 		// Apply channel selector rotation for JIP clients (with retry mechanism)
-		Print(string.Format("BC Debug - JIP: Applying channel selector rotation: %1", m_bChannelSelectorRotated), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - JIP: Applying channel selector rotation: %1", m_bChannelSelectorRotated), LogLevel.NORMAL);
 		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
 	}
 
@@ -1282,7 +1355,8 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	protected void OnTransmissionStateReplicated()
 	{
-		Print(string.Format("BC Debug - ANTENNA: OnTransmissionStateReplicated - m_bIsTransmitting=%1", m_bIsTransmitting), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: OnTransmissionStateReplicated - m_bIsTransmitting=%1", m_bIsTransmitting), LogLevel.NORMAL);
 		// Note: Antenna animation is triggered separately via m_bAntennaStateRaised replication
 	}
 
@@ -1292,20 +1366,23 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	protected void OnAntennaStateReplicated()
 	{
-		Print(string.Format("BC Debug - ANTENNA: OnAntennaStateReplicated - m_bAntennaStateRaised=%1 (current extended=%2, animating=%3)",
-			m_bAntennaStateRaised, m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: OnAntennaStateReplicated - m_bAntennaStateRaised=%1 (current extended=%2, animating=%3)",
+				m_bAntennaStateRaised, m_bAntennaExtended, m_bAntennaAnimating), LogLevel.NORMAL);
 
 		// Only process if we're a proxy (client)
 		if (m_RplComponent && m_RplComponent.IsMaster())
 		{
-			Print("BC Debug - ANTENNA: Skipping client-side animation trigger - we are master", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Skipping client-side animation trigger - we are master", LogLevel.NORMAL);
 			return;
 		}
 
 		// Check if bones are initialized - if not, defer the animation start
 		if (!m_commandBox || m_aAntennaBoneIds.Count() == 0)
 		{
-			Print("BC Debug - ANTENNA: Bones not initialized yet, deferring animation start", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Bones not initialized yet, deferring animation start", LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(OnAntennaStateReplicated, 200, false);
 			return;
 		}
@@ -1316,7 +1393,8 @@ void UpdateAntennaBones(float progress)
 			// Server says antenna should be raised - start raising animation locally
 			if (!m_bAntennaExtended && !m_bAntennaAnimating)
 			{
-				Print("BC Debug - ANTENNA: Client starting raise animation from replication", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - ANTENNA: Client starting raise animation from replication", LogLevel.NORMAL);
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = true;
 				// Start animation tick (CallLater-based, more reliable than EOnFrame for vehicles)
@@ -1328,7 +1406,8 @@ void UpdateAntennaBones(float progress)
 			// Server says antenna should be lowered - start lowering animation locally
 			if (m_bAntennaExtended && !m_bAntennaAnimating)
 			{
-				Print("BC Debug - ANTENNA: Client starting lower animation from replication", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - ANTENNA: Client starting lower animation from replication", LogLevel.NORMAL);
 				RemoveAntennaProp();  // Remove props immediately on client too
 				m_bAntennaAnimating = true;
 				m_bAntennaRaising = false;
@@ -1338,7 +1417,8 @@ void UpdateAntennaBones(float progress)
 			else if (m_bAntennaAnimating && m_bAntennaRaising)
 			{
 				// Animation was in progress raising, now reverse it
-				Print("BC Debug - ANTENNA: Client reversing raise animation from replication", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - ANTENNA: Client reversing raise animation from replication", LogLevel.NORMAL);
 				RemoveAntennaProp();
 				m_bAntennaRaising = false;
 			}
@@ -1353,17 +1433,20 @@ void UpdateAntennaBones(float progress)
 	{
 		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
 		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
-		Print(string.Format("BC Debug - LAMP: OnLampStateReplicated CALLED - m_bLampStateOn=%1, IsMaster=%2, IsProxy=%3",
-			m_bLampStateOn, isMaster, isProxy), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: OnLampStateReplicated CALLED - m_bLampStateOn=%1, IsMaster=%2, IsProxy=%3",
+				m_bLampStateOn, isMaster, isProxy), LogLevel.NORMAL);
 
 		// Only process if we're a proxy (client)
 		if (m_RplComponent && m_RplComponent.IsMaster())
 		{
-			Print("BC Debug - LAMP: Skipping client-side lamp toggle - we are master", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - LAMP: Skipping client-side lamp toggle - we are master", LogLevel.NORMAL);
 			return;
 		}
 
-		Print("BC Debug - LAMP: Proceeding to apply lamp state on client", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - LAMP: Proceeding to apply lamp state on client", LogLevel.NORMAL);
 		// Toggle lamp visuals locally - ApplyLampState has its own retry mechanism
 		// for when slot entities aren't streamed in yet
 		ApplyLampState(m_bLampStateOn);
@@ -1383,12 +1466,14 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	protected void ApplyRedLightPropState(int retryCount)
 	{
-		Print(string.Format("BC Debug - ANTENNA: ApplyRedLightPropState - m_bRedLightPropSpawned=%1, retry=%2", m_bRedLightPropSpawned, retryCount), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - ANTENNA: ApplyRedLightPropState - m_bRedLightPropSpawned=%1, retry=%2", m_bRedLightPropSpawned, retryCount), LogLevel.NORMAL);
 
 		// Only process if we're a proxy (client)
 		if (m_RplComponent && m_RplComponent.IsMaster())
 		{
-			Print("BC Debug - ANTENNA: Skipping client-side prop spawn - we are master", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - ANTENNA: Skipping client-side prop spawn - we are master", LogLevel.NORMAL);
 			return;
 		}
 
@@ -1397,7 +1482,8 @@ void UpdateAntennaBones(float progress)
 		{
 			if (retryCount < 10)
 			{
-				Print(string.Format("BC Debug - ANTENNA: Command box not ready for prop spawn, retry %1/10", retryCount + 1), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: Command box not ready for prop spawn, retry %1/10", retryCount + 1), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(ApplyRedLightPropStateRetry, 300, false, retryCount + 1);
 				return;
 			}
@@ -1413,7 +1499,8 @@ void UpdateAntennaBones(float progress)
 			// Spawn the red light prop locally
 			if (!m_RedLightPropEntity)
 			{
-				Print("BC Debug - ANTENNA: Client spawning red light prop from replication", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - ANTENNA: Client spawning red light prop from replication", LogLevel.NORMAL);
 				SpawnAntennaProp();
 			}
 		}
@@ -1422,7 +1509,8 @@ void UpdateAntennaBones(float progress)
 			// Remove the red light prop locally
 			if (m_RedLightPropEntity)
 			{
-				Print("BC Debug - ANTENNA: Client removing red light prop from replication", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - ANTENNA: Client removing red light prop from replication", LogLevel.NORMAL);
 				RemoveAntennaProp();
 			}
 		}
@@ -1444,8 +1532,9 @@ void UpdateAntennaBones(float progress)
 	{
 		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
 		bool isProxy = m_RplComponent && m_RplComponent.IsProxy();
-		Print(string.Format("BC Debug - LAMP: ApplyLampState ENTER - lampOn=%1, retryCount=%2, IsMaster=%3, IsProxy=%4",
-			lampOn, retryCount, isMaster, isProxy), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: ApplyLampState ENTER - lampOn=%1, retryCount=%2, IsMaster=%3, IsProxy=%4",
+				lampOn, retryCount, isMaster, isProxy), LogLevel.NORMAL);
 
 		if (!m_radioTruck)
 		{
@@ -1463,8 +1552,9 @@ void UpdateAntennaBones(float progress)
 		EntitySlotInfo slotInfoOn = slotManager.GetSlotByName("lamp_on");
 		EntitySlotInfo slotInfoOff = slotManager.GetSlotByName("lamp_off");
 
-		Print(string.Format("BC Debug - LAMP: Slot lookup - slotInfoOn=%1, slotInfoOff=%2",
-			slotInfoOn != null, slotInfoOff != null), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: Slot lookup - slotInfoOn=%1, slotInfoOff=%2",
+				slotInfoOn != null, slotInfoOff != null), LogLevel.NORMAL);
 
 		if (!slotInfoOn || !slotInfoOff)
 		{
@@ -1475,15 +1565,17 @@ void UpdateAntennaBones(float progress)
 		IEntity lamp_on = slotInfoOn.GetAttachedEntity();
 		IEntity lamp_off = slotInfoOff.GetAttachedEntity();
 
-		Print(string.Format("BC Debug - LAMP: Attached entities - lamp_on=%1, lamp_off=%2",
-			lamp_on != null, lamp_off != null), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: Attached entities - lamp_on=%1, lamp_off=%2",
+				lamp_on != null, lamp_off != null), LogLevel.NORMAL);
 
 		if (!lamp_on || !lamp_off)
 		{
 			// On clients, slot entities may not be streamed in yet - retry with more attempts for dedicated servers
 			if (retryCount < 10)
 			{
-				Print(string.Format("BC Debug - LAMP: Lamp entities not attached yet, scheduling retry %1/10 in 300ms", retryCount + 1), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - LAMP: Lamp entities not attached yet, scheduling retry %1/10 in 300ms", retryCount + 1), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(ApplyLampStateRetry, 300, false, lampOn, retryCount + 1);
 			}
 			else
@@ -1512,7 +1604,8 @@ void UpdateAntennaBones(float progress)
 				child.SetFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 				child = child.GetSibling();
 			}
-			Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned ON, enabled %1 light entities", lightCount), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned ON, enabled %1 light entities", lightCount), LogLevel.NORMAL);
 		}
 		else
 		{
@@ -1533,7 +1626,8 @@ void UpdateAntennaBones(float progress)
 				child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
 				child = child.GetSibling();
 			}
-			Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned OFF, disabled %1 light entities", lightCount), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - LAMP: SUCCESS - Lamp turned OFF, disabled %1 light entities", lightCount), LogLevel.NORMAL);
 		}
 	}
 
@@ -1552,7 +1646,8 @@ void UpdateAntennaBones(float progress)
 	{
 		m_bLampStateOn = lampOn;
 		Replication.BumpMe();
-		Print(string.Format("BC Debug - LAMP: SetLampState called with lampOn=%1", lampOn), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - LAMP: SetLampState called with lampOn=%1", lampOn), LogLevel.NORMAL);
 
 		// Also apply locally on server
 		ApplyLampState(lampOn);
@@ -1561,9 +1656,11 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	void OnRadioTruckDamageStateChanged(EDamageState previousState, EDamageState newState, IEntity instigator, notnull Instigator inst)
 	{
-		Print(string.Format("BC Debug - Radio truck damage state changed from %1 to %2", previousState, newState), LogLevel.NORMAL);
-		Print(string.Format("BC Debug - Available damage states: UNDAMAGED=%1, INTERMEDIARY=%2, DESTROYED=%3, STATE1=%4, STATE2=%5, STATE3=%6", 
-			EDamageState.UNDAMAGED, EDamageState.INTERMEDIARY, EDamageState.DESTROYED, EDamageState.STATE1, EDamageState.STATE2, EDamageState.STATE3), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - Radio truck damage state changed from %1 to %2", previousState, newState), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - Available damage states: UNDAMAGED=%1, INTERMEDIARY=%2, DESTROYED=%3, STATE1=%4, STATE2=%5, STATE3=%6", 
+				EDamageState.UNDAMAGED, EDamageState.INTERMEDIARY, EDamageState.DESTROYED, EDamageState.STATE1, EDamageState.STATE2, EDamageState.STATE3), LogLevel.NORMAL);
 		
 		// Get health information for better debugging
 		HitZone defaultHitZone = m_DamageManager.GetDefaultHitZone();
@@ -1574,8 +1671,9 @@ void UpdateAntennaBones(float progress)
 			currentHealth = defaultHitZone.GetHealth();
 			maxHealth = defaultHitZone.GetMaxHealth();
 		}
-		Print(string.Format("BC Debug - Health after state change: %1/%2 (%3%%)", 
-			currentHealth, maxHealth, (currentHealth/maxHealth)*100), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - Health after state change: %1/%2 (%3%%)", 
+				currentHealth, maxHealth, (currentHealth/maxHealth)*100), LogLevel.NORMAL);
 		
 		// Check if the vehicle is destroyed - check multiple states that might indicate destruction
 		if (newState == EDamageState.DESTROYED ||
@@ -1585,12 +1683,14 @@ void UpdateAntennaBones(float progress)
 			newState == EDamageState.STATE3 ||
 			(defaultHitZone && currentHealth <= 0))
 		{
-			Print(string.Format("BC Debug - Radio truck has been destroyed! State: %1, Health: %2", newState, currentHealth), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Radio truck has been destroyed! State: %1, Health: %2", newState, currentHealth), LogLevel.NORMAL);
 
 			// Prevent multiple processing
 			if (m_bDestructionProcessed)
 			{
-				Print("BC Debug - Destruction already processed, skipping", LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - Destruction already processed, skipping", LogLevel.NORMAL);
 				return;
 			}
 			m_bDestructionProcessed = true;
@@ -1606,7 +1706,8 @@ void UpdateAntennaBones(float progress)
 			// Get the instigator of the damage to determine which faction destroyed it
 			string destroyerFaction = GetInstigatorFactionFromEntity(instigator);
 
-			Print(string.Format("BC Debug - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 
 			// Notify the Breaking Contact Manager
 			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -1617,7 +1718,8 @@ void UpdateAntennaBones(float progress)
 		}
 		else
 		{
-			Print(string.Format("BC Debug - Radio truck damage state is %1, not triggering destruction", newState), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Radio truck damage state is %1, not triggering destruction", newState), LogLevel.NORMAL);
 		}
 	}
 	
@@ -1635,7 +1737,8 @@ void UpdateAntennaBones(float progress)
 		if (character)
 		{
 			string factionKey = character.GetFactionKey();
-			Print(string.Format("BC Debug - Damage instigator faction: %1", factionKey), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Damage instigator faction: %1", factionKey), LogLevel.NORMAL);
 			return factionKey;
 		}
 		
@@ -1647,7 +1750,8 @@ void UpdateAntennaBones(float progress)
 			if (factionComp && factionComp.GetAffiliatedFaction())
 			{
 				string factionKey = factionComp.GetAffiliatedFaction().GetFactionKey();
-				Print(string.Format("BC Debug - Vehicle instigator faction: %1", factionKey), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - Vehicle instigator faction: %1", factionKey), LogLevel.NORMAL);
 				return factionKey;
 			} else {
 				string factionKey = "Empty";
@@ -1670,7 +1774,8 @@ void UpdateAntennaBones(float progress)
 				if (ownerChar)
 				{
 					string factionKey = ownerChar.GetFactionKey();
-					Print(string.Format("BC Debug - Weapon owner faction: %1", factionKey), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BC Debug - Weapon owner faction: %1", factionKey), LogLevel.NORMAL);
 					return factionKey;
 				}
 			}
@@ -1681,7 +1786,8 @@ void UpdateAntennaBones(float progress)
 		if (factionComp && factionComp.GetAffiliatedFaction())
 		{
 			string factionKey = factionComp.GetAffiliatedFaction().GetFactionKey();
-			Print(string.Format("BC Debug - Direct faction affiliation: %1", factionKey), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - Direct faction affiliation: %1", factionKey), LogLevel.NORMAL);
 			return factionKey;
 		}
 		
@@ -1713,7 +1819,8 @@ void UpdateAntennaBones(float progress)
 				currentState == EDamageState.STATE3 ||
 				(defaultHitZone && currentHealth <= 0))
 			{
-				Print(string.Format("BC Debug - STATIC EVENT: Radio truck destruction detected via static event! State: %1, Health: %2", currentState, currentHealth), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - STATIC EVENT: Radio truck destruction detected via static event! State: %1, Health: %2", currentState, currentHealth), LogLevel.NORMAL);
 				m_bDestructionProcessed = true;
 
 				// Force retract antenna on destruction
@@ -1734,7 +1841,8 @@ void UpdateAntennaBones(float progress)
 
 				string destroyerFaction = GetInstigatorFactionFromEntity(lastInstigator);
 
-				Print(string.Format("BC Debug - STATIC EVENT: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - STATIC EVENT: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 
 				// Notify the Breaking Contact Manager
 				GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -1782,7 +1890,8 @@ void UpdateAntennaBones(float progress)
 	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
 	protected void RpcAsk_Authority_SetMarkerVisibility(bool isVisible)
 	{
-		Print("BC Debug - RpcAsk_Authority_SetMarkerVisibility()", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - RpcAsk_Authority_SetMarkerVisibility()", LogLevel.NORMAL);
 
 		m_mapDescriptorComponent.Item().SetVisible(isVisible);
 
@@ -1797,7 +1906,8 @@ void UpdateAntennaBones(float progress)
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	protected void RpcDo_Broadcast_SetMarkerVisibility(bool isVisible)
 	{
-		Print("BC Debug - RpcDo_Broadcast_SetMarkerVisibility()", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - RpcDo_Broadcast_SetMarkerVisibility()", LogLevel.NORMAL);
 
 		m_mapDescriptorComponent.Item().SetVisible(isVisible);
 	}

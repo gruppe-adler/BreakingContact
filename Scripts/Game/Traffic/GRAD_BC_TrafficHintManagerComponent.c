@@ -17,7 +17,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 	static const float MARKER_LIFETIME = 180.0;      // seconds
 	static const float COOLDOWN_LIFETIME = 180.0;    // same as marker lifetime
 	
-	// Placeholder icon entries - replace with actual resource IDs when known
+	// Placeholder icon entries - TODO: replace with actual resource IDs when known
 	static const int ICON_KILLED = 8;       // placeholder icon index for killed events
 	static const int ICON_GUNFIGHT = 9;     // placeholder icon index for gunfight events
 	static const int COLOR_KILLED = 4;      // placeholder color index for killed (red-ish)
@@ -170,6 +170,7 @@ class GRAD_BC_TrafficHintManagerComponent : ScriptComponent
 		SCR_MapMarkerBase marker = new SCR_MapMarkerBase();
 		marker.SetType(SCR_EMapMarkerType.PLACED_CUSTOM);
 		
+		// SetWorldPos expects [X, Z] - location[0] is X, location[2] is Z in world coordinates
 		int worldPos[2];
 		worldPos[0] = location[0];
 		worldPos[1] = location[2];

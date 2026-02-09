@@ -46,7 +46,12 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
 	protected ref GRAD_IconMarkerUI m_IconMarkerUI;
-	
+
+	GRAD_IconMarkerUI GetIconMarkerUI()
+	{
+		return m_IconMarkerUI;
+	}
+
 	protected bool m_bChoosingSpawn;
 	protected bool m_bSpawnPositionReady = false; // Track if spawn calculation is complete
 	

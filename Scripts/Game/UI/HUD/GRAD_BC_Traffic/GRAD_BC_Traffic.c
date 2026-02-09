@@ -104,13 +104,11 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 			return;
 		}
 
-		string markerLabel;
 		switch (currentHint)
 			{
 				case e_currentTrafficDisplay.GUNFIGHT: {
 					m_currentDisplayCached = e_currentTrafficDisplay.GUNFIGHT;
 					m_infoImage.LoadImageTexture(0, "{17A6DE75995ABA67}UI/Traffic/civ_gunfight_badge_bca.edds");	
-					markerLabel = "GUNFIGHT";
 					
 					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 					if (playerComponent == null)
@@ -118,7 +116,6 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
-					// Play transmission established sound
 					Print("BC Traffic UI: Civ in gunfight", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
@@ -128,7 +125,6 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 				case e_currentTrafficDisplay.KILLED: {
 					m_currentDisplayCached = e_currentTrafficDisplay.KILLED;
 					m_infoImage.LoadImageTexture(0, "{35D18D8D98313BBF}UI/Traffic/civ_killed_badge_bca.edds");	
-					markerLabel = "CIV KILLED";
 					
 					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 					if (playerComponent == null)
@@ -136,7 +132,6 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					
 					vector location = playerComponent.GetOwner().GetOrigin();
 					
-					// Play transmission established sound
 					Print("BC Traffic UI: Civ had been killed", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
@@ -146,13 +141,10 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 				
 				default: {
 					Print(string.Format("BC Traffic UI: No hint", currentHint), LogLevel.ERROR);
-					markerLabel = "UNKNOWN";
 					break;
 				}
 			}
 			
-		// Create map marker for all players
-		CreateTrafficMapMarker(eventLocation, markerLabel);
 		
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		
@@ -186,27 +178,5 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
         }
     }
 	
-	protected void CreateTrafficMapMarker(vector position, string label)
-	{
-		// Get the map entity to access the traffic marker layer
-		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
-		if (!mapEntity)
-		{
-			Print("GRAD_BC_Traffic: No map entity found, cannot create marker", LogLevel.WARNING);
-			return;
-		}
-		
-		// Get the traffic marker layer
-		GRAD_BC_TrafficMarkerLayer trafficLayer = GRAD_BC_TrafficMarkerLayer.Cast(mapEntity.GetMapModule(GRAD_BC_TrafficMarkerLayer));
-		if (!trafficLayer)
-		{
-			Print("GRAD_BC_Traffic: Traffic marker layer not found", LogLevel.WARNING);
-			return;
-		}
-		
-		// Add the marker
-		trafficLayer.AddTrafficMarker(position, label);
-		Print(string.Format("GRAD_BC_Traffic: Created map marker at %1 with label '%2'", position, label), LogLevel.NORMAL);
-	}
 }
 

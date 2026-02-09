@@ -1,79 +1,86 @@
 //------------------------------------------------------------------------------------------------
-//! Map line
+//! Map icon marker for displaying custom icons on the map
 class MapIcon
 {
 	float m_fStartPointX, m_fStartPointY;
 	float m_fEndPointX, m_fEndPointY;
 	int m_iType;
+	int m_iUniqueId;
 	string m_sType;
+	string m_sLabel;
 	string m_textureCache;
 	Widget m_wRootW;
 	Widget m_wicon;
 	ImageWidget m_wiconImage;
+	TextWidget m_wLabelText;
 	SCR_MapEntity m_MapEntity;
 	GRAD_IconMarkerUI m_OwnerComponent;
 	RplId rplId;
 	bool m_bIsVehicle;
-	
+
 	IEntity m_eEntity;
-	
+
 	//------------------------------------------------------------------------------------------------
 	void CreateIcon(notnull Widget rootW)
 	{
 		m_wRootW = rootW;
-		
-		// Use the provided root widget (DrawingContainer) which is the correct layer for map markers
-		m_wicon = GetGame().GetWorkspace().CreateWidgets("{546311C6714BB3BA}UI/Layouts/Map/MapDrawIcon.layout", m_wRootW);
-		
+
+		if (!m_MapEntity)
+			m_MapEntity = SCR_MapEntity.GetMapInstance();
+
+		// Attach to map frame (like circle markers) so positioning uses map-internal coordinates
+		Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
+		if (!mapFrame)
+			mapFrame = rootW;
+
+		m_wicon = GetGame().GetWorkspace().CreateWidgets("{546311C6714BB3BA}UI/Layouts/Map/MapDrawIcon.layout", mapFrame);
+
 		if (!m_wicon)
 		{
-			Print("[ICON DEBUG] CreateIcon: Failed to create widget from layout!", LogLevel.ERROR);
+			Print("GRAD IconMarkerUI: Failed to create widget from layout", LogLevel.ERROR);
 			return;
 		}
-		
-		// Log initial widget size
-		float widgetW, widgetH;
-		m_wicon.GetScreenSize(widgetW, widgetH);
-		Print(string.Format("[ICON DEBUG] CreateIcon: Initial widget size: %.1fx%.1f", widgetW, widgetH), LogLevel.NORMAL);
-		
-		// Fix for black shapes/shadows: Apply BLEND to all ImageWidgets in the layout
-		// This handles shadows or background images that might be part of the layout
+
+		// Apply BLEND to all ImageWidgets to prevent black shapes
 		ApplyBlendFlagRecursively(m_wicon);
-		
+
 		m_wiconImage = ImageWidget.Cast(m_wicon.FindAnyWidget("DrawIconImage"));
-		
-		if (m_wiconImage) {
-			// Log image widget properties
-			float imgW, imgH;
-			m_wiconImage.GetScreenSize(imgW, imgH);
-			Print(string.Format("[ICON DEBUG] CreateIcon: Image widget size: %.1fx%.1f", imgW, imgH), LogLevel.NORMAL);
-			
-			if (m_sType != "") {
-				// m_wiconImage.LoadImageFromSet(m_iType, "{9C5B2BA4695A421C}UI/Textures/Icons/GRAD_BC_mapIcons.imageset.edds", m_sType);
-				Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success 1"), LogLevel.NORMAL);
-				m_wiconImage.LoadImageTexture (0, m_sType, false, false);
-				// Fix for black icons: Ensure BLEND is set and Color is White
+
+		if (m_wiconImage)
+		{
+			if (m_sType != "")
+			{
+				m_wiconImage.LoadImageTexture(0, m_sType, false, false);
 				m_wiconImage.SetFlags(m_wiconImage.GetFlags() | WidgetFlags.BLEND | WidgetFlags.VISIBLE);
 				m_wiconImage.SetColor(Color.White);
-			} else {
-				Print(string.Format("PANIC - m_wiconImage is empty string"), LogLevel.NORMAL);
-			};
-		} else {
-			Print("[ICON DEBUG] CreateIcon: DrawIconImage widget not found in layout!", LogLevel.ERROR);
-		};
+			}
+		}
+		else
+		{
+			Print("GRAD IconMarkerUI: DrawIconImage widget not found in layout", LogLevel.ERROR);
+		}
+
+		// Set up text label if provided
+		m_wLabelText = TextWidget.Cast(m_wicon.FindAnyWidget("DrawIconLabel"));
+		if (m_wLabelText && m_sLabel != "")
+		{
+			m_wLabelText.SetText(m_sLabel);
+			m_wLabelText.SetColor(Color.Black);
+			m_wLabelText.SetVisible(true);
+		}
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void ApplyBlendFlagRecursively(Widget w)
 	{
 		if (!w) return;
-		
+
 		ImageWidget img = ImageWidget.Cast(w);
 		if (img)
 		{
 			img.SetFlags(img.GetFlags() | WidgetFlags.BLEND);
 		}
-		
+
 		Widget child = w.GetChildren();
 		while (child)
 		{
@@ -81,104 +88,77 @@ class MapIcon
 			child = child.GetSibling();
 		}
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void SetType(string type)
 	{
 		m_sType = type;
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void UpdateIcon()
-	{	
-		if (!m_wicon)	// can happen due to callater used for update
+	{
+		if (!m_wicon || !m_MapEntity)
 			return;
-		
-		if (!m_wiconImage) {
-			Print(string.Format("PANIC - No m_wiconImage found"), LogLevel.NORMAL);
+
+		if (!m_wiconImage)
 			return;
-		};
-				
-		int screenX, screenY, endX, endY;
-		
-		if (m_sType != "" && m_textureCache != m_sType) {
-			Print(string.Format("GRAD IconmarkerUI: m_textureCache is %1", m_textureCache), LogLevel.NORMAL);
-			bool textureLoaded = m_wiconImage.LoadImageTexture (0, m_sType, false, false);
-			
-			if (textureLoaded) {
-				// Fix for black icons: Ensure BLEND is set and Color is White
+
+		// Update texture if changed
+		if (m_sType != "" && m_textureCache != m_sType)
+		{
+			bool textureLoaded = m_wiconImage.LoadImageTexture(0, m_sType, false, false);
+			if (textureLoaded)
+			{
 				m_wiconImage.SetFlags(m_wiconImage.GetFlags() | WidgetFlags.BLEND | WidgetFlags.VISIBLE);
 				m_wiconImage.SetColor(Color.White);
-				// might be false if map is not open (?)
-				m_textureCache = m_sType; // as we have no getter for existing texture WHYEVER :[[
-				
-				Print(string.Format("GRAD IconmarkerUI: LoadImageTexture success update"), LogLevel.NORMAL);
+				m_textureCache = m_sType;
 			}
-		};
-
-		m_MapEntity.WorldToScreen(m_fStartPointX, m_fStartPointY, screenX, screenY, true);
-		m_MapEntity.WorldToScreen(m_fEndPointX, m_fEndPointY, endX, endY, true);
-		
-		vector iconVector = vector.Zero;
-		iconVector[0] = m_fStartPointX - m_fEndPointX;
-		iconVector[1] = m_fStartPointY - m_fEndPointY;
-
-		vector angles = iconVector.VectorToAngles();
-		if (angles[0] == 90)
-			angles[1] =  180 - angles[1]; 	// reverse angles when passing vertical axis
-		
-		m_wiconImage.SetRotation(angles[1]);
-		
-		// Use 48x48 for infantry icons, 70x70 for vehicle icons
-		float iconSize;
-		if (m_bIsVehicle)
-			iconSize = 70.0;
-		else
-			iconSize = 48.0;
-		
-		// DEBUG: Log all sizes before setting
-		int imgW, imgH;
-		float rootW, rootH;
-		m_wiconImage.GetImageSize(0, imgW, imgH);
-		m_wiconImage.GetScreenSize(rootW, rootH);
-		Print(string.Format("[ICON DEBUG] BEFORE - Image texture size: %1x%2, Screen size: %.1fx%.1f", imgW, imgH, rootW, rootH), LogLevel.NORMAL);
-		
-		// Get parent frame size
-		Widget mapFrame = m_wicon.GetParent();
-		if (mapFrame)
-		{
-			float parentW, parentH;
-			mapFrame.GetScreenSize(parentW, parentH);
-			Print(string.Format("[ICON DEBUG] Parent frame size: %.1fx%.1f", parentW, parentH), LogLevel.NORMAL);
 		}
-		
-		// Set the image size
-		m_wiconImage.SetSize(iconSize, iconSize);
-		// Set the FrameSlot size to match the icon size
-		FrameSlot.SetSize(m_wicon, iconSize, iconSize);
-		
-		// DEBUG: Log sizes after setting
-		m_wiconImage.GetScreenSize(rootW, rootH);
-		Print(string.Format("[ICON DEBUG] AFTER - Target: %.1f, Image screen: %.1fx%.1f", iconSize, rootW, rootH), LogLevel.NORMAL);
-		
-		// Get actual widget size
-		float actualW, actualH;
-		m_wicon.GetScreenSize(actualW, actualH);
-		Print(string.Format("[ICON DEBUG] Root widget actual screen size: %.1fx%.1f", actualW, actualH), LogLevel.NORMAL);
-		
-		// Simply position at screen coordinates - let layout anchoring handle the rest
-		float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
-		float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
-		FrameSlot.SetAlignment(m_wicon, 0.5, 0.5);
-		FrameSlot.SetPos(m_wicon, posX, posY);
-		
+
+		// Check if this is a static marker (start == end) or directional (entity tracking)
+		bool isStatic = (m_fStartPointX == m_fEndPointX && m_fStartPointY == m_fEndPointY);
+
+		int screenX, screenY;
+		m_MapEntity.WorldToScreen(m_fStartPointX, m_fStartPointY, screenX, screenY, true);
+
+		if (isStatic)
+		{
+			// Static marker (traffic events): fixed size, no rotation
+			float iconSize;
+			if (m_bIsVehicle)
+				iconSize = 70.0;
+			else
+				iconSize = 48.0;
+
+			m_wiconImage.SetSize(GetGame().GetWorkspace().DPIUnscale(iconSize), GetGame().GetWorkspace().DPIUnscale(iconSize));
+			m_wiconImage.SetRotation(0);
+		}
+		else
+		{
+			// Directional marker (entity tracking): size based on world distance, rotated
+			int endX, endY;
+			m_MapEntity.WorldToScreen(m_fEndPointX, m_fEndPointY, endX, endY, true);
+
+			vector iconVector = vector.Zero;
+			iconVector[0] = m_fStartPointX - m_fEndPointX;
+			iconVector[1] = m_fStartPointY - m_fEndPointY;
+
+			vector angles = iconVector.VectorToAngles();
+			if (angles[0] == 90)
+				angles[1] = 180 - angles[1];
+
+			m_wiconImage.SetRotation(angles[1]);
+
+			iconVector = m_MapEntity.GetMapWidget().SizeToPixels(iconVector);
+			m_wiconImage.SetSize(GetGame().GetWorkspace().DPIUnscale(iconVector.Length()), GetGame().GetWorkspace().DPIUnscale(iconVector.Length()));
+		}
+
+		FrameSlot.SetPos(m_wicon, GetGame().GetWorkspace().DPIUnscale(screenX), GetGame().GetWorkspace().DPIUnscale(screenY));
+
 		m_wicon.SetVisible(true);
-		
-		Print(string.Format("[ICON DEBUG] Position set to: %.1f, %.1f (screen: %1, %2)", posX, posY, screenX, screenY), LogLevel.NORMAL);
-		Print(string.Format("[ICON DEBUG] IsVehicle: %1, Rotation: %.1f degrees", m_bIsVehicle, angles[1]), LogLevel.NORMAL);
-		Print("[ICON DEBUG] =====================================", LogLevel.NORMAL);
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void MapIcon(SCR_MapEntity mapEnt, GRAD_IconMarkerUI ownerComp)
 	{
@@ -191,10 +171,11 @@ class MapIcon
 class GRAD_IconMarkerUI
 {
 	protected Widget m_wDrawingContainer;
-	
+
 	protected ref array<ref MapIcon> m_aicons = new array <ref MapIcon>();
 	protected int m_iType;
-	
+	protected static int s_iNextUniqueId = 1;
+
 	protected SCR_MapEntity m_MapEntity;
 	
 	//------------------------------------------------------------------------------------------------
@@ -217,49 +198,57 @@ class GRAD_IconMarkerUI
 		}
 	}
 	
-	protected void OnMapZoom(float x, float y)
+	protected void OnMapZoom(float zoomVal)
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
 			icon.UpdateIcon();
 		}
 	}
-	
-	protected void OnMapZoomEnd(float x, float y)
+
+	protected void OnMapZoomEnd(float zoomVal)
 	{
 		foreach (MapIcon icon: m_aicons)
 		{
-			icon.UpdateIcon();
+			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
 		}
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void OnMapOpen(MapConfiguration config)
 	{
+		m_MapEntity = SCR_MapEntity.GetMapInstance();
 		m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
-		
-		// fix null pointer
-		if (!m_wDrawingContainer) {
-			Print(string.Format("GRAD_IconMarkerUI OnMapOpen: Cant find m_wDrawingContainer"), LogLevel.ERROR);
+
+		if (!m_wDrawingContainer)
+		{
+			Print("GRAD_IconMarkerUI OnMapOpen: Cant find m_wDrawingContainer", LogLevel.ERROR);
 			return;
 		}
-				
+
 		foreach (MapIcon icon: m_aicons)
 		{
-			int type = icon.m_iType;
+			icon.m_MapEntity = m_MapEntity;
 			icon.CreateIcon(m_wDrawingContainer);
 			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
 		}
-						
-		m_MapEntity.GetOnMapPan().Insert(OnMapPan);		// pan for scaling
+
+		m_MapEntity.GetOnMapPan().Insert(OnMapPan);
 		m_MapEntity.GetOnMapPanEnd().Insert(OnMapPanEnd);
+		m_MapEntity.GetOnMapZoom().Insert(OnMapZoom);
+		m_MapEntity.GetOnMapZoomEnd().Insert(OnMapZoomEnd);
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	void OnMapClose(MapConfiguration config)
 	{
-		m_MapEntity.GetOnMapPan().Remove(OnMapPan);
-		m_MapEntity.GetOnMapPanEnd().Remove(OnMapPanEnd);
+		if (m_MapEntity)
+		{
+			m_MapEntity.GetOnMapPan().Remove(OnMapPan);
+			m_MapEntity.GetOnMapPanEnd().Remove(OnMapPanEnd);
+			m_MapEntity.GetOnMapZoom().Remove(OnMapZoom);
+			m_MapEntity.GetOnMapZoomEnd().Remove(OnMapZoomEnd);
+		}
 		m_wDrawingContainer = null;
 	}
 	
@@ -331,27 +320,37 @@ class GRAD_IconMarkerUI
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void AddIcon(float startPointX, float startPointY, float endPointX, float endPointY, string sType, RplId rplId, bool isVehicle = false)
+	int AddIcon(float startPointX, float startPointY, float endPointX, float endPointY, string sType, RplId rplId, bool isVehicle = false, string label = "")
 	{
 		MapIcon icon = new MapIcon(m_MapEntity, this);
-		
+
 		icon.m_fStartPointX = startPointX;
 		icon.m_fStartPointY = startPointY;
 		icon.m_fEndPointX = endPointX;
 		icon.m_fEndPointY = endPointY;
 		icon.m_sType = sType;
+		icon.m_sLabel = label;
 		icon.rplId = rplId;
 		icon.m_bIsVehicle = isVehicle;
-		
-		Print(string.Format("GRAD IconMarkerUI: SetIcon icon.rplId to %1 , should equal %2", rplId, icon.rplId), LogLevel.WARNING);
-		
+		icon.m_iUniqueId = s_iNextUniqueId;
+		s_iNextUniqueId++;
+
+		Print(string.Format("GRAD IconMarkerUI: AddIcon id=%1, rplId=%2, label='%3'", icon.m_iUniqueId, rplId, label), LogLevel.NORMAL);
+
 		m_aicons.Insert(icon);
-		
+
 		if (m_wDrawingContainer)
 		{
 			icon.CreateIcon(m_wDrawingContainer);
 			GetGame().GetCallqueue().CallLater(icon.UpdateIcon, 0, false);
+			Print(string.Format("GRAD IconMarkerUI: Icon id=%1 created immediately (map open)", icon.m_iUniqueId), LogLevel.NORMAL);
 		}
+		else
+		{
+			Print(string.Format("GRAD IconMarkerUI: Icon id=%1 deferred (map closed, will create on open)", icon.m_iUniqueId), LogLevel.NORMAL);
+		}
+
+		return icon.m_iUniqueId;
 	}
 	
 	
@@ -374,6 +373,23 @@ class GRAD_IconMarkerUI
 		}	
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	void RemoveIcon(int uniqueId)
+	{
+		for (int i = m_aicons.Count() - 1; i >= 0; i--)
+		{
+			MapIcon icon = m_aicons[i];
+			if (icon.m_iUniqueId == uniqueId)
+			{
+				if (icon.m_wicon)
+					icon.m_wicon.RemoveFromHierarchy();
+				m_aicons.Remove(i);
+				Print(string.Format("GRAD IconMarkerUI: Removed icon id=%1", uniqueId), LogLevel.NORMAL);
+				return;
+			}
+		}
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void GRAD_IconMarkerUI()
 	{

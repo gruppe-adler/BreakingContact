@@ -145,7 +145,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             bool showAsEmpty = !isOccupied && vehicleMarker.isEmpty;
 
             // Filter: Hide empty vehicles if toggle is active
-            if (m_bHideEmptyVehicles && showAsEmpty)
+            // But keep previously-used vehicles visible (wasUsed exempts from hiding)
+            if (m_bHideEmptyVehicles && showAsEmpty && !vehicleMarker.wasUsed)
                 continue;
 
             // Use occupant faction if occupied, otherwise use vehicle's own faction
@@ -1068,6 +1069,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			marker.direction = vehicleSnapshot.angles[0]; // Yaw
 			marker.isVisible = true;
 			marker.isEmpty = vehicleSnapshot.isEmpty;
+			marker.wasUsed = vehicleSnapshot.wasUsed;
 			newVehicleMarkers.Insert(marker);
 		}
 		
@@ -1407,4 +1409,5 @@ class GRAD_BC_ReplayVehicleMarker : Managed
 	float direction;
 	bool isVisible;
 	bool isEmpty;
+	bool wasUsed;
 }

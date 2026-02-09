@@ -40,6 +40,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Tracked vehicles
 	protected ref array<IEntity> m_trackedVehicles;
 	
+	// Vehicles that have been used by players at least once
+	protected ref array<RplId> m_usedVehicleIds = {};
+	
 	// RPC for client communication
 	protected RplComponent m_RplComponent;
 	
@@ -499,15 +502,25 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				}
 			}
 
+			// Track vehicles that have ever been used by players
+			RplId vehicleRplId = rpl.Id();
+			bool wasUsed = (m_usedVehicleIds.Find(vehicleRplId) != -1);
+			if (!isEmpty && !wasUsed)
+			{
+				m_usedVehicleIds.Insert(vehicleRplId);
+				wasUsed = true;
+			}
+
 			// Print(string.Format("GRAD_BC_ReplayManager: Creating snapshot for vehicle: %1", vehicleType), LogLevel.NORMAL);
 			
 			GRAD_BC_VehicleSnapshot snapshot = GRAD_BC_VehicleSnapshot.Create(
-				rpl.Id(),
+				vehicleRplId,
 				vehicleType,
 				factionKey,
 				position,
 				angles,
-				isEmpty
+				isEmpty,
+				wasUsed
 			);
 			frame.vehicles.Insert(snapshot);
 		}
@@ -1061,6 +1074,7 @@ void StartLocalReplayPlayback()
 		ref array<string> vehicleFactions = {};
 		ref array<vector> vehiclePositions = {};
 		ref array<vector> vehicleRotations = {};
+		ref array<bool> vehicleWasUsed = {};
 		
 		for (int i = startIndex; i < endIndex; i++)
 		{
@@ -1106,6 +1120,7 @@ void StartLocalReplayPlayback()
 				vehicleFactions.Insert(vehicleData.factionKey);
 				vehiclePositions.Insert(vehicleData.position);
 				vehicleRotations.Insert(vehicleData.angles);
+				vehicleWasUsed.Insert(vehicleData.wasUsed);
 			}
 		}
 		
@@ -1122,7 +1137,7 @@ void StartLocalReplayPlayback()
 
 		// Send vehicle data if any
 		if (vehicleTimestamps.Count() > 0)
-			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations);
+			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations, vehicleWasUsed);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1160,7 +1175,7 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_ReceiveVehicleChunk(array<float> timestamps, array<RplId> vehicleIds, array<string> vehicleTypes, array<string> vehicleFactions, array<vector> vehiclePositions, array<vector> vehicleRotations)
+	void RpcAsk_ReceiveVehicleChunk(array<float> timestamps, array<RplId> vehicleIds, array<string> vehicleTypes, array<string> vehicleFactions, array<vector> vehiclePositions, array<vector> vehicleRotations, array<bool> vehicleWasUsed)
 	{
 		if (Replication.IsServer())
 			return;
@@ -1192,13 +1207,18 @@ void StartLocalReplayPlayback()
 				m_replayData.frames.Insert(frame);
 			}
 			
+			bool wasUsed = false;
+			if (vehicleWasUsed && i < vehicleWasUsed.Count())
+				wasUsed = vehicleWasUsed[i];
+
 			GRAD_BC_VehicleSnapshot vehicleData = GRAD_BC_VehicleSnapshot.Create(
 				vehicleIds[i],
 				vehicleTypes[i],
 				vehicleFactions[i],
 				vehiclePositions[i],
 				vehicleRotations[i],
-				false
+				false,
+				wasUsed
 			);
 			
 			frame.vehicles.Insert(vehicleData);

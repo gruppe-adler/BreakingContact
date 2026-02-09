@@ -186,7 +186,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 		super.EOnInit(owner);
 		
-		Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);					
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact BCM -  main init -"), LogLevel.NORMAL);					
 		
 		// execute only on the server
 		if (Replication.IsServer()) {
@@ -200,7 +201,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	
 	void OnBreakingContactPhaseChanged()
 	{
-		Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase)), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase)), LogLevel.NORMAL);
 		
 		string factionKey = GetPlayerFactionKey();
 		
@@ -267,20 +269,23 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			vector location = playerComponent.GetOwner().GetOrigin();
 			AudioSystem.PlayEvent(customSoundGUID, customSound, location);
 		}
-		Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		
 		// close map for opfor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
 		}
 		
 		// close map for blufor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
-			Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 		
 		// Retrieve the HUD‐display and call ShowLogo on it:
@@ -339,7 +344,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// If no controlled entity, player is in spectator mode
 		if (!controlledEntity)
 		{
-			Print("GRAD_BC: JIP spectator detected, scheduling UI hide", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC: JIP spectator detected, scheduling UI hide", LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(HideUIForSpectators, 5000, false, logoDisplay, gamestateDisplay);
 			return; // Don't show the logos/text for spectators
 		}
@@ -352,7 +358,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 				return;
 			m_fLastPhaseNotification = currentTime;
 			
-			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 		
 		    // Now bump the counter on the server so that all clients show it.
 		    // (ShowLogo() itself only increments on Listen/Dedicated, so it is safe
@@ -368,7 +375,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 				return;
 			m_fLastPhaseNotification = currentTime;
 			
-			Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 			logoDisplay.ShowLogo();
 		}
 
@@ -378,7 +386,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void HideUIForSpectators(GRAD_BC_Logo logoDisplay, GRAD_BC_Gamestate gamestateDisplay)
 	{
-		Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
 		if (logoDisplay)
 		{
 			logoDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
@@ -393,7 +402,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Called on clients when m_aTransmissionIds is replicated from server
 	void OnTransmissionIdsChanged()
 	{
-		Print(string.Format("Client: Transmission IDs changed, count: %1", m_aTransmissionIds.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Client: Transmission IDs changed, count: %1", m_aTransmissionIds.Count()), LogLevel.NORMAL);
 
 		// Notify all listeners (e.g., map marker manager) that transmission points have changed
 		NotifyTransmissionPointListeners();
@@ -403,8 +413,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Called on clients when marker data is replicated from server
 	void OnTransmissionMarkerDataChanged()
 	{
-		Print(string.Format("Client: Transmission marker data changed, count: %1 positions, %2 states",
-			m_aTransmissionPositions.Count(), m_aTransmissionStates.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Client: Transmission marker data changed, count: %1 positions, %2 states",
+				m_aTransmissionPositions.Count(), m_aTransmissionStates.Count()), LogLevel.NORMAL);
 
 		// Notify all listeners that marker data has changed
 		NotifyTransmissionPointListeners();
@@ -415,13 +426,15 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 				
 		if (!playerController) {
-			Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("No playerController found in RpcAsk_Authority_NotifyLocalPlayerOnPhaseChange"), LogLevel.NORMAL);
 			return "";
 		}
 		
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
 		if (!ch)  {
-			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
 			return "";
 		}
 		
@@ -435,7 +448,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	//------------------------------------------------------------------------------------------------
 	void setPhaseInitial() 
 	{
-		Print(string.Format("setPhaseInitial executed"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("setPhaseInitial executed"), LogLevel.NORMAL);
 		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
 	}
 
@@ -483,9 +497,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	{
 
 		/* 
-		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
-        Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
-		Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print(string.Format("Breaking Contact BCM -  Main Loop Tick ----------------------------------"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact BCM -  -------------------------------------------------"), LogLevel.NORMAL);
 		*/
 			
 		// set opfor phase as soon as players leave lobby
@@ -499,7 +516,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		};
 		
 		if (currentPhase == EBreakingContactPhase.BLUFOR && !choosingBluforSpawn) {
-			Print(string.Format("Breaking Contact - choosingBluforSpawn upcoming"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - choosingBluforSpawn upcoming"), LogLevel.NORMAL);
 			choosingBluforSpawn = true;
 			InitiateBluforSpawn();
 		};
@@ -507,7 +525,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// Skip mainLoop during LOADING/PREPTIME or if game is over
 		if (m_skipWinConditions || currentPhase == EBreakingContactPhase.LOADING || currentPhase == EBreakingContactPhase.PREPTIME)
         {
-			Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Game not started yet"), LogLevel.NORMAL);
 			return;
 		};
 		
@@ -528,7 +547,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         // skip win conditions if active
 		if (GameModeStarted() && !(GameModeOver())) {
 			CheckWinConditions();
-			Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		};
 	}
 
@@ -711,7 +731,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_aDestroyedTransmissionPositions.Insert(position);
 		m_aDestroyedTransmissionTimes.Insert(currentTime);
 		
-		Print(string.Format("BCM - Registered destroyed transmission at position %1 at time %2", position.ToString(), currentTime), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Registered destroyed transmission at position %1 at time %2", position.ToString(), currentTime), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -726,7 +747,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_aDisabledTransmissionComponents.Insert(component);
 		m_aDisabledTransmissionTimes.Insert(currentTime);
 		
-		Print(string.Format("BCM - Registered disabled transmission component at time %1", currentTime), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Registered disabled transmission component at time %1", currentTime), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -741,17 +763,20 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			float destroyedTime = m_aDestroyedTransmissionTimes[i];
 			float timeDiff = currentTime - destroyedTime;
-			Print(string.Format("BCM - Cleanup check: current time %1, destroyed time %2, diff %3, cooldown %4", currentTime, destroyedTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - Cleanup check: current time %1, destroyed time %2, diff %3, cooldown %4", currentTime, destroyedTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 			
 			if (timeDiff > DESTROYED_TRANSMISSION_COOLDOWN)
 			{
-				Print(string.Format("BCM - Removing expired destroyed transmission at %1 (time diff: %2 > %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Removing expired destroyed transmission at %1 (time diff: %2 > %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 				m_aDestroyedTransmissionPositions.Remove(i);
 				m_aDestroyedTransmissionTimes.Remove(i);
 			}
 			else
 			{
-				Print(string.Format("BCM - Keeping destroyed transmission at %1 (time diff: %2 < %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Keeping destroyed transmission at %1 (time diff: %2 < %3)", m_aDestroyedTransmissionPositions[i].ToString(), timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -768,14 +793,16 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			float disabledTime = m_aDisabledTransmissionTimes[i];
 			float timeDiff = currentTime - disabledTime;
-			Print(string.Format("BCM - Cleanup check for disabled: current time %1, disabled time %2, diff %3, cooldown %4", currentTime, disabledTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - Cleanup check for disabled: current time %1, disabled time %2, diff %3, cooldown %4", currentTime, disabledTime, timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 			
 			if (timeDiff > DESTROYED_TRANSMISSION_COOLDOWN)
 			{
 				GRAD_BC_TransmissionComponent component = m_aDisabledTransmissionComponents[i];
 				if (component)
 				{
-					Print(string.Format("BCM - Re-enabling disabled transmission component (time diff: %1 > %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BCM - Re-enabling disabled transmission component (time diff: %1 > %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 					
 					// Show the antenna model again
 					ReShowAntennaModel(component);
@@ -790,7 +817,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			}
 			else
 			{
-				Print(string.Format("BCM - Keeping disabled transmission component (time diff: %1 < %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Keeping disabled transmission component (time diff: %1 < %2)", timeDiff, DESTROYED_TRANSMISSION_COOLDOWN), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -814,7 +842,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Show the visual representation of the antenna
 		owner.SetFlags(EntityFlags.VISIBLE, true);
 		
-		Print("BCM - Antenna model re-shown", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM - Antenna model re-shown", LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -822,24 +851,29 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		if (!m_aDestroyedTransmissionPositions)
 		{
-			Print("BCM - No destroyed transmission positions tracked", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BCM - No destroyed transmission positions tracked", LogLevel.NORMAL);
 			return false;
 		}
 			
-		Print(string.Format("BCM - Checking position %1 against %2 destroyed transmissions", position.ToString(), m_aDestroyedTransmissionPositions.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Checking position %1 against %2 destroyed transmissions", position.ToString(), m_aDestroyedTransmissionPositions.Count()), LogLevel.NORMAL);
 		
 		foreach (vector destroyedPos : m_aDestroyedTransmissionPositions)
 		{
 			float distance = vector.Distance(position, destroyedPos);
-			Print(string.Format("BCM - Distance to destroyed transmission at %1: %2m (limit: %3m)", destroyedPos.ToString(), distance, DESTROYED_TRANSMISSION_MIN_DISTANCE), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - Distance to destroyed transmission at %1: %2m (limit: %3m)", destroyedPos.ToString(), distance, DESTROYED_TRANSMISSION_MIN_DISTANCE), LogLevel.NORMAL);
 			if (distance < DESTROYED_TRANSMISSION_MIN_DISTANCE)
 			{
-				Print(string.Format("BCM - Position %1 is too close to destroyed transmission at %2 (distance: %3)", position.ToString(), destroyedPos.ToString(), distance), LogLevel.NORMAL);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Position %1 is too close to destroyed transmission at %2 (distance: %3)", position.ToString(), destroyedPos.ToString(), distance), LogLevel.NORMAL);
 				return true;
 			}
 		}
 		
-		Print("BCM - Position is not near any destroyed transmissions", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM - Position is not near any destroyed transmissions", LogLevel.NORMAL);
 		return false;
 	}
 
@@ -848,7 +882,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	GRAD_BC_TransmissionComponent GetNearestTransmissionPoint(vector center, bool isTransmitting)
 	{
 			auto transmissionPoints = GetTransmissionPoints();
-			Print(string.Format("BCM - GetNearestTransmissionPoint called at %1, isTransmitting: %2, existing points: %3", center.ToString(), isTransmitting, transmissionPoints.Count()), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - GetNearestTransmissionPoint called at %1, isTransmitting: %2, existing points: %3", center.ToString(), isTransmitting, transmissionPoints.Count()), LogLevel.NORMAL);
 			
 			GRAD_BC_TransmissionComponent closest;
 
@@ -866,7 +901,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 					}
 				
 					float distance = vector.Distance(tpc.GetPosition(), center);
-					Print(string.Format("BCM - Found existing transmission at %1, distance: %2m", tpc.GetPosition().ToString(), distance), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BCM - Found existing transmission at %1, distance: %2m", tpc.GetPosition().ToString(), distance), LogLevel.NORMAL);
 
 					// check if distance is in reach of radiotruck
 					if (distance < bestDist) {
@@ -878,7 +914,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				// If we already found an existing TPC within range, return that:
 				if (closest)
 				{
-					Print(string.Format("BCM - Returning existing closest transmission at distance %1", bestDist), LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BCM - Returning existing closest transmission at distance %1", bestDist), LogLevel.NORMAL);
 	        		return closest;
 				}
 			
@@ -887,21 +924,25 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				    // cooldown prevents double spawn
 				    if (m_spawnLock > 0)
 				    {
-				        Print(string.Format("BCM - Spawn locked, countdown: %1", m_spawnLock), LogLevel.NORMAL);
+				        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				        	Print(string.Format("BCM - Spawn locked, countdown: %1", m_spawnLock), LogLevel.NORMAL);
 				        m_spawnLock--;
 				        return null;
 				    }
 				
-				    Print(string.Format("BCM - Checking if can spawn new transmission at %1", center.ToString()), LogLevel.NORMAL);
+				    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				    	Print(string.Format("BCM - Checking if can spawn new transmission at %1", center.ToString()), LogLevel.NORMAL);
 				    // Check if position is too close to a destroyed transmission
 				    if (IsNearDestroyedTransmission(center))
 				    {
-				        Print("BCM - Cannot spawn transmission near destroyed transmission site", LogLevel.NORMAL);
+				        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				        	Print("BCM - Cannot spawn transmission near destroyed transmission site", LogLevel.NORMAL);
 				        return null;
 				    }
 				
 				    // ready to drop a new antenna
-				    Print("BCM - Spawning new transmission point", LogLevel.NORMAL);
+				    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				    	Print("BCM - Spawning new transmission point", LogLevel.NORMAL);
 				    SpawnTransmissionPoint(center);
 				    m_spawnLock = 3;        // three main-loop ticks ≈ 3 s
 				}
@@ -910,21 +951,25 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			// if no TPC exist, create a new
 			if (transmissionPoints.Count() == 0 && isTransmitting)
 	    {
-	    		Print(string.Format("BCM - No existing transmissions, checking if can spawn first at %1", center.ToString()), LogLevel.NORMAL);
+	    		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	    			Print(string.Format("BCM - No existing transmissions, checking if can spawn first at %1", center.ToString()), LogLevel.NORMAL);
 	    		// Check if position is too close to a destroyed transmission
 	    		if (IsNearDestroyedTransmission(center))
 	    		{
-	    			Print("BCM - Cannot spawn first transmission near destroyed transmission site", LogLevel.NORMAL);
+	    			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	    				Print("BCM - Cannot spawn first transmission near destroyed transmission site", LogLevel.NORMAL);
 	    			return null;
 	    		}
 	    		
-	    		Print("BCM - Spawning first transmission point", LogLevel.NORMAL);
+	    		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	    			Print("BCM - Spawning first transmission point", LogLevel.NORMAL);
 				this.SpawnTransmissionPoint(center);
 	        // Print("Breaking Contact RTC - SpawnTransmissionPoint called (no existing points)", LogLevel.NORMAL);
 				// By returning null, we wait one frame for the component to initialize. fixing race condition
 				return null;
 	    }
-	    Print("BCM - No transmission spawning conditions met", LogLevel.NORMAL);
+	    if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	    	Print("BCM - No transmission spawning conditions met", LogLevel.NORMAL);
 		return null;
 	}
 
@@ -932,7 +977,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
-		Print(string.Format("BCM - SpawnSpawnVehicleWest called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - SpawnSpawnVehicleWest called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
 		
 		// Validate spawn position is set - NEVER spawn at 0,0,0
 		if (m_vBluforSpawnPos == vector.Zero)
@@ -943,7 +989,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		Print(string.Format("BCM - Spawning West vehicle at validated position: %1", m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Spawning West vehicle at validated position: %1", m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
         params.Transform[3] = m_vBluforSpawnPos;
@@ -964,14 +1011,16 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
         {
              westCommandVehRplId = Replication.FindId(rplComponent);
              Replication.BumpMe(); // Replicate the RplId
-			Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
         }
 		
 		// Defer physics setup slightly to reduce spawn freeze
 		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_westCommandVehicle);
 		
 		vector finalPos = m_westCommandVehicle.GetOrigin();
-		Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - West Command Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
 
 		// --- BC MOD: Register BLUFOR truck with replay manager ---
 		if (m_westCommandVehicle)
@@ -983,7 +1032,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				if (replayMgr)
 				{
 					replayMgr.RegisterTrackedVehicle(vehicle);
-					Print("BC Debug - Registered BLUFOR truck with replay manager", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Debug - Registered BLUFOR truck with replay manager", LogLevel.NORMAL);
 				}
 			}
 		}
@@ -992,7 +1042,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleEast()
 	{		
-		Print(string.Format("BCM - SpawnSpawnVehicleEast called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - SpawnSpawnVehicleEast called (IsServer: %1)", Replication.IsServer()), LogLevel.NORMAL);
 		
 		// Validate spawn position is set - NEVER spawn at 0,0,0
 		if (m_vOpforSpawnPos == vector.Zero)
@@ -1003,7 +1054,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		Print(string.Format("BCM - Spawning East vehicle at validated position: %1", m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Spawning East vehicle at validated position: %1", m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
 		
 		EntitySpawnParams params = new EntitySpawnParams();
 		params.TransformMode = ETransformMode.WORLD;
@@ -1016,7 +1068,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
         m_radioTruck = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
-		Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("m_vOpforSpawnDir.VectorToAngles(): %1", m_vOpforSpawnDir.VectorToAngles()), LogLevel.VERBOSE);
 			
 		m_radioTruck.SetYawPitchRoll(m_vOpforSpawnDir.VectorToAngles());
 		
@@ -1030,13 +1083,15 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
         {
              radioTruckRplId = Replication.FindId(rplComponent);
              Replication.BumpMe(); // Replicate the RplId
-			 Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
+			 if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			 	Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);
         }
 		// Defer physics setup slightly to reduce spawn freeze
 		GetGame().GetCallqueue().CallLater(SetVehiclePhysics, 50, false, m_radioTruck);
 	
 		vector finalPos = m_radioTruck.GetOrigin();
-		Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - East Radio Truck spawned successfully at final position: %1 (requested: %2)", finalPos.ToString(), m_vOpforSpawnPos.ToString()), LogLevel.NORMAL);
 
 		// --- BC MOD: Register OPFOR radio truck with replay manager ---
 		if (m_radioTruck)
@@ -1048,7 +1103,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				if (replayMgr)
 				{
 					replayMgr.RegisterTrackedVehicle(vehicle);
-					Print("BC Debug - Registered OPFOR radio truck with replay manager", LogLevel.NORMAL);
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Debug - Registered OPFOR radio truck with replay manager", LogLevel.NORMAL);
 				}
 			}
 		}
@@ -1085,41 +1141,48 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		// Debug logging for transmission tracking
-		Print(string.Format("Breaking Contact - Win condition check: transmissions done=%1/%2, BLUFOR eliminated=%3, OPFOR eliminated=%4", 
-			GetTransmissionsDoneCount(), m_iTransmissionCount, bluforEliminated, opforEliminated), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - Win condition check: transmissions done=%1/%2, BLUFOR eliminated=%3, OPFOR eliminated=%4", 
+				GetTransmissionsDoneCount(), m_iTransmissionCount, bluforEliminated, opforEliminated), LogLevel.VERBOSE);
 		
 		// Check for radio truck destruction first (highest priority)
 		if (m_bRadioTruckDestroyed) {
 			isOver = true;
 			// m_sWinnerSide already set in SetRadioTruckDestroyed
-			Print(string.Format("Breaking Contact - Radio truck destroyed, winner: %1", m_sWinnerSide), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Radio truck destroyed, winner: %1", m_sWinnerSide), LogLevel.NORMAL);
 		}
 		else if (bluforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
-			Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
 		}
 		else if (finishedAllTransmissions) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
-			Print(string.Format("Breaking Contact - All transmissions done"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - All transmissions done"), LogLevel.NORMAL);
 		}
 		else if (opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
-			Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
 		}
 		else if (m_bluforCaptured) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
-			Print(string.Format("Breaking Contact - Blufor captured radio truck"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Blufor captured radio truck"), LogLevel.NORMAL);
 		}
 		
 		// needs to be on last position as would risk to be overwritten
 		if (bluforEliminated && opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "draw";
-			Print(string.Format("Breaking Contact - Both sides eliminated"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("Breaking Contact - Both sides eliminated"), LogLevel.NORMAL);
 		}
 		
 		if (isOver) {
@@ -1146,7 +1209,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
         m_skipWinConditions = true;
 			
 		m_sWinnerSide = "blufor";
-		Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
 		
 		// Notify all players about the radio truck being disabled
 		NotifyAllPlayersRadioTruckDisabled();
@@ -1167,7 +1231,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_bRadioTruckDestroyed = true;
 		m_sRadioTruckDestroyerFaction = destroyerFaction;
 		
-		Print(string.Format("Breaking Contact - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 		
 		// The faction that destroyed the radio truck loses
 		if (destroyerFaction == "US")
@@ -1282,7 +1347,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 			
-		Print("BCM - Showing game over screen", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM - Showing game over screen", LogLevel.NORMAL);
 		
 		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
 		if (!gameMode)
@@ -1384,9 +1450,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				description = "All your forces have been eliminated.";
 		}
 		
-		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
 		
-		Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Endscreen: Won=%1, Title=%2, Subtitle=%3", playerWon, title, subtitle), LogLevel.NORMAL);
 		
 		// Store endscreen text for retrieval
 		m_sLastEndscreenTitle = title;
@@ -1425,7 +1493,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		gameMode.EndGameMode(endData);
 		
-		Print("BCM - Game ended, endscreen should show", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM - Game ended, endscreen should show", LogLevel.NORMAL);
 	}
 
     //------------------------------------------------------------------------------------------------
@@ -1438,7 +1507,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void Rpc_RequestInitiateOpforSpawn()
 	{
-		Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("Breaking Contact - Rpc_RequestInitiateOpforSpawn"), LogLevel.NORMAL);
 		SpawnSpawnVehicleEast();
 	    TeleportFactionToMapPos("USSR");
 		SetBreakingContactPhase(EBreakingContactPhase.BLUFOR);
@@ -1454,7 +1524,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Interrupt all running transmissions when game ends
 		if (phase == EBreakingContactPhase.GAMEOVER && Replication.IsServer())
 		{
-			Print("BCM: GAMEOVER phase - interrupting all running transmissions", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BCM: GAMEOVER phase - interrupting all running transmissions", LogLevel.NORMAL);
 			array<GRAD_BC_TransmissionComponent> transmissions = GetTransmissionPoints();
 			if (transmissions)
 			{
@@ -1462,7 +1533,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				{
 					if (tpc && tpc.GetTransmissionState() == ETransmissionState.TRANSMITTING)
 					{
-						Print(string.Format("BCM: Interrupting transmission at %1", tpc.GetPosition()), LogLevel.NORMAL);
+						if (GRAD_BC_BreakingContactManager.IsDebugMode())
+							Print(string.Format("BCM: Interrupting transmission at %1", tpc.GetPosition()), LogLevel.NORMAL);
 						tpc.SetTransmissionActive(false);
 					}
 				}
@@ -1471,7 +1543,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		OnBreakingContactPhaseChanged(); // call on server too for debug in SP test
 
-        Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
+        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+        	Print(string.Format("Breaking Contact - Phase %1 entered - %2 -", SCR_Enum.GetEnumName(EBreakingContactPhase, phase), phase), LogLevel.NORMAL);
     }	
 	
 	//------------------------------------------------------------------------------------------------
@@ -1494,28 +1567,33 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		bool spawnEmpty = SCR_WorldTools.FindEmptyTerrainPosition(center, center, 15, 3);
 		
-		Print(string.Format("BCM - Transmission Point position search starts at %1", center), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Transmission Point position search starts at %1", center), LogLevel.NORMAL);
 		
 		if (!spawnEmpty) {
-			Print(string.Format("BCM - Transmission Point position dangerous, didnt find a free spot!"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - Transmission Point position dangerous, didnt find a free spot!"), LogLevel.NORMAL);
 		}
 		
 		EntitySpawnParams params = new EntitySpawnParams();
 		params.TransformMode = ETransformMode.WORLD;
 		params.Transform[3]  = center;
 		
-		Print(string.Format("BCM - Transmission Point position transformed to %1", center), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Transmission Point position transformed to %1", center), LogLevel.NORMAL);
 		
 		Resource ressource = Resource.Load("{55B73CF1EE914E07}Prefabs/Props/Military/Compositions/USSR/Antenna_02_USSR.et");
         IEntity transmissionPoint = GetGame().SpawnEntityPrefab(ressource, GetGame().GetWorld(), params);
 		
-		Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Transmission Point spawned: %1 at %2", transmissionPoint, center), LogLevel.NORMAL);
 		
 		// Force replication to clients
 		RplComponent rpl = RplComponent.Cast(transmissionPoint.FindComponent(RplComponent));
 		if (rpl) {
 			Replication.BumpMe();
-			Print("BCM - Transmission Point entity marked for replication to clients", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BCM - Transmission Point entity marked for replication to clients", LogLevel.NORMAL);
 		}
 		
 		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(transmissionPoint.FindComponent(GRAD_BC_TransmissionComponent));
@@ -1525,7 +1603,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        
 	        // 2. Register it directly. 'this' is guaranteed to be a valid manager instance here.
 	        this.RegisterTransmissionComponent(tpc);
-			Print(string.Format("BCM - Transmission Point Component registered and setpossed"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - Transmission Point Component registered and setpossed"), LogLevel.NORMAL);
 	    } else {
 			Print(string.Format("BCM - Transmission Point Component not found!"), LogLevel.ERROR);
 		}
@@ -1559,7 +1638,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 					}
 				}
 				
-				Print(string.Format("BCM - Found road position %1m from original (Search Radius: %2m)", minDistance, radius), LogLevel.VERBOSE);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Found road position %1m from original (Search Radius: %2m)", minDistance, radius), LogLevel.VERBOSE);
 				return closestPos;
 			}
 		}
@@ -1664,8 +1744,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		outDir.Normalize();
 
-		Print(string.Format("BCM - GetRoadPointAndDir: pos=%1, dir=%2 (idx %3/%4)",
-			outPos.ToString(), outDir.ToString(), globalClosestIdx, globalClosestPoints.Count()), LogLevel.VERBOSE);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - GetRoadPointAndDir: pos=%1, dir=%2 (idx %3/%4)",
+				outPos.ToString(), outDir.ToString(), globalClosestIdx, globalClosestPoints.Count()), LogLevel.VERBOSE);
 
 		return true;
 	}
@@ -1814,7 +1895,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	        {
 	            minDistance = 2000.0; // Minimum 2km
 	            maxDistance = m_iBluforSpawnDistance + 2000.0; // Allow much further away
-	            Print(string.Format("BCM - Relaxing BLUFOR spawn search radius: %1m - %2m", minDistance, maxDistance), LogLevel.NORMAL);
+	            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	            	Print(string.Format("BCM - Relaxing BLUFOR spawn search radius: %1m - %2m", minDistance, maxDistance), LogLevel.NORMAL);
 	        }
 	        
 	        // Generate random direction and distance
@@ -1858,8 +1940,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 	        if (!hasCollision)
 	        {
-	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m",
-	                loopCount, distanceToOpfor), LogLevel.NORMAL);
+	            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	            	Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m",
+		                loopCount, distanceToOpfor), LogLevel.NORMAL);
 
 	            array<vector> output = new array<vector>();
 	            output.Insert(finalSpawnPos);
@@ -1938,7 +2021,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				continue;
 			
 			string playerFactionName = playableComp.GetFactionKey();		
-			Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
 			
 			if (factionName == playerFactionName)
 			{								
@@ -2003,7 +2087,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	GRAD_SpawnPointResponse SetSpawnPositions(vector spawnPos)
 	{
-		Print(string.Format("BCM - SetSpawnPositions called with spawnPos: %1 (IsServer: %2)", spawnPos.ToString(), Replication.IsServer()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - SetSpawnPositions called with spawnPos: %1 (IsServer: %2)", spawnPos.ToString(), Replication.IsServer()), LogLevel.NORMAL);
 		
 		m_vOpforSpawnPos = vector.Zero;
 		m_vOpforSpawnDir = vector.Zero;
@@ -2011,7 +2096,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_vBluforSpawnDir = vector.Zero;
 		
 		array<vector> opforSpawnPos = GetSpawnPos(spawnPos);
-		Print(string.Format("BCM - GetSpawnPos returned %1 elements for OPFOR", opforSpawnPos.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - GetSpawnPos returned %1 elements for OPFOR", opforSpawnPos.Count()), LogLevel.NORMAL);
 		if (opforSpawnPos.Count() != 2)
 		{
 			Print(string.Format("BCM - ERROR: OPFOR spawn position not found! Count: %1", opforSpawnPos.Count()), LogLevel.ERROR);
@@ -2019,7 +2105,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 		
 		array<vector> bluforSpawnPos = findBluforPosition(opforSpawnPos[0]);
-		Print(string.Format("BCM - findBluforPosition returned %1 elements for BLUFOR", bluforSpawnPos.Count()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - findBluforPosition returned %1 elements for BLUFOR", bluforSpawnPos.Count()), LogLevel.NORMAL);
 		if (bluforSpawnPos.Count() != 2)
 		{
 			Print(string.Format("BCM - ERROR: BLUFOR spawn position not found! Count: %1", bluforSpawnPos.Count()), LogLevel.ERROR);
@@ -2033,15 +2120,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		m_vBluforSpawnPos = bluforSpawnPos[0];
 		m_vBluforSpawnDir = bluforSpawnPos[1];
 		
-		Print(string.Format("BCM - Spawn positions set successfully - OPFOR: %1, BLUFOR: %2", 
-			m_vOpforSpawnPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Spawn positions set successfully - OPFOR: %1, BLUFOR: %2", 
+				m_vOpforSpawnPos.ToString(), m_vBluforSpawnPos.ToString()), LogLevel.NORMAL);
 		
 		Replication.BumpMe();
 		
 		// Manually call change on the server since replication is not happening there
 		if (Replication.IsServer())
 		{
-			Print("BCM - Server calling OnOpforPositionChanged manually", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BCM - Server calling OnOpforPositionChanged manually", LogLevel.NORMAL);
 			OnOpforPositionChanged();
 		}
 		
@@ -2100,7 +2189,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		output.Insert(roadPosition);
 		output.Insert(direction);
 
-		Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", roadPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - GetSpawnPos returning position: %1, direction: %2", roadPosition.ToString(), direction.ToString()), LogLevel.NORMAL);
 		return output;
 	}
 
@@ -2135,7 +2225,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
 		if (!ch)  {
-			Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("SCR_ChimeraCharacter missing in playerController"), LogLevel.NORMAL);
 			return;
 		}
 		
@@ -2165,7 +2256,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	// Called by replay manager to show end screen after replay finishes
 	void ShowPostReplayGameOverScreen()
 	{
-		Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM: ShowPostReplayGameOverScreen() called", LogLevel.NORMAL);
 		
 		// Only server should initiate the broadcast
 		if (!Replication.IsServer())
@@ -2183,7 +2275,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Replication.BumpMe();
 		}
 		
-		Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
 		
 		// Broadcast to all clients (including server if it has a player)
 		Rpc(RpcDo_ShowGameOverScreen);
@@ -2199,16 +2292,19 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else
 			location = "Client";
 		
-		Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", location), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM: RpcDo_ShowGameOverScreen received on %1", location), LogLevel.NORMAL);
 		
 		// Only show on clients with player controller (skip on pure dedicated server)
 		if (!GetGame().GetPlayerController())
 		{
-			Print("BCM: No player controller, skipping UI (pure dedicated server)", LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BCM: No player controller, skipping UI (pure dedicated server)", LogLevel.NORMAL);
 			return;
 		}
 		
-		Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2, Winner: %3", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle, m_sWinnerSide), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM: Showing endscreen - Title: %1, Subtitle: %2, Winner: %3", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle, m_sWinnerSide), LogLevel.NORMAL);
 		
 		// Show the game over screen using the standard Arma Reforger method
 		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
@@ -2285,7 +2381,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Set custom name (subtitle in deploy menu)
 		group.SetCustomName(groupName, 0);
 
-		Print(string.Format("BC Debug - Named %1 group: %2 (command: %3)", factionKey, groupName, isCommandGroup), LogLevel.NORMAL);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - Named %1 group: %2 (command: %3)", factionKey, groupName, isCommandGroup), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------

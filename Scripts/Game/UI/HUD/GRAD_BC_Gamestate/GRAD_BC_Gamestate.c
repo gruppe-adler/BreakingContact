@@ -3,10 +3,9 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	private RichTextWidget m_text;
 	private bool m_bPersistent = false;
 
-	// Progress bar widgets (created programmatically)
+	// Progress bar widgets (defined in layout)
 	private Widget m_progressContainer;
-	private Widget m_progressBg;
-	private ProgressBarWidget m_progressBar;
+	private ImageWidget m_progressFill;
 
 	override event void DisplayInit(IEntity owner) {
 		super.DisplayInit(owner);
@@ -25,6 +24,9 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 			PrintFormat("GRAD_BC_Gamestate: no m_text found", LogLevel.ERROR);
 			return;
 		}
+
+		m_progressContainer = m_wRoot.FindAnyWidget("ProgressContainer");
+		m_progressFill = ImageWidget.Cast(m_wRoot.FindAnyWidget("ProgressFill"));
 	}
 
 	void ShowText(string message)
@@ -60,14 +62,14 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		if (!m_wRoot)
 			return;
 
-		// Create progress bar widgets on first use
-		if (!m_progressContainer)
-			CreateProgressBar();
-
-		if (m_progressBar)
-		{
-			m_progressBar.SetCurrent(progress);
+		if (m_progressContainer)
 			m_progressContainer.SetVisible(true);
+
+		if (m_progressFill)
+		{
+			// Adjust right anchor to represent progress (left anchor stays at 0.02)
+			float rightAnchor = Math.Clamp(0.02 + (0.96 * progress), 0.02, 0.98);
+			FrameSlot.SetAnchorMax(m_progressFill, rightAnchor, 0.9);
 		}
 
 		// Update text with percentage
@@ -86,45 +88,6 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 
 		super.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
 		Print("GRAD_BC_Gamestate: HideText called", LogLevel.NORMAL);
-	}
-
-	private void CreateProgressBar()
-	{
-		WorkspaceWidget workspace = GetGame().GetWorkspace();
-		if (!workspace || !m_wRoot)
-			return;
-
-		// Container for progress bar - positioned below the text
-		m_progressContainer = workspace.CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, new Color(0, 0, 0, 0), 0, m_wRoot);
-		if (!m_progressContainer)
-			return;
-
-		FrameSlot.SetAnchorMin(m_progressContainer, 0.3, 0);
-		FrameSlot.SetAnchorMax(m_progressContainer, 0.7, 0);
-		FrameSlot.SetOffsets(m_progressContainer, 0, 80, 0, 100);
-
-		// Progress bar background (dark)
-		m_progressBg = workspace.CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(0, 0, 0, 150), 0, m_progressContainer);
-		if (m_progressBg)
-		{
-			FrameSlot.SetAnchorMin(m_progressBg, 0, 0);
-			FrameSlot.SetAnchorMax(m_progressBg, 1, 1);
-			FrameSlot.SetOffsets(m_progressBg, 0, 0, 0, 0);
-		}
-
-		// Progress bar fill (green)
-		m_progressBar = ProgressBarWidget.Cast(workspace.CreateWidget(WidgetType.ProgressBarWidgetTypeID, WidgetFlags.VISIBLE, Color.FromRGBA(100, 200, 100, 255), 0, m_progressContainer));
-		if (m_progressBar)
-		{
-			m_progressBar.SetMin(0);
-			m_progressBar.SetMax(1);
-			m_progressBar.SetCurrent(0);
-			FrameSlot.SetAnchorMin(m_progressBar, 0.02, 0.1);
-			FrameSlot.SetAnchorMax(m_progressBar, 0.98, 0.9);
-			FrameSlot.SetOffsets(m_progressBar, 0, 0, 0, 0);
-		}
-
-		Print("GRAD_BC_Gamestate: Progress bar created", LogLevel.NORMAL);
 	}
 
 	private void HideLogo()

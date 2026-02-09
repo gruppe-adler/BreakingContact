@@ -1,22 +1,27 @@
-OverlayWidgetClass {
+FrameWidgetClass {
  Name "GRAD_BC_Gamestate"
  Clipping False
  {
   ImageWidgetClass "{6606FC361C0D313C}" {
    Name "Image0"
-   Slot OverlayWidgetSlot "{6606FC36E15BD1FA}" {
-    HorizontalAlign 3
-    VerticalAlign 0
+   Slot FrameWidgetSlot "{6606FC36E15BD1FA}" {
+    Anchor 0 0 1 0
+    OffsetTop 0
+    OffsetBottom 96
+    OffsetLeft 0
+    OffsetRight 0
    }
    Clipping False
    Color 0 0 0 0.5882
-   Size 32 96
   }
   RichTextWidgetClass "{6606FC350BE2F12E}" {
    Name "GRAD_BC_Gamestate_text"
-   Slot OverlayWidgetSlot "{6606FC36E15BD1F6}" {
-    VerticalAlign 0
-    Padding 0 16 0 0
+   Slot FrameWidgetSlot "{6606FC36E15BD1F6}" {
+    Anchor 0 0 1 0
+    OffsetTop 16
+    OffsetBottom 80
+    OffsetLeft 0
+    OffsetRight 0
    }
    "Font Size" 56
    "Min Font Size" 56
@@ -25,6 +30,41 @@ OverlayWidgetClass {
    FontProperties FontProperties "{6606FC354C98D3F0}" {
     Font "{EABA4FE9D014CCEF}UI/Fonts/RobotoCondensed/RobotoCondensed_Bold.fnt"
     OutlineSize 2
+   }
+  }
+  FrameWidgetClass "{6606FC36A1B2C301}" {
+   Name "ProgressContainer"
+   Visible False
+   Slot FrameWidgetSlot "{6606FC36A1B2C302}" {
+    Anchor 0.3 0 0.7 0
+    OffsetTop 80
+    OffsetBottom 100
+    OffsetLeft 0
+    OffsetRight 0
+   }
+   {
+    ImageWidgetClass "{6606FC36A1B2C303}" {
+     Name "ProgressBg"
+     Slot FrameWidgetSlot "{6606FC36A1B2C304}" {
+      Anchor 0 0 1 1
+      OffsetTop 0
+      OffsetBottom 0
+      OffsetLeft 0
+      OffsetRight 0
+     }
+     Color 0 0 0 0.5882
+    }
+    ImageWidgetClass "{6606FC36A1B2C305}" {
+     Name "ProgressFill"
+     Slot FrameWidgetSlot "{6606FC36A1B2C306}" {
+      Anchor 0.02 0.1 0.02 0.9
+      OffsetTop 0
+      OffsetBottom 0
+      OffsetLeft 0
+      OffsetRight 0
+     }
+     Color 0.3922 0.7843 0.3922 1
+    }
    }
   }
  }

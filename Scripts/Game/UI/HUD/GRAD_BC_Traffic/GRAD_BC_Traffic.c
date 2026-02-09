@@ -178,12 +178,14 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
         if (m_currentDisplayCached == stateToCheck)
         {
             super.Show(false, 0.5, EAnimationCurve.EASE_IN_QUART);
-            PrintFormat("GRAD_BC_Traffic: Fading out state %1", stateToCheck, LogLevel.DEBUG);
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat("GRAD_BC_Traffic: Fading out state %1", stateToCheck, LogLevel.DEBUG);
         }
         else
         {
             // Something else replaced it in the meantime; do nothing.
-            PrintFormat(
+            if (GRAD_BC_BreakingContactManager.IsDebugMode())
+            	PrintFormat(
                 "GRAD_BC_Traffic: Skipping fade‐out for %1 because current is %2",
                 stateToCheck,
                 m_currentDisplayCached,

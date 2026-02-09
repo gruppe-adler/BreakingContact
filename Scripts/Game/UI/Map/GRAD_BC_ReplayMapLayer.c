@@ -32,6 +32,20 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     {
         super.OnMapClose(config);
         
+        UnregisterToggleInputs();
+        
+        // Cleanup toggle text widgets
+        if (m_wToggleVehiclesText)
+        {
+            m_wToggleVehiclesText.RemoveFromHierarchy();
+            m_wToggleVehiclesText = null;
+        }
+        if (m_wToggleCiviliansText)
+        {
+            m_wToggleCiviliansText.RemoveFromHierarchy();
+            m_wToggleCiviliansText = null;
+        }
+        
         // Cleanup widgets
         if (m_WidgetsRoot)
         {
@@ -136,10 +150,18 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // Show as empty only if no player is inside AND the recorded snapshot says empty
             bool showAsEmpty = !isOccupied && vehicleMarker.isEmpty;
 
+            // Filter: Hide empty vehicles if toggle is active
+            if (m_bHideEmptyVehicles && showAsEmpty)
+                continue;
+
             // Use occupant faction if occupied, otherwise use vehicle's own faction
             string effectiveFaction = vehicleMarker.factionKey;
             if (isOccupied)
                 effectiveFaction = occupantFaction;
+
+            // Filter: Hide civilian faction vehicles if toggle is active
+            if (m_bHideCivilians && effectiveFaction == "CIV")
+                continue;
 
             // Get Key based on vehicle state - use effectiveFaction for correct coloring
             string vehicleIconKey = GetVehicleIconKey(vehicleMarker.vehicleType, effectiveFaction, showAsEmpty);
@@ -169,6 +191,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // The vehicle loop above has already drawn the vehicle.
             // Drawing it here again would use the wrong rotation (Player Look Dir).
             if (playerMarker.isInVehicle) continue;
+            
+            // Filter: Hide civilian faction infantry if toggle is active
+            if (m_bHideCivilians && playerMarker.factionKey == "CIV")
+                continue;
             
             // Logic below now only handles foot mobile units
             string roleStr = playerMarker.unitType;
@@ -263,6 +289,17 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
             // Draw progress bar during replay
             DrawProgressBar(replayManager);
+            
+            // Draw toggle filter indicators
+            DrawToggleIndicators();
+        }
+        else
+        {
+            // Hide toggle text widgets when not in replay mode
+            if (m_wToggleVehiclesText)
+                m_wToggleVehiclesText.SetVisible(false);
+            if (m_wToggleCiviliansText)
+                m_wToggleCiviliansText.SetVisible(false);
         }
     }
 
@@ -488,11 +525,70 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Replay mode flag - true when actively viewing replay, false for normal map use
 	protected bool m_bIsInReplayMode = false;
 	
+	// Toggle filters for replay display
+	protected bool m_bHideEmptyVehicles = false;
+	protected bool m_bHideCivilians = false;
+	
+	// Toggle indicator text widgets
+	protected TextWidget m_wToggleVehiclesText;
+	protected TextWidget m_wToggleCiviliansText;
+	
 	// Public method to enable/disable replay mode
 	void SetReplayMode(bool enabled)
 	{
 		m_bIsInReplayMode = enabled;
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
+		
+		if (enabled)
+			RegisterToggleInputs();
+		else
+			UnregisterToggleInputs();
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Register input listeners for replay toggle keys
+	protected void RegisterToggleInputs()
+	{
+		InputManager inputManager = GetGame().GetInputManager();
+		if (!inputManager)
+			return;
+		
+		inputManager.AddActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
+		inputManager.AddActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Unregister input listeners for replay toggle keys
+	protected void UnregisterToggleInputs()
+	{
+		InputManager inputManager = GetGame().GetInputManager();
+		if (!inputManager)
+			return;
+		
+		inputManager.RemoveActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
+		inputManager.RemoveActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Toggle hiding empty vehicles
+	protected void OnToggleEmptyVehicles()
+	{
+		if (!m_bIsInReplayMode)
+			return;
+		
+		m_bHideEmptyVehicles = !m_bHideEmptyVehicles;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide empty vehicles: %1", m_bHideEmptyVehicles), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Toggle hiding civilian faction markers
+	protected void OnToggleCivilians()
+	{
+		if (!m_bIsInReplayMode)
+			return;
+		
+		m_bHideCivilians = !m_bHideCivilians;
+		Print(string.Format("GRAD_BC_ReplayMapLayer: Hide civilians: %1", m_bHideCivilians), LogLevel.NORMAL);
 	}
 	
 	// Keep last frame data for persistent display
@@ -1114,6 +1210,163 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		
 		Print(string.Format("GRAD_BC_ReplayMapLayer: Progress bar drawn - %.1f%% complete (%1:%2/%3:%4)", 
 			progress * 100, currentMinStr, currentSecStr, totalMinStr, totalSecStr), LogLevel.VERBOSE);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Draw toggle filter indicators below the progress bar
+	void DrawToggleIndicators()
+	{
+		if (!m_MapEntity)
+			return;
+		
+		// Get screen dimensions
+		float screenW, screenH;
+		m_MapEntity.GetMapWidget().GetScreenSize(screenW, screenH);
+		
+		// Position below the progress bar
+		float indicatorY = 55;
+		float indicatorH = 20;
+		float indicatorW = 180;
+		float spacing = 10;
+		
+		// Right-align the indicators
+		float startX = screenW - 50 - indicatorW;
+		
+		// --- Empty Vehicles Toggle ---
+		int vehBgColor;
+		string vehLabel;
+		if (m_bHideEmptyVehicles)
+		{
+			vehBgColor = 0xCC883333;
+			vehLabel = "[V] Empty Vehicles: OFF";
+		}
+		else
+		{
+			vehBgColor = 0xCC336633;
+			vehLabel = "[V] Empty Vehicles: ON";
+		}
+		
+		PolygonDrawCommand vehBg = new PolygonDrawCommand();
+		vehBg.m_iColor = vehBgColor;
+		vehBg.m_Vertices = new array<float>;
+		vehBg.m_Vertices.Insert(startX);
+		vehBg.m_Vertices.Insert(indicatorY);
+		vehBg.m_Vertices.Insert(startX + indicatorW);
+		vehBg.m_Vertices.Insert(indicatorY);
+		vehBg.m_Vertices.Insert(startX + indicatorW);
+		vehBg.m_Vertices.Insert(indicatorY + indicatorH);
+		vehBg.m_Vertices.Insert(startX);
+		vehBg.m_Vertices.Insert(indicatorY + indicatorH);
+		m_Commands.Insert(vehBg);
+		
+		// Border
+		LineDrawCommand vehBorder = new LineDrawCommand();
+		vehBorder.m_iColor = 0xFFFFFFFF;
+		vehBorder.m_fWidth = 1;
+		vehBorder.m_Vertices = new array<float>;
+		vehBorder.m_Vertices.Insert(startX);
+		vehBorder.m_Vertices.Insert(indicatorY);
+		vehBorder.m_Vertices.Insert(startX + indicatorW);
+		vehBorder.m_Vertices.Insert(indicatorY);
+		vehBorder.m_Vertices.Insert(startX + indicatorW);
+		vehBorder.m_Vertices.Insert(indicatorY + indicatorH);
+		vehBorder.m_Vertices.Insert(startX);
+		vehBorder.m_Vertices.Insert(indicatorY + indicatorH);
+		vehBorder.m_bShouldEnclose = true;
+		m_Commands.Insert(vehBorder);
+		
+		// --- Civilians Toggle ---
+		float civX = startX - indicatorW - spacing;
+		
+		int civBgColor;
+		string civLabel;
+		if (m_bHideCivilians)
+		{
+			civBgColor = 0xCC883333;
+			civLabel = "[C] Civilians: OFF";
+		}
+		else
+		{
+			civBgColor = 0xCC336633;
+			civLabel = "[C] Civilians: ON";
+		}
+		
+		PolygonDrawCommand civBg = new PolygonDrawCommand();
+		civBg.m_iColor = civBgColor;
+		civBg.m_Vertices = new array<float>;
+		civBg.m_Vertices.Insert(civX);
+		civBg.m_Vertices.Insert(indicatorY);
+		civBg.m_Vertices.Insert(civX + indicatorW);
+		civBg.m_Vertices.Insert(indicatorY);
+		civBg.m_Vertices.Insert(civX + indicatorW);
+		civBg.m_Vertices.Insert(indicatorY + indicatorH);
+		civBg.m_Vertices.Insert(civX);
+		civBg.m_Vertices.Insert(indicatorY + indicatorH);
+		m_Commands.Insert(civBg);
+		
+		// Border
+		LineDrawCommand civBorder = new LineDrawCommand();
+		civBorder.m_iColor = 0xFFFFFFFF;
+		civBorder.m_fWidth = 1;
+		civBorder.m_Vertices = new array<float>;
+		civBorder.m_Vertices.Insert(civX);
+		civBorder.m_Vertices.Insert(indicatorY);
+		civBorder.m_Vertices.Insert(civX + indicatorW);
+		civBorder.m_Vertices.Insert(indicatorY);
+		civBorder.m_Vertices.Insert(civX + indicatorW);
+		civBorder.m_Vertices.Insert(indicatorY + indicatorH);
+		civBorder.m_Vertices.Insert(civX);
+		civBorder.m_Vertices.Insert(indicatorY + indicatorH);
+		civBorder.m_bShouldEnclose = true;
+		m_Commands.Insert(civBorder);
+		
+		// --- Text labels using TextWidgets ---
+		// DPI unscale for widget positioning
+		float dpiStartX = GetGame().GetWorkspace().DPIUnscale(startX);
+		float dpiIndicatorY = GetGame().GetWorkspace().DPIUnscale(indicatorY);
+		float dpiCivX = GetGame().GetWorkspace().DPIUnscale(civX);
+		float dpiIndicatorW = GetGame().GetWorkspace().DPIUnscale(indicatorW);
+		float dpiIndicatorH = GetGame().GetWorkspace().DPIUnscale(indicatorH);
+		
+		// Create vehicle toggle text widget if needed
+		if (!m_wToggleVehiclesText && m_WidgetsRoot)
+		{
+			Widget w = GetGame().GetWorkspace().CreateWidget(WidgetType.TextWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, m_WidgetsRoot);
+			m_wToggleVehiclesText = TextWidget.Cast(w);
+			if (m_wToggleVehiclesText)
+			{
+				m_wToggleVehiclesText.SetExactFontSize(12);
+				FrameSlot.SetAlignment(m_wToggleVehiclesText, 0, 0);
+				FrameSlot.SetSize(m_wToggleVehiclesText, dpiIndicatorW, dpiIndicatorH);
+			}
+		}
+		
+		if (m_wToggleVehiclesText)
+		{
+			m_wToggleVehiclesText.SetText(vehLabel);
+			FrameSlot.SetPos(m_wToggleVehiclesText, dpiStartX + 5, dpiIndicatorY + 2);
+			m_wToggleVehiclesText.SetVisible(true);
+		}
+		
+		// Create civilian toggle text widget if needed
+		if (!m_wToggleCiviliansText && m_WidgetsRoot)
+		{
+			Widget w2 = GetGame().GetWorkspace().CreateWidget(WidgetType.TextWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, m_WidgetsRoot);
+			m_wToggleCiviliansText = TextWidget.Cast(w2);
+			if (m_wToggleCiviliansText)
+			{
+				m_wToggleCiviliansText.SetExactFontSize(12);
+				FrameSlot.SetAlignment(m_wToggleCiviliansText, 0, 0);
+				FrameSlot.SetSize(m_wToggleCiviliansText, dpiIndicatorW, dpiIndicatorH);
+			}
+		}
+		
+		if (m_wToggleCiviliansText)
+		{
+			m_wToggleCiviliansText.SetText(civLabel);
+			FrameSlot.SetPos(m_wToggleCiviliansText, dpiCivX + 5, dpiIndicatorY + 2);
+			m_wToggleCiviliansText.SetVisible(true);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

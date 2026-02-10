@@ -48,6 +48,15 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		if (!IsUserBlufor(user))
 			return false;
 		
+		// Don't allow destroying while being dragged
+		IEntity ownerEntity = m_transmissionComponent.GetOwner();
+		if (ownerEntity)
+		{
+			GRAD_BC_DraggableComponent draggable = GRAD_BC_DraggableComponent.Cast(ownerEntity.FindComponent(GRAD_BC_DraggableComponent));
+			if (draggable && draggable.IsDragged())
+				return false;
+		}
+		
 		bool canBeDestroyed = (
 			m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING ||
 			m_transmissionComponent.GetTransmissionState() == ETransmissionState.INTERRUPTED

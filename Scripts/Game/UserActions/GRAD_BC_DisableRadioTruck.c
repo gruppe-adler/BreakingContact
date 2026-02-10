@@ -218,21 +218,40 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 	}
 
 	//------------------------------------------------------------------------------------------------
+	private int m_iInitRetryCount = 0;
+	private const int MAX_INIT_RETRIES = 50;
+
 	void InitComponents(IEntity pOwnerEntity)
 	{
 		IEntity radioTruck = pOwnerEntity.GetParent();
 		if (!radioTruck)
 		{
-			Print("BC Debug - no parent for disableradiotruck action, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			m_iInitRetryCount++;
+			if (m_iInitRetryCount < MAX_INIT_RETRIES)
+			{
+				Print("BC Debug - no parent for disableradiotruck action, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			}
+			else
+			{
+				Print("BC Debug - DisableRadioTruck: Max init retries reached, giving up", LogLevel.WARNING);
+			}
 			return;
 		}
 
 		m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
 		if (!m_radioTruckComponent)
 		{
-			Print("BC Debug - no radio truck component on parent of disableradiotruck action, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			m_iInitRetryCount++;
+			if (m_iInitRetryCount < MAX_INIT_RETRIES)
+			{
+				Print("BC Debug - no radio truck component on parent of disableradiotruck action, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			}
+			else
+			{
+				Print("BC Debug - DisableRadioTruck: Max init retries reached, giving up", LogLevel.WARNING);
+			}
 			return;
 		}
 

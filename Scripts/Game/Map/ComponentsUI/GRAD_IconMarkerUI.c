@@ -398,6 +398,30 @@ class GRAD_IconMarkerUI
 	}
 
 	//------------------------------------------------------------------------------------------------
+	void Cleanup()
+	{
+		// Remove static event subscriptions
+		SCR_MapEntity.GetOnMapOpen().Remove(OnMapOpen);
+		SCR_MapEntity.GetOnMapClose().Remove(OnMapClose);
+
+		// Remove repeating CheckVehicleStates callback
+		if (GetGame() && GetGame().GetCallqueue())
+			GetGame().GetCallqueue().Remove(CheckVehicleStates);
+
+		// Remove instance-level event subscriptions
+		if (m_MapEntity)
+		{
+			m_MapEntity.GetOnMapPan().Remove(OnMapPan);
+			m_MapEntity.GetOnMapPanEnd().Remove(OnMapPanEnd);
+			m_MapEntity.GetOnMapZoom().Remove(OnMapZoom);
+			m_MapEntity.GetOnMapZoomEnd().Remove(OnMapZoomEnd);
+		}
+
+		// Clean up icon widgets
+		ClearAllIcons();
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void GRAD_IconMarkerUI()
 	{
 		m_MapEntity = SCR_MapEntity.GetMapInstance();

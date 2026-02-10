@@ -477,6 +477,40 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	override void OnDelete(IEntity owner)
+	{
+		// Clean up CallLater callbacks
+		if (GetGame() && GetGame().GetCallqueue())
+		{
+			GetGame().GetCallqueue().Remove(EOnInit);
+			GetGame().GetCallqueue().Remove(InitMapMarkerUI);
+			GetGame().GetCallqueue().Remove(ForceOpenMap);
+		}
+
+		// Clean up input action listener
+		if (GetGame() && GetGame().GetInputManager())
+			GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+
+		// Clean up marker UIs and their static event subscriptions
+		if (m_IconMarkerUI)
+		{
+			m_IconMarkerUI.Cleanup();
+			m_IconMarkerUI = null;
+		}
+		if (m_MapMarkerUI)
+		{
+			m_MapMarkerUI.Cleanup();
+			m_MapMarkerUI = null;
+		}
+
+		// Clear static instance if it's us
+		if (m_instance == this)
+			m_instance = null;
+
+		super.OnDelete(owner);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		SetEventMask(owner, EntityEvent.INIT);

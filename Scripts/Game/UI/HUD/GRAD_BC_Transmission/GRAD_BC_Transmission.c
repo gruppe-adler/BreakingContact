@@ -186,6 +186,8 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 		
 		
 		
+		// Remove any pending fade-out before scheduling a new one
+		GetGame().GetCallqueue().Remove(FadeOutIfStill);
 		// After 15 s, attempt to hide (fade out)
 		GetGame().GetCallqueue().CallLater(
             FadeOutIfStill,       // name of our helper method

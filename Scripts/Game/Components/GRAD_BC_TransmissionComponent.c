@@ -98,6 +98,15 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("TPC OnDelete: owner=%1, position=%2", owner, m_position);
+
+		// Always clean up CallLater callbacks to prevent memory leaks
+		if (GetGame() && GetGame().GetCallqueue())
+		{
+			GetGame().GetCallqueue().Remove(MainLoop);
+			GetGame().GetCallqueue().Remove(DeferredActivation);
+			GetGame().GetCallqueue().Remove(DeferredRegistration);
+		}
+
 		if (!GetGame() || !GetGame().GetGameMode())
 			return;
 
@@ -293,8 +302,15 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		}
 		else
 		{
-			// Keep retrying until master
-			GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
+			m_retryCount++;
+			if (m_retryCount < MAX_RETRIES)
+			{
+				GetGame().GetCallqueue().CallLater(DeferredActivation, 500, false, owner);
+			}
+			else
+			{
+				Print("TPC DeferredActivation: Max retries reached, giving up", LogLevel.WARNING);
+			}
 		}
 	}
 }

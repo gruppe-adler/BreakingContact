@@ -399,7 +399,17 @@ void UpdateAntennaBones(float progress)
 	//------------------------------------------------------------------------------------------------
 	override void OnDelete(IEntity owner)
 	{
-		// No event handlers to clean up
+		// Clean up all repeating CallLater callbacks to prevent memory leaks
+		if (GetGame() && GetGame().GetCallqueue())
+		{
+			GetGame().GetCallqueue().Remove(mainLoop);
+			GetGame().GetCallqueue().Remove(AnimationTick);
+			GetGame().GetCallqueue().Remove(KeepFuelEmpty);
+			GetGame().GetCallqueue().Remove(InitializeAntennaBones);
+			GetGame().GetCallqueue().Remove(SyncJIPState);
+		}
+		m_bAntennaAnimating = false;
+		m_bAnimationTickRunning = false;
 		super.OnDelete(owner);
 	}
 

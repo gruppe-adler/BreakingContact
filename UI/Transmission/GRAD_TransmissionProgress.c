@@ -30,6 +30,7 @@ class GRAD_TransmissionProgress : SCR_ScriptedWidgetComponent
 		
 		if (m_fCurrentProgress < -1)
 		{
+			GetGame().GetCallqueue().Remove(Update);
 			m_wRoot.RemoveFromHierarchy();
 		}
 	}

@@ -36,6 +36,14 @@ class GRAD_BC_AmbientVehicleManager : ScriptComponent
 	protected bool m_bCollisionFound = false; // Helper for collision callback
 	
 	// ------------------------------------------------------------------------------------------------
+	override void OnDelete(IEntity owner)
+	{
+		if (GetGame() && GetGame().GetCallqueue())
+			GetGame().GetCallqueue().Remove(SpawnAmbientVehicles);
+		super.OnDelete(owner);
+	}
+
+	// ------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		super.OnPostInit(owner);

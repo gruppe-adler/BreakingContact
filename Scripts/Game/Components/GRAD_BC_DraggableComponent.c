@@ -196,6 +196,10 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		if (!charController)
 			return;
 
+		// Only release if still carrying (ACE may have already released via CTRL+X)
+		if (!charController.ACE_IsCarrier())
+			return;
+
 		// Use ACE_ReleaseCarried to remove the carrying animation state
 		charController.ACE_ReleaseCarried(GetOwner());
 
@@ -210,6 +214,16 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		if (!IsDragged() || !m_DraggerEntity)
 		{
 			// Dragger no longer valid, stop dragging
+			StopDrag();
+			return;
+		}
+
+		// Check if ACE carry was released (e.g. via CTRL+X keybind)
+		ACE_CarriableEntityComponent carriable = ACE_CarriableEntityComponent.Cast(GetOwner().FindComponent(ACE_CarriableEntityComponent));
+		if (carriable && !carriable.IsCarried())
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - DraggableComponent: ACE carry released externally, stopping drag", LogLevel.NORMAL);
 			StopDrag();
 			return;
 		}

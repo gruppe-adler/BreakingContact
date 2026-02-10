@@ -166,8 +166,15 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		if (!charController)
 			return;
 
+		// Verify the antenna has ACE_CarriableEntityComponent before attempting ACE_Carry
+		ACE_CarriableEntityComponent carriable = ACE_CarriableEntityComponent.Cast(GetOwner().FindComponent(ACE_CarriableEntityComponent));
+		if (!carriable)
+		{
+			Print("BC Debug - DraggableComponent: ACE_CarriableEntityComponent not found on antenna, skipping carry animation", LogLevel.WARNING);
+			return;
+		}
+
 		// Use ACE_Carry to put the dragger into the carrying animation state
-		// The antenna entity must have ACE_CarriableEntityComponent for this to work
 		charController.ACE_Carry(GetOwner());
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())

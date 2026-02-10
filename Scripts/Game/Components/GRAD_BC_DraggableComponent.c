@@ -30,6 +30,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 	// Reference to the RplComponent on this entity
 	protected RplComponent m_RplComponent;
 
+	// Cached reference to the transmission component
+	protected GRAD_BC_TransmissionComponent m_TransmissionComponent;
+
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -40,6 +43,7 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 	override void EOnInit(IEntity owner)
 	{
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
+		m_TransmissionComponent = GRAD_BC_TransmissionComponent.Cast(owner.FindComponent(GRAD_BC_TransmissionComponent));
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -89,10 +93,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 			PrintFormat("BC Debug - DraggableComponent: StartDrag - dragger RplId=%1", m_DraggerRplId);
 
 		// Interrupt transmission while dragging
-		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(GetOwner().FindComponent(GRAD_BC_TransmissionComponent));
-		if (tpc && tpc.GetTransmissionState() == ETransmissionState.TRANSMITTING)
+		if (m_TransmissionComponent && m_TransmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING)
 		{
-			tpc.SetTransmissionActive(false);
+			m_TransmissionComponent.SetTransmissionActive(false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("BC Debug - DraggableComponent: Transmission interrupted due to dragging", LogLevel.NORMAL);
 		}
@@ -128,10 +131,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		}
 
 		// Update the transmission component position
-		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(owner.FindComponent(GRAD_BC_TransmissionComponent));
-		if (tpc)
+		if (m_TransmissionComponent)
 		{
-			tpc.SetPosition(owner.GetOrigin());
+			m_TransmissionComponent.SetPosition(owner.GetOrigin());
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("BC Debug - DraggableComponent: Transmission position updated after drag", LogLevel.NORMAL);
 		}
@@ -204,9 +206,8 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 			owner.SetOrigin(newPos);
 
 		// Update the transmission component position for map markers
-		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(owner.FindComponent(GRAD_BC_TransmissionComponent));
-		if (tpc)
-			tpc.SetPosition(newPos);
+		if (m_TransmissionComponent)
+			m_TransmissionComponent.SetPosition(newPos);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -249,10 +250,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 			return false;
 
 		// Check transmission state - don't allow dragging DONE or DISABLED transmissions
-		GRAD_BC_TransmissionComponent tpc = GRAD_BC_TransmissionComponent.Cast(GetOwner().FindComponent(GRAD_BC_TransmissionComponent));
-		if (tpc)
+		if (m_TransmissionComponent)
 		{
-			ETransmissionState state = tpc.GetTransmissionState();
+			ETransmissionState state = m_TransmissionComponent.GetTransmissionState();
 			if (state == ETransmissionState.DONE || state == ETransmissionState.DISABLED)
 				return false;
 		}

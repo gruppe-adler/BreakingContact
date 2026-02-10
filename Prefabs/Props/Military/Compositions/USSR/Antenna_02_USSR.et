@@ -3,6 +3,21 @@ GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_0
  components {
   GRAD_BC_TransmissionComponent "{65BB0BC5851B9C6F}" {
   }
+  GRAD_BC_DraggableComponent "{66AA0BC5851B9C01}" {
+  }
+  ACE_CarriableEntityComponent "{66AA0BC5851B9C02}" {
+   m_fCarrierSpeedLimit 0.5
+   m_bCarrierAllowWalkingForward 1
+   m_bCarrierAllowWalkingSideways 1
+   m_bCarrierAllowJumping 0
+   m_bCarrierAllowStandStance 0
+   m_bCarrierAllowCrouchStance 1
+   m_bCarrierAllowProneStance 0
+   m_bCarrierAllowWeapon 0
+   m_AttachmentPoint PointInfo "{66AA0BC5851B9C03}" {
+    Offset 0 0 -1.5
+   }
+  }
   SCR_BaseEditorServerComponent "{65BB478D36DE4F4A}" {
   }
   ActionsManagerComponent "{65BB39AD35B128C8}" {
@@ -15,7 +30,7 @@ GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_0
      Position PointInfo "{65BB39ACED83E7E4}" {
       Offset 0 0.9031 0
      }
-     Radius 1
+     Radius 3
     }
    }
    additionalActions {
@@ -27,6 +42,14 @@ GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_0
       Name "Destroy Transmission"
      }
      Duration 5
+    }
+    GRAD_BC_DragAntennaAction "{66AA39AD4E33E9C1}" {
+     ParentContextList {
+      "world"
+     }
+     UIInfo SCR_ActionUIInfo "{66AA39AD4AD44201}" {
+      Name "Drag Antenna"
+     }
     }
    }
   }

@@ -157,9 +157,12 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		}
 
 		// Unsubscribe from vehicle spawn events
-		SCR_CampaignBuildingManagerComponent buildingManager = SCR_CampaignBuildingManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_CampaignBuildingManagerComponent));
-		if (buildingManager)
-			buildingManager.GetOnEntitySpawnedByProvider().Remove(OnVehicleSpawned);
+		if (GetGame() && GetGame().GetGameMode())
+		{
+			SCR_CampaignBuildingManagerComponent buildingManager = SCR_CampaignBuildingManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_CampaignBuildingManagerComponent));
+			if (buildingManager)
+				buildingManager.GetOnEntitySpawnedByProvider().Remove(OnVehicleSpawned);
+		}
 
 		if (SCR_TrafficEvents.OnTrafficVehicleSpawned)
 			SCR_TrafficEvents.OnTrafficVehicleSpawned.Remove(OnTrafficVehicleSpawned);

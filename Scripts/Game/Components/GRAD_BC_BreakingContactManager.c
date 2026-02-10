@@ -81,6 +81,13 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
 	protected ref array<float> m_aTransmissionProgress = {};
 	
+	// Replicated radio truck marker data - position and transmitting state for blue pulse marker
+	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
+	protected vector m_vRadioTruckMarkerPos;
+	
+	[RplProp(onRplName: "OnTransmissionMarkerDataChanged")]
+	protected bool m_bRadioTruckTransmitting = false;
+	
 	protected IEntity m_radioTruck;
 	protected IEntity m_westCommandVehicle;
 	
@@ -642,6 +649,9 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
         } else {
             // Print(string.Format("Breaking Contact RTC - No GRAD_BC_TransmissionComponent found"), LogLevel.NORMAL);
         }
+		
+		// Always update radio truck position for blue pulse marker (truck moves)
+		UpdateTransmissionMarkerData();
     }
 	
 	// --- Transmission Point Event System ---
@@ -1829,6 +1839,21 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			m_aTransmissionProgress.Insert(comp.GetTransmissionDuration());
 		}
 
+		// Update radio truck marker data
+		if (m_radioTruck)
+		{
+			m_vRadioTruckMarkerPos = m_radioTruck.GetOrigin();
+			GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+			if (rtc)
+				m_bRadioTruckTransmitting = rtc.GetTransmissionActive();
+			else
+				m_bRadioTruckTransmitting = false;
+		}
+		else
+		{
+			m_bRadioTruckTransmitting = false;
+		}
+
 		// Replicate the updated arrays to clients
 		Replication.BumpMe();
 
@@ -1885,6 +1910,33 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("BCM - GetTransmissionMarkerData (client): Returning %1 markers from replicated data", count);
 		return count;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Get radio truck marker data for map display - works on both server and client
+	// Returns true if the radio truck is transmitting and fills outPosition with its location
+	bool GetRadioTruckMarkerData(out vector outPosition, out bool outTransmitting)
+	{
+		if (Replication.IsServer())
+		{
+			if (m_radioTruck)
+			{
+				outPosition = m_radioTruck.GetOrigin();
+				GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+				if (rtc)
+					outTransmitting = rtc.GetTransmissionActive();
+				else
+					outTransmitting = false;
+				return true;
+			}
+			outTransmitting = false;
+			return false;
+		}
+
+		// On clients, use replicated data
+		outPosition = m_vRadioTruckMarkerPos;
+		outTransmitting = m_bRadioTruckTransmitting;
+		return (outPosition != vector.Zero);
 	}
 
 

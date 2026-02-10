@@ -78,6 +78,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
     // Flag to disable marker drawing during replay
     protected bool m_bIsReplayMode = false;
     
+    // Radio truck marker data for blue pulse
+    protected vector m_vRadioTruckPos;
+    protected bool m_bRadioTruckTransmitting = false;
+    
     //------------------------------------------------------------------------------------------------
     void SetReplayMode(bool enabled)
     {
@@ -290,9 +294,22 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                     m_Canvas.SetDrawCommands({});
                 return;
             }
+            
+            // Refresh radio truck position each frame (truck moves)
+            vector truckPos;
+            bool truckTransmitting;
+            if (bcm.GetRadioTruckMarkerData(truckPos, truckTransmitting))
+            {
+                m_vRadioTruckPos = truckPos;
+                m_bRadioTruckTransmitting = truckTransmitting;
+            }
+            else
+            {
+                m_bRadioTruckTransmitting = false;
+            }
         }
         
-        if (!m_AllMarkers || m_AllMarkers.Count() == 0) {
+        if ((!m_AllMarkers || m_AllMarkers.Count() == 0) && !m_bRadioTruckTransmitting) {
             m_Canvas.SetDrawCommands({});
             return; // No markers to draw
         }
@@ -306,7 +323,10 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         const float twoPi = 6.28318530718;
 
         // --- Draw marker circles and outlines ---
-        for (int markerIdx = 0; markerIdx < m_AllMarkers.Count(); markerIdx++)
+        int markerCount = 0;
+        if (m_AllMarkers)
+            markerCount = m_AllMarkers.Count();
+        for (int markerIdx = 0; markerIdx < markerCount; markerIdx++)
         {
             TransmissionEntry entry = m_AllMarkers[markerIdx];
 
@@ -420,6 +440,39 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
                 m_MarkerDrawCommands.Insert(fillCmd);
                 m_MarkerDrawCommands.Insert(outlineCmd);
             }
+        }
+
+        // --- Blue pulsing circle for radio truck when transmitting (100m radius) ---
+        if (m_bRadioTruckTransmitting && m_vRadioTruckPos != vector.Zero)
+        {
+            float truckScreenX, truckScreenY;
+            m_MapEntity.WorldToScreen(m_vRadioTruckPos[0], m_vRadioTruckPos[2], truckScreenX, truckScreenY, true);
+            
+            // Calculate 100m radius in screen space
+            float truckRadiusWorldX = m_vRadioTruckPos[0] + 100.0;
+            float truckRadiusWorldY = m_vRadioTruckPos[2];
+            float truckRadiusScreenX, truckRadiusScreenY;
+            m_MapEntity.WorldToScreen(truckRadiusWorldX, truckRadiusWorldY, truckRadiusScreenX, truckRadiusScreenY, true);
+            float truckTransmissionRadius = Math.AbsFloat(truckRadiusScreenX - truckScreenX);
+            
+            ref PolygonDrawCommand truckPulseCmd = new PolygonDrawCommand();
+            truckPulseCmd.m_Vertices = new array<float>();
+            
+            float truckAlpha = Math.Lerp(0.6, 0.0, m_fPulseTime);
+            int iTruckAlpha = Math.Round(truckAlpha * 255);
+            truckPulseCmd.m_iColor = ARGB(iTruckAlpha, 0, 100, 255); // blue, fading out
+            
+            // Pulse from small size to full 100m range
+            float truckPulseRadius = truckTransmissionRadius * Math.Lerp(0.1, 1.0, m_fPulseTime);
+            for (int ti = 0; ti < 32; ti++) {
+                float tAngle = twoPi * ti / 32;
+                float tx = truckScreenX + Math.Cos(tAngle) * truckPulseRadius;
+                float ty = truckScreenY + Math.Sin(tAngle) * truckPulseRadius;
+                truckPulseCmd.m_Vertices.Insert(tx);
+                truckPulseCmd.m_Vertices.Insert(ty);
+            }
+            
+            m_MarkerDrawCommands.Insert(truckPulseCmd);
         }
 
         m_Canvas.SetDrawCommands(m_MarkerDrawCommands);
@@ -738,8 +791,9 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         if (count == 0)
         {
             Print("GRAD_MapMarkerManager: No transmission marker data available", LogLevel.WARNING);
-            return;
         }
+        else
+        {
 
         // Also try to get components for live data updates (will only work within streaming distance)
         array<GRAD_BC_TransmissionComponent> tpcs = bcm.GetTransmissionPoints();
@@ -775,6 +829,21 @@ class GRAD_MapMarkerManager : GRAD_MapMarkerLayer
         }
         if (GRAD_BC_BreakingContactManager.IsDebugMode())
         	PrintFormat("GRAD_MapMarkerManager: Total markers after PopulateMarkers: %1", count);
+        
+        }
+        
+        // Fetch radio truck marker data for blue pulse
+        vector truckPos;
+        bool truckTransmitting;
+        if (bcm.GetRadioTruckMarkerData(truckPos, truckTransmitting))
+        {
+            m_vRadioTruckPos = truckPos;
+            m_bRadioTruckTransmitting = truckTransmitting;
+        }
+        else
+        {
+            m_bRadioTruckTransmitting = false;
+        }
     }
     
     // ───────────────────────────────────────────────────────────────────────────────

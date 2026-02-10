@@ -29,6 +29,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 	// Cached reference to the transmission component
 	protected GRAD_BC_TransmissionComponent m_TransmissionComponent;
 
+	// Cached reference to the ACE carriable component
+	protected ACE_CarriableEntityComponent m_CarriableComponent;
+
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -40,6 +43,7 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 	{
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));
 		m_TransmissionComponent = GRAD_BC_TransmissionComponent.Cast(owner.FindComponent(GRAD_BC_TransmissionComponent));
+		m_CarriableComponent = ACE_CarriableEntityComponent.Cast(owner.FindComponent(ACE_CarriableEntityComponent));
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -167,8 +171,7 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 			return;
 
 		// Verify the antenna has ACE_CarriableEntityComponent before attempting ACE_Carry
-		ACE_CarriableEntityComponent carriable = ACE_CarriableEntityComponent.Cast(GetOwner().FindComponent(ACE_CarriableEntityComponent));
-		if (!carriable)
+		if (!m_CarriableComponent)
 		{
 			Print("BC Debug - DraggableComponent: ACE_CarriableEntityComponent not found on antenna, skipping carry animation", LogLevel.WARNING);
 			return;
@@ -219,8 +222,7 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		}
 
 		// Check if ACE carry was released (e.g. via CTRL+X keybind)
-		ACE_CarriableEntityComponent carriable = ACE_CarriableEntityComponent.Cast(GetOwner().FindComponent(ACE_CarriableEntityComponent));
-		if (carriable && !carriable.IsCarried())
+		if (m_CarriableComponent && !m_CarriableComponent.IsCarried())
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("BC Debug - DraggableComponent: ACE carry released externally, stopping drag", LogLevel.NORMAL);

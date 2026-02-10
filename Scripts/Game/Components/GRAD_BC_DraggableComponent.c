@@ -6,7 +6,7 @@ class GRAD_BC_DraggableComponentClass : ScriptComponentClass
 class GRAD_BC_DraggableComponent : ScriptComponent
 {
 	// Offset behind the dragger (meters behind character facing direction)
-	[Attribute("1.5", UIWidgets.EditBox, "Distance behind the dragger to position the object")]
+	[Attribute("-1.5", UIWidgets.EditBox, "Distance behind the dragger to position the object")]
 	protected float m_fDragOffsetBehind;
 
 	// Height offset for the dragged object

@@ -5,7 +5,7 @@ GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_0
   }
   GRAD_BC_DraggableComponent "{66AA0BC5851B9C01}" {
   }
-  ACE_CarriableEntityComponent "{66AA0BC5851B9C02}" {
+  GRAD_BC_CarriableAntennaComponent "{66AA0BC5851B9C02}" {
    m_fCarrierSpeedLimit 0.5
    m_bCarrierAllowWalkingForward 1
    m_bCarrierAllowWalkingSideways 1

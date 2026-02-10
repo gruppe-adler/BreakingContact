@@ -41,6 +41,15 @@ class GRAD_BC_DragAntennaAction : ScriptedUserAction
 		if (!IsUserOpfor(user))
 			return false;
 
+		// Don't allow dragging from prone stance
+		SCR_ChimeraCharacter userChar = SCR_ChimeraCharacter.Cast(user);
+		if (userChar)
+		{
+			CharacterControllerComponent charController = userChar.GetCharacterController();
+			if (charController && charController.GetStance() == ECharacterStance.PRONE)
+				return false;
+		}
+
 		return m_DraggableComponent.CanBeDraggedBy(user);
 	}
 

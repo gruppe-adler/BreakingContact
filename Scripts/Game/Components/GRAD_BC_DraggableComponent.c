@@ -13,10 +13,6 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 	[Attribute("0.0", UIWidgets.EditBox, "Height offset for the dragged object (added to surface Y)")]
 	protected float m_fDragHeightOffset;
 
-	// Movement speed multiplier applied to dragger while dragging
-	[Attribute("0.5", UIWidgets.Slider, "Speed multiplier for the dragger while dragging", "0.1 1.0 0.05")]
-	protected float m_fDragSpeedMultiplier;
-
 	// Replicated: RplId of the entity currently dragging this object (-1 = not being dragged)
 	[RplProp(onRplName: "OnDragStateChanged")]
 	protected RplId m_DraggerRplId = RplId.Invalid();
@@ -100,6 +96,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 				Print("BC Debug - DraggableComponent: Transmission interrupted due to dragging", LogLevel.NORMAL);
 		}
 
+		// Start ACE carrying animation on the dragger
+		StartACECarryAnimation(draggerEntity);
+
 		// Start position update loop on server
 		GetGame().GetCallqueue().CallLater(UpdateDragPosition, DRAG_UPDATE_INTERVAL, true);
 	}
@@ -116,6 +115,9 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("BC Debug - DraggableComponent: StopDrag - was dragged by RplId=%1", m_DraggerRplId);
+
+		// Stop ACE carrying animation on the dragger
+		StopACECarryAnimation(m_DraggerEntity);
 
 		// Stop position update loop
 		GetGame().GetCallqueue().Remove(UpdateDragPosition);
@@ -147,6 +149,51 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		m_DraggerEntity = null;
 		m_DraggerRplId = RplId.Invalid();
 		Replication.BumpMe();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Activate ACE Anvil carrying state on the dragger for drag animation
+	protected void StartACECarryAnimation(IEntity draggerEntity)
+	{
+		if (!draggerEntity)
+			return;
+
+		SCR_ChimeraCharacter draggerChar = SCR_ChimeraCharacter.Cast(draggerEntity);
+		if (!draggerChar)
+			return;
+
+		SCR_CharacterControllerComponent charController = SCR_CharacterControllerComponent.Cast(draggerChar.GetCharacterController());
+		if (!charController)
+			return;
+
+		// Use ACE_Carry to put the dragger into the carrying animation state
+		// The antenna entity must have ACE_CarriableEntityComponent for this to work
+		charController.ACE_Carry(GetOwner());
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DraggableComponent: ACE carry animation started on dragger", LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Deactivate ACE Anvil carrying state on the dragger
+	protected void StopACECarryAnimation(IEntity draggerEntity)
+	{
+		if (!draggerEntity)
+			return;
+
+		SCR_ChimeraCharacter draggerChar = SCR_ChimeraCharacter.Cast(draggerEntity);
+		if (!draggerChar)
+			return;
+
+		SCR_CharacterControllerComponent charController = SCR_CharacterControllerComponent.Cast(draggerChar.GetCharacterController());
+		if (!charController)
+			return;
+
+		// Use ACE_ReleaseCarried to remove the carrying animation state
+		charController.ACE_ReleaseCarried(GetOwner());
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - DraggableComponent: ACE carry animation stopped on dragger", LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -254,6 +301,15 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		{
 			ETransmissionState state = m_TransmissionComponent.GetTransmissionState();
 			if (state == ETransmissionState.DONE || state == ETransmissionState.DISABLED)
+				return false;
+		}
+
+		// Check if dragger is not already carrying something via ACE
+		SCR_ChimeraCharacter userChar = SCR_ChimeraCharacter.Cast(user);
+		if (userChar)
+		{
+			SCR_CharacterControllerComponent charController = SCR_CharacterControllerComponent.Cast(userChar.GetCharacterController());
+			if (charController && charController.ACE_IsCarrier())
 				return false;
 		}
 

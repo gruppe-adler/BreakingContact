@@ -36,6 +36,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("GRAD_BC_Gamestate: showText called!", LogLevel.VERBOSE);
+		GetGame().GetCallqueue().Remove(HideLogo);
     	GetGame().GetCallqueue().CallLater(HideLogo, 15000);
     }
 

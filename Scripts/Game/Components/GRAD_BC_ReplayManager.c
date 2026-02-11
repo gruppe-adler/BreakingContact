@@ -135,6 +135,54 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	override void OnDelete(IEntity owner)
+	{
+		// Clean up all CallLater callbacks
+		if (GetGame() && GetGame().GetCallqueue())
+		{
+			GetGame().GetCallqueue().Remove(CheckGameState);
+			GetGame().GetCallqueue().Remove(RecordFrame);
+			GetGame().GetCallqueue().Remove(UpdatePlayback);
+			GetGame().GetCallqueue().Remove(InitializeReplaySystem);
+			GetGame().GetCallqueue().Remove(WaitForVehicleRplComponent);
+			GetGame().GetCallqueue().Remove(TriggerEndscreen);
+			GetGame().GetCallqueue().Remove(SendFrameChunksWithDelay);
+			GetGame().GetCallqueue().Remove(SendReplayComplete);
+			GetGame().GetCallqueue().Remove(StartPlaybackForAllClients);
+			GetGame().GetCallqueue().Remove(OpenMapAndStartLocalPlayback);
+			GetGame().GetCallqueue().Remove(StartActualPlayback);
+			GetGame().GetCallqueue().Remove(StartClientReplayPlayback);
+			GetGame().GetCallqueue().Remove(WaitForReplayMapAndStartPlayback);
+			GetGame().GetCallqueue().Remove(WaitForReplayMapAndStartClientPlayback);
+		}
+
+		// Unsubscribe from vehicle spawn events
+		if (GetGame() && GetGame().GetGameMode())
+		{
+			SCR_CampaignBuildingManagerComponent buildingManager = SCR_CampaignBuildingManagerComponent.Cast(GetGame().GetGameMode().FindComponent(SCR_CampaignBuildingManagerComponent));
+			if (buildingManager)
+				buildingManager.GetOnEntitySpawnedByProvider().Remove(OnVehicleSpawned);
+		}
+
+		if (SCR_TrafficEvents.OnTrafficVehicleSpawned)
+			SCR_TrafficEvents.OnTrafficVehicleSpawned.Remove(OnTrafficVehicleSpawned);
+		if (SCR_TrafficEvents.OnTrafficVehicleDespawned)
+			SCR_TrafficEvents.OnTrafficVehicleDespawned.Remove(OnTrafficVehicleDespawned);
+
+		// Clear replay data
+		m_replayData = null;
+		if (m_trackedVehicles)
+			m_trackedVehicles.Clear();
+		m_usedVehicleIds.Clear();
+		m_pendingProjectiles.Clear();
+
+		if (s_Instance == this)
+			s_Instance = null;
+
+		super.OnDelete(owner);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		// Always initialize on both server and client
@@ -373,6 +421,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print("GRAD_BC_ReplayManager: Stopping replay recording", LogLevel.NORMAL);
 		m_bIsRecording = false;
 		GetGame().GetCallqueue().Remove(RecordFrame);
+		GetGame().GetCallqueue().Remove(CheckGameState);
 		
 		// Finalize replay data
 		if (m_replayData && m_replayData.frames.Count() > 0)

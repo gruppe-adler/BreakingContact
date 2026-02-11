@@ -402,6 +402,37 @@ class GRAD_MapMarkerUI
     }
     
     //------------------------------------------------------------------------------------------------
+    void Cleanup()
+    {
+        // Remove static event subscriptions
+        SCR_MapEntity.GetOnMapOpen().Remove(OnMapOpen);
+        SCR_MapEntity.GetOnMapClose().Remove(OnMapClose);
+        SCR_MapEntity.GetOnSelection().Remove(SendPlayerCoords);
+
+        // Remove instance-level event subscriptions
+        if (m_MapEntity)
+        {
+            m_MapEntity.GetOnMapPan().Remove(OnMapPan);
+            m_MapEntity.GetOnMapPanEnd().Remove(OnMapPanEnd);
+            m_MapEntity.GetOnMapZoom().Remove(OnMapZoom);
+            m_MapEntity.GetOnMapZoomEnd().Remove(OnMapZoomEnd);
+        }
+
+        // Clean up circle widgets
+        foreach (MapCircle circle: m_aTransmissionCircles)
+        {
+            if (circle) circle.RemoveCircle();
+        }
+        m_aTransmissionCircles.Clear();
+
+        foreach (MapCircle circle: m_aSpawnCircles)
+        {
+            if (circle) circle.RemoveCircle();
+        }
+        m_aSpawnCircles.Clear();
+    }
+
+    //------------------------------------------------------------------------------------------------
     void GRAD_MapMarkerUI()
     {
         m_MapEntity = SCR_MapEntity.GetMapInstance();

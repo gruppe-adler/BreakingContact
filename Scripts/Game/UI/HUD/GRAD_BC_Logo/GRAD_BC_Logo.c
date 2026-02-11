@@ -27,11 +27,10 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 	
 	void ShowLogo()
     {
-       // if (!m_logo) return;
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("GRAD_BC_Logo: showLogo called!", LogLevel.VERBOSE);
-		//	m_logo.SetOpacity(1.0);
+		GetGame().GetCallqueue().Remove(HideLogo);
     	GetGame().GetCallqueue().CallLater(HideLogo, 15000);
     }
 	

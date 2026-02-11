@@ -145,6 +145,9 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	}
 
 	//------------------------------------------------------------------------------------------------
+	private int m_iInitRetryCount = 0;
+	private const int MAX_INIT_RETRIES = 50;
+
 	override void Init(IEntity pOwnerEntity, GenericComponent pManagerComponent)
 	{
 		GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
@@ -155,8 +158,16 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		IEntity radioTruck = pOwnerEntity.GetParent();
 		if (!radioTruck)
 		{
-			Print("BC Debug - no parent for action, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			m_iInitRetryCount++;
+			if (m_iInitRetryCount < MAX_INIT_RETRIES)
+			{
+				Print("BC Debug - no parent for action, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			}
+			else
+			{
+				Print("BC Debug - ToggleRadioTransmission: Max init retries reached, giving up", LogLevel.WARNING);
+			}
 			return;
 		}
 
@@ -165,8 +176,16 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			m_radioTruckComponent = GRAD_BC_RadioTruckComponent.Cast(radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
 			if (!m_radioTruckComponent)
 			{
-				Print("BC Debug - no radio truck component on parent of action, retrying...", LogLevel.WARNING);
-				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+				m_iInitRetryCount++;
+				if (m_iInitRetryCount < MAX_INIT_RETRIES)
+				{
+					Print("BC Debug - no radio truck component on parent of action, retrying...", LogLevel.WARNING);
+					GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+				}
+				else
+				{
+					Print("BC Debug - ToggleRadioTransmission: Max init retries reached, giving up", LogLevel.WARNING);
+				}
 				return;
 			}
 		}
@@ -175,8 +194,16 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(radioTruck.FindComponent(SlotManagerComponent));
 		if (!slotManager)
 		{
-			Print("BC Debug - no slot manager on parent of action, retrying...", LogLevel.WARNING);
-			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			m_iInitRetryCount++;
+			if (m_iInitRetryCount < MAX_INIT_RETRIES)
+			{
+				Print("BC Debug - no slot manager on parent of action, retrying...", LogLevel.WARNING);
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			}
+			else
+			{
+				Print("BC Debug - ToggleRadioTransmission: Max init retries reached, giving up", LogLevel.WARNING);
+			}
 			return;
 		}
 
@@ -194,11 +221,19 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		}
 		else
 		{
-			// NOT FOUND YET.
-			// The attachment hasn't spawned. Try again in another 100ms.
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - Lamp not ready yet, retrying...");
-			GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			m_iInitRetryCount++;
+			if (m_iInitRetryCount < MAX_INIT_RETRIES)
+			{
+				// NOT FOUND YET.
+				// The attachment hasn't spawned. Try again in another 100ms.
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BC Debug - Lamp not ready yet, retrying...");
+				GetGame().GetCallqueue().CallLater(InitComponents, 100, false, pOwnerEntity);
+			}
+			else
+			{
+				Print("BC Debug - ToggleRadioTransmission: Max init retries reached, giving up", LogLevel.WARNING);
+			}
 		}
 	}
 }

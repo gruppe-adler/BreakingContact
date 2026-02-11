@@ -2452,6 +2452,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 
 	//------------------------------------------------------------------------------------------------
+	override void OnDelete(IEntity owner)
+	{
+		if (GetGame() && GetGame().GetCallqueue())
+		{
+			GetGame().GetCallqueue().Remove(mainLoop);
+			GetGame().GetCallqueue().Remove(setPhaseInitial);
+		}
+		super.OnDelete(owner);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		SetEventMask(owner, EntityEvent.INIT);

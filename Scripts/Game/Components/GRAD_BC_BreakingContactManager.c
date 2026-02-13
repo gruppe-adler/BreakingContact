@@ -2483,6 +2483,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	// Freeze all civilian AI simulation when replay starts
 	// Disables AI agents for all non-player characters to prevent civilians from moving during replay
+	protected int m_iFrozenAICount = 0;
+	
 	void FreezeAllCivilianSimulation()
 	{
 		if (!Replication.IsServer())
@@ -2491,39 +2493,49 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BCM: Freezing all civilian AI simulation for replay", LogLevel.NORMAL);
 		
-		int frozenCount = 0;
+		m_iFrozenAICount = 0;
 		
-		// Get all AI agents from the AI world
-		AIWorld aiWorld = GetGame().GetAIWorld();
-		if (!aiWorld)
+		// Query all entities in the world and freeze non-player AI characters
+		BaseWorld world = GetGame().GetWorld();
+		if (!world)
 		{
-			Print("BCM: AIWorld not available, cannot freeze civilian simulation", LogLevel.WARNING);
+			Print("BCM: World not available, cannot freeze civilian simulation", LogLevel.WARNING);
 			return;
 		}
 		
-		int agentCount = aiWorld.GetAgentsCount();
-		for (int i = 0; i < agentCount; i++)
-		{
-			AIAgent agent = aiWorld.GetAgent(i);
-			if (!agent)
-				continue;
-			
-			IEntity controlledEntity = agent.GetControlledEntity();
-			if (!controlledEntity)
-				continue;
-			
-			// Skip player-controlled entities
-			int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(controlledEntity);
-			if (playerId > 0)
-				continue;
-			
-			// Disable AI agent simulation
-			agent.DeactivateAI();
-			frozenCount++;
-		}
+		world.QueryEntitiesBySphere("0 0 0", 100000, FreezeAICallback, null, EQueryEntitiesFlags.ALL);
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BCM: Frozen %1 civilian AI agents for replay", frozenCount), LogLevel.NORMAL);
+			Print(string.Format("BCM: Frozen %1 civilian AI agents for replay", m_iFrozenAICount), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Callback for FreezeAllCivilianSimulation - freezes AI on non-player characters
+	protected bool FreezeAICallback(IEntity entity)
+	{
+		// Only process characters
+		SCR_ChimeraCharacter character = SCR_ChimeraCharacter.Cast(entity);
+		if (!character)
+			return true; // Continue query
+		
+		// Skip player-controlled entities
+		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(entity);
+		if (playerId > 0)
+			return true; // Continue query
+		
+		// Find and deactivate AI agent on this character
+		AIControlComponent aiControl = AIControlComponent.Cast(entity.FindComponent(AIControlComponent));
+		if (aiControl)
+		{
+			AIAgent agent = aiControl.GetAIAgent();
+			if (agent)
+			{
+				agent.DeactivateAI();
+				m_iFrozenAICount++;
+			}
+		}
+		
+		return true; // Continue query
 	}
 	
 	//------------------------------------------------------------------------------------------------

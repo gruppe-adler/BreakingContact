@@ -34,7 +34,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
     protected bool m_bluforCaptured;
     protected bool m_skipWinConditions;
-	protected bool m_debug = false;
 	
 	protected int m_spawnLock = 0;
 	
@@ -187,6 +186,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 
 		return m_iDebugModeCache == 1;
+	}
+
+	// Cached skip-faction-elimination flag from mission header
+	protected static int m_iSkipFactionEliminationCache = -1; // -1 = not cached, 0 = off, 1 = on
+
+	static bool IsSkipFactionElimination()
+	{
+		if (m_iSkipFactionEliminationCache >= 0)
+			return m_iSkipFactionEliminationCache == 1;
+
+		m_iSkipFactionEliminationCache = 0;
+		MissionHeader header = GetGame().GetMissionHeader();
+		if (header)
+		{
+			GRAD_BC_MissionHeader bcHeader = GRAD_BC_MissionHeader.Cast(header);
+			if (bcHeader && bcHeader.IsSkipFactionElimination())
+				m_iSkipFactionEliminationCache = 1;
+		}
+
+		return m_iSkipFactionEliminationCache == 1;
 	}
 	
     //------------------------------------------------------------------------------------------------
@@ -1134,15 +1153,16 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		// in debug mode we want to test alone without ending the game
-		bool bluforEliminated = factionEliminated("US") && !m_debug;
-		bool opforEliminated = factionEliminated("USSR") && !m_debug;
-        bool isOver;
-
-		// testing in singleplayer skips blufor elimination
+		// skip faction elimination when configured in mission header (for solo testing on dedicated server)
+		// also skip in singleplayer workbench testing
+		bool skipElimination = GRAD_BC_BreakingContactManager.IsSkipFactionElimination();
 		#ifdef WORKBENCH
-			bluforEliminated = false;
+			skipElimination = true;
 		#endif
+
+		bool bluforEliminated = factionEliminated("US") && !skipElimination;
+		bool opforEliminated = factionEliminated("USSR") && !skipElimination;
+        bool isOver;
 
 		bool finishedAllTransmissions = (GetTransmissionsDoneCount() >= m_iTransmissionCount);
 		

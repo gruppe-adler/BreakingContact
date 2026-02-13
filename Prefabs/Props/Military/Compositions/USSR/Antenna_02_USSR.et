@@ -15,7 +15,7 @@ GenericEntity : "{ECC9B3FF4D1C478B}Prefabs/Props/Military/Compositions/Antenna_0
    m_bCarrierAllowProneStance 0
    m_bCarrierAllowWeapon 0
    m_AttachmentPoint PointInfo "{66AA0BC5851B9C03}" {
-    Offset 0 0 -1.5
+    Offset 0 0 1.5
    }
   }
   SCR_BaseEditorServerComponent "{65BB478D36DE4F4A}" {

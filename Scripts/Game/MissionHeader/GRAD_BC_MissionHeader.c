@@ -10,6 +10,9 @@ class GRAD_BC_MissionHeader : SCR_MissionHeader
 	[Attribute(defvalue: "0", desc: "Enable verbose debug logging for all Breaking Contact components. Disable for production to improve performance.", category: "Breaking Contact - Debug")]
 	protected bool m_bDebugLogs;
 
+	[Attribute(defvalue: "0", desc: "Skip faction elimination win conditions. Enable this when testing alone on a dedicated server so the game does not end immediately.", category: "Breaking Contact - Debug")]
+	protected bool m_bSkipFactionElimination;
+
 	bool HasTrafficVehicleOverrides()
 	{
 		return (m_aTrafficVehicleOverrides && !m_aTrafficVehicleOverrides.IsEmpty());
@@ -34,5 +37,10 @@ class GRAD_BC_MissionHeader : SCR_MissionHeader
 	bool IsDebugLogsEnabled()
 	{
 		return m_bDebugLogs;
+	}
+
+	bool IsSkipFactionElimination()
+	{
+		return m_bSkipFactionElimination;
 	}
 }

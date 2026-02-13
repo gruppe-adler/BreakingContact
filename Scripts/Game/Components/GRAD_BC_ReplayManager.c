@@ -1158,6 +1158,9 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
 		Rpc(RpcAsk_ReplayDataComplete);
 
+		// Calculate adaptive speed on server so we use the same speed clients will use
+		CalculateAdaptiveSpeed();
+
 		// Schedule endscreen AFTER all data is sent to clients
 		// Add 15 second buffer for client-side initialization:
 		// - 500ms CallLater in RpcAsk_ReplayDataComplete

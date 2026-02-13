@@ -1197,6 +1197,7 @@ void StartLocalReplayPlayback()
 		ref array<vector> vehiclePositions = {};
 		ref array<vector> vehicleRotations = {};
 		ref array<bool> vehicleWasUsed = {};
+		ref array<bool> vehicleIsEmpty = {};
 		
 		for (int i = startIndex; i < endIndex; i++)
 		{
@@ -1243,6 +1244,7 @@ void StartLocalReplayPlayback()
 				vehiclePositions.Insert(vehicleData.position);
 				vehicleRotations.Insert(vehicleData.angles);
 				vehicleWasUsed.Insert(vehicleData.wasUsed);
+				vehicleIsEmpty.Insert(vehicleData.isEmpty);
 			}
 		}
 		
@@ -1259,7 +1261,7 @@ void StartLocalReplayPlayback()
 
 		// Send vehicle data if any
 		if (vehicleTimestamps.Count() > 0)
-			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations, vehicleWasUsed);
+			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations, vehicleWasUsed, vehicleIsEmpty);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1302,7 +1304,7 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_ReceiveVehicleChunk(array<float> timestamps, array<RplId> vehicleIds, array<string> vehicleTypes, array<string> vehicleFactions, array<vector> vehiclePositions, array<vector> vehicleRotations, array<bool> vehicleWasUsed)
+	void RpcAsk_ReceiveVehicleChunk(array<float> timestamps, array<RplId> vehicleIds, array<string> vehicleTypes, array<string> vehicleFactions, array<vector> vehiclePositions, array<vector> vehicleRotations, array<bool> vehicleWasUsed, array<bool> vehicleIsEmpty)
 	{
 		if (Replication.IsServer())
 			return;
@@ -1338,13 +1340,17 @@ void StartLocalReplayPlayback()
 			if (vehicleWasUsed && i < vehicleWasUsed.Count())
 				wasUsed = vehicleWasUsed[i];
 
+			bool empty = false;
+			if (vehicleIsEmpty && i < vehicleIsEmpty.Count())
+				empty = vehicleIsEmpty[i];
+
 			GRAD_BC_VehicleSnapshot vehicleData = GRAD_BC_VehicleSnapshot.Create(
 				vehicleIds[i],
 				vehicleTypes[i],
 				vehicleFactions[i],
 				vehiclePositions[i],
 				vehicleRotations[i],
-				false,
+				empty,
 				wasUsed
 			);
 			
@@ -2039,16 +2045,6 @@ void StartLocalReplayPlayback()
 		{
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
 			bcm.ShowPostReplayGameOverScreen();
-			
-			// In local/singleplayer, also trigger the RPC handler directly
-			// because broadcast RPCs don't loop back to the server in some cases
-			PlayerController pc = GetGame().GetPlayerController();
-			if (pc)
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("GRAD_BC_ReplayManager: Local player detected, calling endscreen RPC handler directly", LogLevel.NORMAL);
-				bcm.RpcDo_ShowGameOverScreen();
-			}
 		}
 		else
 		{

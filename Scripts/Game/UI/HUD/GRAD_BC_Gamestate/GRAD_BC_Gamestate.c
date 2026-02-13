@@ -24,6 +24,8 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 			PrintFormat("GRAD_BC_Gamestate: no m_text found", LogLevel.ERROR);
 			return;
 		}
+		
+		m_text.SetText("");
 
 		m_progressContainer = m_wRoot.FindAnyWidget("ProgressContainer");
 		m_progressFill = ImageWidget.Cast(m_wRoot.FindAnyWidget("ProgressFill"));

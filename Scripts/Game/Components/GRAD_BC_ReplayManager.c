@@ -2086,7 +2086,10 @@ void StartLocalReplayPlayback()
 		IEntity playerEntity = playerController.GetControlledEntity();
 		if (!playerEntity)
 		{
-			Print("GRAD_BC_ReplayManager: No player entity found to close map", LogLevel.WARNING);
+			// Spectator mode - close map via menu manager
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: No player entity (spectator), closing map via menu manager", LogLevel.NORMAL);
+			GetGame().GetMenuManager().CloseMenuByPreset(ChimeraMenuPreset.MapMenu);
 			return;
 		}
 		

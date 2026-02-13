@@ -1576,6 +1576,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 					}
 				}
 			}
+			
+			// Freeze all civilian AI simulation for replay
+			FreezeAllCivilianSimulation();
+			
+			// Move all players to spectator for cross-faction communication during replay
+			MoveAllPlayersToSpectator();
 		}
 		
 		OnBreakingContactPhaseChanged(); // call on server too for debug in SP test
@@ -2474,6 +2480,91 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("BC Debug - Named %1 group: %2 (command: %3)", factionKey, groupName, isCommandGroup), LogLevel.NORMAL);
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Freeze all civilian AI simulation when replay starts
+	// Disables AI agents for all non-player characters to prevent civilians from moving during replay
+	void FreezeAllCivilianSimulation()
+	{
+		if (!Replication.IsServer())
+			return;
+		
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM: Freezing all civilian AI simulation for replay", LogLevel.NORMAL);
+		
+		int frozenCount = 0;
+		
+		// Get all AI agents from the AI world
+		AIWorld aiWorld = GetGame().GetAIWorld();
+		if (!aiWorld)
+		{
+			Print("BCM: AIWorld not available, cannot freeze civilian simulation", LogLevel.WARNING);
+			return;
+		}
+		
+		int agentCount = aiWorld.GetAgentsCount();
+		for (int i = 0; i < agentCount; i++)
+		{
+			AIAgent agent = aiWorld.GetAgent(i);
+			if (!agent)
+				continue;
+			
+			IEntity controlledEntity = agent.GetControlledEntity();
+			if (!controlledEntity)
+				continue;
+			
+			// Skip player-controlled entities
+			int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(controlledEntity);
+			if (playerId > 0)
+				continue;
+			
+			// Disable AI agent simulation
+			agent.DeactivateAI();
+			frozenCount++;
+		}
+		
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM: Frozen %1 civilian AI agents for replay", frozenCount), LogLevel.NORMAL);
+	}
+	
+	//------------------------------------------------------------------------------------------------
+	// Move all players to spectator mode for cross-faction communication during replay
+	// Uses PS_PlayableManager to set player playable to invalid, which moves them to lobby spectator
+	void MoveAllPlayersToSpectator()
+	{
+		if (!Replication.IsServer())
+			return;
+		
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM: Moving all players to spectator for replay", LogLevel.NORMAL);
+		
+		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
+		if (!playableManager)
+		{
+			Print("BCM: PS_PlayableManager not found, cannot move players to spectator", LogLevel.WARNING);
+			return;
+		}
+		
+		array<int> playerIds = {};
+		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
+		
+		int movedCount = 0;
+		foreach (int playerId : playerIds)
+		{
+			// Set playable to invalid to move player to spectator
+			RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
+			if (currentPlayable != RplId.Invalid())
+			{
+				playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
+				movedCount++;
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM: Moved player %1 to spectator", playerId), LogLevel.NORMAL);
+			}
+		}
+		
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM: Moved %1 players to spectator for replay", movedCount), LogLevel.NORMAL);
+	}
+	
 	//------------------------------------------------------------------------------------------------
 	override void OnDelete(IEntity owner)
 	{

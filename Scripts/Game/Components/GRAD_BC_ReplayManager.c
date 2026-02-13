@@ -322,8 +322,10 @@ class GRAD_BC_ReplayManager : ScriptComponent
 
 	//------------------------------------------------------------------------------------------------
 	// Called by grad-traffic when a civilian traffic vehicle is spawned
-	void OnTrafficVehicleSpawned(Vehicle vehicle)
+	// Parameter is IEntity to match SCR_TrafficEvents.OnTrafficVehicleSpawned invoker signature
+	void OnTrafficVehicleSpawned(IEntity entity)
 	{
+		Vehicle vehicle = Vehicle.Cast(entity);
 		if (!vehicle)
 			return;
 
@@ -334,8 +336,10 @@ class GRAD_BC_ReplayManager : ScriptComponent
 
 	//------------------------------------------------------------------------------------------------
 	// Called by grad-traffic when a civilian traffic vehicle is despawned
-	void OnTrafficVehicleDespawned(Vehicle vehicle)
+	// Parameter is IEntity to match SCR_TrafficEvents.OnTrafficVehicleDespawned invoker signature
+	void OnTrafficVehicleDespawned(IEntity entity)
 	{
+		Vehicle vehicle = Vehicle.Cast(entity);
 		if (!vehicle || !m_trackedVehicles)
 			return;
 

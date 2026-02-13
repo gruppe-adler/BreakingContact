@@ -92,14 +92,6 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("BC Debug - DraggableComponent: StartDrag - dragger RplId=%1", m_DraggerRplId);
 
-		// Interrupt transmission while dragging
-		if (m_TransmissionComponent && m_TransmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING)
-		{
-			m_TransmissionComponent.SetTransmissionActive(false);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - DraggableComponent: Transmission interrupted due to dragging", LogLevel.NORMAL);
-		}
-
 		// Start ACE carrying animation on the dragger
 		StartACECarryAnimation(draggerEntity);
 

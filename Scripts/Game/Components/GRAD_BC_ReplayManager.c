@@ -851,16 +851,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ReplayManager: Starting chunked replay data transmission - %1 total chunks", m_iTotalChunksToSend), LogLevel.NORMAL);
 		SendFrameChunksWithDelay(0);
-			float replayDuration = m_replayData.totalDuration;
-			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
-			float waitTime = (effectiveDuration + 2.0) * 1000; // Add 2 second buffer, convert to milliseconds
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 2s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
-			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
+		// NOTE: Endscreen is now scheduled in SendReplayComplete() after all data is sent,
+		// so clients have time to receive data and initialize before the timer starts.
 		}
 	}
 
@@ -1165,6 +1157,25 @@ void StartLocalReplayPlayback()
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Sending completion RPC", LogLevel.NORMAL);
 		Rpc(RpcAsk_ReplayDataComplete);
+
+		// Schedule endscreen AFTER all data is sent to clients
+		// Add 15 second buffer for client-side initialization:
+		// - 500ms CallLater in RpcAsk_ReplayDataComplete
+		// - up to 10s for map/replay layer readiness polling
+		// - extra margin for network latency
+		if (m_replayData)
+		{
+			float replayDuration = m_replayData.totalDuration;
+			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
+			float waitTime = (effectiveDuration + 15.0) * 1000; // 15 second buffer, convert to milliseconds
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 15s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

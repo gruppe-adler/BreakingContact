@@ -2039,16 +2039,6 @@ void StartLocalReplayPlayback()
 		{
 			bcm.SetBreakingContactPhase(EBreakingContactPhase.GAMEOVERDONE);
 			bcm.ShowPostReplayGameOverScreen();
-			
-			// In local/singleplayer, also trigger the RPC handler directly
-			// because broadcast RPCs don't loop back to the server in some cases
-			PlayerController pc = GetGame().GetPlayerController();
-			if (pc)
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("GRAD_BC_ReplayManager: Local player detected, calling endscreen RPC handler directly", LogLevel.NORMAL);
-				bcm.RpcDo_ShowGameOverScreen();
-			}
 		}
 		else
 		{

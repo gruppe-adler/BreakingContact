@@ -2364,8 +2364,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
 		
-		// Broadcast to all clients (including server if it has a player)
-		Rpc(RpcDo_ShowGameOverScreen);
+		// Call ShowGameOverScreen directly on the server to trigger EndGameMode,
+		// which propagates the game over state to all clients.
+		// On dedicated servers, the broadcast RPC alone would fail because
+		// ShowGameOverScreen has a server-only guard that blocks client execution.
+		ShowGameOverScreen();
 	}
 	
 	//------------------------------------------------------------------------------------------------

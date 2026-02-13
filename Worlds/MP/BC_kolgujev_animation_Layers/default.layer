@@ -1,0 +1,4 @@
+Vehicle Ural4320_command_armored1 : "{924B84AA3252B2DB}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command_armored.et" {
+ coords 6084.835 419.344 6383.008
+ angles 0 172.07 0
+}

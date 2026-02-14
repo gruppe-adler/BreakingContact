@@ -1282,17 +1282,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
 		}
-		else if (destroyerFaction == "DISABLED")
-		{
-			// Truck disabled/immobilized - BLUFOR wins
-			m_sWinnerSide = "blufor";
-			NotifyAllPlayersRadioTruckDestroyed("Radio truck disabled! BLUFOR wins!");
-		}
 		else
 		{
-			// Unknown or neutral destruction - treat as draw or no effect
-			Print(string.Format("Breaking Contact - Radio truck destroyed by unknown faction: %1", destroyerFaction), LogLevel.WARNING);
-			return;
+			// Unknown or unidentifiable destroyer (e.g. Game Master) - treat as draw
+			m_sWinnerSide = "draw";
+			NotifyAllPlayersRadioTruckDestroyed("Radio truck destroyed by unknown faction! Draw!");
 		}
 		
 		// Immediately end the game
@@ -1455,8 +1449,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			}
 			else
 			{
-				subtitle = "Radio Truck Disabled";
-				description = "The radio truck has been disabled. BLUFOR wins!";
+				description = "The radio truck was destroyed by an unknown faction. Draw!";
 			}
 		}
 		else if (m_bluforCaptured)
@@ -1513,7 +1506,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			else if (m_sRadioTruckDestroyerFaction == "US")
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
 			else
-				gameOverType = EGameOverTypes.END2; // Blufor wins - truck disabled (unknown/GM destroyer)
+				gameOverType = EGameOverTypes.END1; // Draw - truck destroyed by unknown faction
 		}
 		else if (m_bluforCaptured)
 		{

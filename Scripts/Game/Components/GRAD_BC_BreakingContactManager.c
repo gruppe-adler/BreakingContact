@@ -2546,8 +2546,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (!Replication.IsServer())
 			return;
 		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BCM: Moving all players to spectator for replay", LogLevel.NORMAL);
+		Print("BCM: Moving all players to spectator for replay", LogLevel.NORMAL);
 		
 		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
 		if (!playableManager)
@@ -2559,22 +2558,21 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
 		
+		Print(string.Format("BCM: Found %1 players to move to spectator", playerIds.Count()), LogLevel.NORMAL);
+		
 		int movedCount = 0;
 		foreach (int playerId : playerIds)
 		{
-			// Set playable to invalid to move player to spectator
 			RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
-			if (currentPlayable != RplId.Invalid())
-			{
-				playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
-				movedCount++;
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("BCM: Moved player %1 to spectator", playerId), LogLevel.NORMAL);
-			}
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BCM: Player %1 current playable: %2 (invalid=%3)", playerId, currentPlayable, currentPlayable == RplId.Invalid()), LogLevel.NORMAL);
+			
+			// Move player to spectator regardless of current state
+			playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
+			movedCount++;
 		}
 		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BCM: Moved %1 players to spectator for replay", movedCount), LogLevel.NORMAL);
+		Print(string.Format("BCM: Moved %1 players to spectator for replay", movedCount), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

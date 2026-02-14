@@ -841,16 +841,11 @@ void UpdateAntennaBones(float progress)
 
 				string destroyerFaction = GetInstigatorFactionFromEntity(lastInstigator);
 
-				// If no instigator (truck disabled/immobilized without direct damage), BLUFOR wins
-				if (destroyerFaction == "")
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				{
-					destroyerFaction = "DISABLED";
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print("BC Debug - MAINLOOP: Radio truck disabled (no damage instigator) - BLUFOR wins", LogLevel.NORMAL);
-				}
-				else
-				{
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					if (destroyerFaction == "")
+						Print("BC Debug - MAINLOOP: Radio truck destroyed (no damage instigator / unknown faction)", LogLevel.NORMAL);
+					else
 						Print(string.Format("BC Debug - MAINLOOP: Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 				}
 

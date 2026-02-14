@@ -1282,17 +1282,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
 		}
-		else if (destroyerFaction == "DISABLED")
-		{
-			// Truck disabled/immobilized - BLUFOR wins
-			m_sWinnerSide = "blufor";
-			NotifyAllPlayersRadioTruckDestroyed("Radio truck disabled! BLUFOR wins!");
-		}
 		else
 		{
-			// Unknown or neutral destruction - treat as draw or no effect
-			Print(string.Format("Breaking Contact - Radio truck destroyed by unknown faction: %1", destroyerFaction), LogLevel.WARNING);
-			return;
+			// Unknown or unidentifiable destroyer (e.g. Game Master) - treat as draw
+			m_sWinnerSide = "draw";
+			NotifyAllPlayersRadioTruckDestroyed("Radio truck destroyed by unknown faction! Draw!");
 		}
 		
 		// Immediately end the game
@@ -1453,6 +1447,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				else
 					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
 			}
+			else
+			{
+				description = "The radio truck was destroyed by an unknown faction. Draw!";
+			}
 		}
 		else if (m_bluforCaptured)
 		{
@@ -1507,6 +1505,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
 			else if (m_sRadioTruckDestroyerFaction == "US")
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
+			else
+				gameOverType = EGameOverTypes.FACTION_DRAW; // Draw - truck destroyed by unknown faction
 		}
 		else if (m_bluforCaptured)
 		{
@@ -2358,10 +2358,15 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		// Ensure endscreen data is set
+		// Call ShowGameOverScreen directly on the server to trigger EndGameMode,
+		// which propagates the game over state to all clients.
+		// ShowGameOverScreen sets m_sLastEndscreenTitle/Subtitle based on game state.
+		ShowGameOverScreen();
+		
+		// Fallback: ensure endscreen data is set if ShowGameOverScreen failed to set it
 		if (m_sLastEndscreenTitle.IsEmpty())
 		{
-			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
+			Print("BCM: No endscreen data found after ShowGameOverScreen, using defaults", LogLevel.WARNING);
 			m_sLastEndscreenTitle = "Game Over";
 			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
 			Replication.BumpMe();
@@ -2369,12 +2374,6 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
-		
-		// Call ShowGameOverScreen directly on the server to trigger EndGameMode,
-		// which propagates the game over state to all clients.
-		// On dedicated servers, the broadcast RPC alone would fail because
-		// ShowGameOverScreen has a server-only guard that blocks client execution.
-		ShowGameOverScreen();
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -2358,10 +2358,15 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 		
-		// Ensure endscreen data is set
+		// Call ShowGameOverScreen directly on the server to trigger EndGameMode,
+		// which propagates the game over state to all clients.
+		// ShowGameOverScreen sets m_sLastEndscreenTitle/Subtitle based on game state.
+		ShowGameOverScreen();
+		
+		// Fallback: ensure endscreen data is set if ShowGameOverScreen failed to set it
 		if (m_sLastEndscreenTitle.IsEmpty())
 		{
-			Print("BCM: No endscreen data found, using defaults", LogLevel.WARNING);
+			Print("BCM: No endscreen data found after ShowGameOverScreen, using defaults", LogLevel.WARNING);
 			m_sLastEndscreenTitle = "Game Over";
 			m_sLastEndscreenSubtitle = string.Format("%1 wins!", m_sWinnerSide);
 			Replication.BumpMe();
@@ -2369,12 +2374,6 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BCM: Broadcasting gameover screen - Title: %1, Subtitle: %2", m_sLastEndscreenTitle, m_sLastEndscreenSubtitle), LogLevel.NORMAL);
-		
-		// Call ShowGameOverScreen directly on the server to trigger EndGameMode,
-		// which propagates the game over state to all clients.
-		// On dedicated servers, the broadcast RPC alone would fail because
-		// ShowGameOverScreen has a server-only guard that blocks client execution.
-		ShowGameOverScreen();
 	}
 	
 	//------------------------------------------------------------------------------------------------

@@ -1453,6 +1453,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				else
 					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
 			}
+			else
+			{
+				subtitle = "Radio Truck Disabled";
+				description = "The radio truck has been disabled. BLUFOR wins!";
+			}
 		}
 		else if (m_bluforCaptured)
 		{
@@ -1507,6 +1512,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
 			else if (m_sRadioTruckDestroyerFaction == "US")
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
+			else
+				gameOverType = EGameOverTypes.END2; // Blufor wins - truck disabled (unknown/GM destroyer)
 		}
 		else if (m_bluforCaptured)
 		{

@@ -2540,7 +2540,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	
 	//------------------------------------------------------------------------------------------------
 	// Move all players to spectator mode for cross-faction communication during replay
-	// Uses PS_PlayableManager to set player playable to invalid, which moves them to lobby spectator
+	// Uses PS_PlayableManager to set player playable to invalid and apply the change,
+	// which triggers the PlayableSelector spectator camera and lobby entity transition
 	void MoveAllPlayersToSpectator()
 	{
 		if (!Replication.IsServer())
@@ -2563,12 +2564,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		int movedCount = 0;
 		foreach (int playerId : playerIds)
 		{
-			RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			{
+				RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
 				Print(string.Format("BCM: Player %1 current playable: %2 (invalid=%3)", playerId, currentPlayable, currentPlayable == RplId.Invalid()), LogLevel.NORMAL);
+			}
 			
-			// Move player to spectator regardless of current state
+			// Set playable to invalid (updates tracking maps on all machines)
 			playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
+			// Apply the change - this actually switches the entity to the spectator/lobby entity
+			// and triggers OnControlledEntityChanged → SwitchToObserver on the client
+			playableManager.ApplyPlayable(playerId);
 			movedCount++;
 		}
 		

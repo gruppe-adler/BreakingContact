@@ -1506,7 +1506,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			else if (m_sRadioTruckDestroyerFaction == "US")
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
 			else
-				gameOverType = EGameOverTypes.UNKNOWN; // Draw - truck destroyed by unknown faction
+				gameOverType = EGameOverTypes.FACTION_DRAW; // Draw - truck destroyed by unknown faction
 		}
 		else if (m_bluforCaptured)
 		{

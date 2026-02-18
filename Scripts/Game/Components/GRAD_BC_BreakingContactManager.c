@@ -2588,6 +2588,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			GetGame().GetCallqueue().Remove(mainLoop);
 			GetGame().GetCallqueue().Remove(setPhaseInitial);
 			GetGame().GetCallqueue().Remove(SyncJIPState);
+			GetGame().GetCallqueue().Remove(SyncJIPStateDeferred);
 		}
 		super.OnDelete(owner);
 	}
@@ -2628,6 +2629,35 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase),
 				m_aTransmissionIds.Count()), LogLevel.NORMAL);
 
+		// Check if player is spectator - spectators don't need UI synchronization
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: No player controller found, skipping JIP sync", LogLevel.WARNING);
+			return;
+		}
+
+		IEntity controlledEntity = playerController.GetControlledEntity();
+		if (!controlledEntity)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Player is spectator, skipping JIP sync", LogLevel.NORMAL);
+			return;
+		}
+
+		// Defer callback execution slightly to ensure PlayerComponent UI is initialized
+		// PlayerComponent.InitMapMarkerUI is also scheduled at 1000ms, so we add 200ms buffer
+		GetGame().GetCallqueue().CallLater(SyncJIPStateDeferred, 200, false);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Deferred JIP synchronization - called after UI initialization
+	protected void SyncJIPStateDeferred()
+	{
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - JIP: SyncJIPStateDeferred executing", LogLevel.NORMAL);
+
 		// Trigger replication callbacks manually for JIP players
 		// These callbacks normally only fire on delta changes, not initial sync
 		
@@ -2655,7 +2685,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - JIP: SyncJIPState completed", LogLevel.NORMAL);
+			Print("BC Debug - JIP: SyncJIPStateDeferred completed", LogLevel.NORMAL);
 	}
 }
 

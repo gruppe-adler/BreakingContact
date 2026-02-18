@@ -2587,6 +2587,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			GetGame().GetCallqueue().Remove(mainLoop);
 			GetGame().GetCallqueue().Remove(setPhaseInitial);
+			GetGame().GetCallqueue().Remove(SyncJIPState);
 		}
 		super.OnDelete(owner);
 	}
@@ -2608,6 +2609,53 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				Print("BC Debug - SCR_GroupsManagerComponent not found, group naming disabled", LogLevel.WARNING);
 			}
 		}
+		else
+		{
+			// Client-side JIP synchronization
+			GetGame().GetCallqueue().CallLater(SyncJIPState, 1000, false);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// JIP synchronization - reconstructs client state from replicated properties
+	protected void SyncJIPState()
+	{
+		if (Replication.IsServer())
+			return; // Only run on clients
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - JIP: SyncJIPState called. Phase=%1, TransmissionCount=%2",
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase),
+				m_aTransmissionIds.Count()), LogLevel.NORMAL);
+
+		// Trigger replication callbacks manually for JIP players
+		// These callbacks normally only fire on delta changes, not initial sync
+		
+		// Sync phase change notifications
+		if (m_iBreakingContactPhase != EBreakingContactPhase.LOADING)
+		{
+			OnBreakingContactPhaseChanged();
+		}
+
+		// Sync transmission marker data
+		if (m_aTransmissionPositions.Count() > 0 || m_aTransmissionIds.Count() > 0)
+		{
+			OnTransmissionMarkerDataChanged();
+			OnTransmissionIdsChanged();
+		}
+
+		// Sync OPFOR spawn position marker (USSR commander only)
+		if (m_vOpforSpawnPos != vector.Zero)
+		{
+			string factionKey = GetPlayerFactionKey();
+			if (factionKey == "USSR")
+			{
+				OnOpforPositionChanged();
+			}
+		}
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - JIP: SyncJIPState completed", LogLevel.NORMAL);
 	}
 }
 

@@ -814,12 +814,14 @@ class GRAD_BC_ReplayManager : ScriptComponent
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ReplayManager: Starting replay transmission, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
 	
-	// Check if we have a local player controller (null on dedicated server)
-	PlayerController playerController = GetGame().GetPlayerController();
-	bool isDedicatedServer = (playerController == null);
-	
+	// Check if we have a local human player (absent on dedicated server).
+	// GetPlayerController() can return a non-null server object on dedicated,
+	// so use GetLocalPlayerId() which returns 0 when there is no local player.
+	int localPlayerId = SCR_PlayerController.GetLocalPlayerId();
+	bool isDedicatedServer = (localPlayerId <= 0);
+
 	if (GRAD_BC_BreakingContactManager.IsDebugMode())
-		PrintFormat("GRAD_BC_ReplayManager: HasPlayerController=%1, IsDedicated=%2", playerController != null, isDedicatedServer);
+		PrintFormat("GRAD_BC_ReplayManager: LocalPlayerId=%1, IsDedicated=%2", localPlayerId, isDedicatedServer);
 	
 	if (!isDedicatedServer)
 	{
@@ -1024,10 +1026,33 @@ void StartLocalReplayPlayback()
 			}
 		}
 
-		// Open map fullscreen for replay visualization
-		GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: Map menu opened for replay", LogLevel.NORMAL);
+		// Open map fullscreen with replay config so GRAD_BC_ReplayMapLayer is loaded
+		if (mapEntity)
+		{
+			ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
+			// If spectator menu exists (dedicated/listen spectator UI), route through it
+			if (PS_SpectatorMenu.s_SpectatorMenu)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Routing local map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+				PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
+			}
+			else
+			{
+				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+				mapEntity.OpenMap(mapConfig);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Map opened with replay config", LogLevel.NORMAL);
+			}
+		}
+		else
+		{
+			// mapEntity not available at this point; WaitForReplayMapAndStartPlayback will
+			// poll until the map entity appears after the map menu opens naturally.
+			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Map entity not ready, fell back to vanilla MapMenu", LogLevel.NORMAL);
+		}
 
 		// Map readiness is now gated by WaitForReplayMapAndStartPlayback() called from the caller
 	}
@@ -1628,47 +1653,39 @@ void StartLocalReplayPlayback()
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
 
-		// Open map for replay viewing
-		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController)
+		// Always open the map using our custom MapFullscreen.conf so that
+		// GRAD_BC_ReplayMapLayer and GRAD_MapMarkerManager are loaded.
+		// The gadget-map path was removed because it opens the vanilla map config
+		// which lacks the replay layer, causing markers to never appear.
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (!mapEntity)
 		{
-			Print("GRAD_BC_ReplayManager: No player controller found", LogLevel.ERROR);
+			// SCR_MapEntity not available yet — retry in 500ms
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: SCR_MapEntity not available yet, retrying in 500ms", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
 			return;
 		}
 
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (ch)
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Opening map via SCR_MapEntity with replay config", LogLevel.NORMAL);
+
+		ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
+
+		// If the spectator menu is active (client on dedicated server), route through
+		// OpenMapWithConfig() so the map is anchored to m_wMapFrame with proper keybinds
+		// and layout. Opening via mapEntity directly with null parent skips the frame
+		// container, causing missing keybinds and freely floating markers.
+		if (PS_SpectatorMenu.s_SpectatorMenu)
 		{
-			// Player has a controlled entity - try gadget manager to open map
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
-			bool mapOpened = false;
-
-			SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
-			if (gadgetManager)
-			{
-				IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-				if (mapGadget)
-				{
-					gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND, true);
-					mapOpened = true;
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
-				}
-			}
-
-			if (!mapOpened)
-			{
-				Print("GRAD_BC_ReplayManager: Gadget manager fallback, opening map via menu manager", LogLevel.WARNING);
-				GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
-			}
+				Print("GRAD_BC_ReplayManager: Routing map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+			PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
 		}
 		else
 		{
-			// Spectator - no controlled entity - use menu manager approach
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
-			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
+			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+			mapEntity.OpenMap(mapConfig);
 		}
 
 		// Wait for map + replay layer to be ready before starting playback
@@ -1706,8 +1723,10 @@ void StartLocalReplayPlayback()
 			return;
 		}
 
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Map and replay layer verified ready after %1 attempts", attempt), LogLevel.NORMAL);
+		if (!replayLayer)
+			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - ReplayMapLayer NOT found after %1 attempts - replay config may be wrong", attempt), LogLevel.ERROR);
+		else
+			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - ReplayMapLayer found after %1 attempts, starting playback", attempt), LogLevel.NORMAL);
 
 		// Set replay mode on both layers
 		if (replayLayer)
@@ -1726,42 +1745,56 @@ void StartLocalReplayPlayback()
 			}
 		}
 
-		// Start playback
-		BaseWorld world = GetGame().GetWorld();
-		if (!world)
-		{
-			Print("GRAD_BC_ReplayManager: CLIENT - World not available", LogLevel.ERROR);
-			return;
-		}
-
+		// Start playback (deferred briefly to allow map projection/pan/zoom to stabilise)
+		int stabilizationDelayMs = 300; // Small delay to allow map to settle
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
-		m_bIsPlayingBack = true;
-		m_bPlaybackPaused = false;
-		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
-		m_fCurrentPlaybackTime = 0;
-		m_iCurrentFrameIndex = 0;
-		m_bFirstFrameDisplayed = false;
-
-		// Skip empty frames at start
-		SkipEmptyFrames();
-
-		// Reset start time right before loop
-		BaseWorld world2 = GetGame().GetWorld();
-		if (world2)
-		{
-			m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
-		}
-
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: CLIENT - Starting playback loop", LogLevel.NORMAL);
-		GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
+			Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Deferring playback start by %1 ms to stabilise map", stabilizationDelayMs), LogLevel.NORMAL);
+		GetGame().GetCallqueue().CallLater(StartClientPlaybackNow, stabilizationDelayMs, false);
 
 		// NOTE: Endscreen is scheduled server-side in StartPlaybackForAllClients.
 		// TriggerEndscreen is server-only so no client-side scheduling needed.
-	}
+		}
+
+		//------------------------------------------------------------------------------------------------
+		// Starts the client-side playback after a short stabilization delay
+		void StartClientPlaybackNow()
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: CLIENT - StartClientPlaybackNow called", LogLevel.NORMAL);
+
+			// Start playback
+			BaseWorld world = GetGame().GetWorld();
+			if (!world)
+			{
+				Print("GRAD_BC_ReplayManager: CLIENT - World not available", LogLevel.ERROR);
+				return;
+			}
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: CLIENT - Setting playback state flags", LogLevel.NORMAL);
+			m_bIsPlayingBack = true;
+			m_bPlaybackPaused = false;
+			m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
+			m_fCurrentPlaybackTime = 0;
+			m_iCurrentFrameIndex = 0;
+			m_bFirstFrameDisplayed = false;
+
+			// Skip empty frames at start
+			SkipEmptyFrames();
+
+			// Reset start time right before loop
+			BaseWorld world2 = GetGame().GetWorld();
+			if (world2)
+			{
+				m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
+			}
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: CLIENT - Starting playback loop", LogLevel.NORMAL);
+			GetGame().GetCallqueue().CallLater(UpdatePlayback, 100, true);
+		}
 	
 	//------------------------------------------------------------------------------------------------
 	void UpdatePlayback()
@@ -2032,8 +2065,10 @@ void StartLocalReplayPlayback()
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
 		
-		// Close the map
-		CloseMap();
+		// Defer CloseMap to next frame. Calling it synchronously here can fire while
+		// SCR_MapEntity.EOnFrame is still executing, leaving SCR_MapCursorModule with
+		// null widget references and causing a null-pointer crash every frame.
+		GetGame().GetCallqueue().CallLater(CloseMap, 0, false);
 		
 		// Endscreen will be triggered by server after scheduled time
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -2086,10 +2121,18 @@ void StartLocalReplayPlayback()
 		IEntity playerEntity = playerController.GetControlledEntity();
 		if (!playerEntity)
 		{
-			// Spectator mode - close map via menu manager
+			// Spectator mode - PS_SpectatorMenu.s_SpectatorMenu is null on dedicated,
+			// so close directly via SCR_MapEntity.
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: No player entity (spectator), closing map via menu manager", LogLevel.NORMAL);
-			GetGame().GetMenuManager().CloseMenuByPreset(ChimeraMenuPreset.MapMenu);
+				Print("GRAD_BC_ReplayManager: No player entity (spectator), closing map via SCR_MapEntity", LogLevel.NORMAL);
+			if (PS_SpectatorMenu.s_SpectatorMenu)
+				PS_SpectatorMenu.s_SpectatorMenu.CloseMap();
+			else
+			{
+				SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+				if (mapEntity && mapEntity.IsOpen())
+					mapEntity.CloseMap();
+			}
 			return;
 		}
 		

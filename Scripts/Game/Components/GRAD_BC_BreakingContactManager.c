@@ -1240,11 +1240,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	void SetBluforWin()
 	{
         if (m_skipWinConditions || GameModeOver())
-            return; 
-            
+            return;
+
         // Lock immediately
         m_skipWinConditions = true;
-			
+
+		m_bluforCaptured = true;
 		m_sWinnerSide = "blufor";
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
@@ -1293,6 +1294,18 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Called when an antenna is destroyed externally (e.g. GRAD_BC_DestroyRadioTransmission).
+	// Stops the truck's own transmission state so the action label updates correctly.
+	void StopRadioTruckTransmission()
+	{
+		if (!m_radioTruck)
+			return;
+		GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		if (rtc && rtc.GetTransmissionActive())
+			rtc.SetTransmissionActive(false);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	bool IsRadioTruckDestroyed()
 	{
@@ -2587,6 +2600,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			GetGame().GetCallqueue().Remove(mainLoop);
 			GetGame().GetCallqueue().Remove(setPhaseInitial);
+			GetGame().GetCallqueue().Remove(SyncJIPState);
+			GetGame().GetCallqueue().Remove(SyncJIPStateDeferred);
 		}
 		super.OnDelete(owner);
 	}
@@ -2608,6 +2623,82 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 				Print("BC Debug - SCR_GroupsManagerComponent not found, group naming disabled", LogLevel.WARNING);
 			}
 		}
+		else
+		{
+			// Client-side JIP synchronization
+			GetGame().GetCallqueue().CallLater(SyncJIPState, 1000, false);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// JIP synchronization - reconstructs client state from replicated properties
+	protected void SyncJIPState()
+	{
+		if (Replication.IsServer())
+			return; // Only run on clients
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - JIP: SyncJIPState called. Phase=%1, TransmissionCount=%2",
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase),
+				m_aTransmissionIds.Count()), LogLevel.NORMAL);
+
+		// Check if player is spectator - spectators don't need UI synchronization
+		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
+		if (!playerController)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: No player controller found, skipping JIP sync", LogLevel.WARNING);
+			return;
+		}
+
+		IEntity controlledEntity = playerController.GetControlledEntity();
+		if (!controlledEntity)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - JIP: Player is spectator, skipping JIP sync", LogLevel.NORMAL);
+			return;
+		}
+
+		// Defer callback execution slightly to ensure PlayerComponent UI is initialized
+		// PlayerComponent.InitMapMarkerUI is also scheduled at 1000ms, so we add 200ms buffer
+		GetGame().GetCallqueue().CallLater(SyncJIPStateDeferred, 200, false);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Deferred JIP synchronization - called after UI initialization
+	protected void SyncJIPStateDeferred()
+	{
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - JIP: SyncJIPStateDeferred executing", LogLevel.NORMAL);
+
+		// Trigger replication callbacks manually for JIP players
+		// These callbacks normally only fire on delta changes, not initial sync
+		
+		// Sync phase change notifications
+		if (m_iBreakingContactPhase != EBreakingContactPhase.LOADING)
+		{
+			OnBreakingContactPhaseChanged();
+		}
+
+		// Sync transmission marker data
+		if (m_aTransmissionPositions.Count() > 0 || m_aTransmissionIds.Count() > 0)
+		{
+			OnTransmissionMarkerDataChanged();
+			OnTransmissionIdsChanged();
+		}
+
+		// Sync OPFOR spawn position marker (USSR commander only)
+		if (m_vOpforSpawnPos != vector.Zero)
+		{
+			string factionKey = GetPlayerFactionKey();
+			if (factionKey == "USSR")
+			{
+				OnOpforPositionChanged();
+			}
+		}
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BC Debug - JIP: SyncJIPStateDeferred completed", LogLevel.NORMAL);
 	}
 }
 

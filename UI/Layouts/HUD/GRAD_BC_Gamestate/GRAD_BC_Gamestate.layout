@@ -1,5 +1,6 @@
 OverlayWidgetClass {
  Name "GRAD_BC_Gamestate"
+ "Is Visible" 0
  Clipping False
  {
   ImageWidgetClass "{6606FC361C0D313C}" {
@@ -32,44 +33,6 @@ OverlayWidgetClass {
    Slot OverlayWidgetSlot "{6606FC36A1B2C302}" {
     HorizontalAlign 3
     VerticalAlign 0
-   }
-   Size 32 110
-   {
-    FrameWidgetClass "{6606FC36A1B2C307}" {
-     Name "ProgressContainer"
-     Visible False
-     Slot FrameWidgetSlot "{6606FC36A1B2C308}" {
-      Anchor 0.3 0 0.7 0
-      OffsetTop 80
-      OffsetBottom 100
-      OffsetLeft 0
-      OffsetRight 0
-     }
-     {
-      ImageWidgetClass "{6606FC36A1B2C303}" {
-       Name "ProgressBg"
-       Slot FrameWidgetSlot "{6606FC36A1B2C304}" {
-        Anchor 0 0 1 1
-        OffsetTop 0
-        OffsetBottom 0
-        OffsetLeft 0
-        OffsetRight 0
-       }
-       Color 0 0 0 0.5882
-      }
-      ImageWidgetClass "{6606FC36A1B2C305}" {
-       Name "ProgressFill"
-       Slot FrameWidgetSlot "{6606FC36A1B2C306}" {
-        Anchor 0.02 0.1 0.02 0.9
-        OffsetTop 0
-        OffsetBottom 0
-        OffsetLeft 0
-        OffsetRight 0
-       }
-       Color 0.3922 0.7843 0.3922 1
-      }
-     }
-    }
    }
   }
  }

@@ -1944,7 +1944,7 @@ void StartLocalReplayPlayback()
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
-			gamestateDisplay.HideText();
+			gamestateDisplay.HideText(false);
 		}
 	}
 

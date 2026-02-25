@@ -2,6 +2,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 {
 	private RichTextWidget m_text;
 	private bool m_bPersistent = false;
+	private bool m_bTextRequested = false;	// only show when explicitly requested via ShowText/ShowPersistentText()
 
 	// Progress bar widgets (defined in layout)
 	private Widget m_progressContainer;
@@ -29,11 +30,21 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 
 		m_progressContainer = m_wRoot.FindAnyWidget("ProgressContainer");
 		m_progressFill = ImageWidget.Cast(m_wRoot.FindAnyWidget("ProgressFill"));
+
+		m_wRoot.SetVisible(false);
+		m_wRoot.SetOpacity(0);
+	}
+
+	override void Show(bool show, float speed = UIConstants.FADE_RATE_INSTANT, EAnimationCurve curve = EAnimationCurve.LINEAR) {
+		if (show && !m_bTextRequested)
+			return;
+		super.Show(show, speed, curve);
 	}
 
 	void ShowText(string message)
     {
 		m_bPersistent = false;
+		m_bTextRequested = true;
 		m_text.SetText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -46,6 +57,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	void ShowPersistentText(string message)
 	{
 		m_bPersistent = true;
+		m_bTextRequested = true;
 		if (m_text)
 			m_text.SetText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
@@ -84,14 +96,18 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	}
 
 	// Explicitly hide the gamestate display and progress bar
-	void HideText()
+	void HideText(bool firstHide)
 	{
 		m_bPersistent = false;
+		m_bTextRequested = false;
 
 		if (m_progressContainer)
 			m_progressContainer.SetVisible(false);
+		
+		float duration = 1.0;
+		if (firstHide) { duration = 0.0 };
 
-		super.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
+		super.Show(false, duration, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_Gamestate: HideText called", LogLevel.NORMAL);
 	}
@@ -101,6 +117,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		if (m_bPersistent)
 			return;
 
+		m_bTextRequested = false;
 		super.Show(false, 3.0, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("GRAD_BC_Gamestate: hiding m_text", LogLevel.VERBOSE);

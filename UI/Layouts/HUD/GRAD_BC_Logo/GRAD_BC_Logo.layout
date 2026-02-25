@@ -1,5 +1,6 @@
 FrameWidgetClass {
  Name "rootFrame"
+ "Is Visible" 0
  {
   ImageWidgetClass "{5F3E9E3E957EF7C0}" {
    Name "GRAD_BC_Logo_Widget"

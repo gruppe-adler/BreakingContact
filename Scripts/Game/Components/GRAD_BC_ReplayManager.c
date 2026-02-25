@@ -1628,46 +1628,48 @@ void StartLocalReplayPlayback()
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: StartClientReplayPlayback called", LogLevel.NORMAL);
 
-		// Open map for replay viewing
+		// Open map for replay viewing.
+		// After MoveAllPlayersToSpectator the player controller may no longer cast to
+		// SCR_PlayerController, so treat a null cast the same as spectator mode and fall
+		// through to the menu-manager path instead of returning early.
 		SCR_PlayerController playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		if (!playerController)
-		{
-			Print("GRAD_BC_ReplayManager: No player controller found", LogLevel.ERROR);
-			return;
-		}
 
-		SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
-		if (ch)
-		{
-			// Player has a controlled entity - try gadget manager to open map
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
-			bool mapOpened = false;
+		bool mapOpened = false;
 
-			SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
-			if (gadgetManager)
+		if (playerController)
+		{
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(playerController.GetControlledEntity());
+			if (ch)
 			{
-				IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-				if (mapGadget)
+				// Player still has a controlled entity - try gadget manager to open map
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Character found, opening map via gadget manager", LogLevel.NORMAL);
+
+				SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(ch.FindComponent(SCR_GadgetManagerComponent));
+				if (gadgetManager)
 				{
-					gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND, true);
-					mapOpened = true;
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
+					IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+					if (mapGadget)
+					{
+						gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_HAND, true);
+						mapOpened = true;
+						if (GRAD_BC_BreakingContactManager.IsDebugMode())
+							Print("GRAD_BC_ReplayManager: Map opened via gadget manager", LogLevel.NORMAL);
+					}
 				}
-			}
-
-			if (!mapOpened)
-			{
-				Print("GRAD_BC_ReplayManager: Gadget manager fallback, opening map via menu manager", LogLevel.WARNING);
-				GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 			}
 		}
 		else
 		{
-			// Spectator - no controlled entity - use menu manager approach
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: No controlled character (spectator), opening map via menu manager", LogLevel.NORMAL);
+				Print("GRAD_BC_ReplayManager: No SCR_PlayerController (spectator), opening map via menu manager", LogLevel.NORMAL);
+		}
+
+		if (!mapOpened)
+		{
+			// Spectator, no gadget, or no player controller - use menu manager
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: Opening map via menu manager", LogLevel.NORMAL);
 			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 		}
 

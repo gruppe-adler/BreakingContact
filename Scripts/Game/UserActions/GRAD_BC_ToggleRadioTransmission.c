@@ -28,7 +28,58 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override bool CanBeShownScript(IEntity user)
 	{
-		return CanBePerformedScript(user);
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!bcm) return false;
+
+		if (bcm.GetBreakingContactPhase() != EBreakingContactPhase.GAME)
+			return false;
+
+		if (!m_radioTruckComponent)
+			return false;
+
+		// Hide entirely if disabled
+		if (m_radioTruckComponent.GetIsDisabled())
+			return false;
+
+		// Always show while transmitting (so player can stop it)
+		if (m_radioTruckComponent.GetTransmissionActive())
+			return true;
+
+		// Show "Start Transmission" even when blocked by cooldown, so players understand why
+		return true;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Returns true if the current position is within 1000 m of a DONE or DISABLED transmission point.
+	protected bool IsBlockedByCooldown(GRAD_BC_BreakingContactManager bcm)
+	{
+		if (!m_radioTruckComponent) return false;
+
+		IEntity radioTruck = m_radioTruckComponent.GetOwner();
+		if (!radioTruck) return false;
+
+		vector truckPos = radioTruck.GetOrigin();
+		array<GRAD_BC_TransmissionComponent> allTransmissions = bcm.GetTransmissionPoints();
+		if (!allTransmissions) return false;
+
+		for (int i = 0; i < allTransmissions.Count(); i++)
+		{
+			GRAD_BC_TransmissionComponent tpc = allTransmissions[i];
+			if (!tpc) continue;
+
+			ETransmissionState state = tpc.GetTransmissionState();
+			if (state != ETransmissionState.DONE && state != ETransmissionState.DISABLED)
+				continue;
+
+			float distance = vector.Distance(truckPos, tpc.GetOwner().GetOrigin());
+			if (distance <= 1000.0)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - Start blocked: within 1000m of DONE/DISABLED point (dist: %1m, state: %2)", distance, state), LogLevel.NORMAL);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -38,56 +89,32 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		if (!bcm) return false;
 		EBreakingContactPhase currentPhase = bcm.GetBreakingContactPhase();
 
-		// Only allow in GAME phase (adjust if your "started" phase is different)
+		// Only allow in GAME phase
 		if (currentPhase != EBreakingContactPhase.GAME)
 			return false;
-		
+
 		// Don't allow if radio truck is disabled
 		if (m_radioTruckComponent && m_radioTruckComponent.GetIsDisabled())
 			return false;
 
 		// If radio truck is currently transmitting, allow stopping it
-		if (m_radioTruckComponent && m_radioTruckComponent.GetTransmissionActive()) {
-			// Get the currently active transmission to check its state
+		if (m_radioTruckComponent && m_radioTruckComponent.GetTransmissionActive())
+		{
+			// Don't allow stopping a DONE transmission
 			IEntity radioTruck = m_radioTruckComponent.GetOwner();
-			if (radioTruck) {
+			if (radioTruck)
+			{
 				GRAD_BC_TransmissionComponent activeTPC = bcm.GetNearestTransmissionPoint(radioTruck.GetOrigin(), true);
-				if (activeTPC && activeTPC.GetTransmissionState() == ETransmissionState.DONE) {
-					return false; // Don't allow stopping a DONE transmission
-				}
+				if (activeTPC && activeTPC.GetTransmissionState() == ETransmissionState.DONE)
+					return false;
 			}
-			return true; // Allow stopping active transmission
+			return true;
 		}
-		
-		// If radio truck is not transmitting, check distance to existing transmission points
-		if (m_radioTruckComponent) {
-			IEntity radioTruck = m_radioTruckComponent.GetOwner();
-			if (radioTruck) {
-				// Check if there's any transmission point within 1000m
-				vector truckPos = radioTruck.GetOrigin();
-				array<GRAD_BC_TransmissionComponent> allTransmissions = bcm.GetTransmissionPoints();
-				if (allTransmissions) {
-					for (int i = 0; i < allTransmissions.Count(); i++) {
-						GRAD_BC_TransmissionComponent tpc = allTransmissions[i];
-						if (tpc) {
-							vector transmissionPos = tpc.GetOwner().GetOrigin();
-							float distance = vector.Distance(truckPos, transmissionPos);
-							ETransmissionState state = tpc.GetTransmissionState();
-							
-							// Only prevent starting new transmission if within 1000m of DONE or DISABLED transmission points
-							// Allow starting near INTERRUPTED (state 2) or OFF (state 0) transmission points
-							if (distance <= 1000.0 && (state == ETransmissionState.DONE || state == ETransmissionState.DISABLED)) {
-								if (GRAD_BC_BreakingContactManager.IsDebugMode())
-									Print(string.Format("BC Debug - Cannot start transmission: Too close to DONE/DISABLED transmission point (distance: %1m, state: %2)", distance, state), LogLevel.NORMAL);
-								return false;
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		// Allow starting new transmission if no nearby transmission points
+
+		// Block starting if within cooldown area - action is shown but greyed out
+		if (IsBlockedByCooldown(bcm))
+			return false;
+
 		return true;
 	}
 	
@@ -127,20 +154,28 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 			Print("BC Debug - m_radioTruckComponent is null", LogLevel.ERROR);
 			return false;
 		}
-		
+
 		if (m_radioTruckComponent.GetIsDisabled())
 		{
 			outName = "Radio Truck Disabled";
 			return true;
 		}
-		
+
 		if (m_radioTruckComponent.GetTransmissionActive())
 		{
 			outName = "Stop Radio Transmission";
-		} else
-		{
-			outName = "Start Radio Transmission";
+			return true;
 		}
+
+		// Show reason when blocked by area cooldown
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm && IsBlockedByCooldown(bcm))
+		{
+			outName = "Start Radio Transmission (Area Cooldown)";
+			return true;
+		}
+
+		outName = "Start Radio Transmission";
 		return true;
 	}
 

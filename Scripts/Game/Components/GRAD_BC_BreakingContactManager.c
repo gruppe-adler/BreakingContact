@@ -1240,11 +1240,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	void SetBluforWin()
 	{
         if (m_skipWinConditions || GameModeOver())
-            return; 
-            
+            return;
+
         // Lock immediately
         m_skipWinConditions = true;
-			
+
+		m_bluforCaptured = true;
 		m_sWinnerSide = "blufor";
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
@@ -1293,6 +1294,18 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		GetGame().GetCallqueue().CallLater(SetBreakingContactPhase, 5000, false, EBreakingContactPhase.GAMEOVER);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Called when an antenna is destroyed externally (e.g. GRAD_BC_DestroyRadioTransmission).
+	// Stops the truck's own transmission state so the action label updates correctly.
+	void StopRadioTruckTransmission()
+	{
+		if (!m_radioTruck)
+			return;
+		GRAD_BC_RadioTruckComponent rtc = GRAD_BC_RadioTruckComponent.Cast(m_radioTruck.FindComponent(GRAD_BC_RadioTruckComponent));
+		if (rtc && rtc.GetTransmissionActive())
+			rtc.SetTransmissionActive(false);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	bool IsRadioTruckDestroyed()
 	{

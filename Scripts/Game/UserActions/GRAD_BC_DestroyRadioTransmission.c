@@ -93,18 +93,21 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// Set the transmission component to DISABLED state instead of destroying it
 		// This keeps the marker visible during cooldown
 		m_transmissionComponent.SetTransmissionState(ETransmissionState.DISABLED);
-		
-		// Stop any active transmission
+
+		// Stop any active transmission on the antenna component itself
 		m_transmissionComponent.SetTransmissionActive(false);
-		
-		// Register destroyed position for additional spawn prevention
+
+		// Also stop the radio truck's own transmission state so the truck action
+		// label updates from "Stop Radio Transmission" to "Start Radio Transmission"
 		GRAD_BC_BreakingContactManager bcManager = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcManager)
 		{
+			bcManager.StopRadioTruckTransmission();
+
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("BC Debug - Registering destroyed transmission at position %1", currentPos.ToString()), LogLevel.NORMAL);
 			bcManager.RegisterDestroyedTransmissionPosition(currentPos);
-			
+
 			// Also register the disabled component for re-enabling after cooldown
 			bcManager.RegisterDisabledTransmissionComponent(m_transmissionComponent);
 		}

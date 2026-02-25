@@ -16,12 +16,22 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	
 	[Attribute("500.0", UIWidgets.EditBox, "Max projectile recording distance")]
 	protected float m_fMaxProjectileDistance;
-	
+
+	[Attribute("7200", UIWidgets.EditBox, "Maximum number of frames to record (7200 = 2 hours at 1fps)")]
+	protected int m_iMaxFrames;
+
+	[Attribute("64.0", UIWidgets.EditBox, "Maximum replay memory usage in MB before stopping recording")]
+	protected float m_fMaxMemoryUsageMB;
+
 	// Recording state
 	protected bool m_bIsRecording = false;
 	protected bool m_bIsPlayingBack = false;
 	protected ref GRAD_BC_ReplayData m_replayData;
 	protected float m_fLastRecordTime = 0;
+
+	// Capacity warning flags
+	protected bool m_bWarning90Frames = false;
+	protected bool m_bWarning90Memory = false;
 	
 	// Playback state
 	protected float m_fPlaybackStartTime = 0;
@@ -410,7 +420,11 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print("GRAD_BC_ReplayManager: Starting replay recording", LogLevel.NORMAL);
 		m_bIsRecording = true;
 		m_fLastRecordTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
-		
+
+		// Reset capacity warning flags
+		m_bWarning90Frames = false;
+		m_bWarning90Memory = false;
+
 		// Start recording loop
 		GetGame().GetCallqueue().CallLater(RecordFrame, m_fRecordingInterval * 1000, true);
 	}
@@ -447,6 +461,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %.2f to %.2f)",
 						m_replayData.frames.Count(), m_replayData.totalDuration, oldStartTime, m_replayData.startTime), LogLevel.NORMAL);
+
+				// Log final recording statistics
+				float finalMemoryMB = CalculateReplaySizeMB();
+				float framePercentUsed = m_replayData.frames.Count() / (float)m_iMaxFrames * 100.0;
+				float memoryPercentUsed = finalMemoryMB / m_fMaxMemoryUsageMB * 100.0;
+				Print(string.Format("[GRAD_BC_ReplayManager] Recording stopped: %1 frames (%.1f%%), %.1f MB (%.1f%%)",
+					m_replayData.frames.Count(), framePercentUsed, finalMemoryMB, memoryPercentUsed), LogLevel.NORMAL);
 			}
 		}
 	}
@@ -480,7 +501,19 @@ class GRAD_BC_ReplayManager : ScriptComponent
 					removedCount, originalCount, cleanedFrames.Count()), LogLevel.NORMAL);
 		}
 	}
-	
+
+	//------------------------------------------------------------------------------------------------
+	// Calculate estimated replay size in MB
+	protected float CalculateReplaySizeMB()
+	{
+		if (!m_replayData || !m_replayData.frames)
+			return 0.0;
+
+		// Rough estimate: ~10 KB per frame on average
+		// (accounts for player positions, vehicle positions, projectiles, etc.)
+		return m_replayData.frames.Count() * 10.0 / 1024.0;
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void RecordFrame()
 	{
@@ -501,7 +534,41 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print("GRAD_BC_ReplayManager: World not available during recording", LogLevel.ERROR);
 			return;
 		}
-		
+
+		// Check max frame limit
+		int currentFrameCount = m_replayData.frames.Count();
+		if (currentFrameCount >= m_iMaxFrames)
+		{
+			Print(string.Format("[GRAD_BC_ReplayManager] Max frame limit reached (%1 frames), stopping recording", m_iMaxFrames), LogLevel.WARNING);
+			StopRecording();
+			return;
+		}
+
+		// Check memory usage limit
+		float currentMemoryMB = CalculateReplaySizeMB();
+		if (currentMemoryMB >= m_fMaxMemoryUsageMB)
+		{
+			Print(string.Format("[GRAD_BC_ReplayManager] Max memory limit reached (%.1f MB), stopping recording", currentMemoryMB), LogLevel.WARNING);
+			StopRecording();
+			return;
+		}
+
+		// Warn at 90% capacity for frames
+		float framePercentUsed = currentFrameCount / (float)m_iMaxFrames * 100.0;
+		if (framePercentUsed >= 90.0 && !m_bWarning90Frames)
+		{
+			m_bWarning90Frames = true;
+			Print(string.Format("[GRAD_BC_ReplayManager] Recording at 90%% frame capacity (%1/%2 frames)", currentFrameCount, m_iMaxFrames), LogLevel.WARNING);
+		}
+
+		// Warn at 90% capacity for memory
+		float memoryPercentUsed = currentMemoryMB / m_fMaxMemoryUsageMB * 100.0;
+		if (memoryPercentUsed >= 90.0 && !m_bWarning90Memory)
+		{
+			m_bWarning90Memory = true;
+			Print(string.Format("[GRAD_BC_ReplayManager] Recording at 90%% memory capacity (%.1f/%.1f MB)", currentMemoryMB, m_fMaxMemoryUsageMB), LogLevel.WARNING);
+		}
+
 		float currentTime = world.GetWorldTime() / 1000.0; // Convert milliseconds to seconds
 		GRAD_BC_ReplayFrame frame = GRAD_BC_ReplayFrame.Create(currentTime);
 		

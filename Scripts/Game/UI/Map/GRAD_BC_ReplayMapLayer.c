@@ -11,7 +11,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	
 	protected Widget m_WidgetsRoot;
     protected ref map<string, ImageWidget> m_ActiveWidgets = new map<string, ImageWidget>();
+	protected int m_iMapOpenFrameCounter = 0;
     
+	// Guard to prevent double registration of input listeners
+	protected bool m_bListenersRegistered = false;
+
+	// Debug/logging guards
+	protected bool m_bStabilizedLogged = false;
+	protected bool m_bWorldToScreenSampled = false;
+
     // We track used widgets every frame to hide/remove unused ones (garbage collection)
     protected ref set<string> m_UsedWidgetKeys = new set<string>();
 
@@ -21,18 +29,39 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         
         // Create a root frame to hold our markers. 
         // We attach it to the workspace. You might want to attach it to m_MapEntity.GetMapWidget() if available.
-        if (!m_WidgetsRoot)
-        {
-            m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, null);
-            FrameSlot.SetSize(m_WidgetsRoot, 1, 1); // Fill parent or set specific size logic if needed
-            // Ensure it covers the screen for WorldToScreen mapping
-            FrameSlot.SetAnchorMin(m_WidgetsRoot, 0, 0);
-            FrameSlot.SetAnchorMax(m_WidgetsRoot, 1, 1);
-            FrameSlot.SetOffsets(m_WidgetsRoot, 0, 0, 0, 0);
-        }
+		if (!m_WidgetsRoot)
+		{
+			// Prefer attaching to the map's UI root so widget coordinates match the map.
+			Widget parentWidget = null;
+			if (m_MapEntity)
+				parentWidget = m_MapEntity.GetMapMenuRoot();
+
+			bool parentedToMapRoot = false;
+			if (!parentWidget)
+			{
+				// Fallback to workspace if no map root available yet
+				parentWidget = null;
+				parentedToMapRoot = false;
+			}
+			else
+			{
+				parentedToMapRoot = true;
+			}
+
+			m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, parentWidget);
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Widget Root Created - parentedToMapRoot=%1, m_MapEntity=%2, m_WidgetsRoot=%3", parentedToMapRoot, m_MapEntity != null, m_WidgetsRoot != null), LogLevel.NORMAL);
+			FrameSlot.SetSize(m_WidgetsRoot, 1, 1); // Fill parent or set specific size logic if needed
+			// Ensure it covers the screen for WorldToScreen mapping
+			FrameSlot.SetAnchorMin(m_WidgetsRoot, 0, 0);
+			FrameSlot.SetAnchorMax(m_WidgetsRoot, 1, 1);
+			FrameSlot.SetOffsets(m_WidgetsRoot, 0, 0, 0, 0);
+		}
         
-        if (GRAD_BC_BreakingContactManager.IsDebugMode())
-        	Print("GRAD_BC_ReplayMapLayer: Widget Root Created", LogLevel.NORMAL);
+		m_iMapOpenFrameCounter = 0;
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayMapLayer: Widget Root Created", LogLevel.NORMAL);
     }
 
     override void OnMapClose(MapConfiguration config)
@@ -42,12 +71,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         UnregisterToggleInputs();
         
         // Cleanup widgets
-        if (m_WidgetsRoot)
+		if (m_WidgetsRoot)
         {
             m_WidgetsRoot.RemoveFromHierarchy();
             m_WidgetsRoot = null;
         }
         m_ActiveWidgets.Clear();
+		m_iMapOpenFrameCounter = 0;
     }
 
     // Helper to get or create an icon widget
@@ -109,10 +139,37 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
         GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 
-        if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
+		if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
+		{
+			foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
+			return;
+		}
+
+		// Allow a few frames after map open for pan/zoom/projection to stabilise
+		m_iMapOpenFrameCounter++;
+		int minStableFrames = 3;
+		if (m_iMapOpenFrameCounter < minStableFrames)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Skipping draw for initial stabilisation frame %1/%2", m_iMapOpenFrameCounter, minStableFrames), LogLevel.NORMAL);
+			return;
+		}
+		else if (!m_bStabilizedLogged)
+		{
+			m_bStabilizedLogged = true;
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Map projection stabilized after %1 frames", m_iMapOpenFrameCounter), LogLevel.NORMAL);
+		}
+
+        // Ensure MapContext is active every frame while replay map is open.
+        // PS_SpectatorMenu.OnMenuUpdate activates MapContext but only when it is the
+        // focused top menu. During replay the spectator menu may lose focus (e.g. after
+        // a game-over notification opens). Activating here guarantees C/V keybinds work.
+        if (m_bIsInReplayMode)
         {
-            foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
-            return;
+            InputManager inputManager = GetGame().GetInputManager();
+            if (inputManager)
+                inputManager.ActivateContext("MapContext");
         }
 
         // ---------------------------------------------------------
@@ -297,9 +354,22 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
         m_UsedWidgetKeys.Insert(key);
 
-        // 2. World to Screen - Returns screen pixels
-        float screenX, screenY;
-        m_MapEntity.WorldToScreen(worldPos[0], worldPos[2], screenX, screenY, true);
+		// 2. World to Screen - Returns screen pixels
+		float screenX, screenY;
+		m_MapEntity.WorldToScreen(worldPos[0], worldPos[2], screenX, screenY, true);
+
+		// One-shot sample log to diagnose coordinate mapping issues (avoid spamming logs)
+		if (!m_bWorldToScreenSampled)
+		{
+			m_bWorldToScreenSampled = true;
+			bool parentedToMapRoot = false;
+			if (m_WidgetsRoot && m_MapEntity)
+			{
+				parentedToMapRoot = (m_MapEntity.GetMapMenuRoot() == m_WidgetsRoot);
+			}
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: WorldToScreen sample - worldPos=[%1, %2, %3] -> screen=[%4, %5], parentedToMapRoot=%6", worldPos[0], worldPos[1], worldPos[2], screenX, screenY, parentedToMapRoot), LogLevel.NORMAL);
+		}
 
         // 3. Position & Rotation
         // FIXED: Apply DPI unscaling to screen coordinates for proper positioning
@@ -523,7 +593,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
 		
 		if (enabled)
+		{
 			RegisterToggleInputs();
+			// Activate MapContext immediately so keybinds work on the very first frame.
+			InputManager inputManager = GetGame().GetInputManager();
+			if (inputManager)
+				inputManager.ActivateContext("MapContext");
+		}
 		else
 			UnregisterToggleInputs();
 	}
@@ -532,24 +608,61 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Register input listeners for replay toggle keys
 	protected void RegisterToggleInputs()
 	{
+		if (m_bListenersRegistered)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayMapLayer: RegisterToggleInputs called but listeners already registered", LogLevel.NORMAL);
+			return;
+		}
+
 		InputManager inputManager = GetGame().GetInputManager();
 		if (!inputManager)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayMapLayer: RegisterToggleInputs - InputManager not available", LogLevel.WARNING);
 			return;
-		
+		}
+
+		// Ensure widgets and map are ready before registering inputs
+		if (!m_WidgetsRoot || !m_MapEntity)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayMapLayer: RegisterToggleInputs - widgets or map not ready (widgets=%1, map=%2)", m_WidgetsRoot != null, m_MapEntity != null), LogLevel.WARNING);
+			return;
+		}
+
 		inputManager.AddActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
 		inputManager.AddActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+		m_bListenersRegistered = true;
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayMapLayer: RegisterToggleInputs - listeners registered: %1", m_bListenersRegistered), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
 	// Unregister input listeners for replay toggle keys
 	protected void UnregisterToggleInputs()
 	{
+		if (!m_bListenersRegistered)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayMapLayer: UnregisterToggleInputs called but no listeners were registered", LogLevel.NORMAL);
+			return;
+		}
+
 		InputManager inputManager = GetGame().GetInputManager();
 		if (!inputManager)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayMapLayer: UnregisterToggleInputs - InputManager not available", LogLevel.WARNING);
+			m_bListenersRegistered = false;
 			return;
-		
+		}
+
 		inputManager.RemoveActionListener("GRAD_BC_ToggleEmptyVehicles", EActionTrigger.DOWN, OnToggleEmptyVehicles);
 		inputManager.RemoveActionListener("GRAD_BC_ToggleCivilians", EActionTrigger.DOWN, OnToggleCivilians);
+		m_bListenersRegistered = false;
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayMapLayer: UnregisterToggleInputs - listeners removed", LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------

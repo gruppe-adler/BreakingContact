@@ -48,6 +48,10 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       }
      }
     }
+    SCR_CampaignBuildingBudgetToEvaluateData "{68B48798F00B45D8}" {
+     m_eBudget CAMPAIGN
+     m_bShowBudgetInUI 1
+    }
     SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39AFF2BE6E9}" {
      m_eBudget RANK_CAPTAIN
     }
@@ -75,7 +79,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       PivotID "v_body_com"
       Offset -1.4928 0.5423 -2.425
      }
-     InputAction "PerformAction"
     }
    }
    additionalActions {

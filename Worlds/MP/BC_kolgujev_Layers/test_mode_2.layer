@@ -22,6 +22,7 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
    m_bKillIndefinitelyUnconsciousPlayers 1
   }
  }
+ m_bRemoveRedundantUnits 1
  m_iFreezeTime 0
  m_bDisableGarbageSystem 1
  {
@@ -191,7 +192,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
  {
   components {
    PS_GroupCallsignAssigner "{6891785577AC9004}" {
-    m_iSquadCallsign 3
+    m_iSquadCallsign 2
    }
   }
   coords 6640.33 471.663 6504.626
@@ -208,7 +209,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
  {
   components {
    PS_GroupCallsignAssigner "{689178557022A1EA}" {
-    m_iSquadCallsign 4
+    m_iSquadCallsign 3
    }
   }
   coords 6637.819 471.836 6502.98

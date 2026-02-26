@@ -1473,7 +1473,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			else
 				description = "BLUFOR disabled your radio truck before all transmissions were completed.";
 		}
-		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		else if (m_iTransmissionCount > 0 && GetTransmissionsDoneCount() >= m_iTransmissionCount)
 		{
 			subtitle = "All Transmissions Completed";
 			if (playerFactionKey == "USSR")
@@ -1525,7 +1525,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			gameOverType = EGameOverTypes.END2; // Blufor wins by disabling the radio truck
 		}
-		else if (GetTransmissionsDoneCount() >= m_iTransmissionCount)
+		else if (m_iTransmissionCount > 0 && GetTransmissionsDoneCount() >= m_iTransmissionCount)
 		{
 			gameOverType = EGameOverTypes.END6; // Opfor wins by completing all transmissions
 		}

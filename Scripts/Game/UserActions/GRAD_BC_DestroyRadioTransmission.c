@@ -35,6 +35,13 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		if (!IsUserBlufor(user))
 			return false;
 		
+		// If we have a linked transmission component, hide the action when it's disabled or done
+		if (m_transmissionComponent) {
+			ETransmissionState state = m_transmissionComponent.GetTransmissionState();
+			if (state == ETransmissionState.DISABLED || state == ETransmissionState.DONE)
+				return false;
+		}
+		
 		return true;
 	}
 
@@ -119,7 +126,7 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// Hide the antenna model instead of destroying the entity
 		HideAntennaModel(pOwnerEntity);
 		
-		// Spawn debris pieces around the destroyed antenna
+		// Spawn debris pieces around the destroyed antenna (clients will spawn visuals via broadcast RPC)
 		SpawnAntennaDebris(currentPos, currentAngles);
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -159,6 +166,28 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	protected void SpawnAntennaDebris(vector centerPosition, vector angles)
 	{
+		// If running on server, broadcast a RPC so clients spawn local debris visuals.
+		// Client-side spawning avoids relying on server-side debris replication which
+		// can be inconsistent on dedicated servers.
+		if (Replication.IsServer()) {
+			Rpc(RpcDo_Broadcast_SpawnAntennaDebris, centerPosition, angles);
+			return;
+		}
+		
+		// If we're here, we're a client — spawn local debris visuals
+		SpawnAntennaDebrisLocal(centerPosition, angles);
+	}
+
+	// RPC: broadcast to all clients to spawn local debris visuals
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	protected void RpcDo_Broadcast_SpawnAntennaDebris(vector centerPosition, vector angles)
+	{
+		SpawnAntennaDebrisLocal(centerPosition, angles);
+	}
+
+	// Local helper that actually spawns debris pieces (client-side only)
+	private void SpawnAntennaDebrisLocal(vector centerPosition, vector angles)
+	{
 		// Use SCR_DebrisSmallEntity for proper debris spawning
 		array<string> debrisModels = {
 			"{1B6E5E82B4E9805A}Assets/Props/Military/Antennas/Antenna_USSR_02/Dst/Antenna_USSR_02_dst_01.xob",
@@ -167,14 +196,11 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			"{A0B75E5A78C55440}Assets/Props/Military/Antennas/Antenna_USSR_02/Dst/Antenna_USSR_02_dst_01_dbr_03.xob"
 		};
 		
-		// Spawn 4-6 debris pieces around the antenna
 		int debrisCount = debrisModels.Count();
 		for (int i = 0; i < debrisCount; i++)
 		{
-			// Random model selection
 			string modelPath = debrisModels[i];
 			
-			// Calculate random position around the antenna
 			float angle = Math.RandomFloatInclusive(0.0, 360.0);
 			float distance = Math.RandomFloatInclusive(2.0, 8.0);
 			
@@ -185,21 +211,18 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			vector debrisPos = centerPosition + Vector(offsetX, 0, offsetZ);
 			debrisPos[1] = GetGame().GetWorld().GetSurfaceY(debrisPos[0], debrisPos[2]) + 0.5; // Lift slightly above ground
 			
-			// Create transformation matrix for debris
 			vector debrisMat[4];
 			Math3D.MatrixIdentity4(debrisMat);
 			debrisMat[3] = debrisPos;
 			
-			// Random rotation
 			vector debrisAngles = Vector(
-				Math.RandomFloatInclusive(0.0, 360.0),  // Yaw
-				Math.RandomFloatInclusive(-30.0, 30.0), // Pitch
-				Math.RandomFloatInclusive(-30.0, 30.0)  // Roll
+				Math.RandomFloatInclusive(0.0, 360.0),
+				Math.RandomFloatInclusive(-30.0, 30.0),
+				Math.RandomFloatInclusive(-30.0, 30.0)
 			);
 			Math3D.AnglesToMatrix(debrisAngles, debrisMat);
-			debrisMat[3] = debrisPos; // Restore position after rotation
+			debrisMat[3] = debrisPos;
 			
-			// Random velocities for realistic physics
 			vector linearVel = Vector(
 				Math.RandomFloatInclusive(-3.0, 3.0),
 				Math.RandomFloatInclusive(1.0, 5.0),
@@ -211,13 +234,11 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 				Math.RandomFloatInclusive(-180.0, 180.0)
 			);
 			
-			// Debris parameters
 			float debrisMass = Math.RandomFloatInclusive(2.0, 8.0);
 			const float debrisLifetime = 30.0; // 30 seconds lifetime
 			const float debrisMaxDist = 500.0; // Visible up to 500m
 			const int debrisPriority = 3; // Medium priority
 			
-			// Spawn the debris using the proper system
 			SCR_DebrisSmallEntity debris = SCR_DebrisSmallEntity.SpawnDebris(
 				GetGame().GetWorld(),
 				debrisMat,
@@ -228,10 +249,10 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 				debrisPriority,
 				linearVel,
 				angularVel,
-				"", // No material remap
-				false, // Not static (dynamic physics)
-				SCR_EMaterialSoundTypeDebris.METAL_LIGHT, // Metal sound type
-				true // Exterior source
+				"",
+				false,
+				SCR_EMaterialSoundTypeDebris.METAL_LIGHT,
+				true
 			);
 			
 			if (debris)

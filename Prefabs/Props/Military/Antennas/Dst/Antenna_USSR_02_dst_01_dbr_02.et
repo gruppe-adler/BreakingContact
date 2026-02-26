@@ -5,8 +5,9 @@ GenericEntity {
    Object "{D7BD36D28C67BB30}Assets/Props/Military/Antennas/Antenna_USSR_02/Dst/Antenna_USSR_02_dst_01_dbr_02.xob"
   }
   RigidBody "{68B4C4474DD95A9C}" {
-   SimState Dynamic
+   Active Active
    ResponseIndex "SmallDestructible"
+   ModelGeometry 1
   }
  }
 }

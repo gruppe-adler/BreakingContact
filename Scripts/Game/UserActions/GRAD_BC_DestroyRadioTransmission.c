@@ -160,9 +160,19 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	{
 		Print(string.Format("BC DestroyAction - SpawnAntennaDebrisLocal called at pos=%1", centerPosition.ToString()), LogLevel.WARNING);
 
-		// Prefab ResourceNames — fill in GUIDs after creating .et prefabs in Workbench
+		// Spawn the antenna foot at the antenna's exact position — no scatter, no velocity
+		ResourceName footPrefab = "{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et";
+		vector footMat[4];
+		Math3D.MatrixIdentity4(footMat);
+		Math3D.AnglesToMatrix(angles, footMat);
+		footMat[3] = centerPosition;
+		EntitySpawnParams footSpawnParams = new EntitySpawnParams();
+		footSpawnParams.Transform = footMat;
+		IEntity footEntity = GetGame().SpawnEntityPrefab(Resource.Load(footPrefab), GetGame().GetWorld(), footSpawnParams);
+		Print(string.Format("BC DestroyAction - Foot spawned=%1 at pos=%2", footEntity != null, centerPosition.ToString()), LogLevel.WARNING);
+
+		// Prefab ResourceNames for flying debris pieces
 		array<ResourceName> debrisPrefabs = {
-			"{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et",
 			"{3ADAD3D18B763111}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_01.et",
 			"{568EE73137B2BE3F}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_02.et",
 			"{B312ABC83B572954}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_03.et"
@@ -173,16 +183,6 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		{
 			ResourceName prefab = debrisPrefabs[i];
 
-			float angle = Math.RandomFloatInclusive(0.0, 360.0);
-			float distance = Math.RandomFloatInclusive(2.0, 8.0);
-
-			float radians = angle * Math.DEG2RAD;
-			float offsetX = distance * Math.Cos(radians);
-			float offsetZ = distance * Math.Sin(radians);
-
-			vector debrisPos = centerPosition + Vector(offsetX, 0, offsetZ);
-			debrisPos[1] = GetGame().GetWorld().GetSurfaceY(debrisPos[0], debrisPos[2]) + 0.5;
-
 			vector debrisMat[4];
 			Math3D.MatrixIdentity4(debrisMat);
 			vector debrisAngles = Vector(
@@ -191,7 +191,7 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 				Math.RandomFloatInclusive(-30.0, 30.0)
 			);
 			Math3D.AnglesToMatrix(debrisAngles, debrisMat);
-			debrisMat[3] = debrisPos;
+			debrisMat[3] = centerPosition;
 
 			EntitySpawnParams spawnParams = new EntitySpawnParams();
 			spawnParams.Transform = debrisMat;

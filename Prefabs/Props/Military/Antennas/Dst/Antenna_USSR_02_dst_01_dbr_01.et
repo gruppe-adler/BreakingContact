@@ -5,8 +5,17 @@ GenericEntity {
    Object "{4EA38F4B91808AA0}Assets/Props/Military/Antennas/Antenna_USSR_02/Dst/Antenna_USSR_02_dst_01_dbr_01.xob"
   }
   RigidBody "{68B4C4470D99A294}" {
-   SimState Dynamic
+   Active Active
+   Mass 1.1
    ResponseIndex "SmallDestructible"
+   Geometries {
+    PhysicsCylinderGeometry Geom {
+     LayerPreset "Debris"
+     Mass 1
+     Radius 0.15
+     Height 1.73
+    }
+   }
   }
  }
 }

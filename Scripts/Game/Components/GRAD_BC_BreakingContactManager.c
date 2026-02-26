@@ -2029,8 +2029,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 	        vector finalSpawnPos = roadPosition;
 
-	        // Basic collision check using trace
-	        bool hasCollision = false;
+	        // Basic collision check using trace (log only, road surfaces are valid spawn positions)
 	        if (GetGame().GetWorld())
 	        {
 	            autoptr TraceParam trace = new TraceParam();
@@ -2040,21 +2039,19 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	            trace.LayerMask = EPhysicsLayerPresets.Projectile;
 
 	            float traceResult = GetGame().GetWorld().TraceMove(trace, null);
-	            hasCollision = (traceResult < 0.95);
+	            if (traceResult < 0.95)
+	                Print(string.Format("BCM - BLUFOR position has collision (trace: %1), using anyway as road surface", traceResult), LogLevel.WARNING);
 	        }
 
-	        if (!hasCollision)
-	        {
-	            if (GRAD_BC_BreakingContactManager.IsDebugMode())
-	            	Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m",
-		                loopCount, distanceToOpfor), LogLevel.NORMAL);
+	        if (GRAD_BC_BreakingContactManager.IsDebugMode())
+	            Print(string.Format("BCM - Found valid Blufor position after %1 loops - distance: %2m",
+	                loopCount, distanceToOpfor), LogLevel.NORMAL);
 
-	            array<vector> output = new array<vector>();
-	            output.Insert(finalSpawnPos);
-	            output.Insert(roadDir);
+	        array<vector> output = new array<vector>();
+	        output.Insert(finalSpawnPos);
+	        output.Insert(roadDir);
 
-	            return output;
-	        }
+	        return output;
 	    }
 	    
 	    // Failed to find valid position after max iterations

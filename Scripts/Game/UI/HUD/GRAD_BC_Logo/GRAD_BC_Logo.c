@@ -21,7 +21,8 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 			return;
 		}
 		
-		// Ensure logo starts hidden and doesn't block input
+		// Ensure logo starts hidden immediately (no animation) so spectators never see it
+		m_wRoot.SetVisible(false);
 		HideLogo();
 	}
 	

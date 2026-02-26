@@ -89,7 +89,7 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      UIInfo UIInfo "{660702574C5CA279}" {
       Name "#AR-Action_RequestVehicle"
      }
-     VisibilityRange 0.5
+     VisibilityRange 0.7
      Duration 0.5
      m_sActionNameNoSupplies "#AR-Action_RequestVehicle_NoSupplies"
     }

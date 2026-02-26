@@ -9,5 +9,10 @@ GenericEntity {
    ResponseIndex "SmallDestructible"
    ModelGeometry 1
   }
+  SimpleSoundComponent "{68B4F4C940EB51DF}" {
+   Filenames {
+    "{6BDFDBCFC398F303}sounds/BC_antennahit4.acp"
+   }
+  }
  }
 }

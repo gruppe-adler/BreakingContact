@@ -121,6 +121,9 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			Print("BC DestroyAction - Running client-side logic", LogLevel.WARNING);
 		}
 
+		// Play sabotage sound at antenna position (3D, heard by nearby players)
+		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", currentPos);
+
 		// Hide on all machines — ClearFlags is local and doesn't replicate
 		HideAntennaModel(pOwnerEntity);
 
@@ -160,6 +163,9 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	{
 		Print(string.Format("BC DestroyAction - SpawnAntennaDebrisLocal called at pos=%1", centerPosition.ToString()), LogLevel.WARNING);
 
+		// Play blow-up sound at debris spawn position (3D, heard by nearby players)
+		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", centerPosition);
+
 		// Spawn the antenna foot at the antenna's exact position — no scatter, no velocity
 		ResourceName footPrefab = "{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et";
 		vector footMat[4];
@@ -171,17 +177,21 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		IEntity footEntity = GetGame().SpawnEntityPrefab(Resource.Load(footPrefab), GetGame().GetWorld(), footSpawnParams);
 		Print(string.Format("BC DestroyAction - Foot spawned=%1 at pos=%2", footEntity != null, centerPosition.ToString()), LogLevel.WARNING);
 
-		// Prefab ResourceNames for flying debris pieces
+		// Debris pieces with their height offsets matching the assembled antenna structure:
+		// _dbr_01: ground level (0.0), _dbr_02: 1.7m up, _dbr_03: 2.6m up
 		array<ResourceName> debrisPrefabs = {
 			"{3ADAD3D18B763111}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_01.et",
 			"{568EE73137B2BE3F}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_02.et",
 			"{B312ABC83B572954}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_03.et"
 		};
+		array<float> debrisHeightOffsets = { 0.0, 1.7, 2.6 };
 
 		int debrisCount = debrisPrefabs.Count();
 		for (int i = 0; i < debrisCount; i++)
 		{
 			ResourceName prefab = debrisPrefabs[i];
+
+			vector debrisPos = centerPosition + Vector(0, debrisHeightOffsets[i], 0);
 
 			vector debrisMat[4];
 			Math3D.MatrixIdentity4(debrisMat);
@@ -191,7 +201,7 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 				Math.RandomFloatInclusive(-30.0, 30.0)
 			);
 			Math3D.AnglesToMatrix(debrisAngles, debrisMat);
-			debrisMat[3] = centerPosition;
+			debrisMat[3] = debrisPos;
 
 			EntitySpawnParams spawnParams = new EntitySpawnParams();
 			spawnParams.Transform = debrisMat;

@@ -1,0 +1,38 @@
+AudioClass {
+ sounds {
+  SoundClass "9225" {
+   id 9225
+   version 5
+   tl -152 154.5
+   ins {
+    ConnectionsClass "con:64" {
+     id 64
+     links {
+      ConnectionClass "10244:65" {
+       id 10244
+       port 65
+      }
+     }
+    }
+   }
+   volume_dB -30
+  }
+ }
+ banks_local {
+  BankLocalClass "10244" {
+   id 10244
+   name "Bank 1"
+   version 7
+   tl -461 167.5
+   Samples {
+    AudioBankSampleClass "718749__sadiquecat__metal-shovel-impact-sfx-leading-woosh2.wav" {
+     Filename "{42C0B8EAC7651464}sounds/718749__sadiquecat__metal-shovel-impact-sfx-leading-woosh2.wav"
+     Probability 100
+     Index 2
+     SampleMetadata ""
+    }
+   }
+  }
+ }
+ version 1
+}

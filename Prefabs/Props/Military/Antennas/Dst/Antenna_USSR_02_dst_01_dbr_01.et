@@ -17,5 +17,10 @@ GenericEntity {
     }
    }
   }
+  SimpleSoundComponent "{68B4F4CA12563F4B}" {
+   Filenames {
+    "{1B12491651BCA6B0}sounds/BC_antennahit2.acp"
+   }
+  }
  }
 }

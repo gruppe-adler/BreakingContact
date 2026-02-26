@@ -86,51 +86,46 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{
+		Print(string.Format("BC DestroyAction - PerformAction called. IsServer=%1, transmissionComp=%2, ownerEntity=%3", Replication.IsServer(), m_transmissionComponent, pOwnerEntity), LogLevel.WARNING);
+
 		if (!m_transmissionComponent)
 		{
-			Print("BC Debug - m_transmissionComponent is null", LogLevel.ERROR);
+			Print("BC DestroyAction - ABORT: m_transmissionComponent is null", LogLevel.ERROR);
 			return;
 		}
 
-		// This now only runs on server since HasLocalEffectOnlyScript() returns false
-		// Get the current position and rotation before destroying
 		vector currentPos = pOwnerEntity.GetOrigin();
 		vector currentAngles = pOwnerEntity.GetYawPitchRoll();
-		
-		// Set the transmission component to DISABLED state instead of destroying it
-		// This keeps the marker visible during cooldown
-		m_transmissionComponent.SetTransmissionState(ETransmissionState.DISABLED);
+		Print(string.Format("BC DestroyAction - pos=%1 angles=%2", currentPos.ToString(), currentAngles.ToString()), LogLevel.WARNING);
 
-		// Stop any active transmission on the antenna component itself
-		m_transmissionComponent.SetTransmissionActive(false);
-
-		// Also stop the radio truck's own transmission state so the truck action
-		// label updates from "Stop Radio Transmission" to "Start Radio Transmission"
-		GRAD_BC_BreakingContactManager bcManager = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcManager)
+		if (Replication.IsServer())
 		{
-			bcManager.StopRadioTruckTransmission();
+			Print("BC DestroyAction - Running server-side logic", LogLevel.WARNING);
+			m_transmissionComponent.SetTransmissionState(ETransmissionState.DISABLED);
+			m_transmissionComponent.SetTransmissionActive(false);
 
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - Registering destroyed transmission at position %1", currentPos.ToString()), LogLevel.NORMAL);
-			bcManager.RegisterDestroyedTransmissionPosition(currentPos);
-
-			// Also register the disabled component for re-enabling after cooldown
-			bcManager.RegisterDisabledTransmissionComponent(m_transmissionComponent);
+			GRAD_BC_BreakingContactManager bcManager = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcManager)
+			{
+				bcManager.StopRadioTruckTransmission();
+				bcManager.RegisterDestroyedTransmissionPosition(currentPos);
+				bcManager.RegisterDisabledTransmissionComponent(m_transmissionComponent);
+			}
+			else
+			{
+				Print("BC DestroyAction - Could not find Breaking Contact Manager", LogLevel.ERROR);
+			}
 		}
 		else
 		{
-			Print("BC Debug - Could not find Breaking Contact Manager", LogLevel.WARNING);
+			Print("BC DestroyAction - Running client-side logic", LogLevel.WARNING);
 		}
-		
-		// Hide the antenna model instead of destroying the entity
+
+		// Hide on all machines — ClearFlags is local and doesn't replicate
 		HideAntennaModel(pOwnerEntity);
-		
-		// Spawn debris pieces around the destroyed antenna (clients will spawn visuals via broadcast RPC)
-		SpawnAntennaDebris(currentPos, currentAngles);
-		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - Antenna disabled and hidden on server", LogLevel.NORMAL);
+
+		Print("BC DestroyAction - Calling SpawnAntennaDebrisLocal", LogLevel.WARNING);
+		SpawnAntennaDebrisLocal(currentPos, currentAngles);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -139,23 +134,90 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	{
 		if (!antennaEntity)
 		{
-			Print("BC Debug - Cannot hide antenna: entity is null", LogLevel.ERROR);
+			Print("BC DestroyAction - Cannot hide antenna: entity is null", LogLevel.ERROR);
 			return;
 		}
-		
-		// Hide the visual representation of the antenna
-		antennaEntity.ClearFlags(EntityFlags.VISIBLE, false);
-		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - Antenna model hidden", LogLevel.NORMAL);
+
+		// Hide root and all children — root may be a proxy so iterate children too
+		antennaEntity.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+		Print(string.Format("BC DestroyAction - Root flags after ClearFlags=%1", antennaEntity.GetFlags()), LogLevel.WARNING);
+
+		IEntity child = antennaEntity.GetChildren();
+		int count = 0;
+		while (child)
+		{
+			child.ClearFlags(EntityFlags.VISIBLE | EntityFlags.ACTIVE, true);
+			Print(string.Format("BC DestroyAction - Child[%1] flags=%2 entity=%3", count, child.GetFlags(), child), LogLevel.WARNING);
+			count++;
+			child = child.GetSibling();
+		}
+		Print(string.Format("BC DestroyAction - Hidden root + %1 children", count), LogLevel.WARNING);
 	}
 
 	//------------------------------------------------------------------------------------------------
-	protected void SpawnAntennaDebris(vector centerPosition, vector angles)
+	// Spawns debris visuals locally — called on every machine via the CanBroadcast user action broadcast
+	private void SpawnAntennaDebrisLocal(vector centerPosition, vector angles)
 	{
-		// Delegate to the transmission component which has RplComponent support for broadcasting RPCs
-		if (m_transmissionComponent)
-			m_transmissionComponent.BroadcastSpawnDebris(centerPosition, angles);
+		Print(string.Format("BC DestroyAction - SpawnAntennaDebrisLocal called at pos=%1", centerPosition.ToString()), LogLevel.WARNING);
+
+		// Prefab ResourceNames — fill in GUIDs after creating .et prefabs in Workbench
+		array<ResourceName> debrisPrefabs = {
+			"{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et",
+			"{3ADAD3D18B763111}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_01.et",
+			"{568EE73137B2BE3F}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_02.et",
+			"{B312ABC83B572954}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01_dbr_03.et"
+		};
+
+		int debrisCount = debrisPrefabs.Count();
+		for (int i = 0; i < debrisCount; i++)
+		{
+			ResourceName prefab = debrisPrefabs[i];
+
+			float angle = Math.RandomFloatInclusive(0.0, 360.0);
+			float distance = Math.RandomFloatInclusive(2.0, 8.0);
+
+			float radians = angle * Math.DEG2RAD;
+			float offsetX = distance * Math.Cos(radians);
+			float offsetZ = distance * Math.Sin(radians);
+
+			vector debrisPos = centerPosition + Vector(offsetX, 0, offsetZ);
+			debrisPos[1] = GetGame().GetWorld().GetSurfaceY(debrisPos[0], debrisPos[2]) + 0.5;
+
+			vector debrisMat[4];
+			Math3D.MatrixIdentity4(debrisMat);
+			vector debrisAngles = Vector(
+				Math.RandomFloatInclusive(0.0, 360.0),
+				Math.RandomFloatInclusive(-30.0, 30.0),
+				Math.RandomFloatInclusive(-30.0, 30.0)
+			);
+			Math3D.AnglesToMatrix(debrisAngles, debrisMat);
+			debrisMat[3] = debrisPos;
+
+			EntitySpawnParams spawnParams = new EntitySpawnParams();
+			spawnParams.Transform = debrisMat;
+			IEntity debrisEntity = GetGame().SpawnEntityPrefab(Resource.Load(prefab), GetGame().GetWorld(), spawnParams);
+			Print(string.Format("BC DestroyAction - Debris[%1] spawned=%2 at pos=%3", i, debrisEntity != null, debrisPos.ToString()), LogLevel.WARNING);
+
+			if (debrisEntity)
+			{
+				Physics phys = debrisEntity.GetPhysics();
+				if (phys)
+				{
+					vector linearVel = Vector(
+						Math.RandomFloatInclusive(-3.0, 3.0),
+						Math.RandomFloatInclusive(1.0, 5.0),
+						Math.RandomFloatInclusive(-3.0, 3.0)
+					);
+					vector angularVel = Vector(
+						Math.RandomFloatInclusive(-180.0, 180.0),
+						Math.RandomFloatInclusive(-180.0, 180.0),
+						Math.RandomFloatInclusive(-180.0, 180.0)
+					);
+					phys.SetVelocity(linearVel);
+					phys.SetAngularVelocity(angularVel * Math.DEG2RAD);
+				}
+			}
+		}
 	}
 	
 	//------------------------------------------------------------------------------------------------

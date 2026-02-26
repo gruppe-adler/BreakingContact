@@ -539,7 +539,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
 		{
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
+			{
 				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
+				PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
+				if (playableManager)
+					playableManager.RemoveRedundantUnits();
+			}
 		};
 		
 		if (currentPhase == EBreakingContactPhase.BLUFOR && !choosingBluforSpawn) {

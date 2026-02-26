@@ -8,9 +8,14 @@ class GRAD_BC_HideEmptyVehiclesCondition : SCR_AvailableActionCondition
 	{
 		GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.GetInstance();
 		if (!replayLayer)
+		{
+			Print("BC Debug - HideEmptyVehiclesCondition: replayLayer is null", LogLevel.WARNING);
 			return false;
-		
-		return replayLayer.IsInReplayMode() && !replayLayer.IsHidingEmptyVehicles();
+		}
+
+		bool result = replayLayer.IsInReplayMode() && !replayLayer.IsHidingEmptyVehicles();
+		Print(string.Format("BC Debug - HideEmptyVehiclesCondition: IsInReplayMode=%1 IsHidingEmptyVehicles=%2 result=%3", replayLayer.IsInReplayMode(), replayLayer.IsHidingEmptyVehicles(), result), LogLevel.WARNING);
+		return result;
 	}
 }
 

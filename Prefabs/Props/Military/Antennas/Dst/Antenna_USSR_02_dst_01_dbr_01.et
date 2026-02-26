@@ -1,0 +1,12 @@
+GenericEntity {
+ ID "68B4C4470D99A282"
+ components {
+  MeshObject "{68B4C4470D99A2D1}" {
+   Object "{4EA38F4B91808AA0}Assets/Props/Military/Antennas/Antenna_USSR_02/Dst/Antenna_USSR_02_dst_01_dbr_01.xob"
+  }
+  RigidBody "{68B4C4470D99A294}" {
+   SimState Dynamic
+   ResponseIndex "SmallDestructible"
+  }
+ }
+}

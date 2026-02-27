@@ -935,11 +935,11 @@ void UpdateAntennaBones(float progress)
 			if (anim)
 			{
 				// Try to find the bone path: scene_root > root > channel_selector
-				TNodeId sceneRootId = anim.GetBoneIndex("scene_root");
+				TNodeId sceneRootId = anim.GetBoneIndex("Scene_Root");
 				if (sceneRootId != -1)
 				{
 					// Found scene_root, now look for root child
-					TNodeId rootId = anim.GetBoneIndex("root");
+					TNodeId rootId = anim.GetBoneIndex("Root");
 					if (rootId != -1)
 					{
 						// Found root, now look for channel_selector

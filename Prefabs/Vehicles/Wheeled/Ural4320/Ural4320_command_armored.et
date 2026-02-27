@@ -73,7 +73,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
    AttachType EntitySlotInfo backoftruck {
     PivotID "Scene_Root"
     Offset 0 0.4 -3.8
-    Prefab "{0828B7651DDBBA06}Prefabs/Structures/BuildingParts/Doors/Door_MetalGate_USSR_02/Door_MetalGate_USSR_02_small_LEFT_EXT_COV_B_base.et"
+    Prefab "{0828B7651DDBBA07}Prefabs/Structures/BuildingParts/Doors/Door_MetalGate_USSR_02/TruckArmorDoorMetal.et"
     DisablePhysicsInteraction 1
    }
   }

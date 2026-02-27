@@ -4,8 +4,12 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	// But in code execution is filtered on performing user und server
 	
 	private GRAD_BC_TransmissionComponent m_transmissionComponent;
-	
+
 	private RplComponent m_RplComponent;
+
+	private bool m_bSoundLoopActive;
+	private IEntity m_pSoundLoopOwner;
+	private IEntity m_pSoundLoopUser;
 
 	// comment from discord:
 	// if HasLocalEffectOnly returns true, it will be executing only on the client where the action has been trigerred 
@@ -46,15 +50,36 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	}
 
 	//------------------------------------------------------------------------------------------------
+	// Repeating callback — fires every 2s on the performing client while button is held.
+	// Broadcasts the sabotage sound to all clients via RPC on the transmission component.
+	// Self-cancels once the action is no longer performable (button released or action completed).
+	private void SoundLoopTick(IEntity ownerEntity, IEntity userEntity)
+	{
+		if (!m_bSoundLoopActive)
+			return;
+
+		if (!CanBePerformedScript(userEntity))
+		{
+			m_bSoundLoopActive = false;
+			return;
+		}
+
+		if (m_transmissionComponent)
+			m_transmissionComponent.BroadcastDestroyProgressSound();
+
+		GetGame().GetCallqueue().CallLater(SoundLoopTick, 2000, false, ownerEntity, userEntity);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	override bool CanBePerformedScript(IEntity user)
 	{
 		if (!m_transmissionComponent)
 			return false;
-		
+
 		// Only allow for BLUFOR players
 		if (!IsUserBlufor(user))
 			return false;
-		
+
 		// Don't allow destroying while being dragged
 		IEntity ownerEntity = m_transmissionComponent.GetOwner();
 		if (ownerEntity)
@@ -63,11 +88,22 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			if (draggable && draggable.IsDragged())
 				return false;
 		}
-		
+
 		bool canBeDestroyed = (
 			m_transmissionComponent.GetTransmissionState() == ETransmissionState.TRANSMITTING ||
 			m_transmissionComponent.GetTransmissionState() == ETransmissionState.INTERRUPTED
 		);
+
+		// Start the broadcast sound loop the first time this is called while the button is held.
+		// CanBePerformedScript runs on the local performing client only.
+		if (canBeDestroyed && !m_bSoundLoopActive && ownerEntity)
+		{
+			m_bSoundLoopActive = true;
+			m_pSoundLoopOwner = ownerEntity;
+			m_pSoundLoopUser = user;
+			GetGame().GetCallqueue().CallLater(SoundLoopTick, 0, false, ownerEntity, user);
+		}
+
 		// Check if transmission is in TRANSMITTING or INTERRUPTED state (finished transmissions cannot be destroyed)
 		return canBeDestroyed;
 	}
@@ -121,7 +157,9 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			Print("BC DestroyAction - Running client-side logic", LogLevel.WARNING);
 		}
 
-		// Play sabotage sound at antenna position (3D, heard by nearby players)
+		// Stop the repeating sound loop and play the final impact sound
+		m_bSoundLoopActive = false;
+		GetGame().GetCallqueue().Remove(SoundLoopTick);
 		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", currentPos);
 
 		// Hide on all machines — ClearFlags is local and doesn't replicate
@@ -162,9 +200,6 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 	private void SpawnAntennaDebrisLocal(vector centerPosition, vector angles)
 	{
 		Print(string.Format("BC DestroyAction - SpawnAntennaDebrisLocal called at pos=%1", centerPosition.ToString()), LogLevel.WARNING);
-
-		// Play blow-up sound at debris spawn position (3D, heard by nearby players)
-		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", centerPosition);
 
 		// Spawn the antenna foot at the antenna's exact position — no scatter, no velocity
 		ResourceName footPrefab = "{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et";
@@ -214,14 +249,14 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 				if (phys)
 				{
 					vector linearVel = Vector(
-						Math.RandomFloatInclusive(-3.0, 3.0),
-						Math.RandomFloatInclusive(1.0, 5.0),
-						Math.RandomFloatInclusive(-3.0, 3.0)
+						Math.RandomFloatInclusive(-0.5, 0.5),
+						Math.RandomFloatInclusive(0.0, 0.5),
+						Math.RandomFloatInclusive(-0.5, 0.5)
 					);
 					vector angularVel = Vector(
-						Math.RandomFloatInclusive(-180.0, 180.0),
-						Math.RandomFloatInclusive(-180.0, 180.0),
-						Math.RandomFloatInclusive(-180.0, 180.0)
+						Math.RandomFloatInclusive(-45.0, 45.0),
+						Math.RandomFloatInclusive(-45.0, 45.0),
+						Math.RandomFloatInclusive(-45.0, 45.0)
 					);
 					phys.SetVelocity(linearVel);
 					phys.SetAngularVelocity(angularVel * Math.DEG2RAD);

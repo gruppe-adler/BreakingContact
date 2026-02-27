@@ -2,6 +2,7 @@ AudioClass {
  sounds {
   SoundClass "9225" {
    id 9225
+   name "BC_Antennahit1"
    version 5
    tl -152 154.5
    ins {

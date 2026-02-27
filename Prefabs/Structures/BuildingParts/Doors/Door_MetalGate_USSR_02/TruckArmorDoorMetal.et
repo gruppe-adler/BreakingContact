@@ -1,0 +1,67 @@
+GenericEntity : "{1909D8CB3315762F}Prefabs/Structures/BuildingParts/Doors/Door_MetalGate_USSR_02/Door_MetalGate_USSR_02_base.et" {
+ ID "627CE52CCB2692FE"
+ components {
+  DoorComponent "{221C667A9F7D4B69}" {
+   DoorAction SCR_DoorUserAction "{50888D3646A61640}" {
+    ParentContextList {
+     ""
+    }
+   }
+   SoundFilename "{D0171AB0D3FDA036}Sounds/Structures/_ShaderData/Doors/Structures_Door_Metal_Shed_Handle.acp"
+   SoundPoints {
+    SoundPointEventInfo "{6608BA9115084D50}" {
+     Offset 1.1137 1.155 0
+    }
+    SoundPointEventInfo "{6608BA911513013B}" {
+     Offset 1.1137 1.155 0
+    }
+    SoundPointEventInfo "{6608BA9115341CBD}" {
+     Offset 1.1137 1.155 0
+    }
+    SoundPointEventInfo "{6608BA9115C23A20}" {
+     Offset 1.1137 1.155 0
+    }
+    SoundPointEventInfo "{6608BA9115E851F8}" {
+     Offset 0.0271 1.1185 0
+    }
+   }
+   FakeDoor 1
+   TestCollider "UBX_Door_MetalGate_USSR_02_small"
+  }
+  MeshObject "{309366462BDAFB24}" {
+   Object "{A93679C98C61951A}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Door_MetalGate_USSR_02_small_RIGHT_EXT_COV_B.xob"
+  }
+  NavmeshCustomLinkComponent "{559E7AC91AFA25BA}" {
+   LinkType NavmeshDoorLink "{559E7AC9151D5867}" {
+    "Navmesh setting presets" {
+     NavmeshCustomLinkSetting "{5C90F7CD794C3D21}" {
+      BeginPoint 0.6 0 -1.5
+      EndPoint 0.6 0 1.5
+     }
+    }
+   }
+  }
+  RigidBody "{309366462BDAFB2D}" {
+   ResponseIndex "SmallDestructible"
+  }
+  SCR_DestructionMultiPhaseComponent "{6516E6DE14423FDA}" {
+   m_DestroySpawnObjects {
+    SCR_DebrisSpawnable "{6516E6DF1DCBD393}" {
+     m_ModelPrefabs {
+      "{B6A6A2823F27C2FA}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_01_dbr_01.xob" "{2FB81B1B22C0F36A}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_01_dbr_02.xob" "{58B27393D6621C1A}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_01_dbr_03.xob" "{356D3D69DB542BAF}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02.xob" "{497CFFD6BFD352BC}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_01.xob" "{D062464FA234632C}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_02.xob" "{A7682EC756968C5C}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_03.xob" "{A0AFD4963010369F}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_04.xob" "{D7A5BC1EC4B2D9EF}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_05.xob" "{4EBB0587D955E87F}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_06.xob" "{39B16D0F2DF7070F}Assets/Structures/BuildingsParts/Doors/Door_MetalGate_USSR_02/Dst/Door_MetalGate_USSR_02_small_dst_02_dbr_07.xob"
+     }
+    }
+   }
+  }
+  ActionsManagerComponent "{F32B667C3C823800}" {
+   ActionContexts {
+    UserActionContext "{50888D37F529F720}" {
+     Position PointInfo "{50888D37F0EB77E0}" {
+      Offset 1.15 1.18 0
+     }
+    }
+   }
+  }
+ }
+ coords 0 0 0
+}

@@ -288,6 +288,21 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 		}
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Called by the destroy action on the performing client every 2s during button hold.
+	// Sends the sound to all clients via broadcast RPC.
+	void BroadcastDestroyProgressSound()
+	{
+		Rpc(RpcDo_BroadcastDestroySound, m_position);
+	}
+
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	protected void RpcDo_BroadcastDestroySound(vector position)
+	{
+		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", position);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void DeferredActivation(IEntity owner)
 	{
 		m_RplComponent = RplComponent.Cast(owner.FindComponent(RplComponent));

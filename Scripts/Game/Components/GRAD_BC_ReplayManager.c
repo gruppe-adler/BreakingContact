@@ -1039,7 +1039,14 @@ void StartLocalReplayPlayback()
 			}
 			else
 			{
-				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+				// No spectator menu — load Map.layout as root widget and use the double-open trick
+				// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+				Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+				mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+				mapEntity.OpenMap(mapConfig);
+				mapEntity.CloseMap();
+				mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
 				mapEntity.OpenMap(mapConfig);
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print("GRAD_BC_ReplayManager: Map opened with replay config", LogLevel.NORMAL);
@@ -1684,7 +1691,14 @@ void StartLocalReplayPlayback()
 		}
 		else
 		{
-			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+			// No spectator menu — load Map.layout as root widget and use the double-open trick
+			// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+			Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+			mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+			mapEntity.OpenMap(mapConfig);
+			mapEntity.CloseMap();
+			mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
 			mapEntity.OpenMap(mapConfig);
 		}
 

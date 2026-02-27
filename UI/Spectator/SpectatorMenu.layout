@@ -155,8 +155,8 @@ FrameWidgetClass {
    Name "VoiceChatFrame"
    Slot FrameWidgetSlot "{5EB701CDC06E1686}" {
     Anchor 1 0.5 1 0.5
-    PositionX -320
-    OffsetLeft -320
+    PositionX -5
+    OffsetLeft -5
     PositionY -320
     OffsetTop -320
     SizeX 320
@@ -349,8 +349,8 @@ FrameWidgetClass {
    Name "AlivePlayersList"
    Slot FrameWidgetSlot "{5EBA3C97F505681F}" {
     Anchor 0 0.5 0 0.5
-    PositionX 0
-    OffsetLeft 0
+    PositionX -315
+    OffsetLeft -315
     PositionY -320
     OffsetTop -320
     SizeX 320

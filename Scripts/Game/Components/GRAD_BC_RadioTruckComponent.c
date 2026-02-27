@@ -782,6 +782,24 @@ void UpdateAntennaBones(float progress)
 		}
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Detach all BaseSlotComponent armor/prop attachments on destruction
+	//------------------------------------------------------------------------------------------------
+	void DetachArmorSlots()
+	{
+		array<Managed> slots = {};
+		m_radioTruck.FindComponents(BaseSlotComponent, slots);
+		foreach (Managed managed : slots)
+		{
+			BaseSlotComponent slot = BaseSlotComponent.Cast(managed);
+			if (!slot)
+				continue;
+			EntitySlotInfo slotInfo = slot.GetSlotInfo();
+			if (slotInfo && slotInfo.GetAttachedEntity())
+				slotInfo.DetachEntity();
+		}
+	}
+
 
 
 	//------------------------------------------------------------------------------------------------
@@ -823,13 +841,10 @@ void UpdateAntennaBones(float progress)
 					Print("BC Debug - MAINLOOP: Radio truck cannot move - considering it destroyed!", LogLevel.NORMAL);
 				m_bDestructionProcessed = true;
 
-				// Force retract antenna on destruction
-				if (m_bAntennaExtended || m_bAntennaAnimating)
-				{
-					// Stop animation and force retract
-					m_bAntennaAnimating = false;
-					m_bAntennaExtended = false;
-				}
+				// Force retract antenna on destruction and detach armor props
+				m_bAntennaAnimating = false;
+				m_bAntennaExtended = false;
+				DetachArmorSlots();
 
 				// Try to get the damage instigator
 				IEntity lastInstigator = null;
@@ -1700,13 +1715,10 @@ void UpdateAntennaBones(float progress)
 			}
 			m_bDestructionProcessed = true;
 
-			// Force retract antenna on destruction
-			if (m_bAntennaExtended || m_bAntennaAnimating)
-			{
-				// Stop animation and force retract
-				m_bAntennaAnimating = false;
-				m_bAntennaExtended = false;
-			}
+			// Force retract antenna on destruction and detach armor props
+			m_bAntennaAnimating = false;
+			m_bAntennaExtended = false;
+			DetachArmorSlots();
 
 			// Get the instigator of the damage to determine which faction destroyed it
 			string destroyerFaction = GetInstigatorFactionFromEntity(instigator);

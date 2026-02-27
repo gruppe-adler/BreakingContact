@@ -184,6 +184,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (bcHeader && bcHeader.IsDebugLogsEnabled())
 				m_iDebugModeCache = 1;
 		}
+		
+		#ifdef WORKBENCH
+			m_iDebugModeCache = 1;
+		#endif
 
 		return m_iDebugModeCache == 1;
 	}

@@ -33,6 +33,13 @@ class MapCircle
         
         if (!m_MapEntity) m_MapEntity = SCR_MapEntity.GetMapInstance();
         
+        // Safety check: abort if map entity is not initialized yet
+        if (!m_MapEntity)
+        {
+            Print("GRAD_MapMarkerUI: Map entity not available yet, deferring circle creation", LogLevel.WARNING);
+            return;
+        }
+        
         // Find the map frame to attach to
         Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
         // Fallback to the root drawing container if mapFrame isn't found, though usually mapFrame is preferred for scaling
@@ -91,7 +98,10 @@ class MapCircle
     //------------------------------------------------------------------------------------------------
     void UpdateCircle()
     {   
-        if (!m_wCircle || !m_MapEntity)
+        if (!m_wCircle)
+            return;
+        
+        if (!m_MapEntity)
             return;
             
         // Apply Opacity
@@ -202,6 +212,13 @@ class GRAD_MapMarkerUI
     void OnMapOpen(MapConfiguration config)
     {
         m_MapEntity        = SCR_MapEntity.GetMapInstance();
+        
+        if (!m_MapEntity)
+        {
+            Print("GRAD_MapMarkerUI OnMapOpen: Map entity not available yet", LogLevel.WARNING);
+            return;
+        }
+        
         m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
         
         if (!m_wDrawingContainer) {
@@ -436,5 +453,9 @@ class GRAD_MapMarkerUI
     void GRAD_MapMarkerUI()
     {
         m_MapEntity = SCR_MapEntity.GetMapInstance();
+        if (!m_MapEntity)
+        {
+            Print("GRAD_MapMarkerUI Constructor: Map entity not yet initialized, will be set on map open", LogLevel.VERBOSE);
+        }
     }
 };

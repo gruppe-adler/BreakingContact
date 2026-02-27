@@ -28,6 +28,13 @@ class MapIcon
 		if (!m_MapEntity)
 			m_MapEntity = SCR_MapEntity.GetMapInstance();
 
+		// Safety check: abort if map entity is not initialized yet
+		if (!m_MapEntity)
+		{
+			Print("GRAD IconMarkerUI: Map entity not available yet, deferring icon creation", LogLevel.WARNING);
+			return;
+		}
+
 		// Attach to map frame (like circle markers) so positioning uses map-internal coordinates
 		Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
 		if (!mapFrame)
@@ -98,7 +105,10 @@ class MapIcon
 	//------------------------------------------------------------------------------------------------
 	void UpdateIcon()
 	{
-		if (!m_wicon || !m_MapEntity)
+		if (!m_wicon)
+			return;
+
+		if (!m_MapEntity)
 			return;
 
 		if (!m_wiconImage)
@@ -218,6 +228,13 @@ class GRAD_IconMarkerUI
 	void OnMapOpen(MapConfiguration config)
 	{
 		m_MapEntity = SCR_MapEntity.GetMapInstance();
+		
+		if (!m_MapEntity)
+		{
+			Print("GRAD_IconMarkerUI OnMapOpen: Map entity not available yet", LogLevel.WARNING);
+			return;
+		}
+		
 		m_wDrawingContainer = FrameWidget.Cast(config.RootWidgetRef.FindAnyWidget(SCR_MapConstants.DRAWING_CONTAINER_WIDGET_NAME));
 
 		if (!m_wDrawingContainer)
@@ -425,5 +442,9 @@ class GRAD_IconMarkerUI
 	void GRAD_IconMarkerUI()
 	{
 		m_MapEntity = SCR_MapEntity.GetMapInstance();
+		if (!m_MapEntity)
+		{
+			Print("GRAD_IconMarkerUI Constructor: Map entity not yet initialized, will be set on map open", LogLevel.VERBOSE);
+		}
 	}
 };

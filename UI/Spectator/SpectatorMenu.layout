@@ -154,16 +154,16 @@ FrameWidgetClass {
   FrameWidgetClass "{6604C04D879C50E7}" : "{35DB604900C55B98}UI/VoiceChat/VoiceChatFrame.layout" {
    Name "VoiceChatFrame"
    Slot FrameWidgetSlot "{5EB701CDC06E1686}" {
-    Anchor 1 0.5 1 0.5
-    PositionX -5
-    OffsetLeft -5
-    PositionY -320
-    OffsetTop -320
-    SizeX 320
-    OffsetRight 0
+    PositionX 1915
+    OffsetLeft 1915
+    PositionY 220
+    OffsetTop 220
+    SizeX 5
+    OffsetRight -1920
     SizeY 640
-    OffsetBottom -320
+    OffsetBottom -860
    }
+   "Is Visible" 0
    Clipping False
    "Ignore Cursor" 0
    components {
@@ -348,16 +348,16 @@ FrameWidgetClass {
   FrameWidgetClass "{6604C04D879C5EDA}" : "{18D3CF175C9AA974}UI/Spectator/AlivePlayersList.layout" {
    Name "AlivePlayersList"
    Slot FrameWidgetSlot "{5EBA3C97F505681F}" {
-    Anchor 0 0.5 0 0.5
     PositionX -315
     OffsetLeft -315
-    PositionY -320
-    OffsetTop -320
-    SizeX 320
+    PositionY -860
+    OffsetTop -860
+    SizeX 635
     OffsetRight -320
     SizeY 640
-    OffsetBottom -320
+    OffsetBottom 220
    }
+   "Is Visible" 0
    Clipping False
    "Ignore Cursor" 0
    components {
@@ -515,20 +515,20 @@ FrameWidgetClass {
     SizeY 0
     OffsetBottom 0
    }
+   "Is Visible" 0
    Opacity 1
   }
   OverlayWidgetClass "{6604C04D879C63C7}" {
    Name "OverlayFooter"
    Slot FrameWidgetSlot "{5EB10006FB0FA78D}" {
-    Anchor 0 1 0 1
     PositionX 0
     OffsetLeft 0
-    PositionY -48
-    OffsetTop -48
+    PositionY 1032
+    OffsetTop 1032
     SizeX 1920
     OffsetRight -1920
     SizeY 48
-    OffsetBottom 0
+    OffsetBottom -1080
    }
    {
     HorizontalLayoutWidgetClass "{6604C04D879C63C4}" {
@@ -616,6 +616,45 @@ FrameWidgetClass {
      }
     }
    }
+  }
+  FrameWidgetClass "{6604C04D879C5557}" {
+   Prefab "{6604C04D879C5557}"
+   "Is Visible" 0
+  }
+  FrameWidgetClass "{6604C04D879C50E7}" {
+   Prefab "{6604C04D879C50E7}"
+   Slot FrameWidgetSlot "{5EB701CDC06E1686}" {
+    PositionX -320
+    OffsetLeft -320
+    PositionY -320
+    OffsetTop -320
+    SizeX 320
+    OffsetRight 0
+    SizeY 640
+    OffsetBottom -320
+   }
+   "Is Visible" 0
+  }
+  FrameWidgetClass "{6604C04D879C5EDA}" {
+   Prefab "{6604C04D879C5EDA}"
+   Slot FrameWidgetSlot "{5EBA3C97F505681F}" {
+    PositionX 0
+    OffsetLeft 0
+    OffsetTop -320
+    SizeX 320
+    OffsetRight -320
+    SizeY 640
+    OffsetBottom -320
+   }
+   "Is Visible" 0
+  }
+  FrameWidgetClass "{6604C04D879C657B}" {
+   Prefab "{6604C04D879C657B}"
+   "Is Visible" 0
+  }
+  OverlayWidgetClass "{6604C04D879C63C7}" {
+   Prefab "{6604C04D879C63C7}"
+   "Is Visible" 0
   }
  }
 }

@@ -594,16 +594,17 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		else
 			UnregisterToggleInputs();
 
-		SetReplayHintButtonsVisible(enabled);
+		if (m_MapMenuRoot)
+			SetReplayHintButtonsVisible(enabled);
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
 	// Show or hide the replay hint buttons in the map footer
 	protected void SetReplayHintButtonsVisible(bool visible)
 	{
 		if (!m_MapMenuRoot)
 		{
-			Print(string.Format("BC Debug - SetReplayHintButtonsVisible(%1): m_MapMenuRoot null", visible), LogLevel.WARNING);
+			Print(string.Format("BC Debug - SetReplayHintButtonsVisible(%1): m_MapMenuRoot null (map already closed)", visible), LogLevel.SPAM);
 			return;
 		}
 

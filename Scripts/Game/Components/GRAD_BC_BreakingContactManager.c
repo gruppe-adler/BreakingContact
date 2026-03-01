@@ -318,7 +318,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
-		
+
+		// close map at end of replay before EndGameMode destroys PS_SpectatorMenu's widget frame.
+		// the player is a spectator so ToggleMap won't work — CloseMap handles both paths.
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVERDONE)
+		{
+			GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+			if (replayManager)
+				replayManager.CloseMap();
+		}
+
 		// Retrieve the HUD‐display and call ShowLogo on it:
 	    SCR_HUDManagerComponent hud = SCR_HUDManagerComponent.GetHUDManager();
 	    if (!hud) {

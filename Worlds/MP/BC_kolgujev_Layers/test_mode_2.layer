@@ -62,6 +62,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{E58AC2E6219C4C2C}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_RTO_P_OTF.et"
   }
   m_sCustomNameSet "Commander"
+  m_bSetPlayable 1
  }
  {
   components {
@@ -81,6 +82,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -100,6 +102,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -119,6 +122,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -138,6 +142,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -157,6 +162,7 @@ $grp SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
    "{11344072231AB24E}Prefabs/Characters/Factions/BLUFOR/US_Army/Character_US_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
 }
 $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad_p.et" {
@@ -171,6 +177,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
   m_sCustomNameSet "Commander"
+  m_bSetPlayable 1
  }
  {
   components {
@@ -188,6 +195,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -205,6 +213,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -222,6 +231,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -239,6 +249,7 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
  {
   components {
@@ -256,5 +267,6 @@ $grp SCR_AIGroup : "{E3545CFEDD312D54}Prefabs/Groups/OPFOR/Group_USSR_RifleSquad
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
    "{2E823593233F49A0}Prefabs/Characters/Factions/OPFOR/USSR_Army/Character_USSR_Rifleman_P_OTF.et"
   }
+  m_bSetPlayable 1
  }
 }

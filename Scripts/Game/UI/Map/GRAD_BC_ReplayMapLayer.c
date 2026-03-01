@@ -10,7 +10,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	}
 	
 	protected Widget m_WidgetsRoot;
-	protected Widget m_MapMenuRoot; // MapFrame — cached from GetMapMenuRoot(), used to find OverlayFooter
     protected ref map<string, ImageWidget> m_ActiveWidgets = new map<string, ImageWidget>();
 	protected int m_iMapOpenFrameCounter = 0;
     
@@ -28,24 +27,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     {
         super.OnMapOpen(config);
 
-		// OverlayFooter is a direct child of MapMenu in the layout.
-		// GetMapMenuRoot() returns MapFrame (a child of MapMenu), so walk up one level.
-		// m_MapMenuRoot is used only for FindAnyWidget on hint buttons.
-		// m_WidgetsRoot is always parented to the raw GetMapMenuRoot() (MapFrame).
-		if (m_MapEntity)
-		{
-			Widget rawRoot = m_MapEntity.GetMapMenuRoot();
-			if (rawRoot && rawRoot.GetName() == "MapFrame" && rawRoot.GetParent())
-				m_MapMenuRoot = rawRoot.GetParent();
-			else
-				m_MapMenuRoot = rawRoot;
-		}
-
-		string menuRootName = "null";
-		if (m_MapMenuRoot)
-			menuRootName = m_MapMenuRoot.GetName();
-		Print("BC Debug - OnMapOpen: m_MapMenuRoot=" + menuRootName, LogLevel.NORMAL);
-
         // Create a root frame to hold our markers, always parented to the raw MapFrame.
 		if (!m_WidgetsRoot)
 		{
@@ -54,7 +35,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			m_WidgetsRoot = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, parentWidget);
 
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayMapLayer: Widget Root Created - m_MapMenuRoot=%1, m_WidgetsRoot=%2", m_MapMenuRoot != null, m_WidgetsRoot != null), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayMapLayer: Widget Root Created - m_WidgetsRoot=%1", m_WidgetsRoot != null), LogLevel.NORMAL);
 			FrameSlot.SetSize(m_WidgetsRoot, 1, 1);
 			FrameSlot.SetAnchorMin(m_WidgetsRoot, 0, 0);
 			FrameSlot.SetAnchorMax(m_WidgetsRoot, 1, 1);
@@ -63,8 +44,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		m_iMapOpenFrameCounter = 0;
 
-		if (m_bIsInReplayMode)
-			SetReplayHintButtonsVisible(true);
     }
 
     override void OnMapClose(MapConfiguration config)
@@ -81,8 +60,6 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         }
         m_ActiveWidgets.Clear();
 		m_iMapOpenFrameCounter = 0;
-		SetReplayHintButtonsVisible(false);
-		m_MapMenuRoot = null;
     }
 
     // Helper to get or create an icon widget
@@ -588,7 +565,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_bIsInReplayMode = enabled;
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ReplayMapLayer: Replay mode set to %1", enabled), LogLevel.NORMAL);
-		
+
 		if (enabled)
 			RegisterToggleInputs();
 		else
@@ -596,46 +573,28 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		SetReplayHintButtonsVisible(enabled);
 	}
-	
+
 	//------------------------------------------------------------------------------------------------
-	// Show or hide the replay hint buttons in the map footer
 	protected void SetReplayHintButtonsVisible(bool visible)
 	{
-		if (!m_MapMenuRoot)
-		{
-			Print(string.Format("BC Debug - SetReplayHintButtonsVisible(%1): m_MapMenuRoot null", visible), LogLevel.WARNING);
+		PS_SpectatorMenu specMenu = PS_SpectatorMenu.s_SpectatorMenu;
+		if (!specMenu)
 			return;
-		}
 
-		// Walk up the widget tree until we find the ancestor that owns "OverlayFooter".
-		// When the map is opened through PS_SpectatorMenu, GetMapMenuRoot() returns an
-		// inner frame rather than the top-level MapMenu, so a single GetParent() isn't
-		// guaranteed to land on the right node.
-		Widget searchRoot = m_MapMenuRoot;
-		Widget overlayFooter;
-		while (searchRoot)
-		{
-			overlayFooter = searchRoot.FindAnyWidget("OverlayFooter");
-			if (overlayFooter)
-				break;
-			searchRoot = searchRoot.GetParent();
-		}
+		Widget root = specMenu.GetRootWidget();
+		if (!root)
+			return;
 
-		Print(string.Format("BC Debug - SetReplayHintButtonsVisible(%1): root=%2 overlayFooter=%3", visible, m_MapMenuRoot.GetName(), overlayFooter != null), LogLevel.NORMAL);
+		Widget toggleVehicles = root.FindAnyWidget("BC_ToggleEmptyVehicles");
+		if (toggleVehicles)
+			toggleVehicles.SetVisible(visible);
 
-		if (overlayFooter)
-			overlayFooter.SetVisible(visible);
+		Widget toggleCivilians = root.FindAnyWidget("BC_ToggleCivilians");
+		if (toggleCivilians)
+			toggleCivilians.SetVisible(visible);
 
-		if (overlayFooter)
-		{
-			Widget toggleVehicles = overlayFooter.FindAnyWidget("BC_ToggleEmptyVehicles");
-			if (toggleVehicles)
-				toggleVehicles.SetVisible(visible);
-
-			Widget toggleCivilians = overlayFooter.FindAnyWidget("BC_ToggleCivilians");
-			if (toggleCivilians)
-				toggleCivilians.SetVisible(visible);
-		}
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - SetReplayHintButtonsVisible(%1): Updated layout buttons in SpectatorMenu", visible), LogLevel.NORMAL);
 	}
 
 	//------------------------------------------------------------------------------------------------

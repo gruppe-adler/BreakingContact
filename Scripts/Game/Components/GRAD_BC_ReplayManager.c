@@ -55,19 +55,13 @@ class GRAD_BC_ReplayManager : ScriptComponent
 
 	// First frame tracking - loading screen stays until first frame renders
 	protected bool m_bFirstFrameDisplayed = false;
-	// Flag to indicate map close is scheduled to avoid race conditions
-	protected bool m_bMapClosing = false;
 	
-	// --- Independent Replay UI ---
-	protected Widget m_wReplayUI;
-
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_ReplayManager GetInstance()
 	{
 		return s_Instance;
 	}
 	
-
 	//------------------------------------------------------------------------------------------------
 	// Public method to register a vehicle for replay tracking
 	void RegisterTrackedVehicle(Vehicle vehicle)
@@ -181,9 +175,6 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			m_trackedVehicles.Clear();
 		m_usedVehicleIds.Clear();
 		m_pendingProjectiles.Clear();
-
-		// Cleanup UI
-		DestroyReplayUI();
 
 		if (s_Instance == this)
 			s_Instance = null;
@@ -454,7 +445,7 @@ class GRAD_BC_ReplayManager : ScriptComponent
 				m_replayData.totalDuration = lastFrame.timestamp - m_replayData.startTime;
 
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %3 to %4)",
+					Print(string.Format("GRAD_BC_ReplayManager: Recorded %1 frames over %2 seconds (startTime adjusted from %.2f to %.2f)",
 						m_replayData.frames.Count(), m_replayData.totalDuration, oldStartTime, m_replayData.startTime), LogLevel.NORMAL);
 			}
 		}
@@ -880,9 +871,9 @@ void StartLocalReplayPlayback()
 		}
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %2 seconds",
+			Print(string.Format("GRAD_BC_ReplayManager: Replay has %1 frames, duration: %.2f seconds", 
 				m_replayData.frames.Count(), m_replayData.totalDuration), LogLevel.NORMAL);
-
+		
 		// Calculate adaptive playback speed to fit within 2 minutes
 		CalculateAdaptiveSpeed();
 
@@ -907,7 +898,7 @@ void StartLocalReplayPlayback()
 		{
 			m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to %1", m_fPlaybackStartTime), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		}
 		else
 		{
@@ -956,7 +947,7 @@ void StartLocalReplayPlayback()
 		// Reset timing
 		m_fPlaybackStartTime = world.GetWorldTime() / 1000.0;
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to: %1", m_fPlaybackStartTime), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Playback start time set to: %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 		
 		// Enable playback flag - CRITICAL for UpdatePlayback to run
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -987,7 +978,7 @@ void StartLocalReplayPlayback()
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
 			float waitTime = (effectiveDuration + 2.0) * 1000;
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %1 seconds (%2ms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 		}
 
@@ -1018,6 +1009,10 @@ void StartLocalReplayPlayback()
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Setting up debriefing screen for replay", LogLevel.NORMAL);
 
+		// Clear all live markers before starting replay
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: Clearing live transmission and player markers", LogLevel.NORMAL);
+
 		// Clear live transmission markers
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity)
@@ -1031,26 +1026,39 @@ void StartLocalReplayPlayback()
 			}
 		}
 
-		// Create the hint-button footer overlay (does NOT create a map frame)
-		CreateReplayUI();
-
-		// Open map inside PS_SpectatorMenu's MapFrame widget (inherits PSCore Map.layout with all
-		// required named child widgets). Use static s_SpectatorMenu ref — no need to open the menu.
-		ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
-
-		PS_SpectatorMenu specMenu = PS_SpectatorMenu.s_SpectatorMenu;
-		if (specMenu)
+		// Open map fullscreen with replay config so GRAD_BC_ReplayMapLayer is loaded
+		if (mapEntity)
 		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Opening replay map via PS_SpectatorMenu.OpenReplayMap", LogLevel.NORMAL);
-			specMenu.OpenReplayMap(replayMapConfig);
+			ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
+			// If spectator menu exists (dedicated/listen spectator UI), route through it
+			if (PS_SpectatorMenu.s_SpectatorMenu)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Routing local map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+				PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
+			}
+			else
+			{
+				// No spectator menu — load Map.layout as root widget and use the double-open trick
+				// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+				Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+				mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+				mapEntity.OpenMap(mapConfig);
+				mapEntity.CloseMap();
+				mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
+				mapEntity.OpenMap(mapConfig);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: Map opened with replay config", LogLevel.NORMAL);
+			}
 		}
 		else
 		{
-			// Fallback: open vanilla map menu
+			// mapEntity not available at this point; WaitForReplayMapAndStartPlayback will
+			// poll until the map entity appears after the map menu opens naturally.
 			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: s_SpectatorMenu is null, fell back to vanilla MapMenu", LogLevel.WARNING);
+				Print("GRAD_BC_ReplayManager: Map entity not ready, fell back to vanilla MapMenu", LogLevel.NORMAL);
 		}
 
 		// Map readiness is now gated by WaitForReplayMapAndStartPlayback() called from the caller
@@ -1165,7 +1173,7 @@ void StartLocalReplayPlayback()
 		m_iChunksSent++;
 		float progress = m_iChunksSent / (float)m_iTotalChunksToSend;
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2 (%3/%4 chunks, %5%%)", currentChunkStart, endIndex-1, m_iChunksSent, m_iTotalChunksToSend, progress * 100), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Sending frame chunk %1-%2 (%3/%4 chunks, %.1f%%)", currentChunkStart, endIndex-1, m_iChunksSent, m_iTotalChunksToSend, progress * 100), LogLevel.NORMAL);
 		SendFrameChunk(currentChunkStart, endIndex);
 		
 		// Update client loading progress
@@ -1196,9 +1204,9 @@ void StartLocalReplayPlayback()
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
 			float waitTime = (effectiveDuration + 15.0) * 1000; // 15 second buffer, convert to milliseconds
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %1 seconds (%2ms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %1s at %2x speed = %3s effective, buffer: 15s, total wait: %4s", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 15s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
@@ -1629,7 +1637,7 @@ void StartLocalReplayPlayback()
 		// Calculate adaptive playback speed
 		CalculateAdaptiveSpeed();
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %1x", m_fPlaybackSpeed), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
 
 		// Keep loading text visible - update message. It will be hidden when first frame renders.
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
@@ -1671,23 +1679,27 @@ void StartLocalReplayPlayback()
 
 		ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
 
-		// Create hint-button footer overlay
-		CreateReplayUI();
-
-		// Open map inside PS_SpectatorMenu's MapFrame widget (inherits PSCore Map.layout with all
-		// required named child widgets). Use static s_SpectatorMenu ref — no need to open the menu.
-		PS_SpectatorMenu specMenu = PS_SpectatorMenu.s_SpectatorMenu;
-		if (specMenu)
+		// If the spectator menu is active (client on dedicated server), route through
+		// OpenMapWithConfig() so the map is anchored to m_wMapFrame with proper keybinds
+		// and layout. Opening via mapEntity directly with null parent skips the frame
+		// container, causing missing keybinds and freely floating markers.
+		if (PS_SpectatorMenu.s_SpectatorMenu)
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: CLIENT - Opening replay map via PS_SpectatorMenu.OpenReplayMap", LogLevel.NORMAL);
-			specMenu.OpenReplayMap(replayMapConfig);
+				Print("GRAD_BC_ReplayManager: Routing map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+			PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
 		}
 		else
 		{
-			GetGame().GetMenuManager().OpenMenu(ChimeraMenuPreset.MapMenu);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: CLIENT - s_SpectatorMenu is null, fell back to vanilla MapMenu", LogLevel.WARNING);
+			// No spectator menu — load Map.layout as root widget and use the double-open trick
+			// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+			Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+			mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+			mapEntity.OpenMap(mapConfig);
+			mapEntity.CloseMap();
+			mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
+			mapEntity.OpenMap(mapConfig);
 		}
 
 		// Wait for map + replay layer to be ready before starting playback
@@ -1790,7 +1802,7 @@ void StartLocalReplayPlayback()
 			{
 				m_fPlaybackStartTime = world2.GetWorldTime() / 1000.0;
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %1", m_fPlaybackStartTime), LogLevel.NORMAL);
+					Print(string.Format("GRAD_BC_ReplayManager: CLIENT - Reset playback start time to %.2f", m_fPlaybackStartTime), LogLevel.NORMAL);
 			}
 
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -1812,7 +1824,7 @@ void StartLocalReplayPlayback()
 					updatePlaybackSkipCounter, m_bIsPlayingBack, m_replayData != null, m_bPlaybackPaused), LogLevel.WARNING);
 				if (m_replayData)
 				{
-					Print(string.Format("GRAD_BC_ReplayManager: Replay data exists with %1 frames, startTime: %2, totalDuration: %3", 
+					Print(string.Format("GRAD_BC_ReplayManager: Replay data exists with %1 frames, startTime: %.2f, totalDuration: %.2f", 
 						m_replayData.frames.Count(), m_replayData.startTime, m_replayData.totalDuration), LogLevel.WARNING);
 				}
 			}
@@ -1845,7 +1857,7 @@ void StartLocalReplayPlayback()
 		if (updatePlaybackCallCounter <= 5 || updatePlaybackCallCounter % 50 == 0)
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Playback time: %1, Speed: %2, Frame: %3/%4", 
+				Print(string.Format("GRAD_BC_ReplayManager: Playback time: %.2f, Speed: %.2f, Frame: %3/%4", 
 					m_fCurrentPlaybackTime, m_fPlaybackSpeed, m_iCurrentFrameIndex, m_replayData.frames.Count()), LogLevel.NORMAL);
 		}
 		
@@ -1863,7 +1875,7 @@ void StartLocalReplayPlayback()
 				if (updatePlaybackCallCounter <= 10 || m_iCurrentFrameIndex % 20 == 0)
 				{
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("GRAD_BC_ReplayManager: Displaying frame %1 (time: %2 vs %3)", 
+						Print(string.Format("GRAD_BC_ReplayManager: Displaying frame %1 (time: %.2f vs %.2f)", 
 							m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
 				}
 				DisplayReplayFrame(frame);
@@ -1874,7 +1886,7 @@ void StartLocalReplayPlayback()
 				if (updatePlaybackCallCounter <= 5)
 				{
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("GRAD_BC_ReplayManager: Waiting for frame %1 (time: %2, current: %3)", 
+						Print(string.Format("GRAD_BC_ReplayManager: Waiting for frame %1 (time: %.2f, current: %.2f)", 
 							m_iCurrentFrameIndex, frameTimeFromStart, m_fCurrentPlaybackTime), LogLevel.NORMAL);
 				}
 				break; // Wait for next update
@@ -1988,7 +2000,7 @@ void StartLocalReplayPlayback()
 	{
 		m_fPlaybackSpeed = speed;
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Playback speed set to %1x", speed), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Playback speed set to %.1fx", speed), LogLevel.NORMAL);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -2070,8 +2082,7 @@ void StartLocalReplayPlayback()
 		// Defer CloseMap to next frame. Calling it synchronously here can fire while
 		// SCR_MapEntity.EOnFrame is still executing, leaving SCR_MapCursorModule with
 		// null widget references and causing a null-pointer crash every frame.
-		// By deferring to the next frame, we ensure all map modules have finished their current frame logic and released any widget references before the map is closed.
-		GetGame().GetCallqueue().CallLater(CloseMap, 300, false);
+		GetGame().GetCallqueue().CallLater(CloseMap, 0, false);
 		
 		// Endscreen will be triggered by server after scheduled time
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -2113,22 +2124,48 @@ void StartLocalReplayPlayback()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Attempting to close map", LogLevel.NORMAL);
-
-		PS_SpectatorMenu specMenu = PS_SpectatorMenu.s_SpectatorMenu;
-		if (specMenu)
+		
+		PlayerController playerController = GetGame().GetPlayerController();
+		if (!playerController)
 		{
-			specMenu.CloseReplayMap();
+			Print("GRAD_BC_ReplayManager: No player controller found to close map", LogLevel.WARNING);
+			return;
 		}
-		else
+		
+		IEntity playerEntity = playerController.GetControlledEntity();
+		if (!playerEntity)
 		{
-			// Fallback: close map directly if specMenu is unavailable
-			SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
-			if (mapEntity && mapEntity.IsOpen())
-				mapEntity.CloseMap();
+			// Spectator mode - PS_SpectatorMenu.s_SpectatorMenu is null on dedicated,
+			// so close directly via SCR_MapEntity.
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: No player entity (spectator), closing map via SCR_MapEntity", LogLevel.NORMAL);
+			if (PS_SpectatorMenu.s_SpectatorMenu)
+				PS_SpectatorMenu.s_SpectatorMenu.CloseMap();
+			else
+			{
+				SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+				if (mapEntity && mapEntity.IsOpen())
+					mapEntity.CloseMap();
+			}
+			return;
 		}
-
-		DestroyReplayUI();
-
+		
+		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(playerEntity.FindComponent(SCR_GadgetManagerComponent));
+		if (!gadgetManager)
+		{
+			Print("GRAD_BC_ReplayManager: No gadget manager found to close map", LogLevel.WARNING);
+			return;
+		}
+		
+		IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+		if (!mapGadget)
+		{
+			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.WARNING);
+			return;
+		}
+		
+		// Put map back into inventory
+		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Map closed successfully", LogLevel.NORMAL);
 	}
@@ -2267,14 +2304,14 @@ void StartLocalReplayPlayback()
 		{
 			m_fAdaptiveSpeed = actualDuration / m_fMaxReplayDuration;
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %1s exceeds max %2s, using adaptive speed %3x", 
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs exceeds max %.1fs, using adaptive speed %.2fx", 
 					actualDuration, m_fMaxReplayDuration, m_fAdaptiveSpeed), LogLevel.NORMAL);
 		}
 		else
 		{
 			m_fAdaptiveSpeed = 1.0;
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %1s fits within max %2s, using normal speed", 
+				Print(string.Format("GRAD_BC_ReplayManager: Replay duration %.1fs fits within max %.1fs, using normal speed", 
 					actualDuration, m_fMaxReplayDuration), LogLevel.NORMAL);
 		}
 		
@@ -2411,37 +2448,6 @@ void StartLocalReplayPlayback()
 		}
 
 		return null;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	// Create independent Replay UI to avoid conflicts with Spectator Menu
-	//------------------------------------------------------------------------------------------------
-	void CreateReplayUI()
-	{
-		if (m_wReplayUI)
-			return;
-
-		// m_wReplayUI is a sentinel widget — its existence signals we are in replay playback,
-		// allowing DestroyReplayUI() to restore SpectatorMenu panels exactly once.
-		m_wReplayUI = GetGame().GetWorkspace().CreateWidget(WidgetType.FrameWidgetTypeID, WidgetFlags.NOFOCUS | WidgetFlags.IGNORE_CURSOR, Color.White, 0, null);
-
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: Created replay sentinel widget", LogLevel.NORMAL);
-	}
-	
-	//------------------------------------------------------------------------------------------------
-	// Destroy independent Replay UI and restore Spectator Menu
-	//------------------------------------------------------------------------------------------------
-	void DestroyReplayUI()
-	{
-		if (m_wReplayUI)
-		{
-			m_wReplayUI.RemoveFromHierarchy();
-			m_wReplayUI = null;
-
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Destroyed independent Replay UI", LogLevel.NORMAL);
-		}
 	}
 
 }

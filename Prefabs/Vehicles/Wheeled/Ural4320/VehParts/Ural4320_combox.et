@@ -5,6 +5,10 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
    m_iCurrentSupplies 1000
    m_iMaxSupplies 1000
   }
+  SCR_ArsenalComponent "{6506ACD90DF34E7E}" {
+   m_eSupportedArsenalItemTypes 32770
+   m_eSupportedArsenalItemModes AMMUNITION
+  }
   SCR_CampaignBuildingProviderComponent "{660CB39BB733B980}" {
    m_sProviderDisplayName "#AR-Vehicle_SupplyTruck_Name-UC"
    m_bUserActionActivationOnly 1
@@ -81,7 +85,6 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
       Offset -1.403 0.7202 -1.2532
      }
      Radius 0.7
-     InputAction "PerformAction"
     }
    }
    additionalActions {

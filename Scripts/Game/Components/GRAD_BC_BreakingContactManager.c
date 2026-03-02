@@ -1547,13 +1547,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			gameOverType = EGameOverTypes.END6; // Opfor wins by completing all transmissions
 		}
-		else if (factionEliminated("US"))
+		else if (m_sWinnerSide == "opfor")
 		{
 			gameOverType = EGameOverTypes.END3; // Opfor wins by elimination
 		}
-		else if (factionEliminated("USSR"))
+		else if (m_sWinnerSide == "blufor")
 		{
 			gameOverType = EGameOverTypes.END1; // Blufor wins by elimination
+		}
+		else if (m_sWinnerSide == "draw")
+		{
+			gameOverType = EGameOverTypes.FACTION_DRAW;
 		}
 		
 		// Create endscreen data

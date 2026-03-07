@@ -1,8 +1,9 @@
-class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
+class GRAD_BC_ToggleRadioTransmission : SCR_ScriptedUserAction
 {
 	// This scripted user action if triggered runs on all clients and server
-	
+
 	private GRAD_BC_RadioTruckComponent m_radioTruckComponent;
+	protected bool m_bActionCompleted = false;
 
 	// comment from discord:
 	// if HasLocalEffectOnly returns true, it will be executing only on the client where the action has been trigerred 
@@ -118,6 +119,32 @@ class GRAD_BC_ToggleRadioTransmission : ScriptedUserAction
 		return true;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	override void OnActionStart(IEntity pUserEntity)
+	{
+		m_bActionCompleted = false;
+		super.OnActionStart(pUserEntity);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	override void OnActionCanceled(IEntity pOwnerEntity, IEntity pUserEntity)
+	{
+		m_bActionCompleted = false;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	override void PerformContinuousAction(IEntity pOwnerEntity, IEntity pUserEntity, float timeSlice)
+	{
+		if (!LoopActionUpdate(timeSlice))
+			return;
+
+		if (m_bActionCompleted)
+			return;
+
+		m_bActionCompleted = true;
+		PerformAction(pOwnerEntity, pUserEntity);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	override void PerformAction(IEntity pOwnerEntity, IEntity pUserEntity)
 	{

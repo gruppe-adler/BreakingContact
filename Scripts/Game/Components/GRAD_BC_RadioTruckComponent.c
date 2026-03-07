@@ -49,6 +49,21 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	// Antenna animation variables
 	private static const int ANTENNA_SEGMENT_COUNT = 8;
+	// Slot name of the combox entity on the radio truck (confirmed from in-game debug log)
+	private static const string RADIO_SLOT_NAME = "Radio";
+	// Hardcoded antenna bone names on the combox entity (v_antenna_01 … v_antenna_08)
+	private static const string ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT] = {
+		"v_antenna_01",
+		"v_antenna_02",
+		"v_antenna_03",
+		"v_antenna_04",
+		"v_antenna_05",
+		"v_antenna_06",
+		"v_antenna_07",
+		"v_antenna_08"
+	};
+	// Hardcoded channel-selector bone name on the combox entity
+	private static const string CHANNEL_SELECTOR_BONE_NAME = "channel_selector";
 	private ref array<TNodeId> m_aAntennaBoneIds = new array<TNodeId>();
 	
 	// Channel selector bone
@@ -77,6 +92,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 	private int m_iLastLoggedProgress = -1; // For debug logging
 	private bool m_bAnimationTickRunning = false; // Track if animation tick loop is active
+	private bool m_bNeedsTransmissionStart = false; // Deferred: start transmission after antenna is fully raised
 
 	// Antenna prop spawning
 	[Attribute("{F23A470F0A7A46A0}Assets/Props/Military/Antennas/Antenna_R142_01/Dst/Antenna_R142_01_dst_03.xob", UIWidgets.ResourcePickerThumbnail, "Antenna prop to spawn when extended", "xob")]
@@ -169,6 +185,29 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Called when antenna raise animation completes: starts the deferred transmission (server only)
+	//------------------------------------------------------------------------------------------------
+	protected void CheckAndStartDeferredTransmission()
+	{
+		if (!m_bNeedsTransmissionStart)
+			return;
+
+		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+		if (!isMaster)
+			return;
+
+		m_bNeedsTransmissionStart = false;
+
+		// Antenna is now fully raised - mark transmission as active and replicate to clients
+		m_bIsTransmitting = true;
+		Replication.BumpMe();
+
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+			bcm.ManageMarkers();
+	}
+
 	override void EOnFrame(IEntity owner, float timeSlice)
 	{
 		// Debug: Log once when animation becomes active to confirm EOnFrame is being called
@@ -218,6 +257,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Apply easing for smooth animation
 		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
 		UpdateAntennaBones(easedProgress);
+		UpdateChannelSelectorBone(easedProgress);
 
 		// Spawn antenna prop when fully extended - only authority sets the replicated flag
 		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
@@ -244,6 +284,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 					(m_fAnimationProgress >= 1.0), isMaster), LogLevel.NORMAL);
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
+
+			// Start transmission now that antenna is fully raised (server/authority only)
+			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0)
+				CheckAndStartDeferredTransmission();
 
 			// Reset the log flag for next animation
 			// Note: This is a static variable, so we need a different approach
@@ -291,6 +335,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Apply easing for smooth animation
 		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
 		UpdateAntennaBones(easedProgress);
+		UpdateChannelSelectorBone(easedProgress);
 
 		// Check for animation completion
 		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
@@ -303,6 +348,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
 			m_bAnimationTickRunning = false;
+
+			// Start transmission now that antenna is fully raised (server/authority only)
+			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0)
+				CheckAndStartDeferredTransmission();
 
 			// Spawn antenna prop when fully extended - only authority sets the replicated flag
 			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
@@ -414,13 +463,10 @@ void UpdateAntennaBones(float progress)
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Find command box via SlotManagerComponent (alternative method)
+	// Find command box by slot name (direct lookup, falls back to bone-scan iteration)
 	//------------------------------------------------------------------------------------------------
 	IEntity FindCommandBoxViaSlots(IEntity parent)
 	{
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - ANTENNA: Searching via SlotManagerComponent...", LogLevel.NORMAL);
-
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(parent.FindComponent(SlotManagerComponent));
 		if (!slotManager)
 		{
@@ -428,100 +474,42 @@ void UpdateAntennaBones(float progress)
 			return null;
 		}
 
+		// Direct lookup by known slot name – no iteration needed
+		EntitySlotInfo directSlot = slotManager.GetSlotByName(RADIO_SLOT_NAME);
+		if (directSlot)
+		{
+			IEntity entity = directSlot.GetAttachedEntity();
+			if (entity)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: Found command box via slot '%1': '%2'", RADIO_SLOT_NAME, entity.GetName()), LogLevel.NORMAL);
+				return entity;
+			}
+		}
+
+		// Fallback: iterate all slots and find by bone presence (logs all slot names for reference)
+		// Always print as a warning - this means RADIO_SLOT_NAME is wrong and should be corrected.
+		Print(string.Format("BC Debug - ANTENNA: Slot '%1' not found, falling back to bone scan", RADIO_SLOT_NAME), LogLevel.WARNING);
 		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
 		slotManager.GetSlotInfos(slots);
-
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BC Debug - ANTENNA: Found %1 slots", slots.Count()), LogLevel.NORMAL);
-
 		foreach (EntitySlotInfo slotInfo : slots)
 		{
 			IEntity attachedEntity = slotInfo.GetAttachedEntity();
 			if (!attachedEntity)
 				continue;
 
-			// Get entity name and class name
-			string entityName = attachedEntity.GetName();
-			string className = attachedEntity.ClassName();
-
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: Slot - Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
+				Print(string.Format("BC Debug - ANTENNA: Slot '%1' entity '%2' (%3)", slotInfo.GetSourceName(), attachedEntity.GetName(), attachedEntity.ClassName()), LogLevel.NORMAL);
 
-			// Check if this entity has the antenna bones
 			Animation anim = attachedEntity.GetAnimation();
-			if (anim)
+			if (anim && anim.GetBoneIndex(ANTENNA_BONE_NAMES[0]) != -1)
 			{
-				TNodeId testBoneId = anim.GetBoneIndex("v_antenna_01");
-				if (testBoneId != -1)
-				{
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("BC Debug - ANTENNA: >>> FOUND COMMAND BOX - has v_antenna_01 bone! Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
-					return attachedEntity;
-				}
+				Print(string.Format("BC Debug - ANTENNA: Found command box via bone scan in slot '%1'", slotInfo.GetSourceName()), LogLevel.WARNING);
+				return attachedEntity;
 			}
 		}
 
-		Print("BC Debug - ANTENNA: No slot entity found with antenna bones", LogLevel.WARNING);
-		return null;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	// Find the command box child entity
-	//------------------------------------------------------------------------------------------------
-	IEntity FindCommandBox(IEntity parent, int depth = 0)
-	{
-		if (depth == 0)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - ANTENNA: Starting command box search...", LogLevel.NORMAL);
-		}
-
-		string indent = "";
-		for (int i = 0; i < depth; i++)
-		{
-			indent += "  ";
-		}
-
-		IEntity child = parent.GetChildren();
-
-		if (!child)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: %1No children found for entity %2", indent, parent.GetName()), LogLevel.NORMAL);
-			return null;
-		}
-
-		while (child)
-		{
-			string childName = child.GetName();
-			string className = child.ClassName();
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: %1Child [depth %2]: Name:'%3' Class:'%4'", indent, depth, childName, className), LogLevel.NORMAL);
-
-			// Check if this is the command box by name or class
-			string childNameLower = childName;
-			childNameLower.ToLower();
-			string classNameLower = className;
-			classNameLower.ToLower();
-
-			if (childNameLower.Contains("combox") || childNameLower.Contains("command") || classNameLower.Contains("combox") || classNameLower.Contains("command"))
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("BC Debug - ANTENNA: %1>>> FOUND COMMAND BOX: %2 (%3)", indent, childName, className), LogLevel.NORMAL);
-				return child;
-			}
-
-			// Recursively search children (limit depth to prevent infinite loops)
-			if (depth < 10)
-			{
-				IEntity foundInChild = FindCommandBox(child, depth + 1);
-				if (foundInChild)
-					return foundInChild;
-			}
-
-			child = child.GetSibling();
-		}
-
+		Print("BC Debug - ANTENNA: Command box not found via any method", LogLevel.WARNING);
 		return null;
 	}
 
@@ -533,20 +521,11 @@ void UpdateAntennaBones(float progress)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - ANTENNA: InitializeAntennaBones() called (delayed)", LogLevel.NORMAL);
 
-		// Try method 1: Search child entities
-		m_commandBox = FindCommandBox(m_radioTruck);
-
-		// Try method 2: Search via SlotManagerComponent if method 1 failed
-		if (!m_commandBox)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - ANTENNA: Trying SlotManagerComponent method...", LogLevel.NORMAL);
-			m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
-		}
+		m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
 
 		if (!m_commandBox)
 		{
-			Print("BC Debug - ANTENNA: Command box not found via any method! Using main truck entity...", LogLevel.WARNING);
+			Print("BC Debug - ANTENNA: Command box not found! Using main truck entity...", LogLevel.WARNING);
 			m_commandBox = m_radioTruck;
 		}
 		else
@@ -562,32 +541,24 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - ANTENNA: Animation object found, searching for bones...", LogLevel.NORMAL);
-
-		// Find all 8 antenna segment bones (v_antenna_01 through v_antenna_08)
-		for (int i = 1; i <= ANTENNA_SEGMENT_COUNT; i++)
+		// Look up all 8 antenna bones by hardcoded name
+		for (int i = 0; i < ANTENNA_SEGMENT_COUNT; i++)
 		{
-			string boneName = string.Format("v_antenna_%1", i.ToString(2)); // Formats as 01, 02, etc.
-			TNodeId boneId = anim.GetBoneIndex(boneName);
-
+			TNodeId boneId = anim.GetBoneIndex(ANTENNA_BONE_NAMES[i]);
 			if (boneId == -1)
 			{
-				Print(string.Format("BC Debug - ANTENNA: Bone '%1' NOT FOUND (ID: %2)", boneName, boneId), LogLevel.WARNING);
+				Print(string.Format("BC Debug - ANTENNA: Bone '%1' NOT FOUND", ANTENNA_BONE_NAMES[i]), LogLevel.WARNING);
 			}
-			else
+			else if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", boneName, boneId), LogLevel.NORMAL);
+				Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", ANTENNA_BONE_NAMES[i], boneId), LogLevel.NORMAL);
 			}
-
 			m_aAntennaBoneIds.Insert(boneId);
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones in array: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
-		
-		// Initialize channel selector bone
+			Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+
 		InitializeChannelSelectorBone();
 	}
 
@@ -603,12 +574,7 @@ void UpdateAntennaBones(float progress)
 		if (!entityToUse)
 			return;
 
-		// In Workbench, try to find command box directly
-		m_commandBox = FindCommandBox(entityToUse);
-
-		if (!m_commandBox)
-			m_commandBox = FindCommandBoxViaSlots(entityToUse);
-
+		m_commandBox = FindCommandBoxViaSlots(entityToUse);
 		if (!m_commandBox)
 			m_commandBox = entityToUse;
 
@@ -616,15 +582,9 @@ void UpdateAntennaBones(float progress)
 		if (!anim)
 			return;
 
-		// Find all 8 antenna segment bones
-		for (int i = 1; i <= ANTENNA_SEGMENT_COUNT; i++)
-		{
-			string boneName = string.Format("v_antenna_%1", i.ToString(2));
-			TNodeId boneId = anim.GetBoneIndex(boneName);
-			m_aAntennaBoneIds.Insert(boneId);
-		}
-		
-		// Initialize channel selector bone as well
+		for (int i = 0; i < ANTENNA_SEGMENT_COUNT; i++)
+			m_aAntennaBoneIds.Insert(anim.GetBoneIndex(ANTENNA_BONE_NAMES[i]));
+
 		InitializeChannelSelectorBone();
 	}
 
@@ -701,7 +661,7 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		// Get the top antenna bone (v_antenna_08)
+		// Get the top antenna bone (last segment)
 		Animation anim = m_commandBox.GetAnimation();
 		if (!anim)
 		{
@@ -709,10 +669,10 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		TNodeId topBoneId = anim.GetBoneIndex("v_antenna_08");
+		TNodeId topBoneId = anim.GetBoneIndex(ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT - 1]);
 		if (topBoneId == -1)
 		{
-			Print("BC Debug - ANTENNA: Cannot spawn antenna prop - v_antenna_08 bone not found", LogLevel.ERROR);
+			Print(string.Format("BC Debug - ANTENNA: Cannot spawn antenna prop - '%1' bone not found", ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT - 1]), LogLevel.ERROR);
 			return;
 		}
 
@@ -912,6 +872,7 @@ void UpdateAntennaBones(float progress)
 		m_bIsDisabled = disabled;
 		if (disabled)
 		{
+			m_bNeedsTransmissionStart = false; // Cancel any pending deferred start
 			// Stop any active transmission when disabled - this handles antenna and lamp via SetTransmissionActive
 			SetTransmissionActive(false);
 		}
@@ -921,59 +882,44 @@ void UpdateAntennaBones(float progress)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Initialize channel selector bone reference
+	// Initialize channel selector bone reference.
+	// The channel_selector bone lives on a nested child entity of the commandbox
+	// (CampaignHQRadioEast → CampaignHQRadioBase), NOT on the commandbox itself.
 	//------------------------------------------------------------------------------------------------
 	void InitializeChannelSelectorBone()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
-		
-		// Find the radio entity - search through slots
-		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
-		if (!slotManager)
+
+		if (!m_commandBox)
 		{
-			Print("BC Debug - CHANNEL_SELECTOR: No SlotManagerComponent found", LogLevel.WARNING);
+			Print("BC Debug - CHANNEL_SELECTOR: No command box available", LogLevel.WARNING);
 			return;
 		}
-		
-		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
-		slotManager.GetSlotInfos(slots);
-		
-		foreach (EntitySlotInfo slotInfo : slots)
+
+		// The bone is on the direct child entity of the commandbox (CampaignHQRadioEast).
+		// Iterate commandbox children to find it.
+		IEntity child = m_commandBox.GetChildren();
+		while (child)
 		{
-			IEntity attachedEntity = slotInfo.GetAttachedEntity();
-			if (!attachedEntity)
-				continue;
-				
-			// Check if this entity has the channel_selector bone
-			Animation anim = attachedEntity.GetAnimation();
+			Animation anim = child.GetAnimation();
 			if (anim)
 			{
-				// Try to find the bone path: scene_root > root > channel_selector
-				TNodeId sceneRootId = anim.GetBoneIndex("Scene_Root");
-				if (sceneRootId != -1)
+				TNodeId channelSelectorId = anim.GetBoneIndex(CHANNEL_SELECTOR_BONE_NAME);
+				if (channelSelectorId != -1)
 				{
-					// Found scene_root, now look for root child
-					TNodeId rootId = anim.GetBoneIndex("Root");
-					if (rootId != -1)
-					{
-						// Found root, now look for channel_selector
-						TNodeId channelSelectorId = anim.GetBoneIndex("channel_selector");
-						if (channelSelectorId != -1)
-						{
-							m_radioEntity = attachedEntity;
-							m_ChannelSelectorBoneId = channelSelectorId;
-							if (GRAD_BC_BreakingContactManager.IsDebugMode())
-								Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found channel_selector bone (ID: %1) in entity: %2", 
-									channelSelectorId, attachedEntity.GetName()), LogLevel.NORMAL);
-							return;
-						}
-					}
+					m_radioEntity = child;
+					m_ChannelSelectorBoneId = channelSelectorId;
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) on child entity '%3' (%4)",
+							CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, child.GetName(), child.ClassName()), LogLevel.NORMAL);
+					return;
 				}
 			}
+			child = child.GetSibling();
 		}
-		
-		Print("BC Debug - CHANNEL_SELECTOR: Could not find channel_selector bone", LogLevel.WARNING);
+
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Could not find '%1' bone in any child of command box", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1024,9 +970,8 @@ void UpdateAntennaBones(float progress)
 		
 		if (rotated)
 		{
-			// Rotate 90 degrees around Z-axis (up)
-			// Math3D.AnglesToMatrix expects angles in radians: (yaw, pitch, roll)
-			vector angles = Vector(0, 0, 90); // 90 degrees around Z
+			// Rotate -90 degrees around Z-axis to point toward 2 o'clock position
+			vector angles = Vector(0, 0, -120);
 			Math3D.AnglesToMatrix(angles, mat);
 		}
 		// If not rotated, identity matrix = 0 degrees (already set above)
@@ -1038,6 +983,29 @@ void UpdateAntennaBones(float progress)
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Interpolate channel selector bone rotation based on animation progress (0=retracted, 1=extended)
+	// Called each frame from AnimationTick / EOnFrame alongside UpdateAntennaBones.
+	//------------------------------------------------------------------------------------------------
+	protected void UpdateChannelSelectorBone(float progress)
+	{
+		if (!m_radioEntity || m_ChannelSelectorBoneId == -1)
+			return;
+
+		Animation anim = m_radioEntity.GetAnimation();
+		if (!anim)
+			return;
+
+		// Interpolate from 0° (retracted) to -120° (extended / 2 o'clock)
+		float angle = progress * (-120.0);
+
+		vector mat[4];
+		Math3D.MatrixIdentity4(mat);
+		vector angles = Vector(0, 0, angle);
+		Math3D.AnglesToMatrix(angles, mat);
+		anim.SetBoneMatrix(m_radioEntity, m_ChannelSelectorBoneId, mat);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	// Replication callback for channel selector state changes
 	//------------------------------------------------------------------------------------------------
 	void OnChannelSelectorStateReplicated()
@@ -1045,7 +1013,12 @@ void UpdateAntennaBones(float progress)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
 		
-		// On clients, the bone might not be initialized yet - use retry mechanism
+		// If the antenna animation is already running, the per-frame UpdateChannelSelectorBone
+		// call will handle the smooth rotation - no need for an instant snap here.
+		if (m_bAntennaAnimating)
+			return;
+		
+		// Not animating (JIP or stable state): apply instant snap with retry for late bone init.
 		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
 	}
 
@@ -1072,7 +1045,11 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		m_bIsTransmitting = setTo;
+		// For stop: immediately mark as not transmitting.
+		// For start: m_bIsTransmitting will be set after the antenna is fully raised
+		// in CheckAndStartDeferredTransmission(), so BCM.ManageMarkers() only fires then.
+		if (!setTo)
+			m_bIsTransmitting = false;
 
 		// Set replicated antenna state - this triggers client-side animations via OnAntennaStateReplicated
 		m_bAntennaStateRaised = setTo;
@@ -1099,28 +1076,33 @@ void UpdateAntennaBones(float progress)
 		if (setTo)
 		{
 			RaiseAntenna();
+			m_bNeedsTransmissionStart = true; // Transmission starts after antenna is fully raised
 		}
 		else
 		{
+			m_bNeedsTransmissionStart = false; // Cancel any pending start
 			LowerAntenna();
 		}
 
 		// Apply lamp state locally on server
 		ApplyLampState(setTo);
 		
-		// Apply channel selector rotation locally on server
-		ApplyChannelSelectorRotation(setTo);
+		// Note: channel selector rotation is now animated smoothly via UpdateChannelSelectorBone
+		// called each frame from AnimationTick/EOnFrame. No instant snap needed here.
 		
-		// Immediately notify the BreakingContactManager to handle transmission points
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcm) {
-			bcm.ManageMarkers(); // Force immediate update instead of waiting for mainLoop
+		// For stop: immediately notify BCM to stop transmission.
+		// For start: deferred until antenna is fully raised (see AnimationTick/EOnFrame).
+		if (!setTo)
+		{
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm)
+				bcm.ManageMarkers();
 		}
 		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
-		// disable transmissions for every transmission point
-		if (!m_bIsTransmitting) {
+		// Engine management: use setTo directly (m_bIsTransmitting is delayed for start)
+		if (!setTo) {
 			if (VDMC) {
 				EnableVehicleAndRestoreFuel(m_radioTruck);
 				

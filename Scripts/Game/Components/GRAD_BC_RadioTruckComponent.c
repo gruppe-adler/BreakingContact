@@ -77,6 +77,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 	protected float m_fAnimationSpeed;      // Calculated as 1.0 / (time_in_seconds)
 	private int m_iLastLoggedProgress = -1; // For debug logging
 	private bool m_bAnimationTickRunning = false; // Track if animation tick loop is active
+	private bool m_bNeedsTransmissionStart = false; // Deferred: start transmission after antenna is fully raised
 
 	// Antenna prop spawning
 	[Attribute("{F23A470F0A7A46A0}Assets/Props/Military/Antennas/Antenna_R142_01/Dst/Antenna_R142_01_dst_03.xob", UIWidgets.ResourcePickerThumbnail, "Antenna prop to spawn when extended", "xob")]
@@ -169,6 +170,24 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 	}
 
+	//------------------------------------------------------------------------------------------------
+	// Called when antenna raise animation completes: starts the deferred transmission (server only)
+	//------------------------------------------------------------------------------------------------
+	protected void CheckAndStartDeferredTransmission()
+	{
+		if (!m_bNeedsTransmissionStart)
+			return;
+
+		bool isMaster = m_RplComponent && m_RplComponent.IsMaster();
+		if (!isMaster)
+			return;
+
+		m_bNeedsTransmissionStart = false;
+		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcm)
+			bcm.ManageMarkers();
+	}
+
 	override void EOnFrame(IEntity owner, float timeSlice)
 	{
 		// Debug: Log once when animation becomes active to confirm EOnFrame is being called
@@ -245,6 +264,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
 
+			// Start transmission now that antenna is fully raised (server/authority only)
+			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0)
+				CheckAndStartDeferredTransmission();
+
 			// Reset the log flag for next animation
 			// Note: This is a static variable, so we need a different approach
 		}
@@ -303,6 +326,10 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			m_bAntennaAnimating = false;
 			m_bAntennaExtended = (m_fAnimationProgress >= 1.0);
 			m_bAnimationTickRunning = false;
+
+			// Start transmission now that antenna is fully raised (server/authority only)
+			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0)
+				CheckAndStartDeferredTransmission();
 
 			// Spawn antenna prop when fully extended - only authority sets the replicated flag
 			if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
@@ -466,66 +493,6 @@ void UpdateAntennaBones(float progress)
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Find the command box child entity
-	//------------------------------------------------------------------------------------------------
-	IEntity FindCommandBox(IEntity parent, int depth = 0)
-	{
-		if (depth == 0)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - ANTENNA: Starting command box search...", LogLevel.NORMAL);
-		}
-
-		string indent = "";
-		for (int i = 0; i < depth; i++)
-		{
-			indent += "  ";
-		}
-
-		IEntity child = parent.GetChildren();
-
-		if (!child)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: %1No children found for entity %2", indent, parent.GetName()), LogLevel.NORMAL);
-			return null;
-		}
-
-		while (child)
-		{
-			string childName = child.GetName();
-			string className = child.ClassName();
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: %1Child [depth %2]: Name:'%3' Class:'%4'", indent, depth, childName, className), LogLevel.NORMAL);
-
-			// Check if this is the command box by name or class
-			string childNameLower = childName;
-			childNameLower.ToLower();
-			string classNameLower = className;
-			classNameLower.ToLower();
-
-			if (childNameLower.Contains("combox") || childNameLower.Contains("command") || classNameLower.Contains("combox") || classNameLower.Contains("command"))
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("BC Debug - ANTENNA: %1>>> FOUND COMMAND BOX: %2 (%3)", indent, childName, className), LogLevel.NORMAL);
-				return child;
-			}
-
-			// Recursively search children (limit depth to prevent infinite loops)
-			if (depth < 10)
-			{
-				IEntity foundInChild = FindCommandBox(child, depth + 1);
-				if (foundInChild)
-					return foundInChild;
-			}
-
-			child = child.GetSibling();
-		}
-
-		return null;
-	}
-
-	//------------------------------------------------------------------------------------------------
 	// Initialize antenna bone references
 	//------------------------------------------------------------------------------------------------
 	void InitializeAntennaBones()
@@ -533,20 +500,12 @@ void UpdateAntennaBones(float progress)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - ANTENNA: InitializeAntennaBones() called (delayed)", LogLevel.NORMAL);
 
-		// Try method 1: Search child entities
-		m_commandBox = FindCommandBox(m_radioTruck);
-
-		// Try method 2: Search via SlotManagerComponent if method 1 failed
-		if (!m_commandBox)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("BC Debug - ANTENNA: Trying SlotManagerComponent method...", LogLevel.NORMAL);
-			m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
-		}
+		// Find command box via SlotManagerComponent (checks for antenna bone presence)
+		m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
 
 		if (!m_commandBox)
 		{
-			Print("BC Debug - ANTENNA: Command box not found via any method! Using main truck entity...", LogLevel.WARNING);
+			Print("BC Debug - ANTENNA: Command box not found! Using main truck entity...", LogLevel.WARNING);
 			m_commandBox = m_radioTruck;
 		}
 		else
@@ -603,11 +562,8 @@ void UpdateAntennaBones(float progress)
 		if (!entityToUse)
 			return;
 
-		// In Workbench, try to find command box directly
-		m_commandBox = FindCommandBox(entityToUse);
-
-		if (!m_commandBox)
-			m_commandBox = FindCommandBoxViaSlots(entityToUse);
+		// Find command box via SlotManagerComponent (checks for antenna bone presence)
+		m_commandBox = FindCommandBoxViaSlots(entityToUse);
 
 		if (!m_commandBox)
 			m_commandBox = entityToUse;
@@ -912,6 +868,7 @@ void UpdateAntennaBones(float progress)
 		m_bIsDisabled = disabled;
 		if (disabled)
 		{
+			m_bNeedsTransmissionStart = false; // Cancel any pending deferred start
 			// Stop any active transmission when disabled - this handles antenna and lamp via SetTransmissionActive
 			SetTransmissionActive(false);
 		}
@@ -1099,9 +1056,11 @@ void UpdateAntennaBones(float progress)
 		if (setTo)
 		{
 			RaiseAntenna();
+			m_bNeedsTransmissionStart = true; // Transmission starts after antenna is fully raised
 		}
 		else
 		{
+			m_bNeedsTransmissionStart = false; // Cancel any pending start
 			LowerAntenna();
 		}
 
@@ -1111,10 +1070,13 @@ void UpdateAntennaBones(float progress)
 		// Apply channel selector rotation locally on server
 		ApplyChannelSelectorRotation(setTo);
 		
-		// Immediately notify the BreakingContactManager to handle transmission points
-		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
-		if (bcm) {
-			bcm.ManageMarkers(); // Force immediate update instead of waiting for mainLoop
+		// For stop: immediately notify BCM to stop transmission.
+		// For start: deferred until antenna is fully raised (see AnimationTick/EOnFrame).
+		if (!setTo)
+		{
+			GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
+			if (bcm)
+				bcm.ManageMarkers();
 		}
 		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));

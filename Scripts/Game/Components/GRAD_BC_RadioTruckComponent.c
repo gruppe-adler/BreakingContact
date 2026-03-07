@@ -971,7 +971,7 @@ void UpdateAntennaBones(float progress)
 		if (rotated)
 		{
 			// Rotate -90 degrees around Z-axis to point toward 2 o'clock position
-			vector angles = Vector(0, 0, -90);
+			vector angles = Vector(0, 0, -120);
 			Math3D.AnglesToMatrix(angles, mat);
 		}
 		// If not rotated, identity matrix = 0 degrees (already set above)
@@ -995,8 +995,8 @@ void UpdateAntennaBones(float progress)
 		if (!anim)
 			return;
 
-		// Interpolate from 0° (retracted) to -90° (extended / 2 o'clock)
-		float angle = progress * (-90.0);
+		// Interpolate from 0° (retracted) to -120° (extended / 2 o'clock)
+		float angle = progress * (-120.0);
 
 		vector mat[4];
 		Math3D.MatrixIdentity4(mat);

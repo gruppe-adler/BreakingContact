@@ -128,7 +128,8 @@ class GRAD_PlayerComponent : ScriptComponent
 	
 	void setChoosingSpawn(bool choosing) {
 		m_bChoosingSpawn = choosing;
-		
+		SetConfirmSpawnButtonVisible(choosing);
+
 		// Reset spawn ready flag when starting to choose spawn
 		if (choosing)
 		{
@@ -178,6 +179,8 @@ class GRAD_PlayerComponent : ScriptComponent
 			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
 			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
 			m_bChoosingSpawn = true;
+			// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
+			GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
 		}
 
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
@@ -396,7 +399,25 @@ class GRAD_PlayerComponent : ScriptComponent
 			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
 	}
 
-	
+	//------------------------------------------------------------------------------------------------
+	protected void SetConfirmSpawnButtonVisible(bool visible)
+	{
+		if (!PS_SpectatorMenu.s_SpectatorMenu)
+			return;
+
+		Widget menuRoot = PS_SpectatorMenu.s_SpectatorMenu.GetRootWidget();
+		if (!menuRoot)
+			return;
+
+		Widget overlayFooter = menuRoot.FindAnyWidget("OverlayFooter");
+		if (!overlayFooter)
+			return;
+
+		Widget btn = overlayFooter.FindAnyWidget("BC_ConfirmSpawn");
+		if (btn)
+			btn.SetVisible(visible);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	protected void InitMapMarkerUI()
 	{

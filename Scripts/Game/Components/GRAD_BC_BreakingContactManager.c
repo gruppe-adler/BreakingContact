@@ -184,6 +184,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (bcHeader && bcHeader.IsDebugLogsEnabled())
 				m_iDebugModeCache = 1;
 		}
+		
+		#ifdef WORKBENCH
+			m_iDebugModeCache = 1;
+		#endif
 
 		return m_iDebugModeCache == 1;
 	}
@@ -314,7 +318,16 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
-		
+
+		// close map at end of replay before EndGameMode destroys PS_SpectatorMenu's widget frame.
+		// the player is a spectator so ToggleMap won't work — CloseMap handles both paths.
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVERDONE)
+		{
+			GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+			if (replayManager)
+				replayManager.CloseMap();
+		}
+
 		// Retrieve the HUD‐display and call ShowLogo on it:
 	    SCR_HUDManagerComponent hud = SCR_HUDManagerComponent.GetHUDManager();
 	    if (!hud) {
@@ -1534,13 +1547,17 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		{
 			gameOverType = EGameOverTypes.END6; // Opfor wins by completing all transmissions
 		}
-		else if (factionEliminated("US"))
+		else if (m_sWinnerSide == "opfor")
 		{
 			gameOverType = EGameOverTypes.END3; // Opfor wins by elimination
 		}
-		else if (factionEliminated("USSR"))
+		else if (m_sWinnerSide == "blufor")
 		{
 			gameOverType = EGameOverTypes.END1; // Blufor wins by elimination
+		}
+		else if (m_sWinnerSide == "draw")
+		{
+			gameOverType = EGameOverTypes.FACTION_DRAW;
 		}
 		
 		// Create endscreen data

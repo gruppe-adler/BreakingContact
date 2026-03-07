@@ -21,7 +21,7 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	[RplProp()]
 	protected float m_iTransmissionProgress;
 
-	static float m_iTransmissionDuration = 900.0; // gets overriden in init
+	static float m_iTransmissionDuration = 1200.0; // gets overriden in init
 	static float m_iTransmissionUpdateTickSize = 1.0 /m_iTransmissionDuration;
 
 	private RplComponent m_RplComponent;
@@ -251,6 +251,8 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 			currentState = GetTransmissionState(); // update to reflect this change
 
 			GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
+			if (BCM)
+				BCM.StopRadioTruckTransmission();
 		};
 		 
 		switch (currentState)

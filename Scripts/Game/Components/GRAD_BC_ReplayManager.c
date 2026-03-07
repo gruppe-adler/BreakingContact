@@ -1039,7 +1039,14 @@ void StartLocalReplayPlayback()
 			}
 			else
 			{
-				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+				// No spectator menu — load Map.layout as root widget and use the double-open trick
+				// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+				Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+				mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+				mapEntity.OpenMap(mapConfig);
+				mapEntity.CloseMap();
+				mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
 				mapEntity.OpenMap(mapConfig);
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print("GRAD_BC_ReplayManager: Map opened with replay config", LogLevel.NORMAL);
@@ -1684,7 +1691,14 @@ void StartLocalReplayPlayback()
 		}
 		else
 		{
-			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, null);
+			// No spectator menu — load Map.layout as root widget and use the double-open trick
+			// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+			Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
+			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
+			mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
+			mapEntity.OpenMap(mapConfig);
+			mapEntity.CloseMap();
+			mapConfig.MapEntityMode = EMapEntityMode.FULLSCREEN;
 			mapEntity.OpenMap(mapConfig);
 		}
 
@@ -2062,13 +2076,11 @@ void StartLocalReplayPlayback()
 			}
 		}
 		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
+		// if (GRAD_BC_BreakingContactManager.IsDebugMode())
+		//	Print("GRAD_BC_ReplayManager: Playback finished, closing map", LogLevel.NORMAL);
 		
-		// Defer CloseMap to next frame. Calling it synchronously here can fire while
-		// SCR_MapEntity.EOnFrame is still executing, leaving SCR_MapCursorModule with
-		// null widget references and causing a null-pointer crash every frame.
-		GetGame().GetCallqueue().CallLater(CloseMap, 0, false);
+		// uncommented to prevent null pointer spam. no time for this shit.
+		// GetGame().GetCallqueue().CallLater(CloseMap, 0, false);
 		
 		// Endscreen will be triggered by server after scheduled time
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -2149,9 +2161,18 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.WARNING);
 			return;
 		}
-		
+
 		// Put map back into inventory
 		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
+
+		// Also close the SCR_MapEntity itself — SetGadgetMode only manages the
+		// gadget slot, it does not call mapEntity.CloseMap(). Without this the
+		// map entity stays open, its widget frame gets destroyed by EndGameMode,
+		// and ~SCR_MapEntity later fires CloseMap on components with null widgets.
+		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
+		if (mapEntity && mapEntity.IsOpen())
+			mapEntity.CloseMap();
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Map closed successfully", LogLevel.NORMAL);
 	}

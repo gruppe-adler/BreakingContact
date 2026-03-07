@@ -4,9 +4,30 @@
 [BaseContainerProps()]
 class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
 {
+	protected static int s_iLogThrottle = 0;
+
 	//------------------------------------------------------------------------------------------------
 	override bool IsAvailable(SCR_AvailableActionsConditionData data)
 	{
+		// Log active input contexts every ~120 frames to avoid spam
+		s_iLogThrottle++;
+		if (s_iLogThrottle >= 120)
+		{
+			s_iLogThrottle = 0;
+			PlayerController playerController = GetGame().GetPlayerController();
+			if (playerController)
+			{
+				ActionManager actionManager = playerController.GetActionManager();
+				if (actionManager)
+				{
+					bool spectatorCtx = actionManager.IsContextActive("SpectatorContext");
+					bool mapCtx = actionManager.IsContextActive("MapContext");
+					bool characterCtx = actionManager.IsContextActive("CharacterContext");
+					Print(string.Format("BC Debug - ConfirmSpawnCondition contexts: SpectatorContext=%1 MapContext=%2 CharacterContext=%3", spectatorCtx, mapCtx, characterCtx), LogLevel.NORMAL);
+				}
+			}
+		}
+
 		// Check if player component exists
 		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 		if (!playerComponent)

@@ -875,69 +875,44 @@ void UpdateAntennaBones(float progress)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Initialize channel selector bone reference
-	// The channel_selector bone lives on the same combox entity as the antenna bones.
+	// Initialize channel selector bone reference.
+	// The channel_selector bone lives on a nested child entity of the commandbox
+	// (CampaignHQRadioEast → CampaignHQRadioBase), NOT on the commandbox itself.
 	//------------------------------------------------------------------------------------------------
 	void InitializeChannelSelectorBone()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
 
-		// Primary path: bone is on the already-found combox entity
-		if (m_commandBox)
+		if (!m_commandBox)
 		{
-			Animation anim = m_commandBox.GetAnimation();
+			Print("BC Debug - CHANNEL_SELECTOR: No command box available", LogLevel.WARNING);
+			return;
+		}
+
+		// The bone is on the direct child entity of the commandbox (CampaignHQRadioEast).
+		// Iterate commandbox children to find it.
+		IEntity child = m_commandBox.GetChildren();
+		while (child)
+		{
+			Animation anim = child.GetAnimation();
 			if (anim)
 			{
 				TNodeId channelSelectorId = anim.GetBoneIndex(CHANNEL_SELECTOR_BONE_NAME);
 				if (channelSelectorId != -1)
 				{
-					m_radioEntity = m_commandBox;
+					m_radioEntity = child;
 					m_ChannelSelectorBoneId = channelSelectorId;
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) on command box '%3'",
-							CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, m_commandBox.GetName()), LogLevel.NORMAL);
+						Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) on child entity '%3' (%4)",
+							CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, child.GetName(), child.ClassName()), LogLevel.NORMAL);
 					return;
 				}
 			}
+			child = child.GetSibling();
 		}
 
-		// Fallback: iterate all slots on the truck and search by bone presence
-		Print(string.Format("BC Debug - CHANNEL_SELECTOR: '%1' bone not on command box, falling back to slot scan", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
-		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
-		if (!slotManager)
-		{
-			Print("BC Debug - CHANNEL_SELECTOR: No SlotManagerComponent found", LogLevel.WARNING);
-			return;
-		}
-
-		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
-		slotManager.GetSlotInfos(slots);
-		foreach (EntitySlotInfo slotInfo : slots)
-		{
-			IEntity attachedEntity = slotInfo.GetAttachedEntity();
-			if (!attachedEntity)
-				continue;
-
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Slot '%1' entity '%2'", slotInfo.GetSlotName(), attachedEntity.GetName()), LogLevel.NORMAL);
-
-			Animation anim = attachedEntity.GetAnimation();
-			if (!anim)
-				continue;
-
-			TNodeId channelSelectorId = anim.GetBoneIndex(CHANNEL_SELECTOR_BONE_NAME);
-			if (channelSelectorId != -1)
-			{
-				m_radioEntity = attachedEntity;
-				m_ChannelSelectorBoneId = channelSelectorId;
-				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) via fallback scan in slot '%3'",
-					CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, slotInfo.GetSlotName()), LogLevel.WARNING);
-				return;
-			}
-		}
-
-		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Could not find '%1' bone", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Could not find '%1' bone in any child of command box", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
 	}
 	
 	//------------------------------------------------------------------------------------------------

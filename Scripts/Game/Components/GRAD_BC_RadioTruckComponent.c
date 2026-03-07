@@ -198,6 +198,11 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 			return;
 
 		m_bNeedsTransmissionStart = false;
+
+		// Antenna is now fully raised - mark transmission as active and replicate to clients
+		m_bIsTransmitting = true;
+		Replication.BumpMe();
+
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
 		if (bcm)
 			bcm.ManageMarkers();
@@ -252,6 +257,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Apply easing for smooth animation
 		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
 		UpdateAntennaBones(easedProgress);
+		UpdateChannelSelectorBone(easedProgress);
 
 		// Spawn antenna prop when fully extended - only authority sets the replicated flag
 		if (m_bAntennaRaising && m_fAnimationProgress >= 1.0 && !m_RedLightPropEntity)
@@ -329,6 +335,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		// Apply easing for smooth animation
 		float easedProgress = EaseInOutCubic(m_fAnimationProgress);
 		UpdateAntennaBones(easedProgress);
+		UpdateChannelSelectorBone(easedProgress);
 
 		// Check for animation completion
 		if (m_fAnimationProgress >= 1.0 || m_fAnimationProgress <= 0.0)
@@ -963,9 +970,8 @@ void UpdateAntennaBones(float progress)
 		
 		if (rotated)
 		{
-			// Rotate 90 degrees around Z-axis (up)
-			// Math3D.AnglesToMatrix expects angles in radians: (yaw, pitch, roll)
-			vector angles = Vector(0, 0, 90); // 90 degrees around Z
+			// Rotate -90 degrees around Z-axis to point toward 2 o'clock position
+			vector angles = Vector(0, 0, -90);
 			Math3D.AnglesToMatrix(angles, mat);
 		}
 		// If not rotated, identity matrix = 0 degrees (already set above)
@@ -977,6 +983,29 @@ void UpdateAntennaBones(float progress)
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Interpolate channel selector bone rotation based on animation progress (0=retracted, 1=extended)
+	// Called each frame from AnimationTick / EOnFrame alongside UpdateAntennaBones.
+	//------------------------------------------------------------------------------------------------
+	protected void UpdateChannelSelectorBone(float progress)
+	{
+		if (!m_radioEntity || m_ChannelSelectorBoneId == -1)
+			return;
+
+		Animation anim = m_radioEntity.GetAnimation();
+		if (!anim)
+			return;
+
+		// Interpolate from 0° (retracted) to -90° (extended / 2 o'clock)
+		float angle = progress * (-90.0);
+
+		vector mat[4];
+		Math3D.MatrixIdentity4(mat);
+		vector angles = Vector(0, 0, angle);
+		Math3D.AnglesToMatrix(angles, mat);
+		anim.SetBoneMatrix(m_radioEntity, m_ChannelSelectorBoneId, mat);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	// Replication callback for channel selector state changes
 	//------------------------------------------------------------------------------------------------
 	void OnChannelSelectorStateReplicated()
@@ -984,7 +1013,12 @@ void UpdateAntennaBones(float progress)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BC Debug - CHANNEL_SELECTOR: OnChannelSelectorStateReplicated called - rotated=%1", m_bChannelSelectorRotated), LogLevel.NORMAL);
 		
-		// On clients, the bone might not be initialized yet - use retry mechanism
+		// If the antenna animation is already running, the per-frame UpdateChannelSelectorBone
+		// call will handle the smooth rotation - no need for an instant snap here.
+		if (m_bAntennaAnimating)
+			return;
+		
+		// Not animating (JIP or stable state): apply instant snap with retry for late bone init.
 		ApplyChannelSelectorRotationWithRetry(m_bChannelSelectorRotated, 0);
 	}
 
@@ -1011,7 +1045,11 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		m_bIsTransmitting = setTo;
+		// For stop: immediately mark as not transmitting.
+		// For start: m_bIsTransmitting will be set after the antenna is fully raised
+		// in CheckAndStartDeferredTransmission(), so BCM.ManageMarkers() only fires then.
+		if (!setTo)
+			m_bIsTransmitting = false;
 
 		// Set replicated antenna state - this triggers client-side animations via OnAntennaStateReplicated
 		m_bAntennaStateRaised = setTo;
@@ -1049,8 +1087,8 @@ void UpdateAntennaBones(float progress)
 		// Apply lamp state locally on server
 		ApplyLampState(setTo);
 		
-		// Apply channel selector rotation locally on server
-		ApplyChannelSelectorRotation(setTo);
+		// Note: channel selector rotation is now animated smoothly via UpdateChannelSelectorBone
+		// called each frame from AnimationTick/EOnFrame. No instant snap needed here.
 		
 		// For stop: immediately notify BCM to stop transmission.
 		// For start: deferred until antenna is fully raised (see AnimationTick/EOnFrame).
@@ -1063,8 +1101,8 @@ void UpdateAntennaBones(float progress)
 		
 		SCR_VehicleDamageManagerComponent VDMC = SCR_VehicleDamageManagerComponent.Cast(m_radioTruck.FindComponent(SCR_VehicleDamageManagerComponent));
 
-		// disable transmissions for every transmission point
-		if (!m_bIsTransmitting) {
+		// Engine management: use setTo directly (m_bIsTransmitting is delayed for start)
+		if (!setTo) {
 			if (VDMC) {
 				EnableVehicleAndRestoreFuel(m_radioTruck);
 				

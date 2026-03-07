@@ -1,7 +1,8 @@
 enum e_currentTrafficDisplay {
 	NONE,
 	GUNFIGHT,
-	KILLED
+	KILLED,
+	CIVILIAN_SIGHTING
 }
 
 class GRAD_BC_Traffic: SCR_InfoDisplayExtended
@@ -100,6 +101,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 		{
 			case e_currentTrafficDisplay.KILLED:
 			case e_currentTrafficDisplay.GUNFIGHT:
+			case e_currentTrafficDisplay.CIVILIAN_SIGHTING:
 				shouldShow = true;
 				break;
 			
@@ -149,6 +151,24 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 						Print("BC Traffic UI: Civ had been killed", LogLevel.NORMAL);
 					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
 					
+					break;
+				}
+
+				case e_currentTrafficDisplay.CIVILIAN_SIGHTING: {
+					m_currentDisplayCached = e_currentTrafficDisplay.CIVILIAN_SIGHTING;
+					// Placeholder texture – replace with dedicated asset when available.
+					m_infoImage.LoadImageTexture(0, "{3B1DCBDCE5DA9CEB}UI/Transmission/rus_established.edds");
+
+					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
+					if (playerComponent == null)
+						return;
+
+					vector location = playerComponent.GetOwner().GetOrigin();
+
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("BC Traffic UI: Civilian sighting reported", LogLevel.NORMAL);
+					AudioSystem.PlayEvent("{1C5FE7EFA950B78D}sounds/BC_beep.acp", "beep", location);
+
 					break;
 				}
 

@@ -9,14 +9,54 @@
 // map config resource (e.g. the replay config) instead of the gamemode's
 // SCR_MapConfigComponent config. Replicates the double-open workaround from
 // the original OpenMap() so keybinds and layout are correct.
+//
+// Face selection: a face-selection overlay (GRAD_BC_FaceSelectionMenu) is
+// instantiated once and toggled by the GRAD_BC_FaceSelection input action
+// (default key: F). The selected face ID is persisted in the local profile and
+// can be read at spawn time via GRAD_BC_FaceSelectionMenu.GetSelectedFaceId().
 modded class PS_SpectatorMenu : MenuBase
 {
+	protected ref GRAD_BC_FaceSelectionMenu m_FaceSelectionMenu;
+
 	override void OnMenuInit()
 	{
 		super.OnMenuInit();
 
 		if (!m_MapEntity)
 			m_MapEntity = SCR_MapEntity.GetMapInstance();
+
+		// Instantiate the face-selection manager (does not open the overlay yet)
+		m_FaceSelectionMenu = new GRAD_BC_FaceSelectionMenu();
+
+		// Register the input action that toggles the face-selection overlay
+		GetGame().GetInputManager().AddActionListener(
+			"GRAD_BC_FaceSelection", EActionTrigger.DOWN, OnAction_FaceSelection);
+
+		Print("BC Debug - PS_SpectatorMenu.OnMenuInit: face selection registered", LogLevel.NORMAL);
+	}
+
+	override void OnMenuClose()
+	{
+		// Remove the input listener and close the overlay when the menu closes
+		GetGame().GetInputManager().RemoveActionListener(
+			"GRAD_BC_FaceSelection", EActionTrigger.DOWN, OnAction_FaceSelection);
+
+		if (m_FaceSelectionMenu && m_FaceSelectionMenu.IsOpen())
+			m_FaceSelectionMenu.Close();
+
+		super.OnMenuClose();
+	}
+
+	//! Toggle the face-selection overlay.
+	protected void OnAction_FaceSelection()
+	{
+		if (!m_FaceSelectionMenu)
+			return;
+
+		// Use the root widget of the SpectatorMenu as the parent so the overlay
+		// sits on top of the entire spectator UI.
+		Widget root = GetRootWidget();
+		m_FaceSelectionMenu.Toggle(root);
 	}
 
 	void OpenMapWithConfig(ResourceName mapConfig)

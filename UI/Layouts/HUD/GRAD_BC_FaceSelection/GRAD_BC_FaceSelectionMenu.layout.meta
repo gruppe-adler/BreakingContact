@@ -1,0 +1,15 @@
+MetaFileClass {
+ Name "{67BC000000000020}UI/Layouts/HUD/GRAD_BC_FaceSelection/GRAD_BC_FaceSelectionMenu.layout"
+ Configurations {
+  LayoutResourceClass PC {
+  }
+  LayoutResourceClass XBOX_ONE : PC {
+  }
+  LayoutResourceClass XBOX_SERIES : PC {
+  }
+  LayoutResourceClass PS4 : PC {
+  }
+  LayoutResourceClass HEADLESS : PC {
+  }
+ }
+}

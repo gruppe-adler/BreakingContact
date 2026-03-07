@@ -612,6 +612,18 @@ FrameWidgetClass {
          m_sLabel "Hide Civilians"
         }
        }
+       ButtonWidgetClass "{67BC000000000019}" : "{08CF3B69CB1ACBC4}UI/layouts/WidgetLibrary/Buttons/WLib_NavigationButton.layout" {
+        Name "BC_FaceSelection"
+        Slot LayoutSlot "{67BC00000000001A}" {
+         Padding 20 0 0 0
+        }
+        components {
+         SCR_InputButtonComponent "{67BC00000000001B}" {
+          m_sActionName "GRAD_BC_FaceSelection"
+          m_sLabel "Select Face"
+         }
+        }
+       }
       }
      }
     }

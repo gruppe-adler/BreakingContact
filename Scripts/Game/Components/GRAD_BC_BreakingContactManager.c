@@ -401,10 +401,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
 		
-		    // Now bump the counter on the server so that all clients show it.
-		    // (ShowLogo() itself only increments on Listen/Dedicated, so it is safe
-		    // to call here from a dedicated server or listen‐server host.)
-		    logoDisplay.ShowLogo();
+		    // Show logo once the player actually sees the world (after map is closed).
+		    logoDisplay.RequestShowLogo();
 		}
 			
 		// show logo for all
@@ -417,7 +415,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			logoDisplay.ShowLogo();
+			logoDisplay.RequestShowLogo();
 		}
 
 	}

@@ -492,12 +492,12 @@ void UpdateAntennaBones(float progress)
 				continue;
 
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: Slot '%1' entity '%2' (%3)", slotInfo.GetSlotName(), attachedEntity.GetName(), attachedEntity.ClassName()), LogLevel.NORMAL);
+				Print(string.Format("BC Debug - ANTENNA: Slot '%1' entity '%2' (%3)", slotInfo.GetSourceName(), attachedEntity.GetName(), attachedEntity.ClassName()), LogLevel.NORMAL);
 
 			Animation anim = attachedEntity.GetAnimation();
 			if (anim && anim.GetBoneIndex(ANTENNA_BONE_NAMES[0]) != -1)
 			{
-				Print(string.Format("BC Debug - ANTENNA: Found command box via bone scan in slot '%1'", slotInfo.GetSlotName()), LogLevel.WARNING);
+				Print(string.Format("BC Debug - ANTENNA: Found command box via bone scan in slot '%1'", slotInfo.GetSourceName()), LogLevel.WARNING);
 				return attachedEntity;
 			}
 		}

@@ -49,6 +49,21 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 
 	// Antenna animation variables
 	private static const int ANTENNA_SEGMENT_COUNT = 8;
+	// Slot name of the combox entity on the radio truck (confirmed from in-game debug log)
+	private static const string RADIO_SLOT_NAME = "Radio";
+	// Hardcoded antenna bone names on the combox entity (v_antenna_01 … v_antenna_08)
+	private static const string ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT] = {
+		"v_antenna_01",
+		"v_antenna_02",
+		"v_antenna_03",
+		"v_antenna_04",
+		"v_antenna_05",
+		"v_antenna_06",
+		"v_antenna_07",
+		"v_antenna_08"
+	};
+	// Hardcoded channel-selector bone name on the combox entity
+	private static const string CHANNEL_SELECTOR_BONE_NAME = "channel_selector";
 	private ref array<TNodeId> m_aAntennaBoneIds = new array<TNodeId>();
 	
 	// Channel selector bone
@@ -441,13 +456,10 @@ void UpdateAntennaBones(float progress)
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Find command box via SlotManagerComponent (alternative method)
+	// Find command box by slot name (direct lookup, falls back to bone-scan iteration)
 	//------------------------------------------------------------------------------------------------
 	IEntity FindCommandBoxViaSlots(IEntity parent)
 	{
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - ANTENNA: Searching via SlotManagerComponent...", LogLevel.NORMAL);
-
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(parent.FindComponent(SlotManagerComponent));
 		if (!slotManager)
 		{
@@ -455,40 +467,42 @@ void UpdateAntennaBones(float progress)
 			return null;
 		}
 
+		// Direct lookup by known slot name – no iteration needed
+		EntitySlotInfo directSlot = slotManager.GetSlotByName(RADIO_SLOT_NAME);
+		if (directSlot)
+		{
+			IEntity entity = directSlot.GetAttachedEntity();
+			if (entity)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC Debug - ANTENNA: Found command box via slot '%1': '%2'", RADIO_SLOT_NAME, entity.GetName()), LogLevel.NORMAL);
+				return entity;
+			}
+		}
+
+		// Fallback: iterate all slots and find by bone presence (logs all slot names for reference)
+		// Always print as a warning - this means RADIO_SLOT_NAME is wrong and should be corrected.
+		Print(string.Format("BC Debug - ANTENNA: Slot '%1' not found, falling back to bone scan", RADIO_SLOT_NAME), LogLevel.WARNING);
 		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
 		slotManager.GetSlotInfos(slots);
-
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BC Debug - ANTENNA: Found %1 slots", slots.Count()), LogLevel.NORMAL);
-
 		foreach (EntitySlotInfo slotInfo : slots)
 		{
 			IEntity attachedEntity = slotInfo.GetAttachedEntity();
 			if (!attachedEntity)
 				continue;
 
-			// Get entity name and class name
-			string entityName = attachedEntity.GetName();
-			string className = attachedEntity.ClassName();
-
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("BC Debug - ANTENNA: Slot - Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
+				Print(string.Format("BC Debug - ANTENNA: Slot '%1' entity '%2' (%3)", slotInfo.GetSlotName(), attachedEntity.GetName(), attachedEntity.ClassName()), LogLevel.NORMAL);
 
-			// Check if this entity has the antenna bones
 			Animation anim = attachedEntity.GetAnimation();
-			if (anim)
+			if (anim && anim.GetBoneIndex(ANTENNA_BONE_NAMES[0]) != -1)
 			{
-				TNodeId testBoneId = anim.GetBoneIndex("v_antenna_01");
-				if (testBoneId != -1)
-				{
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("BC Debug - ANTENNA: >>> FOUND COMMAND BOX - has v_antenna_01 bone! Name:'%1' Class:'%2'", entityName, className), LogLevel.NORMAL);
-					return attachedEntity;
-				}
+				Print(string.Format("BC Debug - ANTENNA: Found command box via bone scan in slot '%1'", slotInfo.GetSlotName()), LogLevel.WARNING);
+				return attachedEntity;
 			}
 		}
 
-		Print("BC Debug - ANTENNA: No slot entity found with antenna bones", LogLevel.WARNING);
+		Print("BC Debug - ANTENNA: Command box not found via any method", LogLevel.WARNING);
 		return null;
 	}
 
@@ -500,7 +514,6 @@ void UpdateAntennaBones(float progress)
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - ANTENNA: InitializeAntennaBones() called (delayed)", LogLevel.NORMAL);
 
-		// Find command box via SlotManagerComponent (checks for antenna bone presence)
 		m_commandBox = FindCommandBoxViaSlots(m_radioTruck);
 
 		if (!m_commandBox)
@@ -521,32 +534,24 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BC Debug - ANTENNA: Animation object found, searching for bones...", LogLevel.NORMAL);
-
-		// Find all 8 antenna segment bones (v_antenna_01 through v_antenna_08)
-		for (int i = 1; i <= ANTENNA_SEGMENT_COUNT; i++)
+		// Look up all 8 antenna bones by hardcoded name
+		for (int i = 0; i < ANTENNA_SEGMENT_COUNT; i++)
 		{
-			string boneName = string.Format("v_antenna_%1", i.ToString(2)); // Formats as 01, 02, etc.
-			TNodeId boneId = anim.GetBoneIndex(boneName);
-
+			TNodeId boneId = anim.GetBoneIndex(ANTENNA_BONE_NAMES[i]);
 			if (boneId == -1)
 			{
-				Print(string.Format("BC Debug - ANTENNA: Bone '%1' NOT FOUND (ID: %2)", boneName, boneId), LogLevel.WARNING);
+				Print(string.Format("BC Debug - ANTENNA: Bone '%1' NOT FOUND", ANTENNA_BONE_NAMES[i]), LogLevel.WARNING);
 			}
-			else
+			else if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", boneName, boneId), LogLevel.NORMAL);
+				Print(string.Format("BC Debug - ANTENNA: Found bone '%1' with ID %2", ANTENNA_BONE_NAMES[i], boneId), LogLevel.NORMAL);
 			}
-
 			m_aAntennaBoneIds.Insert(boneId);
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones in array: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
-		
-		// Initialize channel selector bone
+			Print(string.Format("BC Debug - ANTENNA: Initialization complete. Total bones: %1", m_aAntennaBoneIds.Count()), LogLevel.NORMAL);
+
 		InitializeChannelSelectorBone();
 	}
 
@@ -562,9 +567,7 @@ void UpdateAntennaBones(float progress)
 		if (!entityToUse)
 			return;
 
-		// Find command box via SlotManagerComponent (checks for antenna bone presence)
 		m_commandBox = FindCommandBoxViaSlots(entityToUse);
-
 		if (!m_commandBox)
 			m_commandBox = entityToUse;
 
@@ -572,15 +575,9 @@ void UpdateAntennaBones(float progress)
 		if (!anim)
 			return;
 
-		// Find all 8 antenna segment bones
-		for (int i = 1; i <= ANTENNA_SEGMENT_COUNT; i++)
-		{
-			string boneName = string.Format("v_antenna_%1", i.ToString(2));
-			TNodeId boneId = anim.GetBoneIndex(boneName);
-			m_aAntennaBoneIds.Insert(boneId);
-		}
-		
-		// Initialize channel selector bone as well
+		for (int i = 0; i < ANTENNA_SEGMENT_COUNT; i++)
+			m_aAntennaBoneIds.Insert(anim.GetBoneIndex(ANTENNA_BONE_NAMES[i]));
+
 		InitializeChannelSelectorBone();
 	}
 
@@ -657,7 +654,7 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		// Get the top antenna bone (v_antenna_08)
+		// Get the top antenna bone (last segment)
 		Animation anim = m_commandBox.GetAnimation();
 		if (!anim)
 		{
@@ -665,10 +662,10 @@ void UpdateAntennaBones(float progress)
 			return;
 		}
 
-		TNodeId topBoneId = anim.GetBoneIndex("v_antenna_08");
+		TNodeId topBoneId = anim.GetBoneIndex(ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT - 1]);
 		if (topBoneId == -1)
 		{
-			Print("BC Debug - ANTENNA: Cannot spawn antenna prop - v_antenna_08 bone not found", LogLevel.ERROR);
+			Print(string.Format("BC Debug - ANTENNA: Cannot spawn antenna prop - '%1' bone not found", ANTENNA_BONE_NAMES[ANTENNA_SEGMENT_COUNT - 1]), LogLevel.ERROR);
 			return;
 		}
 
@@ -879,58 +876,68 @@ void UpdateAntennaBones(float progress)
 	
 	//------------------------------------------------------------------------------------------------
 	// Initialize channel selector bone reference
+	// The channel_selector bone lives on the same combox entity as the antenna bones.
 	//------------------------------------------------------------------------------------------------
 	void InitializeChannelSelectorBone()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("BC Debug - CHANNEL_SELECTOR: Initializing channel selector bone...", LogLevel.NORMAL);
-		
-		// Find the radio entity - search through slots
+
+		// Primary path: bone is on the already-found combox entity
+		if (m_commandBox)
+		{
+			Animation anim = m_commandBox.GetAnimation();
+			if (anim)
+			{
+				TNodeId channelSelectorId = anim.GetBoneIndex(CHANNEL_SELECTOR_BONE_NAME);
+				if (channelSelectorId != -1)
+				{
+					m_radioEntity = m_commandBox;
+					m_ChannelSelectorBoneId = channelSelectorId;
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) on command box '%3'",
+							CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, m_commandBox.GetName()), LogLevel.NORMAL);
+					return;
+				}
+			}
+		}
+
+		// Fallback: iterate all slots on the truck and search by bone presence
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: '%1' bone not on command box, falling back to slot scan", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
 		SlotManagerComponent slotManager = SlotManagerComponent.Cast(m_radioTruck.FindComponent(SlotManagerComponent));
 		if (!slotManager)
 		{
 			Print("BC Debug - CHANNEL_SELECTOR: No SlotManagerComponent found", LogLevel.WARNING);
 			return;
 		}
-		
+
 		array<EntitySlotInfo> slots = new array<EntitySlotInfo>();
 		slotManager.GetSlotInfos(slots);
-		
 		foreach (EntitySlotInfo slotInfo : slots)
 		{
 			IEntity attachedEntity = slotInfo.GetAttachedEntity();
 			if (!attachedEntity)
 				continue;
-				
-			// Check if this entity has the channel_selector bone
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Slot '%1' entity '%2'", slotInfo.GetSlotName(), attachedEntity.GetName()), LogLevel.NORMAL);
+
 			Animation anim = attachedEntity.GetAnimation();
-			if (anim)
+			if (!anim)
+				continue;
+
+			TNodeId channelSelectorId = anim.GetBoneIndex(CHANNEL_SELECTOR_BONE_NAME);
+			if (channelSelectorId != -1)
 			{
-				// Try to find the bone path: scene_root > root > channel_selector
-				TNodeId sceneRootId = anim.GetBoneIndex("Scene_Root");
-				if (sceneRootId != -1)
-				{
-					// Found scene_root, now look for root child
-					TNodeId rootId = anim.GetBoneIndex("Root");
-					if (rootId != -1)
-					{
-						// Found root, now look for channel_selector
-						TNodeId channelSelectorId = anim.GetBoneIndex("channel_selector");
-						if (channelSelectorId != -1)
-						{
-							m_radioEntity = attachedEntity;
-							m_ChannelSelectorBoneId = channelSelectorId;
-							if (GRAD_BC_BreakingContactManager.IsDebugMode())
-								Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found channel_selector bone (ID: %1) in entity: %2", 
-									channelSelectorId, attachedEntity.GetName()), LogLevel.NORMAL);
-							return;
-						}
-					}
-				}
+				m_radioEntity = attachedEntity;
+				m_ChannelSelectorBoneId = channelSelectorId;
+				Print(string.Format("BC Debug - CHANNEL_SELECTOR: Found '%1' bone (ID: %2) via fallback scan in slot '%3'",
+					CHANNEL_SELECTOR_BONE_NAME, channelSelectorId, slotInfo.GetSlotName()), LogLevel.WARNING);
+				return;
 			}
 		}
-		
-		Print("BC Debug - CHANNEL_SELECTOR: Could not find channel_selector bone", LogLevel.WARNING);
+
+		Print(string.Format("BC Debug - CHANNEL_SELECTOR: Could not find '%1' bone", CHANNEL_SELECTOR_BONE_NAME), LogLevel.WARNING);
 	}
 	
 	//------------------------------------------------------------------------------------------------

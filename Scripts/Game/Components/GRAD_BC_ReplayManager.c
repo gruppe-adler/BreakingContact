@@ -8,7 +8,7 @@ class GRAD_BC_ReplayManagerClass : ScriptComponentClass
 // Main replay manager component
 class GRAD_BC_ReplayManager : ScriptComponent
 {
-	[Attribute("1.0", UIWidgets.EditBox, "Recording interval in seconds")]
+	[Attribute("3.0", UIWidgets.EditBox, "Recording interval in seconds")]
 	protected float m_fRecordingInterval;
 	
 	[Attribute("1", UIWidgets.CheckBox, "Record projectiles")]
@@ -55,6 +55,17 @@ class GRAD_BC_ReplayManager : ScriptComponent
 
 	// First frame tracking - loading screen stays until first frame renders
 	protected bool m_bFirstFrameDisplayed = false;
+
+	// Acknowledged-playback-start state (server only). Each connected client
+	// reports back when it has finished receiving replay data; each ack resets
+	// a rolling cooldown so playback only begins once the room has gone quiet
+	// for REPLAY_ACK_COOLDOWN_MS. The hard cap protects against acks that
+	// keep arriving forever (or never arriving at all).
+	protected bool m_bWaitingForAcks = false;
+	protected ref array<int> m_aAckedPlayerIds = {};
+
+	const int REPLAY_ACK_COOLDOWN_MS = 3000;
+	const int REPLAY_ACK_HARDCAP_MS  = 30000;
 	
 	//------------------------------------------------------------------------------------------------
 	static GRAD_BC_ReplayManager GetInstance()
@@ -154,6 +165,8 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			GetGame().GetCallqueue().Remove(StartClientReplayPlayback);
 			GetGame().GetCallqueue().Remove(WaitForReplayMapAndStartPlayback);
 			GetGame().GetCallqueue().Remove(WaitForReplayMapAndStartClientPlayback);
+			GetGame().GetCallqueue().Remove(BeginReplayForAll);
+			GetGame().GetCallqueue().Remove(BeginReplayForAll_HardCap);
 		}
 
 		// Unsubscribe from vehicle spawn events
@@ -175,6 +188,9 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			m_trackedVehicles.Clear();
 		m_usedVehicleIds.Clear();
 		m_pendingProjectiles.Clear();
+		if (m_aAckedPlayerIds)
+			m_aAckedPlayerIds.Clear();
+		m_bWaitingForAcks = false;
 
 		if (s_Instance == this)
 			s_Instance = null;
@@ -1123,6 +1139,37 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: Server received VoN setup request", LogLevel.NORMAL);
 		SetAllPlayersToGlobalVoN();
 	}
+
+	//------------------------------------------------------------------------------------------------
+	// Client signals "I have all chunks and am ready to play". Each new ack
+	// resets the rolling cooldown so the server starts playback only after
+	// the room has been quiet for REPLAY_ACK_COOLDOWN_MS.
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Server_ReplayLoaded(int callerPlayerId)
+	{
+		if (!Replication.IsServer())
+			return;
+
+		if (!m_bWaitingForAcks)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: Late/spurious ack from player %1 ignored", callerPlayerId), LogLevel.NORMAL);
+			return;
+		}
+
+		if (m_aAckedPlayerIds.Find(callerPlayerId) != -1)
+			return;
+
+		m_aAckedPlayerIds.Insert(callerPlayerId);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Ack received from player %1 (total acks: %2). Resetting %3ms cooldown.",
+				callerPlayerId, m_aAckedPlayerIds.Count(), REPLAY_ACK_COOLDOWN_MS), LogLevel.NORMAL);
+
+		// Reschedule only the cooldown timer; the hard-cap continues unaffected.
+		GetGame().GetCallqueue().Remove(BeginReplayForAll);
+		GetGame().GetCallqueue().CallLater(BeginReplayForAll, REPLAY_ACK_COOLDOWN_MS, false);
+	}
 	
 	//------------------------------------------------------------------------------------------------
 	void SetAllPlayersToGlobalVoN()
@@ -1158,7 +1205,7 @@ void StartLocalReplayPlayback()
 	void SendFrameChunksWithDelay(int currentChunkStart)
 	{
 		const int chunkSize = 30; // Send 30 frames at a time
-		const int delayBetweenChunks = 50; // 50ms delay between chunks
+		const int delayBetweenChunks = 200; // 200ms delay between chunks (paced to avoid client-side hitches)
 		
 		if (currentChunkStart >= m_replayData.frames.Count())
 		{
@@ -1193,24 +1240,71 @@ void StartLocalReplayPlayback()
 		// Calculate adaptive speed on server so we use the same speed clients will use
 		CalculateAdaptiveSpeed();
 
-		// Schedule endscreen AFTER all data is sent to clients
-		// Add 15 second buffer for client-side initialization:
-		// - 500ms CallLater in RpcAsk_ReplayDataComplete
-		// - up to 10s for map/replay layer readiness polling
-		// - extra margin for network latency
+		// Arm the ack/cooldown machine. Clients respond to the completion RPC
+		// with RpcAsk_Server_ReplayLoaded; each ack resets the cooldown. Once
+		// the cooldown elapses with no further acks, BeginReplayForAll fires
+		// once and broadcasts the actual playback start. Endscreen scheduling
+		// moves into BeginReplayForAll so its timer is anchored to playback
+		// start, not to data-send completion.
+		m_aAckedPlayerIds.Clear();
+		m_bWaitingForAcks = true;
+
+		GetGame().GetCallqueue().Remove(BeginReplayForAll);
+		GetGame().GetCallqueue().Remove(BeginReplayForAll_HardCap);
+
+		GetGame().GetCallqueue().CallLater(BeginReplayForAll,         REPLAY_ACK_COOLDOWN_MS, false);
+		GetGame().GetCallqueue().CallLater(BeginReplayForAll_HardCap, REPLAY_ACK_HARDCAP_MS,  false);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Awaiting client acks. Cooldown=%1ms, HardCap=%2ms",
+				REPLAY_ACK_COOLDOWN_MS, REPLAY_ACK_HARDCAP_MS), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Single fire-once entry point. Reached either when the rolling cooldown
+	// elapses with no further acks, or via BeginReplayForAll_HardCap after the
+	// absolute timeout. m_bWaitingForAcks makes this idempotent against a
+	// cooldown/hard-cap race.
+	void BeginReplayForAll()
+	{
+		if (!Replication.IsServer())
+			return;
+
+		if (!m_bWaitingForAcks)
+			return;
+		m_bWaitingForAcks = false;
+
+		GetGame().GetCallqueue().Remove(BeginReplayForAll);
+		GetGame().GetCallqueue().Remove(BeginReplayForAll_HardCap);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: BeginReplayForAll firing. Acks received: %1", m_aAckedPlayerIds.Count()), LogLevel.NORMAL);
+
+		Rpc(RpcDo_Broadcast_BeginPlayback);
+
+		// Schedule endscreen, measured from now + buffer for the client-side
+		// 500ms CallLater, map/replay-layer wait, and stabilisation delay.
 		if (m_replayData)
 		{
 			float replayDuration = m_replayData.totalDuration;
 			float effectiveDuration = replayDuration / m_fPlaybackSpeed;
-			float waitTime = (effectiveDuration + 15.0) * 1000; // 15 second buffer, convert to milliseconds
+			float waitTime = (effectiveDuration + 15.0) * 1000;
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: DEDICATED SERVER - Scheduling endscreen in %.1f seconds (%.0fms)", waitTime / 1000, waitTime), LogLevel.NORMAL);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Replay duration: %.2fs at %.1fx speed = %.2fs effective, buffer: 15s, total wait: %.2fs", replayDuration, m_fPlaybackSpeed, effectiveDuration, waitTime / 1000), LogLevel.NORMAL);
+				Print(string.Format("GRAD_BC_ReplayManager: Scheduling endscreen in %.1fs (replay %.2fs @ %.1fx)",
+					waitTime / 1000, replayDuration, m_fPlaybackSpeed), LogLevel.NORMAL);
 			GetGame().GetCallqueue().CallLater(TriggerEndscreen, waitTime, false);
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: CallLater scheduled for TriggerEndscreen", LogLevel.NORMAL);
 		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Distinct callqueue handle so the cooldown reschedule in
+	// RpcAsk_Server_ReplayLoaded only re-arms the cooldown, never the hard cap.
+	void BeginReplayForAll_HardCap()
+	{
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: HARD-CAP fired (%1ms elapsed). Acks: %2",
+				REPLAY_ACK_HARDCAP_MS, m_aAckedPlayerIds.Count()), LogLevel.NORMAL);
+		BeginReplayForAll();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1599,27 +1693,60 @@ void StartLocalReplayPlayback()
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// Client-side: server has finished sending all chunks. The client now has
+	// the full replay data; ack the server and wait for RpcDo_Broadcast_BeginPlayback
+	// to actually start playback.
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	void RpcAsk_ReplayDataComplete()
 	{
-		string isServer = "Client";
-		if (Replication.IsServer()) { isServer = "Server"; }
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReplayDataComplete on %1", isServer), LogLevel.NORMAL);
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: RpcAsk_ReplayDataComplete received - Server: %1", Replication.IsServer()), LogLevel.NORMAL);
-		
+			Print("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcAsk_ReplayDataComplete", LogLevel.NORMAL);
+
 		if (Replication.IsServer())
 			return;
-			
+
 		if (!m_replayData)
 		{
-			Print("GRAD_BC_ReplayManager: Replay data not available for playback!", LogLevel.ERROR);
+			Print("GRAD_BC_ReplayManager: Replay data not available for ack!", LogLevel.ERROR);
 			return;
 		}
-		
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames", m_replayData.frames.Count()), LogLevel.NORMAL);
+			Print(string.Format("GRAD_BC_ReplayManager: Client received complete replay data, %1 frames - sending ready ack",
+				m_replayData.frames.Count()), LogLevel.NORMAL);
+
+		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
+		if (gamestateDisplay)
+			gamestateDisplay.UpdateText("Replay loaded, waiting for other players...");
+
+		int localPlayerId = SCR_PlayerController.GetLocalPlayerId();
+		if (localPlayerId <= 0)
+		{
+			Print("GRAD_BC_ReplayManager: No local player id available for ack", LogLevel.WARNING);
+			return;
+		}
+
+		Rpc(RpcAsk_Server_ReplayLoaded, localPlayerId);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Server tells every client to start playback now. Runs the same
+	// map-layer / adaptive-speed prep that previously happened immediately
+	// inside RpcAsk_ReplayDataComplete.
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcDo_Broadcast_BeginPlayback()
+	{
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_ReplayManager: === RPC RECEIVED === RpcDo_Broadcast_BeginPlayback (begin playback)", LogLevel.NORMAL);
+
+		if (Replication.IsServer())
+			return;
+
+		if (!m_replayData)
+		{
+			Print("GRAD_BC_ReplayManager: BeginPlayback received but no replay data!", LogLevel.ERROR);
+			return;
+		}
 
 		// Enable replay mode immediately for map layer
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
@@ -1627,30 +1754,17 @@ void StartLocalReplayPlayback()
 		{
 			GRAD_BC_ReplayMapLayer replayLayer = GRAD_BC_ReplayMapLayer.Cast(mapEntity.GetMapModule(GRAD_BC_ReplayMapLayer));
 			if (replayLayer)
-			{
 				replayLayer.SetReplayMode(true);
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("GRAD_BC_ReplayManager: Enabled replay mode on map layer", LogLevel.NORMAL);
-			}
 		}
 
-		// Calculate adaptive playback speed
 		CalculateAdaptiveSpeed();
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ReplayManager: Calculated adaptive speed: %.2fx", m_fPlaybackSpeed), LogLevel.NORMAL);
 
-		// Keep loading text visible - update message. It will be hidden when first frame renders.
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
-		{
 			gamestateDisplay.UpdateText("Starting replay...");
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Updated loading text to 'Starting replay...'", LogLevel.NORMAL);
-		}
 
-		// Open map and start playback
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("GRAD_BC_ReplayManager: Starting client playback in 500ms", LogLevel.NORMAL);
 		GetGame().GetCallqueue().CallLater(StartClientReplayPlayback, 500, false);
 	}
 	

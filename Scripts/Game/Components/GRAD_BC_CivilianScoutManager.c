@@ -442,6 +442,18 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 			Print("GRAD_BC_CivilianScoutManager: AssignScoutWaypoint — AIWorld unavailable.", LogLevel.WARNING);
 		}
 
+		// Remove old waypoint first so the nudge + destination become the queue.
+		if (m_CurrentWaypoint)
+		{
+			m_ScoutGroup.RemoveWaypoint(m_CurrentWaypoint);
+			SCR_EntityHelper.DeleteEntityAndChildren(m_CurrentWaypoint);
+			m_CurrentWaypoint = null;
+		}
+
+		// Prepend a short forward nudge to prevent the AI from reversing when the
+		// destination is behind the vehicle's current heading.
+		SpawnNudgeWaypoint();
+
 		EntitySpawnParams wpParams = new EntitySpawnParams();
 		wpParams.Transform[3] = waypointPos;
 
@@ -452,14 +464,7 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 		if (newWaypoint)
 		{
 			newWaypoint.SetCompletionRadius(50.0);
-			// Add new waypoint BEFORE removing old one so the group queue never hits zero.
 			m_ScoutGroup.AddWaypoint(newWaypoint);
-
-			if (m_CurrentWaypoint)
-			{
-				m_ScoutGroup.RemoveWaypoint(m_CurrentWaypoint);
-				SCR_EntityHelper.DeleteEntityAndChildren(m_CurrentWaypoint);
-			}
 
 			m_CurrentWaypoint = newWaypoint;
 			m_vLastWaypointTruckPos = truckPos;
@@ -688,6 +693,15 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 		if (!m_ScoutGroup || m_vSpawnPos == vector.Zero)
 			return;
 
+		if (m_CurrentWaypoint)
+		{
+			m_ScoutGroup.RemoveWaypoint(m_CurrentWaypoint);
+			SCR_EntityHelper.DeleteEntityAndChildren(m_CurrentWaypoint);
+			m_CurrentWaypoint = null;
+		}
+
+		SpawnNudgeWaypoint();
+
 		EntitySpawnParams wpParams = new EntitySpawnParams();
 		wpParams.Transform[3] = m_vSpawnPos;
 
@@ -704,12 +718,6 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 
 		returnWaypoint.SetCompletionRadius(DESPAWN_HOME_RADIUS);
 		m_ScoutGroup.AddWaypoint(returnWaypoint);
-
-		if (m_CurrentWaypoint)
-		{
-			m_ScoutGroup.RemoveWaypoint(m_CurrentWaypoint);
-			SCR_EntityHelper.DeleteEntityAndChildren(m_CurrentWaypoint);
-		}
 
 		m_CurrentWaypoint = returnWaypoint;
 		Print(string.Format("GRAD_BC_CivilianScoutManager: Return waypoint set to spawn pos %1.", m_vSpawnPos.ToString()), LogLevel.NORMAL);
@@ -793,14 +801,17 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 
 			if (newWaypoint && m_ScoutGroup)
 			{
-				newWaypoint.SetCompletionRadius(DESPAWN_HOME_RADIUS);
-				m_ScoutGroup.AddWaypoint(newWaypoint);
-
 				if (m_CurrentWaypoint)
 				{
 					m_ScoutGroup.RemoveWaypoint(m_CurrentWaypoint);
 					SCR_EntityHelper.DeleteEntityAndChildren(m_CurrentWaypoint);
+					m_CurrentWaypoint = null;
 				}
+
+				SpawnNudgeWaypoint();
+
+				newWaypoint.SetCompletionRadius(DESPAWN_HOME_RADIUS);
+				m_ScoutGroup.AddWaypoint(newWaypoint);
 
 				m_CurrentWaypoint = newWaypoint;
 				Print(string.Format("GRAD_BC_CivilianScoutManager: Rerouted to safe despawn point %1.", roadPoint.ToString()), LogLevel.NORMAL);
@@ -976,6 +987,49 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 	// -------------------------------------------------------------------------
 	// Utility
 	// -------------------------------------------------------------------------
+
+	// Distance (metres) in front of the vehicle for the anti-reverse nudge waypoint.
+	static const float NUDGE_WAYPOINT_DISTANCE = 30.0;
+
+	// Spawns a short waypoint directly in front of the vehicle to prevent the AI
+	// from reversing when the real destination is behind its current heading.
+	// The nudge waypoint is NOT tracked in m_CurrentWaypoint — it is consumed
+	// automatically once the vehicle drives past it.
+	protected void SpawnNudgeWaypoint()
+	{
+		if (!m_ScoutVehicle || !m_ScoutGroup)
+		{
+			Print("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — skipped (vehicle or group null).", LogLevel.WARNING);
+			return;
+		}
+
+		vector mat[4];
+		m_ScoutVehicle.GetTransform(mat);
+		vector forward = mat[2]; // local Z = forward
+		forward[1] = 0;
+		forward.Normalize();
+
+		vector nudgePos = m_ScoutVehicle.GetOrigin() + forward * NUDGE_WAYPOINT_DISTANCE;
+		nudgePos[1] = GetGame().GetWorld().GetSurfaceY(nudgePos[0], nudgePos[2]) + SPAWN_GROUND_OFFSET;
+
+		EntitySpawnParams nudgeParams = new EntitySpawnParams();
+		nudgeParams.Transform[3] = nudgePos;
+
+		AIWaypoint nudgeWaypoint = AIWaypoint.Cast(
+			GetGame().SpawnEntityPrefab(Resource.Load(m_sScoutWaypointPrefab), GetGame().GetWorld(), nudgeParams)
+		);
+
+		if (nudgeWaypoint)
+		{
+			nudgeWaypoint.SetCompletionRadius(5.0);
+			m_ScoutGroup.AddWaypoint(nudgeWaypoint);
+			Print(string.Format("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — added nudge at %1.", nudgePos.ToString()), LogLevel.NORMAL);
+		}
+		else
+		{
+			Print("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — failed to spawn waypoint prefab.", LogLevel.WARNING);
+		}
+	}
 
 	// Returns true when the line from `from` to `to` is not obstructed by terrain.
 	protected bool HasLineOfSight(vector from, vector to)

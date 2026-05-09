@@ -157,7 +157,7 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 				case e_currentTrafficDisplay.CIVILIAN_SIGHTING: {
 					m_currentDisplayCached = e_currentTrafficDisplay.CIVILIAN_SIGHTING;
 					// Placeholder texture – replace with dedicated asset when available.
-					m_infoImage.LoadImageTexture(0, "{3B1DCBDCE5DA9CEB}UI/Transmission/rus_established.edds");
+					m_infoImage.LoadImageTexture(0, "{8A03382E2A033030}UI/Traffic/civ_sighting_badge.edds");
 
 					GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.GetInstance();
 					if (playerComponent == null)

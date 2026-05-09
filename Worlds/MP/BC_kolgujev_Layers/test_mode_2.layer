@@ -10,6 +10,9 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
   }
   GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
   }
+  GRAD_BC_CivilianScoutManager "{6952949353C59B34}" {
+   m_iNoTransmissionTriggerTime 60
+  }
   GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
   }
   SCR_CampaignBuildingManagerComponent "{61B4DDBF56BF1B48}" {

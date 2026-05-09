@@ -43,8 +43,15 @@ class MapCircle
         // Find the map frame to attach to
         Widget mapFrame = m_MapEntity.GetMapMenuRoot().FindAnyWidget(SCR_MapConstants.MAP_FRAME_NAME);
         // Fallback to the root drawing container if mapFrame isn't found, though usually mapFrame is preferred for scaling
-        if (!mapFrame) mapFrame = rootW; 
-        
+        if (!mapFrame) mapFrame = rootW;
+
+        // Remove stale widget from a previous map session before creating a new one
+        if (m_wCircle)
+        {
+            m_wCircle.RemoveFromHierarchy();
+            m_wCircle = null;
+        }
+
         m_wCircle = GetGame().GetWorkspace().CreateWidgets("{4B995CEAA55BBECC}UI/Layouts/Map/MapDrawCircle.layout", mapFrame);
         m_wCircleImage = ImageWidget.Cast(m_wCircle.FindAnyWidget("DrawCircleImage"));
         

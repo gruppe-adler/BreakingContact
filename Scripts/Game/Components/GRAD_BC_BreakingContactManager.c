@@ -319,7 +319,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 
-		// close map at end of replay before EndGameMode destroys PS_SpectatorMenu's widget frame.
+		// close map at end of replay before EndGameMode destroys COA_SpectatorMenu's widget frame.
 		// the player is a spectator so ToggleMap won't work — CloseMap handles both paths.
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVERDONE)
 		{
@@ -544,7 +544,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		*/
 			
 		// set opfor phase as soon as players leave lobby
-		PS_GameModeCoop psGameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		SCR_BaseGameMode psGameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
 		EBreakingContactPhase currentPhase = GetBreakingContactPhase();
 		
 		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
@@ -552,9 +552,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
 			{
 				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
-				PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-				if (playableManager)
-					playableManager.RemoveRedundantUnits();
 			}
 		};
 		
@@ -2117,49 +2114,46 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
-		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-		if (!playableManager)
-		{
-			Print("Unable to get PS_PlayableManager instance", LogLevel.ERROR);
-			return;
-		}
-		array<PS_PlayableContainer> playables = playableManager.GetPlayablesSorted();
-		
 		array<vector> availablePositions = {};
-		
+
 		if (factionName == "USSR")
 			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos, 25);
-		
+
 		if (factionName == "US")
 			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos, 25);
-		
+
+		array<int> allPlayers = {};
+		GetPlayerManager().GetAllPlayers(allPlayers);
+
 		int index = 0;
-		foreach (int idx, PS_PlayableContainer playableCont : playables)
-		{			
-			PS_PlayableComponent playableComp = playableCont.GetPlayableComponent();
-			IEntity owner = playableComp.GetOwnerCharacter();
-			int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(owner);
-			if (playerId == 0) // This isn't a real player so we can skip it
+		foreach (int playerId : allPlayers)
+		{
+			IEntity controlled = GetPlayerManager().GetPlayerControlledEntity(playerId);
+			if (!controlled)
 				continue;
-			
-			string playerFactionName = playableComp.GetFactionKey();		
+
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(controlled);
+			if (!ch)
+				continue;
+
+			string playerFactionName = ch.GetFactionKey();
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
-			
+
 			if (factionName == playerFactionName)
-			{								
+			{
 				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(GetPlayerManager().GetPlayerController(playerId).FindComponent(GRAD_PlayerComponent));
 				if (playerComponent == null)
 				{
 					Print("Unable to find GRAD_PlayerComponent", LogLevel.ERROR);
 					return;
 				}
-				
+
 				// Stagger teleports by 100ms each to reduce load spike
 				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000 + (index * 100), false, availablePositions[index]);
-				
+
 				index = index + 1;
-				
+
 				// In case we ran out of positions start over
 				// Not ideal that they spawn exact same location but better than not spawning at all...
 				if (index >= availablePositions.Count())
@@ -2497,7 +2491,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Reassign callsign so main title in deploy menu uses the name
 		SCR_CallsignGroupComponent callsignComp = SCR_CallsignGroupComponent.Cast(group.FindComponent(SCR_CallsignGroupComponent));
 		if (callsignComp)
-			callsignComp.ReAssignGroupCallsign(idx, 0, 0);
+			callsignComp.DoAssignCallsign(idx, 0, 0);
 
 		// Set custom description (prominent display in deploy menu)
 		group.SetCustomDescription(groupName, 0);
@@ -2568,45 +2562,41 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Move all players to spectator mode for cross-faction communication during replay
-	// Uses PS_PlayableManager to set player playable to invalid and apply the change,
-	// which triggers the PlayableSelector spectator camera and lobby entity transition
+	// Move all players to spectator mode for cross-faction communication during replay.
+	// Clears each player's COALITION-Lobby slot assignment (COA_SlottingManager), then re-runs
+	// COA_GamemodeManager's player-init flow, which routes unslotted players to the spectator
+	// entity/camera path (GetOrCreateSpectatorEntity) instead of a playable character.
 	void MoveAllPlayersToSpectator()
 	{
 		if (!Replication.IsServer())
 			return;
-		
+
 		Print("BCM: Moving all players to spectator for replay", LogLevel.NORMAL);
-		
-		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-		if (!playableManager)
+
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		COA_GamemodeManager gamemodeManager = COA_GamemodeManager.GetInstance();
+		if (!slottingManager || !gamemodeManager)
 		{
-			Print("BCM: PS_PlayableManager not found, cannot move players to spectator", LogLevel.WARNING);
+			Print("BCM: COA_SlottingManager/COA_GamemodeManager not found, cannot move players to spectator", LogLevel.WARNING);
 			return;
 		}
-		
+
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-		
+
 		Print(string.Format("BCM: Found %1 players to move to spectator", playerIds.Count()), LogLevel.NORMAL);
-		
+
 		int movedCount = 0;
 		foreach (int playerId : playerIds)
 		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			{
-				RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
-				Print(string.Format("BCM: Player %1 current playable: %2 (invalid=%3)", playerId, currentPlayable, currentPlayable == RplId.Invalid()), LogLevel.NORMAL);
-			}
-			
-			// Set playable to invalid (updates tracking maps on all machines)
-			playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
-			// Apply the change - this actually switches the entity to the spectator/lobby entity
-			// and triggers OnControlledEntityChanged → SwitchToObserver on the client
-			playableManager.ApplyPlayable(playerId);
+			int slotId = slottingManager.GetPlayerSlotID(playerId);
+			if (slotId != -1)
+				slottingManager.UpdateSlotPlayerID(slotId, -1);
+
+			gamemodeManager.InitilizePlayer(playerId);
 			movedCount++;
 		}
-		
+
 		Print(string.Format("BCM: Moved %1 players to spectator for replay", movedCount), LogLevel.NORMAL);
 	}
 	

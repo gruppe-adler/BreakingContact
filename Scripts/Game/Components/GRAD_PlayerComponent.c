@@ -64,7 +64,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	{
 		super.EOnInit(owner);
 		
-		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
 
 		m_playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 
@@ -400,12 +400,16 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	// NOTE: PSCore's PS_SpectatorMenu layout had an "OverlayFooter" widget BreakingContact
+	// injected a "BC_ConfirmSpawn" button into. COA_SpectatorMenu's layout has no equivalent
+	// footer widget, so this is currently a no-op under COALITION-Lobby until the confirm-spawn
+	// button is given a home in COA_SpectatorMenu's own widget tree.
 	protected void SetConfirmSpawnButtonVisible(bool visible)
 	{
-		if (!PS_SpectatorMenu.s_SpectatorMenu)
+		if (!COA_SpectatorMenu.s_BCSpectatorMenu)
 			return;
 
-		Widget menuRoot = PS_SpectatorMenu.s_SpectatorMenu.GetRootWidget();
+		Widget menuRoot = COA_SpectatorMenu.s_BCSpectatorMenu.GetRootWidget();
 		if (!menuRoot)
 			return;
 

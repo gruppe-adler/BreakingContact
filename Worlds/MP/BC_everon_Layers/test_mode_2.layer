@@ -18,49 +18,6 @@ SCR_MapEntity MapEntity : "{731564B66F91B107}Prefabs/World/Game/MapEntity.et" {
 PerceptionManager PerceptionManager : "{028DAEAD63E056BE}Prefabs/World/Game/PerceptionManager.et" {
  coords 7114.537 103.567 6279.017
 }
-PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_GameMode_Lobby.et" {
- components {
-  GRAD_BC_BreakingContactManager "{6574C16568214EF4}" {
-  }
-  GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
-  }
-  SCR_CampaignBuildingManagerComponent "{61B4DDBF56BF1B48}" {
-   m_iCompositionRefundPercentage 0
-   m_iXpRewardTreshold 9999
-   m_iInitialRewardInterval 9999
-   m_fRewardCurveIncrement 9999
-  }
-  SCR_GameModeHealthSettings "{5A22E11F9ACBB1DF}" {
-   m_bKillIndefinitelyUnconsciousPlayers 1
-  }
- }
- m_iFreezeTime 0
- m_bDisableGarbageSystem 1
- {
-  RadioManagerEntity {
-   ID "5ED9088735FF2DEE"
-   coords 0 0 0
-  }
-  ScriptedChatEntity {
-   ID "5ED9088735FF2DC2"
-   coords 0 0 0
-  }
-  SCR_FactionManager "627A8E3665FD18AE" {
-   ID "5ED9088735FF2D8B"
-   Factions {
-    SCR_Faction "{56DEAC40D2DBC8B1}" {
-    }
-    SCR_Faction "{56DEAC40D3C2E623}" {
-     m_bIsPlayable 1
-    }
-   }
-  }
-  ItemPreviewManagerEntity "6606868E98488DD2" {
-   ID "5ED9088735FF2DD5"
-   coords 0 1 0
-  }
- }
-}
 SCR_AIGroup : "{BC357974A560F678}Prefabs/Groups/BLUFOR/Group_US_RifleSquad_p.et" {
  coords 4948.442 28.29 11942.487
  m_aUnitPrefabSlots {

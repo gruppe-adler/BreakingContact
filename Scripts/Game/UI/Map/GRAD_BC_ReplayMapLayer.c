@@ -166,7 +166,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				Print(string.Format("GRAD_BC_ReplayMapLayer: Map projection stabilized after %1 frames", m_iMapOpenFrameCounter), LogLevel.NORMAL);
 		}
 
-        // MapContext is already activated by PS_SpectatorMenu.OnMenuUpdate every frame when map is open.
+        // MapContext is already activated by COA_SpectatorMenu.OnMenuUpdate every frame when map is open.
         // No need to activate it here again.
 
         // ---------------------------------------------------------
@@ -609,9 +609,12 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		}
 
 		// Walk up the widget tree until we find the ancestor that owns "OverlayFooter".
-		// When the map is opened through PS_SpectatorMenu, GetMapMenuRoot() returns an
+		// When the map is opened through PSCore's PS_SpectatorMenu, GetMapMenuRoot() returns an
 		// inner frame rather than the top-level MapMenu, so a single GetParent() isn't
 		// guaranteed to land on the right node.
+		// NOTE: COA_SpectatorMenu's layout has no "OverlayFooter" widget at all, so under
+		// COALITION-Lobby this loop never finds one and the replay hint toggles below are a
+		// no-op (same graceful degrade as when the widget was simply missing before).
 		Widget searchRoot = m_MapMenuRoot;
 		Widget overlayFooter;
 		while (searchRoot)

@@ -1047,16 +1047,16 @@ void StartLocalReplayPlayback()
 		{
 			const ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
 			// If spectator menu exists (dedicated/listen spectator UI), route through it
-			if (PS_SpectatorMenu.s_SpectatorMenu)
+			if (COA_SpectatorMenu.s_BCSpectatorMenu)
 			{
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("GRAD_BC_ReplayManager: Routing local map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
-				PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
+					Print("GRAD_BC_ReplayManager: Routing local map open through COA_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+				COA_SpectatorMenu.s_BCSpectatorMenu.OpenMapWithConfig(replayMapConfig);
 			}
 			else
 			{
 				// No spectator menu — load Map.layout as root widget and use the double-open trick
-				// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+				// (same pattern as COA_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
 				Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
 				MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
 				mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
@@ -1172,32 +1172,23 @@ void StartLocalReplayPlayback()
 	}
 	
 	//------------------------------------------------------------------------------------------------
+	// NOTE: PSCore's PS_VoNRoomsManager had a simple MoveToRoom(playerId, faction, room) call for
+	// this. CVON (Coalition-VON) has no equivalent "global room" concept - its API
+	// (CVON_VONGameModeComponent) is frequency/radio-based instead, so cross-faction spectator
+	// voice during replay has no direct port yet. Left as a no-op, same as when PSCore's manager
+	// was previously unavailable.
 	void SetAllPlayersToGlobalVoN()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Moving all players to global VoN room", LogLevel.NORMAL);
-		
-		array<int> playerIds = {};
-		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-		
-		// Try to get VoN manager from PSCore
-		PS_VoNRoomsManager vonManager = PS_VoNRoomsManager.GetInstance();
-		if (!vonManager)
+
+		if (!CVON_VONGameModeComponent.GetInstance())
 		{
-			Print("GRAD_BC_ReplayManager: VoN manager not found - cross-faction voice may not work", LogLevel.WARNING);
+			Print("GRAD_BC_ReplayManager: CVON_VONGameModeComponent not found - cross-faction voice may not work", LogLevel.WARNING);
 			return;
 		}
-		
-		// Move each player to global room (empty strings = everyone can hear)
-		foreach (int playerId : playerIds)
-		{
-			vonManager.MoveToRoom(playerId, "", ""); // Empty faction + room = global
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_ReplayManager: Player %1 moved to global voice room", playerId), LogLevel.NORMAL);
-		}
-		
-		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("GRAD_BC_ReplayManager: %1 players in global voice room for replay", playerIds.Count()), LogLevel.NORMAL);
+
+		Print("GRAD_BC_ReplayManager: No CVON equivalent for global VoN room yet - cross-faction voice may not work", LogLevel.WARNING);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -1804,16 +1795,16 @@ void StartLocalReplayPlayback()
 		// OpenMapWithConfig() so the map is anchored to m_wMapFrame with proper keybinds
 		// and layout. Opening via mapEntity directly with null parent skips the frame
 		// container, causing missing keybinds and freely floating markers.
-		if (PS_SpectatorMenu.s_SpectatorMenu)
+		if (COA_SpectatorMenu.s_BCSpectatorMenu)
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Routing map open through PS_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
-			PS_SpectatorMenu.s_SpectatorMenu.OpenMapWithConfig(replayMapConfig);
+				Print("GRAD_BC_ReplayManager: Routing map open through COA_SpectatorMenu.OpenMapWithConfig", LogLevel.NORMAL);
+			COA_SpectatorMenu.s_BCSpectatorMenu.OpenMapWithConfig(replayMapConfig);
 		}
 		else
 		{
 			// No spectator menu — load Map.layout as root widget and use the double-open trick
-			// (same pattern as PS_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
+			// (same pattern as COA_SpectatorMenu.OpenMapWithConfig) so m_MapWidget is properly set
 			Widget mapFrame = GetGame().GetWorkspace().CreateWidgets("{0651202E9F2646DE}UI/layouts/Map/Map.layout", null);
 			MapConfiguration mapConfig = mapEntity.SetupMapConfig(EMapEntityMode.FULLSCREEN, replayMapConfig, mapFrame);
 			mapConfig.MapEntityMode = EMapEntityMode.PLAIN;
@@ -2254,12 +2245,12 @@ void StartLocalReplayPlayback()
 		IEntity playerEntity = playerController.GetControlledEntity();
 		if (!playerEntity)
 		{
-			// Spectator mode - PS_SpectatorMenu.s_SpectatorMenu is null on dedicated,
+			// Spectator mode - COA_SpectatorMenu.s_BCSpectatorMenu is null on dedicated,
 			// so close directly via SCR_MapEntity.
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: No player entity (spectator), closing map via SCR_MapEntity", LogLevel.NORMAL);
-			if (PS_SpectatorMenu.s_SpectatorMenu)
-				PS_SpectatorMenu.s_SpectatorMenu.CloseMap();
+			if (COA_SpectatorMenu.s_BCSpectatorMenu)
+				COA_SpectatorMenu.s_BCSpectatorMenu.CloseMap();
 			else
 			{
 				SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();

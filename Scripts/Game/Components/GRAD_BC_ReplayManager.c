@@ -1045,7 +1045,7 @@ void StartLocalReplayPlayback()
 		// Open map fullscreen with replay config so GRAD_BC_ReplayMapLayer is loaded
 		if (mapEntity)
 		{
-			ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
+			const ResourceName replayMapConfig = "{1B8AC767E06A0ACD}Configs/Map/MapFullscreen.conf";
 			// If spectator menu exists (dedicated/listen spectator UI), route through it
 			if (PS_SpectatorMenu.s_SpectatorMenu)
 			{
@@ -1084,7 +1084,7 @@ void StartLocalReplayPlayback()
 	// Polls until map entity + replay layer are ready, then starts playback
 	void WaitForReplayMapAndStartPlayback(int attempt)
 	{
-		int maxAttempts = 50; // 50 * 200ms = 10 seconds max
+		const int maxAttempts = 50; // 50 * 200ms = 10 seconds max
 
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (!mapEntity)
@@ -1387,8 +1387,8 @@ void StartLocalReplayPlayback()
 				vehicleFactions.Insert(vehicleData.factionKey);
 				vehiclePositions.Insert(vehicleData.position);
 				vehicleRotations.Insert(vehicleData.angles);
-				vehicleWasUsed.Insert(vehicleData.wasUsed);
-				vehicleIsEmpty.Insert(vehicleData.isEmpty);
+				vehicleWasUsed.Insert(vehicleData.m_bWasUsed);
+				vehicleIsEmpty.Insert(vehicleData.m_bIsEmpty);
 			}
 		}
 		
@@ -1459,6 +1459,13 @@ void StartLocalReplayPlayback()
 			return;
 		}
 		
+		// Defensive check against null arrays from RPC
+		if (!timestamps || !vehicleIds || !vehicleTypes || !vehicleFactions || !vehiclePositions || !vehicleRotations || !vehicleWasUsed || !vehicleIsEmpty)
+		{
+			Print("GRAD_BC_ReplayManager: Received null array in vehicle chunk RPC, skipping.", LogLevel.WARNING);
+			return;
+		}
+		
 		for (int i = 0; i < timestamps.Count(); i++)
 		{
 			float timestamp = timestamps[i];
@@ -1493,7 +1500,7 @@ void StartLocalReplayPlayback()
 				vehicleTypes[i],
 				vehicleFactions[i],
 				vehiclePositions[i],
-				vehicleRotations[i],
+				vehicleRotations[i], 
 				empty,
 				wasUsed
 			);

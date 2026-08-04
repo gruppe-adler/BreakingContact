@@ -202,7 +202,7 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		Print(string.Format("BC DestroyAction - SpawnAntennaDebrisLocal called at pos=%1", centerPosition.ToString()), LogLevel.WARNING);
 
 		// Spawn the antenna foot at the antenna's exact position — no scatter, no velocity
-		ResourceName footPrefab = "{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et";
+		const ResourceName footPrefab = "{B212F613254FFE72}Prefabs/Props/Military/Antennas/Dst/Antenna_USSR_02_dst_01.et";
 		vector footMat[4];
 		Math3D.MatrixIdentity4(footMat);
 		Math3D.AnglesToMatrix(angles, footMat);

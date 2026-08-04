@@ -52,10 +52,10 @@ class GRAD_BC_VehicleSnapshot : Managed
     string factionKey;
     vector position;
     vector angles;
-	bool isEmpty;
-	bool wasUsed;
+	bool m_bIsEmpty;
+	bool m_bWasUsed;
 
-    static GRAD_BC_VehicleSnapshot Create(RplId id, string type, string faction, vector pos, vector ang, bool isEmpty, bool wasUsed)
+    static GRAD_BC_VehicleSnapshot Create(RplId id, string type, string faction, vector pos, vector ang, bool isEmptyNow, bool wasUsed)
     {
         GRAD_BC_VehicleSnapshot snapshot = new GRAD_BC_VehicleSnapshot();
         snapshot.entityId = id;
@@ -63,8 +63,8 @@ class GRAD_BC_VehicleSnapshot : Managed
         snapshot.factionKey = faction;
         snapshot.position = pos;
         snapshot.angles = ang;
-		snapshot.isEmpty = isEmpty;
-		snapshot.wasUsed = wasUsed;
+		snapshot.m_bIsEmpty = isEmptyNow;
+		snapshot.m_bWasUsed = wasUsed;
         return snapshot;
     }
 };

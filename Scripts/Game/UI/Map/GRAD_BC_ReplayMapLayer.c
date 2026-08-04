@@ -152,7 +152,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		// Allow a few frames after map open for pan/zoom/projection to stabilise
 		m_iMapOpenFrameCounter++;
-		int minStableFrames = 3;
+		const int minStableFrames = 3;
 		if (m_iMapOpenFrameCounter < minStableFrames)
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -314,7 +314,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                 // Draw center dot at fixed screen size (does not scale with zoom)
                 float screenX, screenY;
                 m_MapEntity.WorldToScreen(transMarker.position[0], transMarker.position[2], screenX, screenY, true);
-                float dotRadius = 8.0;
+                const float dotRadius = 8.0;
                 DrawScreenCircle(screenX, screenY, dotRadius, 0xFF000000, 12);
                 
                 // Draw background ring
@@ -1227,8 +1227,8 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 			marker.position = vehicleSnapshot.position;
 			marker.direction = vehicleSnapshot.angles[0]; // Yaw
 			marker.isVisible = true;
-			marker.isEmpty = vehicleSnapshot.isEmpty;
-			marker.wasUsed = vehicleSnapshot.wasUsed;
+			marker.isEmpty = vehicleSnapshot.m_bIsEmpty;
+			marker.wasUsed = vehicleSnapshot.m_bWasUsed;
 			newVehicleMarkers.Insert(marker);
 		}
 		
@@ -1278,10 +1278,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		
 		// Progress bar dimensions and position
 		float barWidth = screenW - 100; // Leave margins
-		float barHeight = 25;
-		float barX = 50; // Left margin
-		float barY = 20; // Top margin
-		float cornerRadius = 12; // Rounded corner size
+		const float barHeight = 25;
+		const float barX = 50; // Left margin
+		const float barY = 20; // Top margin
+		const float cornerRadius = 12; // Rounded corner size
 		
 		// Draw background with rounded corners (dark semi-transparent)
 		// Main background rectangle
@@ -1380,7 +1380,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		float screenX, screenY;
 		m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
 		
-		int segments = 32;
+		const int segments = 32;
 		
 		for (int i = 0; i < segments; i++)
 		{
@@ -1481,7 +1481,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 		m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
 		
 		// Number of segments for the arc (more = smoother circle)
-		int totalSegments = 32;
+		const int totalSegments = 32;
 		int progressSegments = Math.Max(1, (int)(totalSegments * progress));
 		
 		// Draw the arc as a series of triangles
@@ -1563,7 +1563,7 @@ class GRAD_BC_ReplayTransmissionMarker : Managed
 
 class GRAD_BC_ReplayVehicleMarker : Managed
 {
-    int entityId;
+    RplId entityId;
     string vehicleType;
     string factionKey;
     vector position;

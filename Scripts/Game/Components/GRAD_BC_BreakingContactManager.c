@@ -723,7 +723,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		RplComponent rpl = RplComponent.Cast(comp.GetOwner().FindComponent(RplComponent));
 		if (rpl)
 		{
-			RplId transmissionRplId = Replication.FindId(rpl);
+			RplId transmissionRplId = Replication.FindItemId(rpl);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				PrintFormat("BCM - RegisterTransmissionComponent: Adding RplId %1 for entity %2", transmissionRplId, comp.GetOwner());
 			m_aTransmissionIds.Insert(transmissionRplId);
@@ -1056,7 +1056,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		RplComponent rplComponent = RplComponent.Cast(m_westCommandVehicle.FindComponent(RplComponent));
         if (rplComponent)
         {
-             westCommandVehRplId = Replication.FindId(rplComponent);
+             westCommandVehRplId = Replication.FindItemId(rplComponent);
              Replication.BumpMe(); // Replicate the RplId
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("BCM - West Command Truck has rplComponent"), LogLevel.NORMAL);
@@ -1128,7 +1128,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		RplComponent rplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
         if (rplComponent)
         {
-             radioTruckRplId = Replication.FindId(rplComponent);
+             radioTruckRplId = Replication.FindItemId(rplComponent);
              Replication.BumpMe(); // Replicate the RplId
 			 if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			 	Print(string.Format("BCM - East Radio Truck has rplComponent"), LogLevel.NORMAL);

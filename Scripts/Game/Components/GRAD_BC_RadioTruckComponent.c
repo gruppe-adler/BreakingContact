@@ -235,7 +235,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 
 		// Debug: Log animation progress periodically (every ~10% progress)
-		int progressPercent = (int)(m_fAnimationProgress * 100);
+		const int progressPercent = (int)(m_fAnimationProgress * 100);
 		if (progressPercent % 20 == 0 && progressPercent != m_iLastLoggedProgress)
 		{
 			m_iLastLoggedProgress = progressPercent;
@@ -310,7 +310,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		}
 
 		// Calculate time delta (we're called every 16ms = 0.016s for ~60fps)
-		float timeSlice = 0.016;
+		const float timeSlice = 0.016;
 
 		// Update progress
 		if (m_bAntennaRaising)
@@ -322,7 +322,7 @@ class GRAD_BC_RadioTruckComponent : ScriptComponent
 		m_fAnimationProgress = Math.Clamp(m_fAnimationProgress, 0, 1);
 
 		// Debug: Log animation progress periodically
-		int progressPercent = (int)(m_fAnimationProgress * 100);
+		const int progressPercent = (int)(m_fAnimationProgress * 100);
 		if (progressPercent % 20 == 0 && progressPercent != m_iLastLoggedProgress)
 		{
 			m_iLastLoggedProgress = progressPercent;
@@ -1753,7 +1753,7 @@ void UpdateAntennaBones(float progress)
 					Print(string.Format("BC Debug - Vehicle instigator faction: %1", factionKey), LogLevel.NORMAL);
 				return factionKey;
 			} else {
-				string factionKey = "Empty";
+				const string factionKey = "Empty";
 				return factionKey;
 			}
 		}

@@ -244,7 +244,7 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		}
 
 		//CampaignBuildingManagerComponent should not do anything if there is no campaign
-        /*
+		/*
 		const SCR_GameModeCampaign campaign = SCR_GameModeCampaign.GetInstance();
 		if (!campaign)
 			return;
@@ -255,7 +255,7 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("[DEBUG] Early return: Persistence system loading in progress");
-			return; 
+			return;
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -295,6 +295,24 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 					Print("[DEBUG] Spawning custom resource holder");
 				SpawnCustomResourceHolder(entityOwner, resourceComponent);
 				wasContainerSpawned = true;
+			}
+		}
+
+		// --- BC MOD: Redirect consumption to GRAD_BC_VehicleSupplyComponent when present, bypassing vanilla resource container entirely ---
+		if (budgetChange > 0)
+		{
+			GRAD_BC_VehicleSupplyComponent gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(entityOwner.FindComponent(GRAD_BC_VehicleSupplyComponent));
+			if (gradSupply)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system");
+
+				int currentSupplies = gradSupply.GetCurrentSupplies();
+				int newSupplies = currentSupplies - budgetChange;
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, AFTER: %2", currentSupplies, newSupplies));
+				gradSupply.SetSupplies(newSupplies);
+				return;
 			}
 		}
 
@@ -363,43 +381,14 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		else
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("[DEBUG] CONSUMPTION LOGIC - Taking away supplies");
+				Print("[DEBUG] CONSUMPTION LOGIC - Taking away supplies (vanilla path)");
 			if (providerComponent)
 				providerComponent.AddPropValue(propBudgetValue);
 
-			// Try to find custom GRAD_BC_VehicleSupplyComponent first
-			GRAD_BC_VehicleSupplyComponent gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(providerEntity.FindComponent(GRAD_BC_VehicleSupplyComponent));
-			if (gradSupply)
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system");
-				int currentSupplies = gradSupply.GetCurrentSupplies();
-				int newSupplies = currentSupplies - budgetChange;
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, AFTER: %2", currentSupplies, newSupplies));
-				gradSupply.SetSupplies(newSupplies);
-			}
-			else
-			{
-				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print("[DEBUG] No custom component - using vanilla resource container");
-				// Fallback to vanilla resource container
-				SCR_ResourceContainer container = resourceComponent.GetContainer(EResourceType.SUPPLIES);
-				
-				if (container)
-				{
-					float currentValue = container.GetResourceValue();
-					float newValue = currentValue - budgetChange;
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print(string.Format("[DEBUG] Container BEFORE: %1, AFTER: %2", currentValue, newValue));
-					container.SetResourceValue(newValue);
-				}
-				else
-				{
-					if (GRAD_BC_BreakingContactManager.IsDebugMode())
-						Print("[DEBUG] ERROR: No resource container found!");
-				}
-			}
+			SCR_ResourceConsumer consumer = resourceComponent.GetConsumer(EResourceGeneratorID.DEFAULT, EResourceType.SUPPLIES);
+
+			if (consumer)
+				consumer.RequestConsumtion(budgetChange);
 		}
 	}
 
@@ -440,7 +429,7 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		bool suppliesEnabled = SCR_ResourceSystemHelper.IsGlobalResourceTypeEnabled(EResourceType.SUPPLIES);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("[DEBUG] Resource system - Supplies enabled: %1", suppliesEnabled));
-		
+
 		if (!suppliesEnabled)
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -497,6 +486,17 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	array<ResourceName> GetPlaceablePrefabs()
+	{
+		if (!m_aPlaceablePrefabs)
+			return null;
+
+		array<ResourceName> copy = {};
+		copy.Copy(m_aPlaceablePrefabs);
+		return copy;
+	}
+
+	//------------------------------------------------------------------------------------------------
 	//! Returns composition id based on provided resource name.
 	//! \param[in] resName
 	//! \return
@@ -510,7 +510,8 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 	//! \param[in] provider
 	//! \param[in] userActionActivationOnly
 	//! \param[in] userActionUsed
-	void GetEditorMode(int playerID, notnull IEntity provider, bool userActionActivationOnly = false, bool userActionUsed = false)
+	//! \param[in] useAllAvailableProviders true if game should use all available providers from that base
+	void EnterEditorMode(int playerID, notnull IEntity provider, bool userActionActivationOnly = false, bool userActionUsed = false, bool useAllAvailableProviders = false)
 	{
 		SCR_EditorManagerEntity editorManager = GetEditorManagerEntity(playerID);
 		if (!editorManager)
@@ -523,11 +524,18 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		if (!modeEntity)
 			return;
 
-		SetEditorMode(editorManager, modeEntity, playerID, provider, userActionActivationOnly, userActionUsed);
+		SetEditorMode(editorManager, modeEntity, playerID, provider, userActionActivationOnly, userActionUsed, useAllAvailableProviders);
 	}
 
 	//------------------------------------------------------------------------------------------------
-	protected void SetEditorMode(notnull SCR_EditorManagerEntity editorManager, notnull SCR_EditorModeEntity modeEntity, int playerID, notnull IEntity provider, bool userActionActivationOnly = false, bool userActionUsed = false)
+	//! \param[in] editorManager
+	//! \param[in] modeEntity
+	//! \param[in] playerID
+	//! \param[in] provider
+	//! \param[in] userActionActivationOnly
+	//! \param[in] userActionUsed
+	//! \param[in] useAllAvailableProviders true if game should use all available providers from that base
+	protected void SetEditorMode(notnull SCR_EditorManagerEntity editorManager, notnull SCR_EditorModeEntity modeEntity, int playerID, notnull IEntity provider, bool userActionActivationOnly = false, bool userActionUsed = false, bool useAllAvailableProviders = false)
 	{
 		SCR_CampaignBuildingEditorComponent buildingComponent = SCR_CampaignBuildingEditorComponent.Cast(modeEntity.FindComponent(SCR_CampaignBuildingEditorComponent));
 		if (!buildingComponent)
@@ -536,6 +544,9 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		SCR_CampaignBuildingProviderComponent providerComponent = SCR_CampaignBuildingProviderComponent.Cast(provider.FindComponent(SCR_CampaignBuildingProviderComponent));
 		if (!providerComponent)
 			return;
+
+		if (useAllAvailableProviders)
+			providerComponent.SetUseAllAvailableProvidersByPlayer(IsCommander(playerID));
 
 		providerComponent.AddNewAvailableUser(playerID);
 		if (userActionUsed)
@@ -560,6 +571,24 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		SetOnPlayerDeathEvent(playerID);
 		SetOnProviderDestroyedEvent(provider);
 		providerComponent.SetCheckProviderMove();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Checks if given player is a faction commander
+	//! \param[in] playerId
+	//! \return true if player with provided id is the commander of his faction, otherwise false
+	protected bool IsCommander(int playerId)
+	{
+		PlayerController owner = GetGame().GetPlayerManager().GetPlayerController(playerId);
+		if (!owner)
+			return false;
+
+		SCR_PlayerFactionAffiliationComponent playerFaction = SCR_PlayerFactionAffiliationComponent.Cast(owner.FindComponent(SCR_PlayerFactionAffiliationComponent));
+		if (!playerFaction)
+			return false;
+
+		SCR_Faction faction = SCR_Faction.Cast(playerFaction.GetAffiliatedFaction());
+		return faction && faction.IsPlayerCommander(owner.GetPlayerId());
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -813,6 +842,8 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 			RemoveOnProviderDestroyedEvent(providerComponent.GetOwner());
 
 		providerComponent.RemoveCheckProviderMove();
+		providerComponent.SetUseAllAvailableProvidersByPlayer(false);
+
 		RemoveOnPlayerDeathEvent(playerID);
 
 		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());

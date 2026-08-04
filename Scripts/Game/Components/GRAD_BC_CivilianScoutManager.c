@@ -971,7 +971,7 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 		if (m_ScoutGroup)
 		{
 			// AIGroup inherits from AIAgent which is an IEntity — delete the group entity directly.
-			SCR_EntityHelper.DeleteEntityAndChildren(AIAgent.Cast(m_ScoutGroup));
+			SCR_EntityHelper.DeleteEntityAndChildren(m_ScoutGroup);
 			m_ScoutGroup = null;
 		}
 

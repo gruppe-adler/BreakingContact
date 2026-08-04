@@ -86,7 +86,7 @@ class GRAD_BC_DraggableComponent : ScriptComponent
 			return;
 
 		m_DraggerEntity = draggerEntity;
-		m_DraggerRplId = Replication.FindId(draggerRpl);
+		m_DraggerRplId = Replication.FindItemId(draggerRpl);
 		Replication.BumpMe();
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())

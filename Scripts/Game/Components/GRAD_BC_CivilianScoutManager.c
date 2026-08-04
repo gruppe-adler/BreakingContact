@@ -27,7 +27,7 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 	[Attribute("{000CD338713F2B5A}Prefabs/Groups/Group_Base.et", UIWidgets.ResourcePickerThumbnail, "AI group prefab used to assign waypoints to the driver.", params: "et", category: "Breaking Contact - Civilian Scout")]
 	protected ResourceName m_sScoutGroupPrefab;
 
-	[Attribute("{750A8D1695BD6998}Prefabs/AI/Waypoints/AIWaypoint_Move.et", UIWidgets.ResourcePickerThumbnail, "Waypoint prefab used to direct the driver toward the radio truck.", params: "et", category: "Breaking Contact - Civilian Scout")]
+	[Attribute("{06E1B6EBD480C6E0}Prefabs/AI/Waypoints/AIWaypoint_ForcedMove.et", UIWidgets.ResourcePickerThumbnail, "Waypoint prefab used to direct the driver toward the radio truck.", params: "et", category: "Breaking Contact - Civilian Scout")]
 	protected ResourceName m_sScoutWaypointPrefab;
 
 	[Attribute("{15A293B1904F942B}UI/Textures/Icons/icon_objective.edds", UIWidgets.ResourcePickerThumbnail, "Map icon texture shown when the civilian reports the radio truck (placeholder until dedicated texture is provided).", params: "edds", category: "Breaking Contact - Civilian Scout")]
@@ -450,30 +450,25 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 			m_CurrentWaypoint = null;
 		}
 
-		// Prepend a short forward nudge to prevent the AI from reversing when the
-		// destination is behind the vehicle's current heading.
-		SpawnNudgeWaypoint();
-
 		EntitySpawnParams wpParams = new EntitySpawnParams();
 		wpParams.Transform[3] = waypointPos;
-
 		AIWaypoint newWaypoint = AIWaypoint.Cast(
 			GetGame().SpawnEntityPrefab(Resource.Load(m_sScoutWaypointPrefab), GetGame().GetWorld(), wpParams)
 		);
-
-		if (newWaypoint)
+		if (!newWaypoint)
 		{
-			newWaypoint.SetCompletionRadius(50.0);
-			m_ScoutGroup.AddWaypoint(newWaypoint);
+			Print("GRAD_BC_CivilianScoutManager: Failed to spawn waypoint; driver will not navigate.", LogLevel.WARNING);
+			return;
+		}
+		SCR_AIWaypoint newWaypointScr = SCR_AIWaypoint.Cast(newWaypoint);
+		if (newWaypointScr)
+			newWaypointScr.SetPriorityLevel(2000);
+		newWaypoint.SetCompletionRadius(50.0);
+		m_ScoutGroup.AddWaypoint(newWaypoint);
 
-			m_CurrentWaypoint = newWaypoint;
-			m_vLastWaypointTruckPos = truckPos;
-			Print(string.Format("GRAD_BC_CivilianScoutManager: Waypoint updated to %1.", waypointPos.ToString()), LogLevel.NORMAL);
-		}
-		else
-		{
-			Print("GRAD_BC_CivilianScoutManager: Failed to spawn AIWaypoint prefab; driver will not navigate.", LogLevel.WARNING);
-		}
+		m_CurrentWaypoint = newWaypoint;
+		m_vLastWaypointTruckPos = truckPos;
+		Print(string.Format("GRAD_BC_CivilianScoutManager: Waypoint updated to %1.", waypointPos.ToString()), LogLevel.NORMAL);
 	}
 
 	// -------------------------------------------------------------------------
@@ -521,12 +516,18 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 					continue;
 				}
 
+				if (roadDist > 30.0)
+				{
+					Print(string.Format("GRAD_BC_CivilianScoutManager:   dir%1 REJECTED road too far (%2m).", i.ToString(), roadDist.ToString()), LogLevel.NORMAL);
+					continue;
+				}
+
 				array<vector> points = {};
 				road.GetPoints(points);
 				if (points.IsEmpty())
 					continue;
 
-				vector roadPoint = points[0];
+				vector roadPoint = points[Math.RandomInt(0, points.Count())];
 				float groundY = GetGame().GetWorld().GetSurfaceY(roadPoint[0], roadPoint[2]);
 				roadPoint[1] = groundY + SPAWN_GROUND_OFFSET;
 
@@ -700,22 +701,20 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 			m_CurrentWaypoint = null;
 		}
 
-		SpawnNudgeWaypoint();
-
 		EntitySpawnParams wpParams = new EntitySpawnParams();
 		wpParams.Transform[3] = m_vSpawnPos;
-
 		AIWaypoint returnWaypoint = AIWaypoint.Cast(
 			GetGame().SpawnEntityPrefab(Resource.Load(m_sScoutWaypointPrefab), GetGame().GetWorld(), wpParams)
 		);
-
 		if (!returnWaypoint)
 		{
 			Print("GRAD_BC_CivilianScoutManager: Failed to spawn return waypoint; despawning immediately.", LogLevel.WARNING);
 			DespawnScout();
 			return;
 		}
-
+		SCR_AIWaypoint returnWaypointScr = SCR_AIWaypoint.Cast(returnWaypoint);
+		if (returnWaypointScr)
+			returnWaypointScr.SetPriorityLevel(2000);
 		returnWaypoint.SetCompletionRadius(DESPAWN_HOME_RADIUS);
 		m_ScoutGroup.AddWaypoint(returnWaypoint);
 
@@ -774,12 +773,15 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 			if (roadMgr.GetClosestRoad(candidate, road, roadDist) == -1 || !road)
 				continue;
 
+			if (roadDist > 30.0)
+				continue;
+
 			array<vector> points = {};
 			road.GetPoints(points);
 			if (points.IsEmpty())
 				continue;
 
-			vector roadPoint = points[0];
+			vector roadPoint = points[Math.RandomInt(0, points.Count())];
 			float groundY = GetGame().GetWorld().GetSurfaceY(roadPoint[0], roadPoint[2]);
 			roadPoint[1] = groundY + SPAWN_GROUND_OFFSET;
 
@@ -794,7 +796,6 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 
 			EntitySpawnParams wpParams = new EntitySpawnParams();
 			wpParams.Transform[3] = roadPoint;
-
 			AIWaypoint newWaypoint = AIWaypoint.Cast(
 				GetGame().SpawnEntityPrefab(Resource.Load(m_sScoutWaypointPrefab), GetGame().GetWorld(), wpParams)
 			);
@@ -808,8 +809,9 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 					m_CurrentWaypoint = null;
 				}
 
-				SpawnNudgeWaypoint();
-
+				SCR_AIWaypoint newWaypointScr = SCR_AIWaypoint.Cast(newWaypoint);
+				if (newWaypointScr)
+					newWaypointScr.SetPriorityLevel(2000);
 				newWaypoint.SetCompletionRadius(DESPAWN_HOME_RADIUS);
 				m_ScoutGroup.AddWaypoint(newWaypoint);
 
@@ -987,49 +989,6 @@ class GRAD_BC_CivilianScoutManager : ScriptComponent
 	// -------------------------------------------------------------------------
 	// Utility
 	// -------------------------------------------------------------------------
-
-	// Distance (metres) in front of the vehicle for the anti-reverse nudge waypoint.
-	static const float NUDGE_WAYPOINT_DISTANCE = 30.0;
-
-	// Spawns a short waypoint directly in front of the vehicle to prevent the AI
-	// from reversing when the real destination is behind its current heading.
-	// The nudge waypoint is NOT tracked in m_CurrentWaypoint — it is consumed
-	// automatically once the vehicle drives past it.
-	protected void SpawnNudgeWaypoint()
-	{
-		if (!m_ScoutVehicle || !m_ScoutGroup)
-		{
-			Print("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — skipped (vehicle or group null).", LogLevel.WARNING);
-			return;
-		}
-
-		vector mat[4];
-		m_ScoutVehicle.GetTransform(mat);
-		vector forward = mat[2]; // local Z = forward
-		forward[1] = 0;
-		forward.Normalize();
-
-		vector nudgePos = m_ScoutVehicle.GetOrigin() + forward * NUDGE_WAYPOINT_DISTANCE;
-		nudgePos[1] = GetGame().GetWorld().GetSurfaceY(nudgePos[0], nudgePos[2]) + SPAWN_GROUND_OFFSET;
-
-		EntitySpawnParams nudgeParams = new EntitySpawnParams();
-		nudgeParams.Transform[3] = nudgePos;
-
-		AIWaypoint nudgeWaypoint = AIWaypoint.Cast(
-			GetGame().SpawnEntityPrefab(Resource.Load(m_sScoutWaypointPrefab), GetGame().GetWorld(), nudgeParams)
-		);
-
-		if (nudgeWaypoint)
-		{
-			nudgeWaypoint.SetCompletionRadius(5.0);
-			m_ScoutGroup.AddWaypoint(nudgeWaypoint);
-			Print(string.Format("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — added nudge at %1.", nudgePos.ToString()), LogLevel.NORMAL);
-		}
-		else
-		{
-			Print("GRAD_BC_CivilianScoutManager: SpawnNudgeWaypoint — failed to spawn waypoint prefab.", LogLevel.WARNING);
-		}
-	}
 
 	// Returns true when the line from `from` to `to` is not obstructed by terrain.
 	protected bool HasLineOfSight(vector from, vector to)

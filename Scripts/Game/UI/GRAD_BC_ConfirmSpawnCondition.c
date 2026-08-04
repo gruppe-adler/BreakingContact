@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------------------------
 //! Condition for showing the confirm spawn button
 //! Only shows for USSR faction and while choosing spawn
-/*
 [BaseContainerProps()]
 class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
 {
@@ -12,6 +11,25 @@ class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
     {
         if (!super.IsAvailable(data))
             return false;
+
+        // Log active input contexts every ~120 frames to avoid spam
+        s_iLogThrottle++;
+        if (s_iLogThrottle >= 120)
+        {
+            s_iLogThrottle = 0;
+            PlayerController playerController = GetGame().GetPlayerController();
+            if (playerController)
+            {
+                ActionManager actionManager = playerController.GetActionManager();
+                if (actionManager)
+                {
+                    bool spectatorCtx = actionManager.IsContextActive("SpectatorContext");
+                    bool mapCtx = actionManager.IsContextActive("MapContext");
+                    bool characterCtx = actionManager.IsContextActive("CharacterContext");
+                    Print(string.Format("BC Debug - ConfirmSpawnCondition contexts: SpectatorContext=%1 MapContext=%2 CharacterContext=%3", spectatorCtx, mapCtx, characterCtx), LogLevel.NORMAL);
+                }
+            }
+        }
 
         // Get character from the provided condition data
         SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(data.GetCharacter());
@@ -52,4 +70,3 @@ class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
         return true;
     }
 }
-*/

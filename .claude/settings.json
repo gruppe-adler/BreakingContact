@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__enfusion-mcp__project_read",
+      "mcp__enfusion-mcp__project_browse"
+    ]
+  }
+}

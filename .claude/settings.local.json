@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "mcp__enfusion-mcp__api_search"
+      "mcp__enfusion-mcp__api_search",
+      "mcp__enfusion-mcp__game_browse",
+      "mcp__enfusion-mcp__game_read",
+      "mcp__enfusion-mcp__asset_search"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\nomisum\\Documents\\my games\\ArmaReforgerWorkbench\\addons\\GRAD-Traffic\\scripts\\Game\\Components"
     ]
   }
 }

@@ -252,10 +252,23 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// execute only on the server
 		if (Replication.IsServer()) {
 			m_iNotificationDuration = 10;
-			
+
 			// check win conditions every second
 			GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
-			GetGame().GetCallqueue().CallLater(setPhaseInitial, 1100, false);
+
+			// Start BreakingContact's own phase machine when COALITION-Lobby's safestart
+			// countdown ends, instead of a fixed delay, so both timers stay in sync.
+			COA_SafestartManager safestartManager = COA_SafestartManager.GetInstance();
+			if (safestartManager)
+			{
+				safestartManager.m_OnSafeStartChange.Insert(OnCoalitionSafeStartChange);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("BCM - Hooked into COA_SafestartManager.m_OnSafeStartChange", LogLevel.NORMAL);
+			}
+			else
+			{
+				GetGame().GetCallqueue().CallLater(setPhaseInitial, 1100, false);
+			}
 		}
     }
 	
@@ -513,11 +526,28 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 	
 	//------------------------------------------------------------------------------------------------
-	void setPhaseInitial() 
+	void setPhaseInitial()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("setPhaseInitial executed"), LogLevel.NORMAL);
 		SetBreakingContactPhase(EBreakingContactPhase.PREPTIME);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Fired by COA_SafestartManager.m_OnSafeStartChange. Starts BreakingContact's phase
+	//! machine the moment safestart ends, instead of a fixed post-init delay.
+	protected void OnCoalitionSafeStartChange(bool safeStartEnabled)
+	{
+		if (safeStartEnabled)
+			return;
+
+		if (m_iBreakingContactPhase != EBreakingContactPhase.LOADING)
+			return;
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("BCM - COALITION safestart ended, starting BreakingContact phase machine", LogLevel.NORMAL);
+
+		setPhaseInitial();
 	}
 
     //------------------------------------------------------------------------------------------------
@@ -2657,6 +2687,11 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			GetGame().GetCallqueue().Remove(SyncJIPState);
 			GetGame().GetCallqueue().Remove(SyncJIPStateDeferred);
 		}
+
+		COA_SafestartManager safestartManager = COA_SafestartManager.GetInstance();
+		if (safestartManager)
+			safestartManager.m_OnSafeStartChange.Remove(OnCoalitionSafeStartChange);
+
 		super.OnDelete(owner);
 	}
 

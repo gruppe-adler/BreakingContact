@@ -393,7 +393,15 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	{
 		if (factionKey.IsEmpty())
 			factionKey = "Empty";
-		
+
+		// Normalize COALITION-Lobby's "OPFOR"/"BLUFOR" faction keys to BreakingContact's
+		// own "USSR"/"US" convention used by every icon-key branch below.
+		if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(factionKey))
+			factionKey = "USSR";
+		else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(factionKey))
+			factionKey = "US";
+
+
 		if (prefab.IsEmpty()) return "";
 		string key = "";
 		string pf = prefab;

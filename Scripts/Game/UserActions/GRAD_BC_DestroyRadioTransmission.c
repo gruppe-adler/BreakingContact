@@ -116,7 +116,7 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 			return false;
 			
 		string factionKey = character.GetFactionKey();
-		return (factionKey == "US");
+		return GRAD_BC_BreakingContactManager.IsBluforFactionKey(factionKey);
 	}
 
 	//------------------------------------------------------------------------------------------------

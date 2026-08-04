@@ -82,7 +82,13 @@ class GRAD_PlayerComponent : ScriptComponent
 					return;
 				}
 				
-				m_faction = ch.GetFactionKey();
+				string detectedFactionKey = ch.GetFactionKey();
+				if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(detectedFactionKey))
+					m_faction = "USSR";
+				else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(detectedFactionKey))
+					m_faction = "US";
+				else
+					m_faction = detectedFactionKey;
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print(string.Format("faction detected: %1", m_faction), LogLevel.NORMAL);
 			
@@ -158,19 +164,40 @@ class GRAD_PlayerComponent : ScriptComponent
 		}
 
 
+		string characterRole = "none";
+
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
-		if (!characterRoleComponent) {
+		if (characterRoleComponent)
+			characterRole = characterRoleComponent.GetCharacterRole();
+
+		// COALITION-Lobby path: BC's own GRAD_CharacterRoleComponent isn't set on
+		// COA_GearscriptManager-spawned characters, so derive the same "Opfor Commander" /
+		// "Blufor Commander" role strings from the player's slotted COA_EGearRole + faction.
+		if (characterRole == "none")
+		{
+			COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+			if (slottingManager)
+			{
+				int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(ch);
+				if (playerId > 0)
+				{
+					COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
+					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
+					{
+						string playerFactionKey = ch.GetFactionKey();
+						if (playerFactionKey == "OPFOR")
+							characterRole = "Opfor Commander";
+						else if (playerFactionKey == "BLUFOR")
+							characterRole = "Blufor Commander";
+					}
+				}
+			}
+		}
+
+		if (characterRole == "none") {
 			Print(string.Format("no character role component for this slot - wait and retry in 5s"), LogLevel.WARNING);
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
-		}
-
-		string characterRole = "none";
-
-		if (characterRoleComponent) {
-			characterRole = characterRoleComponent.GetCharacterRole();
-		} else {
-			Print(string.Format("BC phase opfor - no commander found"), LogLevel.WARNING);
 		}
 
 		if (characterRole == "Opfor Commander")

@@ -192,6 +192,35 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		return m_iDebugModeCache == 1;
 	}
 
+	// BreakingContact's own faction keys are "USSR"/"US"; COALITION-Lobby's default faction
+	// setup uses "OPFOR"/"BLUFOR" instead. These normalize either convention so faction checks
+	// work regardless of which faction key scheme the current mission's factions use.
+	static bool IsOpforFactionKey(string factionKey)
+	{
+		return factionKey == "USSR" || factionKey == "OPFOR";
+	}
+
+	static bool IsBluforFactionKey(string factionKey)
+	{
+		return factionKey == "US" || factionKey == "BLUFOR";
+	}
+
+	// Compares two faction key strings that may each be in either BreakingContact's own
+	// ("USSR"/"US") or COALITION-Lobby's default ("OPFOR"/"BLUFOR") convention.
+	static bool FactionKeysMatch(string a, string b)
+	{
+		if (a == b)
+			return true;
+
+		if (IsOpforFactionKey(a) && IsOpforFactionKey(b))
+			return true;
+
+		if (IsBluforFactionKey(a) && IsBluforFactionKey(b))
+			return true;
+
+		return false;
+	}
+
 	// Cached skip-faction-elimination flag from mission header
 	protected static int m_iSkipFactionEliminationCache = -1; // -1 = not cached, 0 = off, 1 = on
 
@@ -304,7 +333,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		
 		// close map for opfor
-		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
+		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && IsOpforFactionKey(factionKey)) {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -312,7 +341,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 		
 		// close map for blufor
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && IsBluforFactionKey(factionKey)) {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -520,8 +549,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (!ch) continue;
 			
 			CharacterControllerComponent ccc = ch.GetCharacterController();
-			if (factionName != ch.GetFactionKey() || ccc.IsDead()) continue;
-			
+			if (!FactionKeysMatch(factionName, ch.GetFactionKey()) || ccc.IsDead()) continue;
+
 			alivePlayersOfSide.Insert(playerId);
 		}
 		
@@ -1286,12 +1315,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("Breaking Contact - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 		
 		// The faction that destroyed the radio truck loses
-		if (destroyerFaction == "US")
+		if (IsBluforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "opfor";
 			NotifyAllPlayersRadioTruckDestroyed("BLUFOR destroyed the radio truck! OPFOR wins!");
 		}
-		else if (destroyerFaction == "USSR")
+		else if (IsOpforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
@@ -1433,8 +1462,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		// Determine if player's faction won
 		bool playerWon = false;
-		if ((m_sWinnerSide == "opfor" && playerFactionKey == "USSR") ||
-		    (m_sWinnerSide == "blufor" && playerFactionKey == "US"))
+		if ((m_sWinnerSide == "opfor" && IsOpforFactionKey(playerFactionKey)) ||
+		    (m_sWinnerSide == "blufor" && IsBluforFactionKey(playerFactionKey)))
 		{
 			playerWon = true;
 		}
@@ -1459,16 +1488,16 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			subtitle = "Radio Truck Destroyed";
 			string destroyerFaction = m_sRadioTruckDestroyerFaction;
 			
-			if (destroyerFaction == "USSR")
+			if (IsOpforFactionKey(destroyerFaction))
 			{
-				if (playerFactionKey == "USSR")
+				if (IsOpforFactionKey(playerFactionKey))
 					description = "Your team accidentally destroyed the radio truck. BLUFOR wins by default.";
 				else
 					description = "OPFOR accidentally destroyed their own radio truck. Your team wins by default.";
 			}
-			else if (destroyerFaction == "US")
+			else if (IsBluforFactionKey(destroyerFaction))
 			{
-				if (playerFactionKey == "US")
+				if (IsBluforFactionKey(playerFactionKey))
 					description = "Your team destroyed the radio truck. OPFOR wins by default.";
 				else
 					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
@@ -1481,7 +1510,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (m_bluforCaptured)
 		{
 			subtitle = "Radio Truck Disabled";
-			if (playerFactionKey == "US")
+			if (IsBluforFactionKey(playerFactionKey))
 				description = "Your team successfully disabled the OPFOR radio truck before all transmissions were completed.";
 			else
 				description = "BLUFOR disabled your radio truck before all transmissions were completed.";
@@ -1489,7 +1518,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (m_iTransmissionCount > 0 && GetTransmissionsDoneCount() >= m_iTransmissionCount)
 		{
 			subtitle = "All Transmissions Completed";
-			if (playerFactionKey == "USSR")
+			if (IsOpforFactionKey(playerFactionKey))
 				description = string.Format("Your team successfully completed all %1 transmissions.", m_iTransmissionCount);
 			else
 				description = string.Format("OPFOR completed all %1 transmissions before you could stop them.", m_iTransmissionCount);
@@ -1497,7 +1526,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (factionEliminated("US"))
 		{
 			subtitle = "Enemy Eliminated";
-			if (playerFactionKey == "USSR")
+			if (IsOpforFactionKey(playerFactionKey))
 				description = "All BLUFOR forces have been eliminated.";
 			else
 				description = "All your forces have been eliminated.";
@@ -1505,7 +1534,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (factionEliminated("USSR"))
 		{
 			subtitle = "Enemy Eliminated";
-			if (playerFactionKey == "US")
+			if (IsBluforFactionKey(playerFactionKey))
 				description = "All OPFOR forces have been eliminated.";
 			else
 				description = "All your forces have been eliminated.";
@@ -1527,9 +1556,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		if (m_bRadioTruckDestroyed)
 		{
-			if (m_sRadioTruckDestroyerFaction == "USSR")
+			if (IsOpforFactionKey(m_sRadioTruckDestroyerFaction))
 				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
-			else if (m_sRadioTruckDestroyerFaction == "US")
+			else if (IsBluforFactionKey(m_sRadioTruckDestroyerFaction))
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
 			else
 				gameOverType = EGameOverTypes.FACTION_DRAW; // Draw - truck destroyed by unknown faction
@@ -2116,10 +2145,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		array<vector> availablePositions = {};
 
-		if (factionName == "USSR")
+		if (IsOpforFactionKey(factionName))
 			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos, 25);
 
-		if (factionName == "US")
+		if (IsBluforFactionKey(factionName))
 			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos, 25);
 
 		array<int> allPlayers = {};
@@ -2140,7 +2169,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
 
-			if (factionName == playerFactionName)
+			if (FactionKeysMatch(factionName, playerFactionName))
 			{
 				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(GetPlayerManager().GetPlayerController(playerId).FindComponent(GRAD_PlayerComponent));
 				if (playerComponent == null)
@@ -2348,9 +2377,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		string factionKey = ch.GetFactionKey();
 		
-		if (factionKey != "USSR")
+		if (!IsOpforFactionKey(factionKey))
 			return;
-		
+
 		// avoid the log spam by delaying the call by one frame
 		GetGame().GetCallqueue().CallLater(GRAD_PlayerComponent.GetInstance().AddCircleMarker, 0, false,
 			m_vOpforSpawnPos[0] - 500.0,
@@ -2454,6 +2483,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		// Check if this group contains a commander character
 		bool isCommandGroup = false;
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
 		array<AIAgent> agents = {};
 		group.GetAgents(agents);
 		foreach (AIAgent agent : agents)
@@ -2467,6 +2497,23 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			{
 				isCommandGroup = true;
 				break;
+			}
+
+			// COALITION-Lobby path: BC's own GRAD_CharacterRoleComponent isn't set on
+			// COA_GearscriptManager-spawned characters, so also check the controlling
+			// player's slotted role directly.
+			if (slottingManager)
+			{
+				int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(controlledEntity);
+				if (playerId > 0)
+				{
+					COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
+					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
+					{
+						isCommandGroup = true;
+						break;
+					}
+				}
 			}
 		}
 
@@ -2698,7 +2745,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (m_vOpforSpawnPos != vector.Zero)
 		{
 			string factionKey = GetPlayerFactionKey();
-			if (factionKey == "USSR")
+			if (IsOpforFactionKey(factionKey))
 			{
 				OnOpforPositionChanged();
 			}

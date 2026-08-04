@@ -72,7 +72,7 @@ class GRAD_BC_DisableRadioTruck : SCR_ScriptedUserAction
 			return false;
 
 		string factionKey = character.GetFactionKey();
-		return (factionKey == "US");
+		return GRAD_BC_BreakingContactManager.IsBluforFactionKey(factionKey);
 	}
 
 	//------------------------------------------------------------------------------------------------

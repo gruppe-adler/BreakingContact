@@ -65,16 +65,16 @@ class GRAD_PlayerComponent : ScriptComponent
 		super.EOnInit(owner);
 		
 		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
-		
+
 		m_playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
-		
-		if (gameMode) {
+
+		if (gameMode && m_playerController) {
 			if (gameMode.GetState() == SCR_EGameModeState.GAME) {
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print(string.Format("SCR_PlayerController - EOninit"), LogLevel.NORMAL);
 				GetGame().GetCallqueue().CallLater(InitMapMarkerUI, 1000, false);
 				GetGame().GetCallqueue().CallLater(ForceOpenMap, 1500, false);
-				
+
 				SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(m_playerController.GetControlledEntity());
 				if (!ch)  {
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())

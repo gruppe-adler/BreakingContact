@@ -1,0 +1,46 @@
+SizeBoxWidgetClass {
+ Name "FaceSelectionItem"
+ Slot LayoutSlot "{67BC000000000050}" {
+  Padding 2 2 2 2
+  FillWeight 0
+ }
+ Size 0 42
+ {
+  ButtonWidgetClass "{67BC000000000051}" {
+   Name "FaceItemButton"
+   Slot SizeBoxWidgetSlot "{67BC000000000059}" {
+   }
+   "no focus" 0
+   {
+    OverlayWidgetClass "{67BC000000000053}" {
+     Name "FaceItemFrame"
+     Slot ButtonWidgetSlot "{67BC000000000054}" {
+     }
+     {
+      ImageWidgetClass "{67BC000000000055}" {
+       Name "FaceItemBackground"
+       Slot OverlayWidgetSlot "{67BC000000000056}" {
+        HorizontalAlign 0
+        VerticalAlign 0
+       }
+       Color 0 0 0 0.3
+       Size 4096 42
+      }
+      TextWidgetClass "{67BC000000000057}" {
+       Name "FaceItemName"
+       Slot OverlayWidgetSlot "{67BC000000000058}" {
+        HorizontalAlign 0
+        VerticalAlign 2
+        Padding 12 0 0 0
+       }
+       Text "Face Name"
+       "Font Size" 16
+       "Vertical Alignment" Middle
+       Color 1 1 1 0.9
+      }
+     }
+    }
+   }
+  }
+ }
+}

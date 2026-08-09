@@ -1,0 +1,257 @@
+FrameWidgetClass {
+ Name "FaceSelectionRoot"
+ {
+  ImageWidgetClass "{67BC000000000022}" {
+   Name "DimBackground"
+   Slot FrameWidgetSlot "{67BC000000000023}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 0
+    SizeY 0
+    OffsetBottom 0
+   }
+   Color 0 0 0 0.75
+  }
+  FrameWidgetClass "{67BC000000000024}" {
+   Name "MainPanel"
+   Slot FrameWidgetSlot "{67BC000000000025}" {
+    Anchor 0.5 0.5 0.5 0.5
+    PositionX -450
+    OffsetLeft -450
+    PositionY -280
+    OffsetTop -280
+    SizeX 900
+    OffsetRight -450
+    SizeY 560
+    OffsetBottom -280
+   }
+   {
+    ImageWidgetClass "{67BC000000000026}" {
+     Name "PanelBackground"
+     Slot FrameWidgetSlot "{67BC000000000027}" {
+      Anchor 0 0 1 1
+      PositionX 0
+      OffsetLeft 0
+      PositionY 0
+      OffsetTop 0
+      SizeX 0
+      OffsetRight 0
+      SizeY 0
+      OffsetBottom 0
+     }
+     Color 0.05 0.08 0.1 0.97
+    }
+    TextWidgetClass "{67BC000000000028}" {
+     Name "TitleText"
+     Slot FrameWidgetSlot "{67BC000000000029}" {
+      Anchor 0 0 1 0
+      PositionX 0
+      OffsetLeft 20
+      PositionY 0
+      OffsetTop 14
+      SizeX 0
+      OffsetRight -20
+      SizeY 36
+      OffsetBottom -50
+     }
+     Text "Select Face"
+     "Font Size" 28
+     "Horizontal Alignment" Middle
+    }
+    ImageWidgetClass "{67BC00000000002A}" {
+     Name "TitleDivider"
+     Slot FrameWidgetSlot "{67BC00000000002B}" {
+      Anchor 0 0 1 0
+      PositionX 0
+      OffsetLeft 20
+      PositionY 0
+      OffsetTop 52
+      SizeX 0
+      OffsetRight -20
+      SizeY 2
+      OffsetBottom -54
+     }
+     Color 0.3 0.5 0.7 0.8
+    }
+    HorizontalLayoutWidgetClass "{67BC00000000002C}" {
+     Name "ContentArea"
+     Slot FrameWidgetSlot "{67BC00000000002D}" {
+      Anchor 0 0 1 1
+      PositionX 0
+      OffsetLeft 0
+      PositionY 0
+      OffsetTop 58
+      SizeX 0
+      OffsetRight 0
+      SizeY 0
+      OffsetBottom -60
+     }
+     {
+      FrameWidgetClass "{67BC00000000002E}" {
+       Name "FaceListContainer"
+       Slot LayoutSlot "{67BC00000000002F}" {
+        Padding 10 4 6 4
+        FillWeight 1
+       }
+       {
+        ScrollLayoutWidgetClass "{67BC000000000032}" {
+         Name "FaceListScroll"
+         Slot FrameWidgetSlot "{67BC000000000033}" {
+          Anchor 0 0 1 1
+          PositionX 0
+          OffsetLeft 0
+          PositionY 0
+          OffsetTop 0
+          SizeX 0
+          OffsetRight 0
+          SizeY 0
+          OffsetBottom 0
+         }
+         {
+          VerticalLayoutWidgetClass "{67BC000000000034}" {
+           Name "FaceList"
+           Slot FrameWidgetSlot "{67BC000000000035}" {
+            Anchor 0 0 1 0
+            PositionX 0
+            OffsetLeft 0
+            PositionY 0
+            OffsetTop 0
+            SizeX 0
+            OffsetRight 0
+            SizeY 0
+            OffsetBottom 0
+           }
+          }
+         }
+        }
+       }
+      }
+      FrameWidgetClass "{67BC000000000036}" {
+       Name "PreviewContainer"
+       Slot LayoutSlot "{67BC000000000037}" {
+        Padding 6 4 10 4
+        FillWeight 1
+       }
+       {
+        ImageWidgetClass "{67BC000000000038}" {
+         Name "PreviewBackground"
+         Slot FrameWidgetSlot "{67BC000000000039}" {
+          Anchor 0 0 1 1
+          PositionX 0
+          OffsetLeft 0
+          PositionY 0
+          OffsetTop 0
+          SizeX 0
+          OffsetRight 0
+          SizeY 0
+          OffsetBottom 0
+         }
+         Color 0.08 0.12 0.16 0.9
+        }
+        TextWidgetClass "{67BC00000000003A}" {
+         Name "PreviewTitle"
+         Slot FrameWidgetSlot "{67BC00000000003B}" {
+          Anchor 0 0 1 0
+          PositionX 0
+          OffsetLeft 8
+          PositionY 0
+          OffsetTop 10
+          SizeX 0
+          OffsetRight -8
+          SizeY 24
+          OffsetBottom -34
+         }
+         Text "Preview"
+         "Font Size" 16
+         "Horizontal Alignment" Middle
+         Color 0.6 0.6 0.6 1
+        }
+        ImageWidgetClass "{67BC00000000003C}" {
+         Name "FacePreviewImage"
+         Slot FrameWidgetSlot "{67BC00000000003D}" {
+          Anchor 0.5 0.5 0.5 0.5
+          PositionX -80
+          OffsetLeft -80
+          PositionY -80
+          OffsetTop -80
+          SizeX 160
+          OffsetRight -80
+          SizeY 160
+          OffsetBottom -80
+         }
+         Color 0.3 0.4 0.5 0.6
+        }
+        TextWidgetClass "{67BC00000000003E}" {
+         Name "SelectedFaceName"
+         Slot FrameWidgetSlot "{67BC00000000003F}" {
+          Anchor 0 1 1 1
+          PositionX 0
+          OffsetLeft 8
+          PositionY 0
+          OffsetTop -60
+          SizeX 0
+          OffsetRight -8
+          SizeY 28
+          OffsetBottom -32
+         }
+         Text "Default"
+         "Font Size" 20
+         "Horizontal Alignment" Middle
+         Color 1 1 1 1
+        }
+        TextWidgetClass "{67BC000000000040}" {
+         Name "SelectedFaceLabel"
+         Slot FrameWidgetSlot "{67BC000000000041}" {
+          Anchor 0 1 1 1
+          PositionX 0
+          OffsetLeft 8
+          PositionY 0
+          OffsetTop -30
+          SizeX 0
+          OffsetRight -8
+          SizeY 24
+          OffsetBottom -6
+         }
+         Text "Selected: Default"
+         "Font Size" 14
+         "Horizontal Alignment" Middle
+         Color 0.7 0.9 1 1
+        }
+       }
+      }
+     }
+    }
+    ButtonWidgetClass "{67BC000000000042}" {
+     Name "CloseButton"
+     Slot FrameWidgetSlot "{67BC000000000043}" {
+      Anchor 0 1 0 1
+      PositionX 0
+      OffsetLeft 20
+      PositionY 0
+      OffsetTop -52
+      SizeX 120
+      OffsetRight -140
+      SizeY 40
+      OffsetBottom -12
+     }
+     Color 0.2 0.4 0.6 1
+     {
+      TextWidgetClass "{67BC000000000044}" {
+       Name "CloseButtonText"
+       Slot ButtonWidgetSlot "{67BC000000000045}" {
+       }
+       Text "Close"
+       "Font Size" 16
+       "Horizontal Alignment" Middle
+       "Vertical Alignment" Middle
+      }
+     }
+    }
+   }
+  }
+ }
+}

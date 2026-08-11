@@ -6,7 +6,11 @@ PerceptionManager PerceptionManager : "{028DAEAD63E056BE}Prefabs/World/Game/Perc
 }
 COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et" {
  components {
+  GRAD_BC_AmbientVehicleManager "{6A1719E41161D17F}" {
+  }
   GRAD_BC_BreakingContactManager "{6A0956CFB863470B}" {
+  }
+  GRAD_BC_CivilianScoutManager "{6A1719E40D5B3865}" {
   }
   GRAD_BC_ReplayManager "{6A0956CFBABDC2A2}" {
   }
@@ -45,32 +49,17 @@ COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et"
  m_bUseCVON 0
  m_aMissionDescriptors {
   COA_MissionDescriptor "{6A0956CA7C5B80DF}" {
-   m_sTitle "Mission: Situation"
-   m_sTextData "Add background info about the mission. "\
-   ""\
-   "BLUFOR Composition: Armored/Infantry/Mechanized/Etc.."\
-   "BLUFOR Assets:"\
-   ""\
-   "OPFOR Composition: Armored/Infantry/Mechanized/Etc.."\
-   "OPFOR Assets:"\
-   ""\
-   "Time:"\
-   ""\
-   "Weather:"
+   m_sTitle "Breaking Contact"
+   m_sTextData ": OPFOR establishes radio transmissions vs BLUFOR hunting and disabling them."
    m_aFactionKeys {
    }
    m_bShowForAnyFaction 1
   }
   COA_MissionDescriptor "{6A0956CA7C5C7EB8}" {
    m_sTitle "BLUFOR Briefing"
-   m_sTextData "MISSION"\
-   "Insert the bulleted or short-form list of objectives here"\
-   ""\
-   "INTENT"\
-   "Insert your intent as the mission maker for this side. This should be what you expect them to do."\
-   ""\
-   "EXECUTION"\
-   "Explain how you think the execution should unfold. Leave it as \"commanders discretion\" if you want them to plan it."
+   m_sTextData "OPFOR wins: Complete 2 transmissions (15min each) - or Elimination of Blufor"\
+   "BLUFOR wins: Destroy all transmissions OR disable radio truck - or Elimination of Opfor"\
+   "Auto-lose: Destroy the radio truck (use disable action only!)"
    m_aFactionKeys {
     "BLUFOR"
    }
@@ -78,14 +67,9 @@ COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et"
   }
   COA_MissionDescriptor "{6A0956CA7C5C7FC8}" {
    m_sTitle "OPFOR Briefing"
-   m_sTextData "MISSION"\
-   "Insert the bulleted or short-form list of objectives here"\
-   ""\
-   "INTENT"\
-   "Insert your intent as the mission maker for this side. This should be what you expect them to do."\
-   ""\
-   "EXECUTION"\
-   "Explain how you think the execution should unfold. Leave it as \"commanders discretion\" if you want them to plan it."
+   m_sTextData "OPFOR wins: Complete 2 transmissions (15min each) - or Elimination of Blufor"\
+   "BLUFOR wins: Destroy all transmissions OR disable radio truck - or Elimination of Opfor"\
+   "Auto-lose: Destroy the radio truck (use disable action only!)"
    m_aFactionKeys {
     "OPFOR"
    }
@@ -866,7 +850,7 @@ COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et"
   m_bEnableRTORadios 1
  }
  m_OPFORGearScriptSettings COA_GearScriptContainer "{64570ACB9B11EAAD}" {
-  m_rGearScript "{83E186D97FF79DCF}Configs/Gearscripts/Standard/COA_GS_USSR80s.conf"
+  m_rGearScript "{43CB2109864216B0}Configs/Gearscripts/GRAD_BC_GS_USSR80s.conf"
   m_bEnableBFT 1
   m_bEnableLeadershipRadios 1
   m_bEnableGIRadios 0

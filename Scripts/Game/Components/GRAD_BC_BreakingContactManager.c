@@ -1048,6 +1048,37 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 	
 	//------------------------------------------------------------------------------------------------
+	// SCR_CampaignBuildingProviderComponent (the "buy vehicle" building-mode entry point) lives on
+	// a child sub-entity (e.g. Ural4320_combox.et), not the vehicle root, and reads faction from
+	// whatever entity it's actually attached to rather than walking up to the parent. Set the
+	// faction on the root AND every child that has its own FactionAffiliationComponent.
+	protected void SetVehicleAndChildrenFaction(IEntity vehicle, string factionKey)
+	{
+		if (!vehicle)
+			return;
+
+		FactionAffiliationComponent rootFactionComp = FactionAffiliationComponent.Cast(vehicle.FindComponent(FactionAffiliationComponent));
+		if (rootFactionComp)
+			rootFactionComp.SetAffiliatedFactionByKey(factionKey);
+		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - %1 has no FactionAffiliationComponent on root, cannot set faction", vehicle), LogLevel.WARNING);
+
+		IEntity child = vehicle.GetChildren();
+		while (child)
+		{
+			FactionAffiliationComponent childFactionComp = FactionAffiliationComponent.Cast(child.FindComponent(FactionAffiliationComponent));
+			if (childFactionComp)
+			{
+				childFactionComp.SetAffiliatedFactionByKey(factionKey);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Set faction %1 on child entity %2", factionKey, child), LogLevel.NORMAL);
+			}
+
+			child = child.GetSibling();
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -1079,11 +1110,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 
-		FactionAffiliationComponent westFactionComp = FactionAffiliationComponent.Cast(m_westCommandVehicle.FindComponent(FactionAffiliationComponent));
-		if (westFactionComp)
-			westFactionComp.SetAffiliatedFactionByKey("US");
-		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BCM - West Command Truck has no FactionAffiliationComponent, cannot set faction", LogLevel.WARNING);
+		SetVehicleAndChildrenFaction(m_westCommandVehicle, "BLUFOR");
 
 		RplComponent rplComponent = RplComponent.Cast(m_westCommandVehicle.FindComponent(RplComponent));
         if (rplComponent)
@@ -1157,11 +1184,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			return;
 		}
 
-		FactionAffiliationComponent eastFactionComp = FactionAffiliationComponent.Cast(m_radioTruck.FindComponent(FactionAffiliationComponent));
-		if (eastFactionComp)
-			eastFactionComp.SetAffiliatedFactionByKey("USSR");
-		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print("BCM - East Radio Truck has no FactionAffiliationComponent, cannot set faction", LogLevel.WARNING);
+		SetVehicleAndChildrenFaction(m_radioTruck, "OPFOR");
 
 		RplComponent rplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
         if (rplComponent)

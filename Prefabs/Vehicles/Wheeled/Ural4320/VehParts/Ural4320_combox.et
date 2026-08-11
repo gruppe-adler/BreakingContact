@@ -65,6 +65,8 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
     VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
   }
+  SCR_FactionAffiliationComponent "{6A175C2C6062992D}" {
+  }
   SCR_ResourceComponent "{5D83561F25268587}" {
    m_aContainers {
     SCR_ResourceContainer "{5D83561F24437BF2}" {

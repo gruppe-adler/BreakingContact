@@ -208,6 +208,7 @@ class GRAD_PlayerComponent : ScriptComponent
 			m_bChoosingSpawn = true;
 			// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
 			GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
+			GrantCommanderRank(ch);
 		}
 
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
@@ -215,6 +216,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		{
 			m_faction = "US";
 			m_bChoosingSpawn = true;
+			GrantCommanderRank(ch);
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -222,7 +224,44 @@ class GRAD_PlayerComponent : ScriptComponent
 		ToggleMap(true);
 
 	}
-	
+
+	//------------------------------------------------------------------------------------------------
+	// Commander needs at least Captain rank to pass SCR_CampaignBuildingStartUserAction's
+	// access-rank check on the command trucks (BC has no XP/rank progression of its own).
+	protected void GrantCommanderRank(IEntity ch)
+	{
+		if (Replication.IsServer())
+		{
+			DoGrantCommanderRank(ch);
+			return;
+		}
+
+		Rpc(Ask_GrantCommanderRank);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void Ask_GrantCommanderRank()
+	{
+		if (!m_playerController)
+			return;
+
+		IEntity ch = m_playerController.GetControlledEntity();
+		if (ch)
+			DoGrantCommanderRank(ch);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	protected void DoGrantCommanderRank(IEntity ch)
+	{
+		SCR_CharacterRankComponent rankComp = SCR_CharacterRankComponent.GetCharacterRankComponent(ch);
+		if (!rankComp)
+			return;
+
+		if (SCR_CharacterRankComponent.GetCharacterRank(ch) < SCR_ECharacterRank.CAPTAIN)
+			rankComp.SetCharacterRank(SCR_ECharacterRank.CAPTAIN, true);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
 	{

@@ -2164,3 +2164,195 @@ ArmaVision `IsLimited` camera lock; content-browser label filtering / display co
 state / `SetLabel`; reading placing-component registries into the manager; BC's custom layout as
 the regression; `SCR_EditorSettingsEntity` base modes; adding `SCR_GameModeCampaign`; changing
 COALITION faction inheritance; `m_aCompositions`.
+
+## UPDATE 25: SOLVED (filter half) — a single active label `SLOT_STATIC` rejected all 170 infos
+
+### Step 1 discriminating probe — result
+
+Verified-fresh build (compile 12:55:27, full Play relaunch). Measured at `EOnEditorPostActivate`:
+
+```
+BC Debug - MENU STATE: placeableCount=98, filteredCount=0
+BC Debug - PROBE: infos=171 nonNull=170 activeLabels=1 anyActive=1 blacklisted=0 filtered=0
+BC Debug - PROBE activeLabel=0 (#AR-Editor_ContentBrowser_Filter_SLOT_STATIC_Name)
+BC Debug - PROBE: filtered AFTER ResetAllLabels=170
+```
+
+**Unambiguous case (b).** `170 of 171` infos are non-null, the blacklist is empty, and exactly ONE
+label is active: **`SLOT_STATIC`, enum value `0`**. With it active, `filteredCount=0`. Clearing it
+via `ResetAllLabels(false)` + `FilterEntries()` immediately yields **`filteredCount=170`**.
+
+Before -> after on one variable: **0 -> 170**.
+
+### RETRACTIONS forced by this measurement
+
+1. **Hypothesis (a) — "every info is null" — is DISPROVEN.** `nonNull=170`. The registry contents
+   are perfectly valid editable entities with UIInfo and labels. The earlier reasoning that raw
+   `Prefabs/Vehicles/...` entries yield null infos is still true in general, but it is NOT what is
+   happening here: only 1 of 171 is null.
+2. **The faction-label theory (task facts 6/7) is NOT the cause of this blockage.** The active
+   label is `SLOT_STATIC` (value 0), not a `FACTION_*` label. Confirmed independently: the two
+   COALITION `SCR_Faction` entities in `test_mode_2.layer` carry **no faction-label override at
+   all** (grep for `FactionLabel`/`FACTION_` in the faction manager block returns nothing), so
+   `GetFactionLabel()` is returning its default — evidently `0`/`SLOT_STATIC`.
+
+   That makes facts 6+7 the *delivery mechanism* rather than a separate issue:
+   `EOnEditorActivate()` calls `AddRemoveFactionLabel(faction, true)` and injects whatever
+   `GetFactionLabel()` returns into **every** tab state (`stateIndex = -1`); `EOnEditorDeactivate()`
+   fails to remove it because its `SCR_CampaignFaction.Cast()` returns null on COALITION's plain
+   `SCR_Faction`. So an *unset* faction label is being injected as literal label `0` = `SLOT_STATIC`
+   and then never cleaned up — and with `m_bUsePersistentBrowserStates` defaulting true, it is
+   round-tripped to disk, which explains the bit-identical results across fresh sessions,
+   `git checkout`, and the `SCR_EditorSettingsEntity` deletion.
+
+### Why this was invisible for ~24 updates
+
+`SLOT_STATIC = 0` is indistinguishable from "unset/default" in every earlier probe. The
+`IsMatchingToggledLabels()` test in an earlier update rejected even an EMPTY label set — consistent
+with exactly this: a stale active label already poisoning the group.
+
+### Consequence for the plan
+
+- **Step 2 is now justified and targeted**, not speculative. Setting a real `Faction Label` on the
+  two COALITION factions (OPFOR -> `FACTION_USSR`, BLUFOR -> `FACTION_US`) stops label `0` being
+  injected; disabling `m_bUsePersistentBrowserStates` stops the stale value persisting to disk; the
+  `EOnEditorDeactivate` cast fix stops it accumulating.
+- **Step 3 remains REQUIRED regardless.** `filteredCount=170` after clearing labels is 170
+  *fortification compositions* — the loaded registry still contains zero vehicles (fact 10). Fixing
+  the filter alone yields a menu full of sandbags and hedgehogs, not vehicles.
+
+Next: Step 2 sub-steps, measured one variable at a time.
+
+## UPDATE 26: Step 2(b) is INVALID — `FACTION_USSR`/`FACTION_US` do not exist; and the real mechanism
+
+### The plan's sub-step (b) cannot be performed
+
+User reported: **"there is no FACTION_USSR in the dropdown"**. Verified against vanilla data — the
+only `FACTION_*` values shipped by vanilla are unrelated concepts:
+
+```
+FACTION_DEFEAT  FACTION_DRAW  FACTION_ITEMS  FACTION_NEUTRAL
+FACTION_ONLY    FACTION_SPAWNPOINTS  FACTION_TASKS  FACTION_VICTORY
+```
+
+There is **no vanilla `FACTION_USSR` / `FACTION_US`**. The instruction to set them is not
+actionable, and the premise behind it (that vanilla ships per-army faction labels) is wrong.
+
+### What COALITION actually did
+
+`FACTION_COA_OPFOR` / `FACTION_COA_BLUFOR` appear **0 times in all ten vanilla `data*.pak`** and
+20/28 times in COALITION's pak. **COALITION defined these enum values themselves.** OPFOR's
+`Faction Label` is currently `FACTION_COA_OPFOR` (user-confirmed in Workbench).
+
+COALITION tags their OWN entities with it, e.g. from their pak:
+```
+m_sFaction "OPFOR"
+m_aAuthoredLabels {
+ ENTITYTYPE_GROUP FACTION_COA_OPFOR TRAIT_SUPPRESSIVE TRAIT_ARMORPIERCING TRAIT_EXPLOSIVE
+}
+```
+
+### THE MECHANISM (this explains the empty menu)
+
+1. `EOnEditorActivate()` injects the provider faction's label into every browser tab state via
+   `AddRemoveFactionLabel(faction, true)` -> label = `FACTION_COA_OPFOR`.
+2. The 170 loaded placeables are **vanilla fortification compositions**
+   (`PrefabsEditable/Auto/Compositions/Misc/FreeRoamBuilding/...`). Vanilla content cannot possibly
+   carry a COALITION-invented enum value.
+3. The FACTION label group is therefore active with a value that **no loaded entry can match** ->
+   `filteredCount = 0`.
+4. `EOnEditorDeactivate()`'s `SCR_CampaignFaction.Cast()` fails on COALITION's plain `SCR_Faction`,
+   so the label is never removed and the state persists.
+
+This is consistent with every measurement, including UPDATE 25's `filtered 0 -> 170` on
+`ResetAllLabels`.
+
+### Is `GetFactionLabel` safe to change? Evidence says COALITION does not read it
+
+```
+COALITION pak : "GetFactionLabel"  -> 0 hits
+COALITION GitHub source            -> 0 references (grep across all pulled COA_*.c)
+vanilla paks  : "GetFactionLabel"  -> 0 plaintext hits (compressed; consumers are editor-side)
+```
+The label is consumed by the **editor content browser filter**, not by COALITION's lobby, slotting,
+gearscripts or VoN. Those key off `FactionKey` (`"OPFOR"`), which is a DIFFERENT field
+(`m_FactionLabel` vs `GetFactionKey()`) and must NOT be touched (task fact 9).
+
+**So changing `Faction Label` is low-risk for COALITION systems** — but there is no correct value to
+change it TO, because no vanilla per-army faction label exists.
+
+### Revised options for the FACTION-label blockage
+
+1. **Neutralise the injection (preferred).** Override `EOnEditorActivate` in BC's existing
+   `modded class SCR_CampaignBuildingEditorComponent` to call `super`, then immediately
+   `AddRemoveFactionLabel(faction, false)` to strip the just-injected faction label. Leaves
+   COALITION's faction data untouched, no enum invention, and self-corrects each activation.
+   Pairs with the `EOnEditorDeactivate` fix already added.
+2. **Author BC vehicles WITH `FACTION_COA_OPFOR` in their `m_aAuthoredLabels`.** Works WITH the
+   filter instead of against it, and is arguably the intended design — but requires editable
+   vehicle variants BC controls (Step 3 authors these anyway).
+3. Setting `Faction Label` to some other existing value — rejected: every available value is
+   semantically wrong (`FACTION_NEUTRAL`, `FACTION_TASKS`, ...) and would still not match vanilla
+   fortifications.
+
+Option 1 is the smaller, reversible change and does not block option 2 later.
+
+## UPDATE 27: VEHICLES VISIBLE IN MENU — placement fails because the tiles are vanilla FIA prefabs
+
+### Progress: the menu now renders vehicle tiles
+
+Screenshot confirms: three category tabs, UAZ-469 variants with prices (50 / 150 / 280), supply
+counter 1000/1000, tooltips working. **This is the first time vehicle tiles have ever rendered.**
+
+### Placement failure — exact cause
+
+```
+15:13:55.427 SCRIPT (E): Error when creating entity from prefab '{E72D78E7F45532EC}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_UK59_FIA.et' (id = 35)!
+15:13:58.328 SCRIPT (E): Error when creating entity from prefab '{22B327C6752EC4D4}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM_FIA.et'  (id = 34)!
+15:14:01.594 SCRIPT (E): Error when creating entity from prefab '{F7E9AA0C813EABDA}Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_FIA.et'      (id = 33)!
+```
+
+The prefabs being placed are **`*_FIA` variants** — they are NOT BC's configured vehicles. BC's
+faction catalog contains:
+```
+UAZ469.et / UAZ469_PKM.et / UAZ452_transport.et
+Ural4320_transport_covered.et / BRDM2.et / BTR70.et
+```
+No FIA variants anywhere in `test_mode_2.layer`. **The tiles come from the vanilla placing registry
+(`Compositions_FreeRoamBuilding.conf` -> 99 placeables), not from BC's faction VEHICLE catalog.**
+
+The prefab IDs (33/34/35) are indices into the placing component's list, confirming the click path
+goes through `SCR_PlacingEditorComponent`, which resolves against the REGISTRY, not the catalog.
+
+### RETRACTIONS
+
+1. **`filteredCount` is NOT the instrument for these tiles.** Measured `filteredCount=0` while
+   vehicle tiles were visibly rendered on screen. Task fact 1 ("filteredCount is the correct
+   instrument") is disproven for this UI path. Stop using it as the success metric.
+2. **The `EOnEditorActivate` label-strip fix did not do what was claimed.** It removed label
+   `51871` (the real `OPFOR` faction label — the probe now confirms
+   `faction 'OPFOR' factionLabel=51871 (OPFOR)`), but `SLOT_STATIC` (value 0) is STILL active
+   afterwards (`activeLabels=1`). So the tiles appearing is NOT attributable to that fix, and
+   UPDATE 26's mechanism was at best incomplete. What actually changed between the empty menu and
+   the visible tiles was the accumulation of registry/catalog config, not the label strip.
+3. `canSavePersistent=1` — persistent browser states ARE still enabled and round-tripping to user
+   settings on disk. BC's `EditorModeBuilding.et` is still an empty stub with no content-browser
+   component override.
+
+### Unrelated noise, for the record
+
+The 18 `Virtual Machine Exception` entries are pre-existing COALITION gearscript errors
+(`UNABLE TO INSERT ITEM AMMO_ROCKET_PG7VR / NOT ENOUGH SPACE IN ENTITY`) fired during slotting at
+15:13:31 — 20 seconds BEFORE the building menu opened. Not related.
+
+### Next step
+
+Point the placing registry at BC's vehicles so the tiles ARE the configured prefabs. This is Step 3
+of the plan and is now clearly the remaining work: author a `SCR_PlaceableEntitiesRegistry` listing
+BC's vehicles and set it on BOTH
+- `SCR_CampaignBuildingManagerComponent.m_sPrefabsToBuildResource` (COA_Lobby `{6A0956CFB7A9F2D8}`)
+- `SCR_CampaignBuildingPlacingEditorComponent.m_Registries` (BC's `EditorModeBuilding.et`)
+
+Open question to resolve first: whether the `*_FIA` prefabs fail to spawn because they are
+inherently non-spawnable in this context, or because of a placement/budget rule. If BC's own
+vehicles spawn correctly once registered, the FIA failure is moot.

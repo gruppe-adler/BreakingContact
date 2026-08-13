@@ -301,7 +301,11 @@ class GRAD_BC_TransmissionComponent : ScriptComponent
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
 	protected void RpcDo_BroadcastDestroySound(vector position)
 	{
-		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", position);
+		// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+		vector soundTransform[4];
+		Math3D.MatrixIdentity4(soundTransform);
+		soundTransform[3] = position;
+		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", soundTransform);
 	}
 
 	//------------------------------------------------------------------------------------------------

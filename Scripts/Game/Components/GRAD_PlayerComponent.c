@@ -41,7 +41,12 @@ class GRAD_PlayerComponent : ScriptComponent
 	protected void RpcDo_Owner_TeleportPlayer(vector location)
 	{
 		SCR_Global.TeleportLocalPlayer(location, SCR_EPlayerTeleportedReason.DEFAULT);
-		AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_beam.acp", "beam", location);
+
+		// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+		vector soundTransform[4];
+		Math3D.MatrixIdentity4(soundTransform);
+		soundTransform[3] = location;
+		AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_beam.acp", "beam", soundTransform);
 	}
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;

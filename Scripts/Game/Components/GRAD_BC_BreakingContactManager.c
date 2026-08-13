@@ -326,8 +326,11 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// no rpc needed here, logs already on client
 		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 		if (customSound != "") {
-			vector location = playerComponent.GetOwner().GetOrigin();
-			AudioSystem.PlayEvent(customSoundGUID, customSound, location);
+			// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+			vector transform[4];
+			Math3D.MatrixIdentity4(transform);
+			transform[3] = playerComponent.GetOwner().GetOrigin();
+			AudioSystem.PlayEvent(customSoundGUID, customSound, transform);
 		}
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);

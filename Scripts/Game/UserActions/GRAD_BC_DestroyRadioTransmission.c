@@ -160,7 +160,11 @@ class GRAD_BC_DestroyRadioTransmission : ScriptedUserAction
 		// Stop the repeating sound loop and play the final impact sound
 		m_bSoundLoopActive = false;
 		GetGame().GetCallqueue().Remove(SoundLoopTick);
-		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", currentPos);
+		// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+		vector soundTransform[4];
+		Math3D.MatrixIdentity4(soundTransform);
+		soundTransform[3] = currentPos;
+		AudioSystem.PlayEvent("{5D22B0B2ED6D503A}sounds/BC_antennaimpact.acp", "BC_AntennaImpact", soundTransform);
 
 		// Hide on all machines — ClearFlags is local and doesn't replicate
 		HideAntennaModel(pOwnerEntity);

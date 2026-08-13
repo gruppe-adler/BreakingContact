@@ -105,7 +105,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission established sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -127,7 +129,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -149,7 +153,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -171,7 +177,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())

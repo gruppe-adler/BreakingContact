@@ -15,6 +15,17 @@ class SCR_CampaignBuildingManagerComponentClass : SCR_BaseGameModeComponentClass
 //! Must be attached to a GameMode entity.
 class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 {
+	// BC MOD: the EEditableEntityBudget value that carries a placeable's SUPPLY COST.
+	//
+	// Measured 2026-08-14 from OnEntityCoreBudgetUpdated: a placed vehicle raises several budgets,
+	// and only this one carries the price -
+	//   type 2   -> +-1                                   (the dropdown's "VEHICLES": a unit count)
+	//   type 5   -> +-40/50/75/160/200/280/420/650/850    (matches m_iSupplyCostOverride exactly)
+	// 5 is not exposed under a name that could be matched reliably from the Workbench dropdown, so
+	// it is pinned here. If costs ever stop being deducted, log every budget type/value in
+	// OnEntityCoreBudgetUpdated and check whether this constant still points at the cost budget.
+	protected const int BC_SUPPLY_COST_BUDGET = 5;
+
 	[Attribute("", UIWidgets.ResourcePickerThumbnail, "Prefab of trigger spawned on server to activate a building mode when player enters its range.", "et")]
 	protected ResourceName m_sFreeRoamBuildingServerTrigger;
 
@@ -265,22 +276,31 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		array<ref SCR_EntityBudgetValue> budgets = {};
 		entity.GetEntityAndChildrenBudgetCost(budgets);
 
-		// BC MOD: read the budget the MANAGER is configured for (m_BudgetType), not a hardcoded
-		// PROPS. The guard above already returned unless entityBudget == m_BudgetType, so this is
-		// the same budget that triggered this call.
+		// BC MOD: read the SUPPLY-COST budget, which is NOT the budget that triggered this event.
 		//
-		// Why: BC's vehicles declare their cost under VEHICLES (measured: type=5 value=200 for a
-		// BTR70, matching m_iSupplyCostOverride on the faction catalog entry), while compositions
-		// declare PROPS. With PROPS hardcoded here, a VEHICLES-budgeted entity would fall through
-		// with propBudgetValue = 0 and deduct nothing.
+		// Measured 2026-08-14 - a placed vehicle raises several budgets at once:
+		//   type 2  budgetChange +-1                      <- the dropdown's "VEHICLES": a unit COUNT
+		//   type 5  budgetChange +-40/50/75/160/200/.../850 <- the real supply cost
+		//   type 120 / 130 / 140                           <- CAMPAIGN and friends
+		// The type-5 values line up exactly with m_iSupplyCostOverride on the faction catalog
+		// entries (BRDM2=650, BTR70=850, ...), so type 5 is the cost budget.
+		//
+		// Setting m_BudgetType to VEHICLES in Workbench makes the guard above pass on type 2, whose
+		// value is always 1 - deducting 1 supply per vehicle instead of its price. So the trigger
+		// budget (m_BudgetType, any type that fires once per placement) and the COST budget (always
+		// BC_SUPPLY_COST_BUDGET) are deliberately decoupled here.
 		foreach (SCR_EntityBudgetValue budget : budgets)
 		{
-			if (budget.GetBudgetType() != m_BudgetType)
+			if (budget.GetBudgetType() != BC_SUPPLY_COST_BUDGET)
 				continue;
 
 			propBudgetValue = budget.GetBudgetValue();
 			break;
 		}
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("[DEBUG] BC supply cost budget (%1) value: %2",
+				BC_SUPPLY_COST_BUDGET, propBudgetValue));
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("[DEBUG] Props budget value: %1", propBudgetValue));
@@ -314,10 +334,25 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print("[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system");
 
+				// Deduct the SUPPLY COST (propBudgetValue, read from BC_SUPPLY_COST_BUDGET above),
+				// NOT budgetChange. budgetChange belongs to whichever budget triggered this event -
+				// with m_BudgetType = VEHICLES that is a unit count of 1, which would charge 1
+				// supply for an 850-supply BTR70.
+				int cost = propBudgetValue;
+				if (cost <= 0)
+				{
+					if (GRAD_BC_BreakingContactManager.IsDebugMode())
+						Print("[DEBUG] BC: no supply cost on this entity, nothing to deduct");
+					return;
+				}
+
 				int currentSupplies = gradSupply.GetCurrentSupplies();
-				int newSupplies = currentSupplies - budgetChange;
+				int newSupplies = currentSupplies - cost;
+				if (newSupplies < 0)
+					newSupplies = 0;
+
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
-					Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, AFTER: %2", currentSupplies, newSupplies));
+					Print(string.Format("[DEBUG] Custom supplies BEFORE: %1, cost: %2, AFTER: %3", currentSupplies, cost, newSupplies));
 				gradSupply.SetSupplies(newSupplies);
 				return;
 			}

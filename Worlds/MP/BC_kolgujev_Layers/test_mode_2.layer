@@ -16,6 +16,7 @@ COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et"
   }
   SCR_CampaignBuildingManagerComponent "{6A0956CFB7A9F2D8}" {
    m_sFreeRoamBuildingClientTrigger "{5E191CEAF4B95816}Prefabs/MP/FreeRoamBuildingClientTrigger.et"
+   m_BudgetType VEHICLES
    m_iCompositionRefundPercentage 0
    m_iXpRewardTreshold 9999
    m_iInitialRewardInterval 9999

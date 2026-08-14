@@ -375,3 +375,188 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 		return true;
 	}
 }
+
+//------------------------------------------------------------------------------------------------
+// UPDATE 36 - SCOPE THE BROWSER TO THE PROVIDER'S FACTION.
+//
+// Why the menu lists OPFOR + FIA + CIV together, from vanilla source:
+//
+//   SCR_PlaceableEntitiesRegistryFromCatalog.ProcessCatalog()
+//     FACTIONS_ONLY -> catalogManager.GetFilteredEditorPrefabsOfAllFactions(..., getFactionLessPrefabs: false)
+//
+// "OfAllFactions" is literal - the registry is all-factions BY DESIGN, and SCR_ECatalogFactionType
+// offers only FACTION_AND_FACTIONLESS / FACTIONS_ONLY / FACTIONLESS_ONLY (confirmed in the
+// Workbench dropdown). There is NO per-faction option. Vanilla Campaign relies on the faction-LABEL
+// gate in AreLabelsMatching to reject other factions' items at placement time - the same gate that
+// cannot work here, because COALITION's GetFactionLabel() is 51871 (FACTION_COA_OPFOR) and no
+// vanilla prefab carries that value.
+//
+// So the scoping has to move to the BROWSER, and it must key off something that is NOT the broken
+// label enum. SCR_EditableEntityUIInfo exposes GetFactionKey() -> a FactionKey ("USSR", "FIA",
+// "CIV", "US"), which is real data present on vanilla prefabs and unrelated to EEditableEntityLabel.
+//
+// FilterEntries() is public on SCR_ContentBrowserEditorComponent and is what populates the visible
+// list, so we let vanilla filter first and then remove anything whose faction key is not allowed
+// for the current provider.
+//
+// Factionless prefabs (empty faction key) are KEPT - that is what the fortification compositions
+// are, and they must stay placeable.
+modded class SCR_ContentBrowserEditorComponent
+{
+	//------------------------------------------------------------------------------------------------
+	//! Faction keys the current provider may place. Empty => no filtering (fail open, never hide
+	//! everything just because the provider could not be resolved).
+	protected void BC_GetAllowedFactionKeys(out array<FactionKey> allowedKeys)
+	{
+		SCR_CampaignBuildingEditorComponent buildingComp = SCR_CampaignBuildingEditorComponent.Cast(
+			SCR_CampaignBuildingEditorComponent.GetInstance(SCR_CampaignBuildingEditorComponent));
+		if (!buildingComp)
+			return;
+
+		IEntity provider = buildingComp.GetProviderEntity();
+		if (!provider)
+			return;
+
+		FactionAffiliationComponent fac = FactionAffiliationComponent.Cast(
+			provider.FindComponent(FactionAffiliationComponent));
+		if (!fac)
+		{
+			// Construction trucks keep the faction component on the truck, not on the back.
+			IEntity parent = provider.GetParent();
+			while (parent && fac == null)
+			{
+				fac = FactionAffiliationComponent.Cast(parent.FindComponent(FactionAffiliationComponent));
+				parent = parent.GetParent();
+			}
+		}
+
+		if (!fac)
+			return;
+
+		Faction providerFaction = fac.GetAffiliatedFaction();
+		if (!providerFaction)
+			providerFaction = fac.GetDefaultAffiliatedFaction();
+
+		if (!providerFaction)
+			return;
+
+		FactionKey providerKey = providerFaction.GetFactionKey();
+		if (providerKey.IsEmpty())
+			return;
+
+		allowedKeys.Insert(providerKey);
+
+		// KEY NAMESPACE MISMATCH.
+		//
+		// COALITION's factions use the keys OPFOR / BLUFOR / INDFOR / CIV, but the placeable
+		// prefabs are VANILLA assets whose SCR_EditableEntityUIInfo.GetFactionKey() returns the
+		// VANILLA keys USSR / US / FIA / CIV. Matching COALITION's key against a vanilla prefab
+		// therefore never succeeds, and the first run of this filter stripped almost everything
+		// (measured: allowed='OPFOR' -> visible=0 on most tabs, 3-5 on the rest).
+		//
+		// So the provider's key is expanded to the vanilla key(s) that mean the same side. Both are
+		// kept in the allow-list, so BC-owned prefabs tagged either way still match.
+		if (providerKey == "OPFOR")
+		{
+			allowedKeys.Insert("USSR");
+		}
+		else if (providerKey == "BLUFOR")
+		{
+			allowedKeys.Insert("US");
+		}
+		else if (providerKey == "INDFOR")
+		{
+			allowedKeys.Insert("FIA");
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Post-process vanilla's filtered list, dropping entries belonging to other factions.
+	//!
+	//! Vanilla FilterEntries() builds m_aFilteredPrefabIDs (protected, so reachable here) as indices
+	//! into m_aInfos, then applies the search on top and finally sets m_iFilteredPrefabIDsCount and
+	//! invokes Event_OnBrowserEntriesFiltered. We let all of that run, then strip disallowed entries
+	//! and re-sync the count. m_aLocalizationKeys is NOT touched: it is only consumed inside
+	//! FilterEntries() itself for the search pass, which has already completed by then.
+	override void FilterEntries()
+	{
+		super.FilterEntries();
+
+		// Extended-slot mode bails out of vanilla FilterEntries() early and uses a separate list
+		// built by FilterExtendedSlots(). Leave that path completely alone.
+		if (GetExtendedEntity())
+			return;
+
+		array<FactionKey> allowedKeys = {};
+		BC_GetAllowedFactionKeys(allowedKeys);
+
+		// Fail open: if the provider faction cannot be resolved, keep vanilla's result rather than
+		// risk emptying the menu.
+		if (allowedKeys.IsEmpty())
+		{
+			Print("BC Debug - FACTIONFILTER: provider faction unresolved, filter skipped",
+				LogLevel.WARNING);
+			return;
+		}
+
+		int removed = 0;
+		int keptFactionless = 0;
+
+		// Which keys actually got rejected - so a namespace mismatch is visible in one line instead
+		// of being inferred from a low `visible` count.
+		string rejectedKeys;
+
+		// Walk backwards so removal does not shift indices we have yet to visit.
+		for (int i = m_aFilteredPrefabIDs.Count() - 1; i >= 0; i--)
+		{
+			SCR_EditableEntityUIInfo info = GetInfo(m_aFilteredPrefabIDs[i]);
+			if (!info)
+				continue;
+
+			FactionKey entryKey = info.GetFactionKey();
+
+			// STRICT FACTION-ONLY (user decision 2026-08-14): anything without a faction key is
+			// stripped, no exceptions.
+			//
+			// Rationale: a US LAV and FIA vehicles kept appearing under an OPFOR provider on passes
+			// that logged removed=0 rejectedKeys=[] - they carry NO faction key, so any "factionless
+			// is allowed" rule lets them through. Trying to distinguish factionless-vehicle from
+			// factionless-composition needs GetEntityTypex() to be reliable for every prefab, which
+			// is not established. Stripping all factionless is unambiguous.
+			//
+			// CONSEQUENCE: the ~91 fortification compositions (sandbags, camo nets, barbed wire,
+			// hedgehogs) in Compositions_FreeRoamBuilding.conf are factionless and WILL disappear
+			// from the menu, leaving faction-tagged vehicles only. If those need to come back, the
+			// non-vehicle exemption is the thing to restore here.
+			if (entryKey.IsEmpty())
+			{
+				keptFactionless++;
+				m_aFilteredPrefabIDs.Remove(i);
+				removed++;
+				continue;
+			}
+
+			if (allowedKeys.Contains(entryKey))
+				continue;
+
+			if (!rejectedKeys.Contains(entryKey))
+				rejectedKeys = rejectedKeys + entryKey + " ";
+
+			m_aFilteredPrefabIDs.Remove(i);
+			removed++;
+		}
+
+		// Re-sync the count vanilla set from the pre-strip list.
+		m_iFilteredPrefabIDsCount = m_aFilteredPrefabIDs.Count();
+
+		string allowedStr;
+		foreach (FactionKey k : allowedKeys)
+		{
+			allowedStr = allowedStr + k + " ";
+		}
+
+		Print(string.Format("BC Debug - FACTIONFILTER: allowed=[%1] rejectedKeys=[%2] removed=%3 factionless=%4 visible=%5",
+			allowedStr, rejectedKeys, removed, keptFactionless, m_iFilteredPrefabIDsCount),
+			LogLevel.WARNING);
+	}
+}

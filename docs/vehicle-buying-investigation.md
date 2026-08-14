@@ -2356,3 +2356,173 @@ BC's vehicles and set it on BOTH
 Open question to resolve first: whether the `*_FIA` prefabs fail to spawn because they are
 inherently non-spawnable in this context, or because of a placement/budget rule. If BC's own
 vehicles spawn correctly once registered, the FIA failure is moot.
+
+## UPDATE 28: the placing registries are CATALOG-DRIVEN, and `SCR_EntityCatalogManagerComponent` is missing
+
+### Correction to UPDATE 27's proposed fix
+
+I instructed the user to add `SCR_CampaignBuildingPlacingEditorComponent` and point its
+`m_Registries` at `Compositions_FreeRoamBuilding.conf`. **That was wrong** — the user's screenshot
+shows the registries on this component are not `.conf` references at all. They are
+`SCR_PlaceableEntitiesRegistryFromCatalog` entries, which per the API
+*"take entities from the catalog ... It fills in the Prefab list from the catalog"*.
+
+Their fields are `Addon`, `Source Directory`, `Exposed`, `Prefabs`, `Editor Mode`,
+`Catalog Faction Type`, `Catalog Types` — there is no `.conf` slot.
+
+### What the component actually contains (from the screenshot)
+
+```
+[1] SCR_PlaceableEntitiesRegistry
+[2] SCR_PlaceableEntitiesRegistry
+[3] Catalog Getter (BUILDING) - GROUP & VEHICLE - FACTIONS_ONLY   <-- correctly configured
+      Editor Mode = BUILDING, Catalog Faction Type = FACTIONS_ONLY, Catalog Types = (2)
+[4] SCR_PlaceableEntitiesGameModeRegistry
+[5] Catalog Getter (unknown) - MISSING CATALOGS! - FACTION_AND_FACTIONLESS   <-- BROKEN
+      Editor Mode = 0 (should be BUILDING), Catalog Types = (0) EMPTY
+```
+
+Entry [3] is already set up to pull **VEHICLE catalogs from factions in BUILDING mode** — which is
+exactly the intended path to BC's OPFOR vehicle catalog, and explains why vehicles rendered without
+the user touching this component.
+
+### THE MISSING DEPENDENCY
+
+`SCR_PlaceableEntitiesRegistryFromCatalog.ProcessCatalog()` takes a
+**`SCR_EntityCatalogManagerComponent`**. Measured:
+
+```
+SCR_EntityCatalogManagerComponent in test_mode_2.layer : 0
+SCR_EntityCatalogManagerComponent in COALITION data.pak: 0
+```
+
+**It does not exist anywhere.** This is very likely the literal cause of the
+`MISSING CATALOGS!` label on entry [5], and means the catalog-driven registries cannot resolve
+faction catalogs into placeable prefabs.
+
+Note: this component was investigated and dismissed much earlier in this document on the grounds
+that it "does not exist in either branch's layer, therefore it was never the wiring mechanism".
+That dismissal was **wrong reasoning** — its absence is the defect, not evidence of irrelevance.
+On `main` the catalog path was never exercised because vehicles came through a different route.
+
+### Next test (single variable)
+
+Add `SCR_EntityCatalogManagerComponent` to `COA_Lobby` in `test_mode_2.layer` (Workbench:
+select COA_Lobby -> Add Component). It is a vanilla component; no new addon dependency.
+
+Expected if correct: entry [5] stops reporting `MISSING CATALOGS!`, and the catalog getter [3]
+resolves BC's OPFOR VEHICLE catalog (6 vehicles, verified present and enabled in UPDATE 20) into
+the placing list — making the clicked tiles BC's own prefabs instead of vanilla `*_FIA` variants.
+
+If tiles still resolve to `*_FIA`, the catalog getter is not the source feeding them and the
+registry entries [1]/[2] must be inspected instead.
+
+## UPDATE 29: RETRACTION — `SCR_EntityCatalogManagerComponent` was ALREADY present
+
+User correctly challenged UPDATE 28: *"but the component existed in my previous test already"*.
+
+Verified — the component IS attached to `COA_Gamemode` (user screenshot shows it with 6 catalog
+types: CHARACTER, VEHICLE, GROUP, WEAPONS_TRIPOD, ITEM, SUPPLY_CONTAINER_ITEM). It comes from the
+**gamemode prefab**, not from `test_mode_2.layer`.
+
+**UPDATE 28's central claim is therefore WRONG.** Its measurement was:
+```
+SCR_EntityCatalogManagerComponent in test_mode_2.layer : 0
+SCR_EntityCatalogManagerComponent in COALITION data.pak: 0
+```
+Both numbers are real but both are MISLEADING:
+- the `.layer` only records overrides, so an inherited component is invisible there (this is the
+  SAME trap that produced the false "`m_sPrefabsToBuildResource` was unset on main" conclusion in
+  UPDATE 10/12 — a `.layer` grep cannot prove absence of an inherited component)
+- the packed prefab evidently stores the component by GUID rather than by class name, so a
+  plaintext `grep` of `data.pak` returns 0 despite the component being present (COALITION's pak
+  does contain 8 `SCR_EntityCatalogMultiList` entries, confirming catalog data is there)
+
+**Standing lesson: grepping a `.layer` or a `.pak` for a class name CANNOT establish that a
+component is absent.** Verify in Workbench's component list instead.
+
+So `MISSING CATALOGS!` on registry entry [5] is NOT caused by a missing manager component. Its own
+fields explain it directly:
+```
+Catalog Getter (unknown) - MISSING CATALOGS! - FACTION_AND_FACTIONLESS
+  Editor Mode   = 0    (not BUILDING)
+  Catalog Types = (0)  (EMPTY)
+```
+Entry [5] declares **no catalog types at all**, so it has nothing to fetch — self-explanatory, and
+unrelated to the manager.
+
+### Also do NOT author catalogs in the manager
+
+Its class doc: *"Manager for **non-faction specific** entity catalogs as well as **getters for
+faction specific catalogs**."* The `Entity Catalogs` list on the component is for NON-faction
+catalogs. BC's vehicles live on the OPFOR **faction** catalog and are reached via
+`GetFactionEntityCatalogOfType()`. Registry entry [3] is set to `FACTIONS_ONLY`, so it reads
+faction catalogs and would ignore the manager's own list entirely.
+
+The empty `VEHICLE (1) !!` / `NO PREFAB` stub visible in the screenshot was created by expanding the
+list in Workbench. It is invalid (hence `!!`) and should be removed rather than filled.
+
+### Where this leaves the placement bug
+
+Still unexplained: clicking a tile places vanilla `*_FIA` prefabs (ids 33/34/35) which fail with
+`Error when creating entity from prefab`. The tiles are NOT BC's six configured vehicles.
+
+Since the manager exists and entry [3] is correctly configured for BUILDING/VEHICLE/FACTIONS_ONLY,
+the next question is which registry entry actually supplied the rendered tiles — [1], [2], [3] or
+[4] — and whether BC's faction vehicles are reaching the placing list at all. Registry entries
+[1] and [2] are plain `SCR_PlaceableEntitiesRegistry` and have not been inspected.
+
+## UPDATE 30: the FIA tiles come from VANILLA faction catalogs, not BC's
+
+User observation (Workbench, `SCR_FactionManager` -> OPFOR faction): the OPFOR `Entity Catalogs`
+contains `VEHICLE (6)` with exactly:
+```
+UAZ469.et  UAZ469_PKM.et  UAZ452_transport.et
+Ural4320_transport_covered.et  BRDM2.et  BTR70.et
+```
+**No FIA variants.** Yet clicking tiles attempted to place `UAZ469_FIA`, `UAZ469_PKM_FIA`,
+`UAZ469_UK59_FIA` (ids 33/34/35), all of which failed with
+`Error when creating entity from prefab`.
+
+### Where the FIA prefabs come from
+
+```
+BC repo         : UAZ469_FIA / UAZ469_PKM_FIA / UAZ469_UK59_FIA -> 0 references
+COALITION pak   : 0 references
+vanilla data005 : UAZ469_FIA x34   <-- SOURCE
+```
+
+They are **vanilla content**, reached because the placing component's catalog getter is configured:
+```
+Catalog Getter (BUILDING) - GROUP & VEHICLE - FACTIONS_ONLY
+```
+`FACTIONS_ONLY` pulls VEHICLE catalogs from **all factions present**, not only the provider's
+faction. Vanilla's FIA/INDFOR faction ships a populated VEHICLE catalog, so its entries land in the
+placing list alongside BC's six.
+
+This explains the whole symptom cleanly:
+- tiles render (catalog getter IS working - it resolves faction VEHICLE catalogs)
+- but the tiles shown/clicked are FIA entries from vanilla's faction
+- and those FIA prefabs fail to instantiate in this context
+
+### Corrected understanding of the pipeline
+
+The catalog path is functioning. BC's six vehicles ARE reachable (UPDATE 20 proved the OPFOR
+catalog resolves correctly through the provider's faction). The defect is that the getter is not
+scoped to the provider's faction, so foreign-faction vehicles are offered too.
+
+### Candidate fixes (untested - single variable each)
+
+1. **Scope the getter to the provider faction.** Change `Catalog Faction Type` on the BUILDING
+   catalog getter from `FACTIONS_ONLY` to whatever value restricts to the requesting faction, if
+   such a value exists in the `SCR_ECatalogFactionType` enum. Needs the enum values checked in
+   Workbench's dropdown first.
+2. **Remove/blank the vanilla FIA faction's VEHICLE catalog** in the layer, so nothing foreign is
+   contributed. Heavier-handed; affects anything else reading that catalog.
+3. **Filter at placement time** in BC's modded `SCR_CampaignBuildingEditorComponent`, rejecting
+   prefabs not present in the provider faction's own catalog.
+
+Option 1 is the smallest change if a suitable enum value exists. NOTE: the `!!`-marked invalid
+`VEHICLE (1) / NO PREFAB` stub the user accidentally created on
+`SCR_EntityCatalogManagerComponent` has since been removed; that component's own catalogs are
+correctly empty (it manages NON-faction catalogs and is only a getter for faction ones).

@@ -1,6 +1,18 @@
 # Vehicle Buying (Campaign Building Mode) — Investigation Notes
 
-## Status: Blocked — vanilla building system is incompatible with COALITION-Lobby's editor activation path
+## Status (2026-08-14): WORKING except budget enforcement — see "RESOLUTION" at the bottom
+
+Menu opens, lists exactly BC's six vehicles, and they spawn on click. The one open item is
+supply deduction: vehicles can currently be bought without limit. The cause is identified and
+the fix is two steps — see **"Open item: budget enforcement"** at the end of this document.
+
+**Everything between here and the RESOLUTION section is the historical investigation.** Much of
+it records theories that were later DISPROVEN. Do not act on the middle of this document; read
+the RESOLUTION section first.
+
+---
+
+## (historical) Status: Blocked — vanilla building system is incompatible with COALITION-Lobby's editor activation path
 
 This document records the investigation into why the vanilla "buy vehicle" building-mode
 action (`SCR_CampaignBuildingStartUserAction` on the command trucks' `_combox` child
@@ -2526,3 +2538,140 @@ Option 1 is the smallest change if a suitable enum value exists. NOTE: the `!!`-
 `VEHICLE (1) / NO PREFAB` stub the user accidentally created on
 `SCR_EntityCatalogManagerComponent` has since been removed; that component's own catalogs are
 correctly empty (it manages NON-faction catalogs and is only a getter for faction ones).
+
+---
+
+# RESOLUTION (2026-08-14)
+
+Vehicle buying works under `COA_Gamemode`. Three separate faults had to be fixed, all caused by
+the same underlying thing: **vanilla Campaign Building keys its logic off `EEditableEntityLabel`,
+an enum COALITION extended with its own values (`FACTION_COA_OPFOR` = 51871), so every vanilla
+comparison against a vanilla prefab fails.**
+
+All script changes are in `Scripts/Game/UserActions/GRAD_BC_VehicleSpawnAction.c`
+(consider renaming — it is now the whole building-menu integration, not a user action) and
+`Scripts/Game/Campaign/SCR_CampaignBuildingManagerComponent.c`.
+
+## Fault 1 — nothing could be placed (FIXED)
+
+`SCR_CampaignBuildingPlacingEditorComponent.CanPlaceEntityServer()` ends with
+`AreLabelsMatching(entityLabels)`, which gates on:
+
+```c
+if (!entityLabels.Contains(providerFaction.GetFactionLabel()))   // 51871 under COALITION
+    return false;
+```
+
+No vanilla prefab can carry 51871, so **every** prefab was rejected — BC's, vanilla FIA, US
+MERDC, Conflict variants alike. The engine then logged
+`Error when creating entity from prefab '...' (id = N)!` with no preceding warning.
+
+**Fix:** `modded class SCR_CampaignBuildingPlacingEditorComponent` re-implements
+`AreLabelsMatching()` skipping ONLY the faction-label check, keeping provider-trait matching,
+SERVICE_HQ handling and the blacklist. Log: `BC Debug - LABELGATE: PASSED`.
+
+**RISK (accepted):** this is copy-pasted vanilla minus one check. If BI changes
+`AreLabelsMatching`, BC silently keeps the old logic. Failure mode is quiet — too much becomes
+placeable, no error. Re-check after major game updates.
+
+## Fault 2 — menu listed every faction's vehicles (FIXED)
+
+`SCR_PlaceableEntitiesRegistryFromCatalog.ProcessCatalog()` calls
+`GetFilteredEditorPrefabsOfAllFactions()` — all-factions BY DESIGN. `SCR_ECatalogFactionType`
+offers only FACTION_AND_FACTIONLESS / FACTIONS_ONLY / FACTIONLESS_ONLY; **there is no
+per-faction option**. Vanilla relies on the (broken) label gate to filter at placement time.
+
+Filtering by `SCR_EditableEntityUIInfo.GetFactionKey()` was tried and ABANDONED: it needed a
+COALITION→vanilla key mapping (OPFOR→USSR, BLUFOR→US, INDFOR→FIA), and even with the log showing
+`rejectedKeys=[US CIV FIA]` on every pass, FIA vehicles were still visible. It also scoped to
+"every USSR vehicle in the game" (visible=8..14) rather than BC's curated six.
+
+**Fix:** `modded class SCR_ContentBrowserEditorComponent` overrides `FilterEntries()`, calls
+`super`, then strips everything not on an explicit prefab whitelist (`BC_ALLOWED_PREFABS`) from
+the protected `m_aFilteredPrefabIDs`, and re-syncs `m_iFilteredPrefabIDsCount`.
+`FilterExtendedSlots()` is overridden too because it rebuilds the list without going through
+`FilterEntries()`. Log: `BC Debug - WHITELIST: removed=N visible=6`.
+
+**MAINTENANCE:** `BC_ALLOWED_PREFABS` must be kept in sync with
+`Configs/Systems/Compositions_FreeRoamBuilding.conf`. Adding a seventh vehicle means editing
+BOTH.
+
+## Open item: budget enforcement (NOT YET VERIFIED)
+
+Vehicles can currently be bought without limit. Cause is identified:
+
+`SCR_CampaignBuildingManagerComponent.OnEntityCoreBudgetUpdated()` — BC's own modded copy,
+already containing the working deduction at the `// --- BC MOD: Redirect consumption to
+GRAD_BC_VehicleSupplyComponent ---` block — returns early at:
+
+```c
+if (entityBudget != m_BudgetType)
+    return;    // [DEBUG] Early return: entityBudget (5) != m_BudgetType (0)
+```
+
+Measured: BC's vehicles declare `type=120 (CAMPAIGN) value=2`, `type=5 (VEHICLES) value=200`,
+`type=6 value=1`. The 200 matches `m_iSupplyCostOverride` on the faction catalog entry for a
+BTR70, so the costs ARE reaching the entity. The manager sits on `m_BudgetType = 0 (PROPS)`, so
+VEHICLES-budgeted entities bail before the deduction.
+
+**Why it worked on `main`:** placeables there were compositions carrying a PROPS budget, which
+matched the manager's PROPS setting. The mechanism was never lost — it just is not reached by
+vehicles.
+
+### TWO STEPS TO FINISH
+
+1. **Workbench:** `SCR_CampaignBuildingManagerComponent` on the gamemode → set
+   **`Budget Type` = `VEHICLES`** (currently PROPS). Lives in
+   `Worlds/MP/BC_kolgujev_Layers/test_mode_2.layer`, component `{6A0956CFB7A9F2D8}`.
+   Mirror to Everon: `Worlds/MP/BC_everon_Layers/managers.layer`, component `{6A0956CEF951B6F3}`.
+
+2. **Script (ALREADY APPLIED):** the value extraction in that same function was hardcoded to
+   PROPS and would have deducted 0; it now reads `m_BudgetType` instead. No further edit needed.
+
+Expected on success (needs debug mode on):
+```
+[DEBUG] entityBudget: 5, m_BudgetType: 5, budgetChange: 200
+[DEBUG] Found GRAD_BC_VehicleSupplyComponent - using custom supply system
+[DEBUG] Custom supplies BEFORE: 1000, AFTER: 800
+```
+
+### Known side effect
+
+Adding a `VEHICLES` entry to the truck's `m_aBudgetsToEvaluate` with **`Show Budget In UI` ✓**
+causes a per-frame divide-by-zero in `SCR_BudgetUIComponent.OnBudgetUpdate` (the budget max is
+0). Untick `Show Budget In UI` on that entry. `SCR_CampaignBuildingBudgetToEvaluateData` exposes
+no limit field at all — the ceiling is a runtime value, unrelated to BC's supplies, which is why
+enforcement goes through `GRAD_BC_VehicleSupplyComponent` instead.
+
+The UI budget bar reads vanilla's budget system and will NOT reflect BC's supplies. Cosmetic.
+
+## Dead code to clean up
+
+`GRAD_BC_VehicleSpawnAction.c` still contains an abandoned enforcement attempt:
+`m_iBC_PendingCost`, `BC_GetVehicleCost()`, `BC_GetSupplyComponent()`,
+`IsThereEnoughBudgetToSpawn()`, `OnEntityCreatedServer()`, `CanPlaceEntityServer()`. All inert —
+**measured: `IsThereEnoughBudgetToSpawn` is never called on this path** (LABELGATE fired 44
+times in a run where the BUDGET probe printed 0 times). Safe to delete once the fix above is
+confirmed. Also strip the remaining `BC Debug` Prints — they run on every filter pass.
+
+## Things that DID NOT work — do not retry
+
+| Attempt | Result |
+|---|---|
+| `m_eCatalogFactionType` = FACTION_AND_FACTIONLESS | Changed WHICH vehicles appear; placement still failed identically |
+| Probing `OnBeforeEntityCreatedServer` on both placing classes | Never fires — `CanPlaceEntityServer` rejects first |
+| Deleting `EditorModeBuilding.et` | `placeableCount` stayed 99, placement unchanged |
+| Budget Type = CAMPAIGN | No effect on placement |
+| Outline Manager copied from Campaign gamemode | No effect |
+| Forcing `EntityEvent.FRAME` on `COA_Gamemode` | **BROKE LOBBY SLOTTING** — fights COA's batching state machine |
+| Faction-key filtering of the browser | FIA still leaked through; replaced by the prefab whitelist |
+
+## Landmines
+
+- **`Prefabs/Systems/!Lobby/COA_Lobby.et` is load-bearing for lobby slots** and is UNTRACKED in
+  git. Deleting it makes slots vanish and is not git-recoverable. It also hosts
+  `SCR_EntityCatalogManagerComponent`. Currently ABSENT from disk — the `faction ''` catalog
+  warnings and `needs a entity catalog manager` errors stem from this. Not required for vehicle
+  buying, but worth restoring.
+- **Never rename COALITION faction keys** to USSR/US — breaks slotting, gearscripts and VoN.
+  Patch the vanilla consumers instead.

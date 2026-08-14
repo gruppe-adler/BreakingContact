@@ -162,34 +162,10 @@ modded class SCR_CampaignBuildingEditorComponent
 			//
 			// This dumps BOTH lists so the feed can be identified by comparison. Civilian entries
 			// appearing in B would confirm a catalog-wide source that ignores the provider faction.
-			if (buildingManager)
-			{
-				array<ResourceName> managerList = buildingManager.GetPlaceablePrefabs();
-				if (managerList)
-				{
-					Print(string.Format("BC Debug - FEED: manager list has %1 entries", managerList.Count()),
-						LogLevel.WARNING);
-
-					// Print every entry with its index. The failing placements report an id which is an
-					// index - this is what lets us check whether that id indexes into THIS list.
-					for (int mi = 0; mi < managerList.Count(); mi++)
-					{
-						Print(string.Format("BC Debug - FEED manager[%1] = %2", mi, managerList[mi]),
-							LogLevel.WARNING);
-					}
-				}
-			}
-
-			// The browser's own info list - this is what backs the rendered tiles.
-			for (int bi = 0; bi < total; bi++)
-			{
-				SCR_UIInfo info = browser.GetInfo(bi);
-				if (!info)
-					continue;
-
-				Print(string.Format("BC Debug - FEED browser[%1] = '%2'", bi, info.GetName()),
-					LogLevel.WARNING);
-			}
+			// FEED dump REMOVED - it did its job (proved the browser list and the manager list are
+			// different arrays with different orderings, which is why prefab IDs did not resolve)
+			// and cost 274 log lines per menu open. Restore from git history if that comparison is
+			// ever needed again.
 		}
 	}
 
@@ -373,6 +349,164 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 
 		Print("BC Debug - LABELGATE: PASSED", LogLevel.WARNING);
 		return true;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Resolve the cost for the prefab about to be placed. This override DOES receive prefabID, so
+	//! it is where the pending cost gets established for the gate in AreLabelsMatching().
+	override protected bool CanPlaceEntityServer(IEntityComponentSource editableEntitySource, out EEditableEntityBudget blockingBudget, bool updatePreview, bool showNotification, int prefabID = -1, int playerID = -1, SCR_EditorPreviewParams params = null)
+	{
+		m_iBC_PendingCost = BC_GetVehicleCost(editableEntitySource);
+
+		if (m_iBC_PendingCost > 0)
+		{
+			Print(string.Format("BC Debug - BUDGET: pending cost=%1 for prefabID=%2",
+				m_iBC_PendingCost, prefabID), LogLevel.WARNING);
+		}
+
+		return super.CanPlaceEntityServer(editableEntitySource, blockingBudget, updatePreview,
+			showNotification, prefabID, playerID, params);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// BUDGET DIAGNOSTIC.
+	//
+	// Symptom: ~20 vehicles can be spawned from a truck holding 1000 supplies, i.e. no budget is
+	// ever actually deducted or enforced.
+	//
+	// Suspected cause: the truck's SCR_CampaignBuildingProviderComponent.m_aBudgetsToEvaluate lists
+	// PROPS, COOLDOWN, RANK_CAPTAIN and CAMPAIGN - but NOT whatever budget the vehicles themselves
+	// declare. IsThereEnoughBudgetToSpawn() delegates to providerComponent.IsThereEnoughBudgetToSpawn
+	// (budgetCosts), and a budget type absent from m_aBudgetsToEvaluate is simply not evaluated.
+	//
+	// Earlier BC debug output showed vehicles reporting entityBudget 5 and 6 while the manager sat
+	// on 0 (PROPS), every one hitting "Early return: entityBudget != m_BudgetType".
+	//
+	// This logs the budget types/values each placement actually reports, so the correct entry can be
+	// added to m_aBudgetsToEvaluate in Workbench rather than guessed at.
+	//! Cost of the placement currently being evaluated, so OnEntityCreatedServer can deduct exactly
+	//! what IsThereEnoughBudgetToSpawn approved. Set on every check, read once on success.
+	protected int m_iBC_PendingCost;
+
+	//------------------------------------------------------------------------------------------------
+	//! Pull the vehicle's real supply cost out of its declared budgets.
+	//! Measured: a BTR70 reports type=120 value=2 (CAMPAIGN), type=5 value=200 (VEHICLES),
+	//! type=6 value=1. Type 5 / VEHICLES carries the number configured as m_iSupplyCostOverride on
+	//! the faction catalog entry (BTR70 = 200), so that is the one to charge.
+	protected int BC_GetVehicleCost(IEntityComponentSource entitySource)
+	{
+		if (!m_BudgetManager || !entitySource)
+			return 0;
+
+		array<ref SCR_EntityBudgetValue> budgetCosts = {};
+		m_BudgetManager.GetBudgetCostsDontDiscardCampaignBudget(entitySource, budgetCosts);
+
+		foreach (SCR_EntityBudgetValue cost : budgetCosts)
+		{
+			if (cost.GetBudgetType() == EEditableEntityBudget.VEHICLES)
+				return cost.GetBudgetValue();
+		}
+
+		return 0;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Find BC's own supply component on the provider (or up its parent chain).
+	protected GRAD_BC_VehicleSupplyComponent BC_GetSupplyComponent()
+	{
+		if (!m_Provider)
+			return null;
+
+		GRAD_BC_VehicleSupplyComponent supply = GRAD_BC_VehicleSupplyComponent.Cast(
+			m_Provider.FindComponent(GRAD_BC_VehicleSupplyComponent));
+		if (supply)
+			return supply;
+
+		IEntity parent = m_Provider.GetParent();
+		while (parent)
+		{
+			supply = GRAD_BC_VehicleSupplyComponent.Cast(
+				parent.FindComponent(GRAD_BC_VehicleSupplyComponent));
+			if (supply)
+				return supply;
+
+			parent = parent.GetParent();
+		}
+
+		return null;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// BUDGET ENFORCEMENT VIA BC'S OWN SUPPLY COMPONENT.
+	//
+	// Vanilla's budget path cannot gate this. Measured on every placement:
+	//   BUDGETCOST:  type=120 value=2 | type=5 value=200 | type=6 value=1
+	//   BUDGETSTATE: PROPS=0  CAMPAIGN=0
+	//   BUDGETCHECK: result=1
+	// i.e. the provider's configured budgets are BOTH ZERO, so nothing can ever be exceeded, and the
+	// budget carrying the real cost (VEHICLES / type 5) was not even in m_aBudgetsToEvaluate.
+	// SCR_CampaignBuildingBudgetToEvaluateData exposes only Budget / UseMasterProviderBudget /
+	// ShowBudgetInUI - there is NO limit field on it, so the ceiling is not authorable there; the
+	// maximum is a runtime value (SCR_BudgetEditorComponent.DEFAULT_MAX_BUDGET / the 29500 seen in
+	// the UI) unrelated to BC's supplies.
+	//
+	// So BC enforces it directly against GRAD_BC_VehicleSupplyComponent, which already holds the
+	// right numbers (1000 supplies) and is already replicated. The vanilla check still runs first so
+	// cooldown/rank/obstruction gating is preserved.
+	override bool IsThereEnoughBudgetToSpawn(IEntityComponentSource entitySource)
+	{
+		if (!super.IsThereEnoughBudgetToSpawn(entitySource))
+			return false;
+
+		m_iBC_PendingCost = BC_GetVehicleCost(entitySource);
+
+		// Not a costed vehicle (compositions etc.) - let vanilla's verdict stand.
+		if (m_iBC_PendingCost <= 0)
+			return true;
+
+		GRAD_BC_VehicleSupplyComponent supply = BC_GetSupplyComponent();
+		if (!supply)
+		{
+			Print("BC Debug - BUDGET: no GRAD_BC_VehicleSupplyComponent found, not enforcing",
+				LogLevel.WARNING);
+			return true;
+		}
+
+		bool affordable = supply.HasSupplies(m_iBC_PendingCost);
+
+		Print(string.Format("BC Debug - BUDGET: cost=%1 available=%2 affordable=%3",
+			m_iBC_PendingCost, supply.GetCurrentSupplies(), affordable), LogLevel.WARNING);
+
+		return affordable;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Charge the approved cost once the entity actually exists. Deducting here rather than in the
+	//! check means a placement that fails later (obstruction, clipping) is never billed.
+	//! Server-side only - this is the server creation callback.
+	override protected void OnEntityCreatedServer(array<SCR_EditableEntityComponent> entities)
+	{
+		super.OnEntityCreatedServer(entities);
+
+		if (m_iBC_PendingCost <= 0)
+			return;
+
+		if (!entities || entities.IsEmpty())
+		{
+			m_iBC_PendingCost = 0;
+			return;
+		}
+
+		GRAD_BC_VehicleSupplyComponent supply = BC_GetSupplyComponent();
+		if (supply)
+		{
+			supply.DeductSupplies(m_iBC_PendingCost);
+
+			Print(string.Format("BC Debug - BUDGET: deducted %1, remaining=%2",
+				m_iBC_PendingCost, supply.GetCurrentSupplies()), LogLevel.WARNING);
+		}
+
+		m_iBC_PendingCost = 0;
 	}
 }
 

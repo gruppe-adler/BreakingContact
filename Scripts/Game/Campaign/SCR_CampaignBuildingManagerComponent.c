@@ -265,10 +265,17 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		array<ref SCR_EntityBudgetValue> budgets = {};
 		entity.GetEntityAndChildrenBudgetCost(budgets);
 
-		//get props budget value
+		// BC MOD: read the budget the MANAGER is configured for (m_BudgetType), not a hardcoded
+		// PROPS. The guard above already returned unless entityBudget == m_BudgetType, so this is
+		// the same budget that triggered this call.
+		//
+		// Why: BC's vehicles declare their cost under VEHICLES (measured: type=5 value=200 for a
+		// BTR70, matching m_iSupplyCostOverride on the faction catalog entry), while compositions
+		// declare PROPS. With PROPS hardcoded here, a VEHICLES-budgeted entity would fall through
+		// with propBudgetValue = 0 and deduct nothing.
 		foreach (SCR_EntityBudgetValue budget : budgets)
 		{
-			if (budget.GetBudgetType() != EEditableEntityBudget.PROPS)
+			if (budget.GetBudgetType() != m_BudgetType)
 				continue;
 
 			propBudgetValue = budget.GetBudgetValue();

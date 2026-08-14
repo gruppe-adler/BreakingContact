@@ -404,70 +404,88 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 modded class SCR_ContentBrowserEditorComponent
 {
 	//------------------------------------------------------------------------------------------------
-	//! Faction keys the current provider may place. Empty => no filtering (fail open, never hide
-	//! everything just because the provider could not be resolved).
-	protected void BC_GetAllowedFactionKeys(out array<FactionKey> allowedKeys)
+	// EXPLICIT PREFAB WHITELIST - replaces the faction-key filtering entirely.
+	//
+	// Why faction filtering was abandoned: matching SCR_EditableEntityUIInfo.GetFactionKey() against
+	// the provider's faction required mapping COALITION's OPFOR/BLUFOR/INDFOR onto vanilla's
+	// USSR/US/FIA, and even when the log showed FIA/US/CIV being rejected correctly on every pass
+	// (removed=2..18), FIA vehicles were still visible in the menu. It also scoped to "every USSR
+	// vehicle in the game" (visible=8..14) rather than to BC's curated six.
+	//
+	// This list IS the intent: the same six prefabs as
+	// Configs/Systems/Compositions_FreeRoamBuilding.conf. No faction semantics, no key namespaces,
+	// no label enums - just "these are the vehicles BC sells".
+	//
+	// KEEP IN SYNC with Compositions_FreeRoamBuilding.conf if vehicles are added or removed.
+	protected static const ref array<string> BC_ALLOWED_PREFABS = {
+		"Prefabs/Vehicles/Wheeled/BRDM2/BRDM2.et",
+		"Prefabs/Vehicles/Wheeled/BTR70/BTR70.et",
+		"Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_transport.et",
+		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469.et",
+		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM.et",
+		"Prefabs/Vehicles/Wheeled/UAZ452/UAZ452_transport.et"
+	};
+
+	//------------------------------------------------------------------------------------------------
+	//! True if the prefab is one BC offers. Compared on the PATH portion so the leading {GUID} on
+	//! the stored ResourceName does not have to be reproduced here.
+	protected bool BC_IsAllowedPrefab(ResourceName prefab)
 	{
-		SCR_CampaignBuildingEditorComponent buildingComp = SCR_CampaignBuildingEditorComponent.Cast(
-			SCR_CampaignBuildingEditorComponent.GetInstance(SCR_CampaignBuildingEditorComponent));
-		if (!buildingComp)
-			return;
+		if (prefab.IsEmpty())
+			return false;
 
-		IEntity provider = buildingComp.GetProviderEntity();
-		if (!provider)
-			return;
-
-		FactionAffiliationComponent fac = FactionAffiliationComponent.Cast(
-			provider.FindComponent(FactionAffiliationComponent));
-		if (!fac)
+		foreach (string allowed : BC_ALLOWED_PREFABS)
 		{
-			// Construction trucks keep the faction component on the truck, not on the back.
-			IEntity parent = provider.GetParent();
-			while (parent && fac == null)
-			{
-				fac = FactionAffiliationComponent.Cast(parent.FindComponent(FactionAffiliationComponent));
-				parent = parent.GetParent();
-			}
+			if (prefab.IndexOf(allowed) != -1)
+				return true;
 		}
 
-		if (!fac)
-			return;
+		return false;
+	}
 
-		Faction providerFaction = fac.GetAffiliatedFaction();
-		if (!providerFaction)
-			providerFaction = fac.GetDefaultAffiliatedFaction();
+	//------------------------------------------------------------------------------------------------
+	//! Strip everything not on the whitelist. Returns how many entries were removed.
+	//! Safe to call repeatedly on an already-stripped list.
+	protected int BC_StripToWhitelist()
+	{
+		int removed = 0;
 
-		if (!providerFaction)
-			return;
-
-		FactionKey providerKey = providerFaction.GetFactionKey();
-		if (providerKey.IsEmpty())
-			return;
-
-		allowedKeys.Insert(providerKey);
-
-		// KEY NAMESPACE MISMATCH.
-		//
-		// COALITION's factions use the keys OPFOR / BLUFOR / INDFOR / CIV, but the placeable
-		// prefabs are VANILLA assets whose SCR_EditableEntityUIInfo.GetFactionKey() returns the
-		// VANILLA keys USSR / US / FIA / CIV. Matching COALITION's key against a vanilla prefab
-		// therefore never succeeds, and the first run of this filter stripped almost everything
-		// (measured: allowed='OPFOR' -> visible=0 on most tabs, 3-5 on the rest).
-		//
-		// So the provider's key is expanded to the vanilla key(s) that mean the same side. Both are
-		// kept in the allow-list, so BC-owned prefabs tagged either way still match.
-		if (providerKey == "OPFOR")
+		for (int i = m_aFilteredPrefabIDs.Count() - 1; i >= 0; i--)
 		{
-			allowedKeys.Insert("USSR");
+			int prefabID = m_aFilteredPrefabIDs[i];
+
+			// GetResourceNamePrefabID() resolves through m_PlacingManagerData.GetPrefab(prefabID),
+			// which is the SAME list placement indexes into - so a survivor here is guaranteed to
+			// resolve to the same prefab when clicked.
+			ResourceName prefab = GetResourceNamePrefabID(prefabID);
+
+			if (BC_IsAllowedPrefab(prefab))
+				continue;
+
+			m_aFilteredPrefabIDs.Remove(i);
+			removed++;
 		}
-		else if (providerKey == "BLUFOR")
+
+		m_iFilteredPrefabIDsCount = m_aFilteredPrefabIDs.Count();
+		return removed;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! FilterExtendedSlots() rebuilds m_aFilteredPrefabIDs from the extended-entity cache and sets
+	//! m_iFilteredPrefabIDsCount WITHOUT going through FilterEntries(), so the strip must be
+	//! re-applied here too.
+	override int FilterExtendedSlots()
+	{
+		super.FilterExtendedSlots();
+
+		int stripped = BC_StripToWhitelist();
+		if (stripped > 0)
 		{
-			allowedKeys.Insert("US");
+			Print(string.Format("BC Debug - WHITELIST(extended): removed=%1 visible=%2",
+				stripped, m_iFilteredPrefabIDsCount), LogLevel.WARNING);
 		}
-		else if (providerKey == "INDFOR")
-		{
-			allowedKeys.Insert("FIA");
-		}
+
+		return m_iFilteredPrefabIDsCount;
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -485,78 +503,21 @@ modded class SCR_ContentBrowserEditorComponent
 		// Extended-slot mode bails out of vanilla FilterEntries() early and uses a separate list
 		// built by FilterExtendedSlots(). Leave that path completely alone.
 		if (GetExtendedEntity())
-			return;
-
-		array<FactionKey> allowedKeys = {};
-		BC_GetAllowedFactionKeys(allowedKeys);
-
-		// Fail open: if the provider faction cannot be resolved, keep vanilla's result rather than
-		// risk emptying the menu.
-		if (allowedKeys.IsEmpty())
 		{
-			Print("BC Debug - FACTIONFILTER: provider faction unresolved, filter skipped",
-				LogLevel.WARNING);
+			Print("BC Debug - FACTIONFILTER: extended-entity mode, filter skipped", LogLevel.WARNING);
 			return;
 		}
 
-		int removed = 0;
-		int keptFactionless = 0;
+		int removed = BC_StripToWhitelist();
 
-		// Which keys actually got rejected - so a namespace mismatch is visible in one line instead
-		// of being inferred from a low `visible` count.
-		string rejectedKeys;
+		Print(string.Format("BC Debug - WHITELIST: removed=%1 visible=%2",
+			removed, m_iFilteredPrefabIDsCount), LogLevel.WARNING);
 
-		// Walk backwards so removal does not shift indices we have yet to visit.
-		for (int i = m_aFilteredPrefabIDs.Count() - 1; i >= 0; i--)
-		{
-			SCR_EditableEntityUIInfo info = GetInfo(m_aFilteredPrefabIDs[i]);
-			if (!info)
-				continue;
-
-			FactionKey entryKey = info.GetFactionKey();
-
-			// STRICT FACTION-ONLY (user decision 2026-08-14): anything without a faction key is
-			// stripped, no exceptions.
-			//
-			// Rationale: a US LAV and FIA vehicles kept appearing under an OPFOR provider on passes
-			// that logged removed=0 rejectedKeys=[] - they carry NO faction key, so any "factionless
-			// is allowed" rule lets them through. Trying to distinguish factionless-vehicle from
-			// factionless-composition needs GetEntityTypex() to be reliable for every prefab, which
-			// is not established. Stripping all factionless is unambiguous.
-			//
-			// CONSEQUENCE: the ~91 fortification compositions (sandbags, camo nets, barbed wire,
-			// hedgehogs) in Compositions_FreeRoamBuilding.conf are factionless and WILL disappear
-			// from the menu, leaving faction-tagged vehicles only. If those need to come back, the
-			// non-vehicle exemption is the thing to restore here.
-			if (entryKey.IsEmpty())
-			{
-				keptFactionless++;
-				m_aFilteredPrefabIDs.Remove(i);
-				removed++;
-				continue;
-			}
-
-			if (allowedKeys.Contains(entryKey))
-				continue;
-
-			if (!rejectedKeys.Contains(entryKey))
-				rejectedKeys = rejectedKeys + entryKey + " ";
-
-			m_aFilteredPrefabIDs.Remove(i);
-			removed++;
-		}
-
-		// Re-sync the count vanilla set from the pre-strip list.
-		m_iFilteredPrefabIDsCount = m_aFilteredPrefabIDs.Count();
-
-		string allowedStr;
-		foreach (FactionKey k : allowedKeys)
-		{
-			allowedStr = allowedStr + k + " ";
-		}
-
-		Print(string.Format("BC Debug - FACTIONFILTER: allowed=[%1] rejectedKeys=[%2] removed=%3 factionless=%4 visible=%5",
-			allowedStr, rejectedKeys, removed, keptFactionless, m_iFilteredPrefabIDsCount),
-			LogLevel.WARNING);
+		// Vanilla FilterEntries() fires Event_OnBrowserEntriesFiltered.Invoke() at its END - i.e.
+		// inside super(), BEFORE the strip above - so the UI component
+		// (SCR_ContentBrowserEditorUIComponent.OnBrowserEntriesFiltered) is told "filtering done"
+		// while the list still holds everything. Re-invoke so it re-reads the stripped list.
+		if (removed > 0)
+			Event_OnBrowserEntriesFiltered.Invoke();
 	}
 }

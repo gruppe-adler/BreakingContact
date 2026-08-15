@@ -64,6 +64,16 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	protected bool m_bWaitingForAcks = false;
 	protected ref array<int> m_aAckedPlayerIds = {};
 
+	// TriggerEndscreen is scheduled from two independent replay-start flows
+	// (StartActualPlayback for local/host playback, BeginReplayForAll for the
+	// multi-client broadcast path) with different wait times. If both flows run
+	// for the same match, TriggerEndscreen fires twice a few seconds apart, each
+	// call re-running EndGameMode()/MoveAllPlayersToSpectator() and re-spawning
+	// COA_Spectator/COA_SpectatorCamera for already-spectating players - this was
+	// observed to corrupt spectator camera physics state badly enough to crash
+	// the client on the second pass. Guard it fire-once like BeginReplayForAll.
+	protected bool m_bEndscreenTriggered = false;
+
 	const int REPLAY_ACK_COOLDOWN_MS = 3000;
 	const int REPLAY_ACK_HARDCAP_MS  = 30000;
 	
@@ -2207,13 +2217,23 @@ void StartLocalReplayPlayback()
 			Print("GRAD_BC_ReplayManager: ===== TriggerEndscreen CALLED =====", LogLevel.NORMAL);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ReplayManager: IsServer: %1", Replication.IsServer()), LogLevel.NORMAL);
-		
+
 		if (!Replication.IsServer())
 		{
 			Print("GRAD_BC_ReplayManager: Not server, returning", LogLevel.WARNING);
 			return;
 		}
-		
+
+		// Fire-once: StartActualPlayback and BeginReplayForAll can both schedule this.
+		if (m_bEndscreenTriggered)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("GRAD_BC_ReplayManager: TriggerEndscreen already fired, ignoring duplicate call", LogLevel.WARNING);
+			return;
+		}
+		m_bEndscreenTriggered = true;
+		GetGame().GetCallqueue().Remove(TriggerEndscreen);
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print("GRAD_BC_ReplayManager: Server triggering endscreen NOW", LogLevel.NORMAL);
 		

@@ -309,6 +309,11 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		SCR_ResourceComponent resourceComponent;
 		bool wasContainerSpawned;
 
+		// BC MOD: capture the provider BEFORE GetResourceComponent() runs - that function reads
+		// GetTemporaryProvider() and then calls SetTemporaryProvider(null), so by the time the BC
+		// deduction block below is reached it would always be null.
+		IEntity bcProvider = GetTemporaryProvider();
+
 		// If resource component was not found on deconstruction, spawn a custom one , find again the resource component at this spawned box and fill it with refund supply.
 		if (!GetResourceComponent(entityOwner, resourceComponent))
 		{
@@ -328,7 +333,39 @@ class SCR_CampaignBuildingManagerComponent : SCR_BaseGameModeComponent
 		// --- BC MOD: Redirect consumption to GRAD_BC_VehicleSupplyComponent when present, bypassing vanilla resource container entirely ---
 		if (budgetChange > 0)
 		{
-			GRAD_BC_VehicleSupplyComponent gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(entityOwner.FindComponent(GRAD_BC_VehicleSupplyComponent));
+			// entityOwner is the entity that was just PLACED (the new vehicle), which does NOT
+			// carry GRAD_BC_VehicleSupplyComponent - that lives on the PROVIDER (the command
+			// truck's combox). Looking it up on entityOwner always returned null, so this whole
+			// block was skipped and execution fell through to the "No resource component after
+			// lookup" return. Measured: the cost was read correctly (value 200/160/75/50/40/420)
+			// but neither the "Found ..." nor the "no supply cost" line ever printed.
+			//
+			// bcProvider was captured ABOVE, before GetResourceComponent() nulled it. It is set by
+			// SCR_CampaignBuildingPlacingEditorComponent.OnBeforeEntityCreatedServer() precisely so
+			// the manager knows which provider paid for this placement.
+			IEntity supplyOwner = bcProvider;
+			if (!supplyOwner)
+				supplyOwner = entityOwner;
+
+			GRAD_BC_VehicleSupplyComponent gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(
+				supplyOwner.FindComponent(GRAD_BC_VehicleSupplyComponent));
+
+			// Fall back to walking up from the provider - on the trucks the supply component sits
+			// on the combox child while the provider may resolve to a parent (or vice versa).
+			if (!gradSupply)
+			{
+				IEntity walk = supplyOwner.GetParent();
+				while (walk && !gradSupply)
+				{
+					gradSupply = GRAD_BC_VehicleSupplyComponent.Cast(
+						walk.FindComponent(GRAD_BC_VehicleSupplyComponent));
+					walk = walk.GetParent();
+				}
+			}
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode() && !gradSupply)
+				Print("[DEBUG] BC: no GRAD_BC_VehicleSupplyComponent found on provider or its parents");
+
 			if (gradSupply)
 			{
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())

@@ -546,31 +546,116 @@ modded class SCR_ContentBrowserEditorComponent
 	// (removed=2..18), FIA vehicles were still visible in the menu. It also scoped to "every USSR
 	// vehicle in the game" (visible=8..14) rather than to BC's curated six.
 	//
-	// This list IS the intent: the same six prefabs as
-	// Configs/Systems/Compositions_FreeRoamBuilding.conf. No faction semantics, no key namespaces,
-	// no label enums - just "these are the vehicles BC sells".
+	// These lists ARE the intent. No faction semantics, no key namespaces, no label enums - just
+	// "these are the vehicles BC sells", per side.
 	//
-	// KEEP IN SYNC with Compositions_FreeRoamBuilding.conf if vehicles are added or removed.
-	protected static const ref array<string> BC_ALLOWED_PREFABS = {
-		"Prefabs/Vehicles/Wheeled/BRDM2/BRDM2.et",
-		"Prefabs/Vehicles/Wheeled/BTR70/BTR70.et",
-		"Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_transport.et",
-		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469.et",
-		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM.et",
-		"Prefabs/Vehicles/Wheeled/UAZ452/UAZ452_transport.et"
+	// KEEP IN SYNC with Configs/Systems/Compositions_FreeRoamBuilding.conf. A prefab must be in
+	// BOTH: the .conf makes it reachable, these lists make it visible for the right faction.
+	//
+	// Prices live on the prefabs themselves (m_EntityBudgetCost / m_Value), see the pricing table
+	// in docs/vehicle-buying-investigation.md.
+	protected static const ref array<string> BC_ALLOWED_PREFABS_OPFOR = {
+		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469.et",                    // 50  light jeep
+		"Prefabs/Vehicles/Wheeled/UAZ452/UAZ452_transport.et",          // 75  light transport
+		"Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_transport.et",      // 150 heavy transport
+		"Prefabs/Vehicles/Wheeled/UAZ469/UAZ469_PKM.et",                // 300 armed jeep
+		"Prefabs/Vehicles/Wheeled/BRDM2/BRDM2.et",                      // 450 armed recon
+		"Prefabs/Vehicles/Wheeled/BTR70/BTR70.et"                       // 650 heavy armed APC
+	};
+
+	protected static const ref array<string> BC_ALLOWED_PREFABS_BLUFOR = {
+		"Prefabs/Vehicles/Wheeled/M151A2/M151A2.et",                    // 50  light jeep
+		"Prefabs/Vehicles/Wheeled/M998/M998_covered_long.et",           // 75  light transport
+		"Prefabs/Vehicles/Wheeled/M923A1/M923A1_transport_covered.et",  // 150 heavy transport
+		"Prefabs/Vehicles/Wheeled/M923A1/M923A1_transport.et",          // 150 heavy transport (open)
+		"Prefabs/Vehicles/Wheeled/M998/M1025_armed_M2HB.et",            // 300 armed jeep
+		"Prefabs/Vehicles/Wheeled/LAV25/LAV25.et",                      // 650 heavy armed IFV
+		"Prefabs/Vehicles/Helicopters/UH1H/UH1H.et"                     // 800 air
 	};
 
 	//------------------------------------------------------------------------------------------------
-	//! True if the prefab is one BC offers. Compared on the PATH portion so the leading {GUID} on
-	//! the stored ResourceName does not have to be reproduced here.
-	protected bool BC_IsAllowedPrefab(ResourceName prefab)
+	//! Pick the list for the faction of the provider whose menu is open. Falls back to BOTH lists
+	//! when the faction cannot be resolved, so a lookup failure never empties the menu.
+	protected void BC_GetAllowedPrefabs(out array<string> allowed)
+	{
+		FactionKey key;
+
+		SCR_CampaignBuildingEditorComponent buildingComp = SCR_CampaignBuildingEditorComponent.Cast(
+			SCR_CampaignBuildingEditorComponent.GetInstance(SCR_CampaignBuildingEditorComponent));
+
+		if (buildingComp)
+		{
+			IEntity provider = buildingComp.GetProviderEntity();
+			if (provider)
+			{
+				FactionAffiliationComponent fac = FactionAffiliationComponent.Cast(
+					provider.FindComponent(FactionAffiliationComponent));
+
+				// Construction trucks keep the faction component on the truck, not on the combox.
+				if (!fac)
+				{
+					IEntity parent = provider.GetParent();
+					while (parent && fac == null)
+					{
+						fac = FactionAffiliationComponent.Cast(
+							parent.FindComponent(FactionAffiliationComponent));
+						parent = parent.GetParent();
+					}
+				}
+
+				if (fac)
+				{
+					Faction f = fac.GetAffiliatedFaction();
+					if (!f)
+						f = fac.GetDefaultAffiliatedFaction();
+
+					if (f)
+						key = f.GetFactionKey();
+				}
+			}
+		}
+
+		if (key == "OPFOR")
+		{
+			foreach (string o : BC_ALLOWED_PREFABS_OPFOR)
+			{
+				allowed.Insert(o);
+			}
+			return;
+		}
+
+		if (key == "BLUFOR")
+		{
+			foreach (string b : BC_ALLOWED_PREFABS_BLUFOR)
+			{
+				allowed.Insert(b);
+			}
+			return;
+		}
+
+		// Unresolved faction - offer everything rather than nothing.
+		foreach (string o2 : BC_ALLOWED_PREFABS_OPFOR)
+		{
+			allowed.Insert(o2);
+		}
+
+		foreach (string b2 : BC_ALLOWED_PREFABS_BLUFOR)
+		{
+			allowed.Insert(b2);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! True if the prefab is one BC offers to the CURRENT provider's faction. Compared on the PATH
+	//! portion so the leading {GUID} on the stored ResourceName does not have to be reproduced here.
+	protected bool BC_IsAllowedPrefab(ResourceName prefab, notnull array<string> allowed)
 	{
 		if (prefab.IsEmpty())
 			return false;
 
-		foreach (string allowed : BC_ALLOWED_PREFABS)
+		foreach (string a : allowed)
 		{
-			if (prefab.IndexOf(allowed) != -1)
+			if (prefab.IndexOf(a) != -1)
 				return true;
 		}
 
@@ -584,6 +669,10 @@ modded class SCR_ContentBrowserEditorComponent
 	{
 		int removed = 0;
 
+		// Resolved once per pass, not per entry.
+		array<string> allowed = {};
+		BC_GetAllowedPrefabs(allowed);
+
 		for (int i = m_aFilteredPrefabIDs.Count() - 1; i >= 0; i--)
 		{
 			int prefabID = m_aFilteredPrefabIDs[i];
@@ -593,7 +682,7 @@ modded class SCR_ContentBrowserEditorComponent
 			// resolve to the same prefab when clicked.
 			ResourceName prefab = GetResourceNamePrefabID(prefabID);
 
-			if (BC_IsAllowedPrefab(prefab))
+			if (BC_IsAllowedPrefab(prefab, allowed))
 				continue;
 
 			m_aFilteredPrefabIDs.Remove(i);

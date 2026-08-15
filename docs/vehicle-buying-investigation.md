@@ -2675,3 +2675,75 @@ confirmed. Also strip the remaining `BC Debug` Prints — they run on every filt
   buying, but worth restoring.
 - **Never rename COALITION faction keys** to USSR/US — breaks slotting, gearscripts and VoN.
   Patch the vanilla consumers instead.
+
+---
+
+# PRICING (2026-08-15)
+
+Budget is **1000 supplies per truck** (`GRAD_BC_VehicleSupplyComponent.m_iMaxSupplies` on each
+`_combox`). Prices live on the vehicle prefabs as
+`SCR_EditableVehicleComponent > m_UIInfo > m_EntityBudgetCost > SCR_EntityBudgetValue > m_Value`.
+
+Design rules used: light transport should never be a budget decision; **armed vehicles max 3**;
+**heavy armed max 1**; air is its own tier above heavy.
+
+| Vehicle | Faction | Class | Price | Max per truck |
+|---|---|---|---|---|
+| UAZ469 | OPFOR | Light jeep | 50 | 20 |
+| UAZ452_transport | OPFOR | Light transport | 75 | 13 |
+| Ural4320_transport | OPFOR | Heavy transport | 150 | 6 |
+| UAZ469_PKM | OPFOR | Armed jeep | 300 | 3 |
+| BRDM2 | OPFOR | Armed recon | 450 | 2 |
+| BTR70 | OPFOR | Heavy armed APC | 650 | 1 |
+| M151A2 | BLUFOR | Light jeep | 50 | 20 |
+| M998_covered_long | BLUFOR | Light transport | 75 | 13 |
+| M923A1_transport_covered | BLUFOR | Heavy transport | 150 | 6 |
+| M923A1_transport | BLUFOR | Heavy transport (open) | 150 | 6 |
+| M1025_armed_M2HB | BLUFOR | Armed jeep | 300 | 3 |
+| LAV25 | BLUFOR | Heavy armed IFV | 650 | 1 |
+| UH-1H | BLUFOR | Air | 800 | 1 |
+
+Changed from previous values: BTR70 850→650, LAV25 850→650, BRDM2 650→450. At 850 a heavy left
+150 unspendable, which is a dead end rather than a choice.
+
+Constraint checks: 3 armed jeeps = 900 ✓ / 4 = 1200 ✗ · 2 heavies = 1300 ✗ · heavy + armed jeep
+= 950 ✓ · UH-1H + armed jeep = 1100 ✗ (the helo means no armed ground vehicles).
+
+**Known asymmetry:** BLUFOR has air, OPFOR does not. BLUFOR also has no BRDM2-tier armed recon,
+getting a second transport variant instead. Deliberate if US air superiority is intended —
+otherwise OPFOR needs an Mi-8 equivalent.
+
+**Untested balance.** These numbers are derived from the budget and tier structure, not from play.
+
+## Three places must agree when adding a vehicle
+
+1. `Configs/Systems/Compositions_FreeRoamBuilding.conf` — makes it reachable (needs the real GUID
+   from the prefab's `.meta`, NOT a GUID copied from a log line — those are often MERDC/Conflict
+   variants of the same vehicle)
+2. `BC_ALLOWED_PREFABS_OPFOR` / `_BLUFOR` in `GRAD_BC_VehicleSpawnAction.c` — makes it visible to
+   the right side
+3. `m_Value` on the prefab — sets the price
+
+A quick consistency check between 1 and 2:
+```
+python3 -c "import io,re; c=set(re.findall(r'\}(Prefabs/[^\"]+\.et)', io.open('Configs/Systems/Compositions_FreeRoamBuilding.conf',encoding='utf-8').read())); w=set(re.findall(r'\"(Prefabs/Vehicles/[^\"]+\.et)\"', io.open('Scripts/Game/UserActions/GRAD_BC_VehicleSpawnAction.c',encoding='utf-8').read())); print('whitelist-only:',w-c); print('conf-only:',c-w)"
+```
+
+## REMAINING TODO
+
+- [ ] **`UAZ452_transport.et` has no BC override** — it is in the conf and whitelist but carries no
+      BC price, so it falls back to a vanilla cost. Create it in Workbench (inherit-and-edit from
+      the vanilla prefab, same shape as `BTR70.et`) and set `m_Value` to 75. Could not be authored
+      from outside Workbench because the base prefab's GUID is not extractable from the paks.
+- [ ] **`M923A1_combox.et` needs `SCR_CampaignBuildingMaxValueBudgetToEvaluateData`** with
+      `m_eBudget VEHICLES` and `m_iMaxValue 1000` — OPFOR's `Ural4320_combox.et` has it, BLUFOR
+      only has the plain `SCR_CampaignBuildingBudgetToEvaluateData` with no ceiling. That subclass
+      is what carries the limit.
+- [ ] **Mirror `Budget Type = VEHICLES`** to Everon: `Worlds/MP/BC_everon_Layers/managers.layer`,
+      component `{6A0956CEF951B6F3}`. Only kolgujev is set.
+- [ ] **Silence the debug spam** — `[DEBUG] BC: no GRAD_BC_VehicleSupplyComponent found on provider
+      or its parents` fires ~33x per session on non-cost budget events. Harmless, noisy.
+- [ ] **Test BLUFOR end to end** — the whole BLUFOR path (menu contents, spawn, deduction) is
+      unverified; only OPFOR has been run.
+- [ ] **UH-1H placement clearance** — free placement lets a player put a helicopter into terrain or
+      trees. Test before relying on it in a session.

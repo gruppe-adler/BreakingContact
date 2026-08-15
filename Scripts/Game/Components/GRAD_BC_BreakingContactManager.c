@@ -291,7 +291,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			}
 			case EBreakingContactPhase.GAME :
 			{
-				message = "Blufor spawned, Game begins now.";
+				message = "Blufor spawned, Prep Phase begins.";
 				customSound = "gong_3";
 				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;

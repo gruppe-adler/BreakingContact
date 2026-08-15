@@ -44,9 +44,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Replay system
 	protected GRAD_BC_ReplayManager m_replayManager;
 	
-	// Debounce phase change notifications
-	protected float m_fLastPhaseNotification = 0;
-
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
 	
@@ -422,34 +419,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			return; // Don't show the logos/text for spectators
 		}
 		
-		// show logo for all
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
-			// Debounce to prevent multiple calls
-			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-			if (currentTime - m_fLastPhaseNotification < 2.0)
-				return;
-			m_fLastPhaseNotification = currentTime;
-			
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-		
-		    // Show logo once the player actually sees the world (after map is closed).
-		    logoDisplay.RequestShowLogo();
-		}
-			
-		// show logo for all
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
-			// Debounce to prevent multiple calls
-			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-			if (currentTime - m_fLastPhaseNotification < 2.0)
-				return;
-			m_fLastPhaseNotification = currentTime;
-			
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			logoDisplay.RequestShowLogo();
-		}
-
+		// Logo is purely phase-driven: visible outside GAME/GAMEOVER, hidden during them.
+		logoDisplay.SetPhaseVisibility(m_iBreakingContactPhase);
 	}
 	}
 	

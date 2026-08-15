@@ -105,19 +105,27 @@ class GRAD_PlayerComponent : ScriptComponent
 		GetGame().GetCallqueue().CallLater(EOnInit, 1000, false, owner);
     }
 			
-	bool IsChoosingSpawn() 
+	bool IsChoosingSpawn()
 	{
-		// Don't allow spawn selection during GAMEOVER phase (replay mode)
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (BCM)
 		{
 			EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-			if (phase == EBreakingContactPhase.GAMEOVER)
+
+			// Spawn selection only makes sense during the two placement phases. Once the match is
+			// running (GAME) or over (GAMEOVER/GAMEOVERDONE) the spawn has already happened and the
+			// radio truck is placed, so re-picking a position must not be possible.
+			//
+			// This matters for JOIN IN PROGRESS: ForceOpenMap() sets m_bChoosingSpawn = true for
+			// any "Opfor Commander"/"Blufor Commander" slot unconditionally, with no check for how
+			// far the match has progressed. A commander joining mid-match therefore got spawn
+			// selection re-enabled and could place the spawn marker again.
+			if (phase != EBreakingContactPhase.OPFOR && phase != EBreakingContactPhase.BLUFOR)
 			{
-				return false; // Disable spawn selection during replay
+				return false;
 			}
 		}
-		
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
@@ -205,23 +213,46 @@ class GRAD_PlayerComponent : ScriptComponent
 			return;
 		}
 
+		// JIP GUARD: only arm spawn selection while the match is actually in a placement phase.
+		// A commander joining in progress (GAME / GAMEOVER) must not get spawn picking back -
+		// the spawn has already happened and the radio truck is placed.
+		bool inSpawnPhase = true;
+		GRAD_BC_BreakingContactManager bcmPhase = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcmPhase)
+		{
+			EBreakingContactPhase currentPhase = bcmPhase.GetBreakingContactPhase();
+			if (currentPhase != EBreakingContactPhase.OPFOR && currentPhase != EBreakingContactPhase.BLUFOR)
+			{
+				inSpawnPhase = false;
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC ForceOpenMap: JIP into phase %1 - not arming spawn selection",
+						SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.WARNING);
+			}
+		}
+
 		if (characterRole == "Opfor Commander")
 		{
 			m_faction = "USSR";
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
-			m_bChoosingSpawn = true;
-			// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
-			GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
 			GrantCommanderRank(ch);
+
+			if (inSpawnPhase)
+			{
+				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+				Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
+				m_bChoosingSpawn = true;
+				// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
+				GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
+			}
 		}
 
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
 			m_faction = "US";
-			m_bChoosingSpawn = true;
 			GrantCommanderRank(ch);
+
+			if (inSpawnPhase)
+				m_bChoosingSpawn = true;
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())

@@ -23,6 +23,11 @@ SCR_AIWorld : "{E0A05C76552E7F58}Prefabs/AI/SCR_AIWorld.et" {
   }
  }
  coords 1532.414 6.25 3203.688
+ "Allowed Link Navmesh Types" {
+  "LowRes"
+  "Soldiers"
+  "BTRlike"
+ }
 }
 SCR_MapLocator {
  coords 1537.064 6.272 3201.101

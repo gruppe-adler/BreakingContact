@@ -34,6 +34,7 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		SCR_MapEntity.GetOnMapClose().Remove(OnMapClose);
 		GetGame().GetCallqueue().Remove(HideLogo);
 		GetGame().GetCallqueue().Remove(SafeHideLogo);
+		GetGame().GetCallqueue().Remove(PendingShowTimeout);
 		m_bPendingShow = false;
 		super.DisplayStopDraw(owner);
 	}
@@ -46,8 +47,21 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity && mapEntity.IsOpen())
 		{
-			// Map is open — defer display until the player actually closes it
+			// Map is open — defer display until the player actually closes it.
 			m_bPendingShow = true;
+
+			// JIP SAFETY NET. The deferred path relies on OnMapClose() firing, but for a
+			// join-in-progress player the map can close before DisplayInit() has subscribed to
+			// GetOnMapClose(), or the phase RPC can arrive after the map already closed. In either
+			// case OnMapClose() never runs, m_bPendingShow stays true forever, and because the hide
+			// timers are only scheduled inside ShowLogo() NOTHING ever hides the logo - it stays on
+			// screen for the rest of the match.
+			//
+			// So arm an unconditional fallback: if the map has not closed within 15s, show the logo
+			// anyway (which schedules the normal hide timers). Cancelled in OnMapClose().
+			GetGame().GetCallqueue().Remove(PendingShowTimeout);
+			GetGame().GetCallqueue().CallLater(PendingShowTimeout, 15000);
+
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_Logo: map is open, deferring logo until map close", LogLevel.VERBOSE);
 		}
@@ -63,11 +77,33 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		if (!m_bPendingShow)
 			return;
 		m_bPendingShow = false;
+		GetGame().GetCallqueue().Remove(PendingShowTimeout);
+		ShowLogo();
+	}
+
+	//! Fires when a deferred show never got its OnMapClose(). Shows the logo so that the normal
+	//! hide timers get scheduled, rather than leaving it pending (and therefore never hidden).
+	private void PendingShowTimeout()
+	{
+		if (!m_bPendingShow)
+			return;
+
+		m_bPendingShow = false;
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print("GRAD_BC_Logo: pending show timed out (no OnMapClose), showing now", LogLevel.WARNING);
+
 		ShowLogo();
 	}
 
 	void ShowLogo()
     {
+		// A show must ALWAYS leave a hide scheduled. Anything that makes the logo visible has to go
+		// through here - notably Rpc_ShowBCLogo_Local() in GRAD_PlayerComponent, which calls this
+		// directly rather than RequestShowLogo().
+		m_bPendingShow = false;
+		GetGame().GetCallqueue().Remove(PendingShowTimeout);
+
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("GRAD_BC_Logo: showLogo called!", LogLevel.VERBOSE);
@@ -77,6 +113,14 @@ class GRAD_BC_Logo: SCR_InfoDisplayExtended
 		GetGame().GetCallqueue().Remove(SafeHideLogo);
 		GetGame().GetCallqueue().CallLater(SafeHideLogo, 10000);
     }
+
+	//! Cancel any pending/scheduled show so an external hide (e.g. HideUIForSpectators) is not
+	//! undone a moment later by a deferred OnMapClose or the pending-show timeout.
+	void CancelPendingShow()
+	{
+		m_bPendingShow = false;
+		GetGame().GetCallqueue().Remove(PendingShowTimeout);
+	}
 
 	private void HideLogo()
     {

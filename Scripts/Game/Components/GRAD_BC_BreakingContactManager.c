@@ -460,6 +460,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
 		if (logoDisplay)
 		{
+			// Cancel any deferred show first, otherwise a later OnMapClose (or the pending-show
+			// timeout) re-shows the logo right after we hid it - and for a JIP spectator that show
+			// would have no hide scheduled against it.
+			logoDisplay.CancelPendingShow();
 			logoDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
 		}
 		if (gamestateDisplay)

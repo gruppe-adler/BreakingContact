@@ -62,6 +62,11 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      m_eBudget VEHICLES
      m_bShowBudgetInUI 1
     }
+    SCR_CampaignBuildingMaxValueBudgetToEvaluateData "{6A1EE9148AC3E56F}" {
+     m_eBudget VEHICLES
+     m_bShowBudgetInUI 1
+     m_iMaxValue 1000
+    }
    }
    m_aAvailableTraits {
     VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC VEHICLE_HELICOPTER

@@ -310,7 +310,7 @@ class GRAD_MapMarkerUI
 
         SCR_UISoundEntity.SoundEvent(SCR_SoundEvent.SOUND_MAP_CLICK_POINT_ON);
         
-        if (factionKey == "USSR")
+        if (factionKey == "USSR" || factionKey == "OPFOR")
             GRAD_PlayerComponent.GetInstance().SetOpforSpawn(worldPos);
     }
     

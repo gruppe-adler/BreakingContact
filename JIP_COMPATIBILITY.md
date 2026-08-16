@@ -192,7 +192,7 @@ override void OnDelete(IEntity owner)
 
 When testing JIP compatibility:
 
-- [ ] **OPFOR Phase**: JIP player sees transmission circles and markers
+- [ ] **OPFOR **: JIP player sees transmission circles and markers
 - [ ] **GAME Phase**: JIP player sees all active transmissions and radio truck marker
 - [ ] **GAMEOVER Phase**: JIP player enters spectator mode correctly
 - [ ] **Spectator JIP**: No crashes or UI errors

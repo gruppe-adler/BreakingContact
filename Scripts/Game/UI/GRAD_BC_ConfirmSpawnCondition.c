@@ -46,8 +46,8 @@ class GRAD_BC_ConfirmSpawnCondition : SCR_AvailableActionCondition
         if (!faction)
             return false;
         
-        // Only show for USSR faction (not BLUFOR)
-        if (faction.GetFactionKey() != "USSR")
+        // Only show for USSR/OPFOR faction (not BLUFOR)
+        if (!GRAD_BC_BreakingContactManager.IsOpforFactionKey(faction.GetFactionKey()))
             return false;
         
         // Use the static GetInstance() method to get the player component for the local player

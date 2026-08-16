@@ -61,7 +61,7 @@ class GRAD_BC_DragAntennaAction : ScriptedUserAction
 			return false;
 
 		string factionKey = character.GetFactionKey();
-		return (factionKey == "USSR");
+		return GRAD_BC_BreakingContactManager.IsOpforFactionKey(factionKey);
 	}
 
 	//------------------------------------------------------------------------------------------------

@@ -41,7 +41,12 @@ class GRAD_PlayerComponent : ScriptComponent
 	protected void RpcDo_Owner_TeleportPlayer(vector location)
 	{
 		SCR_Global.TeleportLocalPlayer(location, SCR_EPlayerTeleportedReason.DEFAULT);
-		AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_beam.acp", "beam", location);
+
+		// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+		vector soundTransform[4];
+		Math3D.MatrixIdentity4(soundTransform);
+		soundTransform[3] = location;
+		AudioSystem.PlayEvent("{937A60765465B47D}sounds/BC_beam.acp", "beam", soundTransform);
 	}
 	
 	protected ref GRAD_MapMarkerUI m_MapMarkerUI;
@@ -64,7 +69,7 @@ class GRAD_PlayerComponent : ScriptComponent
 	{
 		super.EOnInit(owner);
 		
-		PS_GameModeCoop gameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		SCR_BaseGameMode gameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
 
 		m_playerController = SCR_PlayerController.Cast(GetGame().GetPlayerController());
 
@@ -82,7 +87,13 @@ class GRAD_PlayerComponent : ScriptComponent
 					return;
 				}
 				
-				m_faction = ch.GetFactionKey();
+				string detectedFactionKey = ch.GetFactionKey();
+				if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(detectedFactionKey))
+					m_faction = "USSR";
+				else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(detectedFactionKey))
+					m_faction = "US";
+				else
+					m_faction = detectedFactionKey;
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
 					Print(string.Format("faction detected: %1", m_faction), LogLevel.NORMAL);
 			
@@ -94,19 +105,27 @@ class GRAD_PlayerComponent : ScriptComponent
 		GetGame().GetCallqueue().CallLater(EOnInit, 1000, false, owner);
     }
 			
-	bool IsChoosingSpawn() 
+	bool IsChoosingSpawn()
 	{
-		// Don't allow spawn selection during GAMEOVER phase (replay mode)
 		GRAD_BC_BreakingContactManager BCM = GRAD_BC_BreakingContactManager.GetInstance();
 		if (BCM)
 		{
 			EBreakingContactPhase phase = BCM.GetBreakingContactPhase();
-			if (phase == EBreakingContactPhase.GAMEOVER)
+
+			// Spawn selection only makes sense during the two placement phases. Once the match is
+			// running (GAME) or over (GAMEOVER/GAMEOVERDONE) the spawn has already happened and the
+			// radio truck is placed, so re-picking a position must not be possible.
+			//
+			// This matters for JOIN IN PROGRESS: ForceOpenMap() sets m_bChoosingSpawn = true for
+			// any "Opfor Commander"/"Blufor Commander" slot unconditionally, with no check for how
+			// far the match has progressed. A commander joining mid-match therefore got spawn
+			// selection re-enabled and could place the spawn marker again.
+			if (phase != EBreakingContactPhase.OPFOR && phase != EBreakingContactPhase.BLUFOR)
 			{
-				return false; // Disable spawn selection during replay
+				return false;
 			}
 		}
-		
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("SCR_PlayerController - Choosing Spawn asked"), LogLevel.NORMAL);
 		return m_bChoosingSpawn;
@@ -158,36 +177,82 @@ class GRAD_PlayerComponent : ScriptComponent
 		}
 
 
+		string characterRole = "none";
+
 		GRAD_CharacterRoleComponent characterRoleComponent = GRAD_CharacterRoleComponent.Cast(ch.FindComponent(GRAD_CharacterRoleComponent));
-		if (!characterRoleComponent) {
+		if (characterRoleComponent)
+			characterRole = characterRoleComponent.GetCharacterRole();
+
+		// COALITION-Lobby path: BC's own GRAD_CharacterRoleComponent isn't set on
+		// COA_GearscriptManager-spawned characters, so derive the same "Opfor Commander" /
+		// "Blufor Commander" role strings from the player's slotted COA_EGearRole + faction.
+		if (characterRole == "none")
+		{
+			COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+			if (slottingManager)
+			{
+				int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(ch);
+				if (playerId > 0)
+				{
+					COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
+					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
+					{
+						string playerFactionKey = ch.GetFactionKey();
+						if (playerFactionKey == "OPFOR")
+							characterRole = "Opfor Commander";
+						else if (playerFactionKey == "BLUFOR")
+							characterRole = "Blufor Commander";
+					}
+				}
+			}
+		}
+
+		if (characterRole == "none") {
 			Print(string.Format("no character role component for this slot - wait and retry in 5s"), LogLevel.WARNING);
 			GetGame().GetCallqueue().CallLater(ForceOpenMap, 5000, false);
 			return;
 		}
 
-		string characterRole = "none";
-
-		if (characterRoleComponent) {
-			characterRole = characterRoleComponent.GetCharacterRole();
-		} else {
-			Print(string.Format("BC phase opfor - no commander found"), LogLevel.WARNING);
+		// JIP GUARD: only arm spawn selection while the match is actually in a placement phase.
+		// A commander joining in progress (GAME / GAMEOVER) must not get spawn picking back -
+		// the spawn has already happened and the radio truck is placed.
+		bool inSpawnPhase = true;
+		GRAD_BC_BreakingContactManager bcmPhase = GRAD_BC_BreakingContactManager.GetInstance();
+		if (bcmPhase)
+		{
+			EBreakingContactPhase currentPhase = bcmPhase.GetBreakingContactPhase();
+			if (currentPhase != EBreakingContactPhase.OPFOR && currentPhase != EBreakingContactPhase.BLUFOR)
+			{
+				inSpawnPhase = false;
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BC ForceOpenMap: JIP into phase %1 - not arming spawn selection",
+						SCR_Enum.GetEnumName(EBreakingContactPhase, currentPhase)), LogLevel.WARNING);
+			}
 		}
 
 		if (characterRole == "Opfor Commander")
 		{
 			m_faction = "USSR";
-			GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-			Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
-			m_bChoosingSpawn = true;
-			// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
-			GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
+			GrantCommanderRank(ch);
+
+			if (inSpawnPhase)
+			{
+				GetGame().GetInputManager().AddActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
+				Print(string.Format("BC phase opfor - is opfor - add map key eh"), LogLevel.WARNING);
+				m_bChoosingSpawn = true;
+				// Defer button show — spectator menu widget tree is not ready until after ToggleMap opens it
+				GetGame().GetCallqueue().CallLater(SetConfirmSpawnButtonVisible, 500, false, true);
+			}
 		}
 
 		// blufor commander is NOT allowed to choose spawn, however can signal other players with a map marker some tactics or speculate
 		if (characterRole == "Blufor Commander")
 		{
 			m_faction = "US";
-			m_bChoosingSpawn = true;
+			GrantCommanderRank(ch);
+
+			if (inSpawnPhase)
+				m_bChoosingSpawn = true;
 		}
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -195,7 +260,44 @@ class GRAD_PlayerComponent : ScriptComponent
 		ToggleMap(true);
 
 	}
-	
+
+	//------------------------------------------------------------------------------------------------
+	// Commander needs at least Captain rank to pass SCR_CampaignBuildingStartUserAction's
+	// access-rank check on the command trucks (BC has no XP/rank progression of its own).
+	protected void GrantCommanderRank(IEntity ch)
+	{
+		if (Replication.IsServer())
+		{
+			DoGrantCommanderRank(ch);
+			return;
+		}
+
+		Rpc(Ask_GrantCommanderRank);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void Ask_GrantCommanderRank()
+	{
+		if (!m_playerController)
+			return;
+
+		IEntity ch = m_playerController.GetControlledEntity();
+		if (ch)
+			DoGrantCommanderRank(ch);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	protected void DoGrantCommanderRank(IEntity ch)
+	{
+		SCR_CharacterRankComponent rankComp = SCR_CharacterRankComponent.GetCharacterRankComponent(ch);
+		if (!rankComp)
+			return;
+
+		if (SCR_CharacterRankComponent.GetCharacterRank(ch) < SCR_ECharacterRank.CAPTAIN)
+			rankComp.SetCharacterRank(SCR_ECharacterRank.CAPTAIN, true);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	void ConfirmSpawn()
 	{
@@ -400,12 +502,16 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	// NOTE: PSCore's PS_SpectatorMenu layout had an "OverlayFooter" widget BreakingContact
+	// injected a "BC_ConfirmSpawn" button into. COA_SpectatorMenu's layout has no equivalent
+	// footer widget, so this is currently a no-op under COALITION-Lobby until the confirm-spawn
+	// button is given a home in COA_SpectatorMenu's own widget tree.
 	protected void SetConfirmSpawnButtonVisible(bool visible)
 	{
-		if (!PS_SpectatorMenu.s_SpectatorMenu)
+		if (!COA_SpectatorMenu.s_BCSpectatorMenu)
 			return;
 
-		Widget menuRoot = PS_SpectatorMenu.s_SpectatorMenu.GetRootWidget();
+		Widget menuRoot = COA_SpectatorMenu.s_BCSpectatorMenu.GetRootWidget();
 		if (!menuRoot)
 			return;
 

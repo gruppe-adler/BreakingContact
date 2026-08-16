@@ -14,44 +14,9 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
    m_bUserActionActivationOnly 1
    m_iRank CAPTAIN
    m_aBudgetsToEvaluate {
-    SCR_CampaignBuildingBudgetToEvaluateData "{660CB39BC10A1B4E}" {
-     m_eBudget PROPS
+    SCR_CampaignBuildingBudgetToEvaluateData "{6A1CFA4DBC93A9E3}" {
+     m_eBudget VEHICLES
      m_bShowBudgetInUI 1
-    }
-    SCR_CampaignBuildingCooldownWithRankBudgetToEvaluateData "{660CB39BCAAD8D1A}" {
-     m_eBudget 2147483647
-     m_aCustomCooldownData {
-      SCR_CooldownData "{5EEEF52515996867}" {
-       m_fDefaultTimeMultiplier 105
-      }
-      SCR_CooldownData "{5EEEF5250BF881BF}" {
-       m_eRank CORPORAL
-       m_fDefaultTimeMultiplier 75
-      }
-      SCR_CooldownData "{5EEEF5250BBA697C}" {
-       m_eRank SERGEANT
-       m_fDefaultTimeMultiplier 50
-      }
-      SCR_CooldownData "{5EEEF5250B54777E}" {
-       m_eRank LIEUTENANT
-       m_fDefaultTimeMultiplier 30
-      }
-      SCR_CooldownData "{5EEEF5250B763DE5}" {
-       m_eRank CAPTAIN
-       m_fDefaultTimeMultiplier 30
-      }
-      SCR_CooldownData "{5EEEF52574D7AC41}" {
-       m_eRank MAJOR
-       m_fDefaultTimeMultiplier 5
-      }
-      SCR_CooldownData "{5EEEF5256543246C}" {
-       m_eRank COLONEL
-      }
-      SCR_CooldownData "{5EEEF5255ABE05CA}" {
-       m_eRank RENEGADE
-       m_fDefaultTimeMultiplier 1000
-      }
-     }
     }
     SCR_CampaignBuildingRankBudgetToEvaluateData "{660CB39BDCFBC3C2}" {
      m_eBudget RANK_CAPTAIN
@@ -60,10 +25,17 @@ GenericEntity : "{059484D1484C4F3F}Prefabs/Vehicles/Core/Vehicle_Command_Base.et
      m_eBudget CAMPAIGN
      m_bShowBudgetInUI 1
     }
+    SCR_CampaignBuildingMaxValueBudgetToEvaluateData "{6A1D3463B6FE1A58}" {
+     m_eBudget VEHICLES
+     m_bShowBudgetInUI 1
+     m_iMaxValue 1000
+    }
    }
    m_aAvailableTraits {
     VEHICLE_CAR VEHICLE_TRUCK VEHICLE_APC
    }
+  }
+  SCR_FactionAffiliationComponent "{6A175C2C6062992D}" {
   }
   SCR_ResourceComponent "{5D83561F25268587}" {
    m_aContainers {

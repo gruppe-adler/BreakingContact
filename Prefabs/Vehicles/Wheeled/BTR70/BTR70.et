@@ -5,7 +5,7 @@ Vehicle : "{1C5FE7B7FF49BB8D}Prefabs/Vehicles/Wheeled/BTR70/BTR70_Base.et" {
    m_UIInfo SCR_EditableVehicleUIInfo "{5298E609432D192D}" {
     m_EntityBudgetCost {
      SCR_EntityBudgetValue "{5EDC86E4AF8908B6}" {
-      m_Value 850
+      m_Value 650
      }
     }
    }

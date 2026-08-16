@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{E7D3E71DE2B4A151}Configs/EntityCatalog/US/Vehicles_EntityCatalog_BLUFOR.conf"
+ Configurations {
+  CONFResourceClass PC {
+  }
+  CONFResourceClass XBOX_ONE : PC {
+  }
+  CONFResourceClass XBOX_SERIES : PC {
+  }
+  CONFResourceClass PS4 : PC {
+  }
+  CONFResourceClass PS5 : PC {
+  }
+  CONFResourceClass HEADLESS : PC {
+  }
+ }
+}

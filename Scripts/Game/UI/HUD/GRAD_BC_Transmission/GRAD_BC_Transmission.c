@@ -55,9 +55,14 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 	}
 	
 	void showTransmissionHint(string faction, ETransmissionState state) {
+		// Normalize COALITION-Lobby's "BLUFOR" faction key to BreakingContact's own "US"
+		// convention used by the faction == "US" checks below.
+		if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(faction))
+			faction = "US";
+
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("BC Transmission UI - showTransmissionHint called: faction=%1, state=%2", faction, state), LogLevel.NORMAL);
-		
+
 		if (!m_infoImage) {
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_Transmission: TransmissionStarted: m_infoImage is missing", LogLevel.NORMAL);
@@ -100,7 +105,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission established sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -122,7 +129,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -144,7 +153,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 				
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -166,7 +177,9 @@ class GRAD_BC_Transmission: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					// Play transmission interrupted sound
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())

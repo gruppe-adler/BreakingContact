@@ -44,9 +44,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	// Replay system
 	protected GRAD_BC_ReplayManager m_replayManager;
 	
-	// Debounce phase change notifications
-	protected float m_fLastPhaseNotification = 0;
-
 	[RplProp(onRplName: "OnOpforPositionChanged")]
     protected vector m_vOpforSpawnPos;
 	
@@ -192,6 +189,35 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		return m_iDebugModeCache == 1;
 	}
 
+	// BreakingContact's own faction keys are "USSR"/"US"; COALITION-Lobby's default faction
+	// setup uses "OPFOR"/"BLUFOR" instead. These normalize either convention so faction checks
+	// work regardless of which faction key scheme the current mission's factions use.
+	static bool IsOpforFactionKey(string factionKey)
+	{
+		return factionKey == "USSR" || factionKey == "OPFOR";
+	}
+
+	static bool IsBluforFactionKey(string factionKey)
+	{
+		return factionKey == "US" || factionKey == "BLUFOR";
+	}
+
+	// Compares two faction key strings that may each be in either BreakingContact's own
+	// ("USSR"/"US") or COALITION-Lobby's default ("OPFOR"/"BLUFOR") convention.
+	static bool FactionKeysMatch(string a, string b)
+	{
+		if (a == b)
+			return true;
+
+		if (IsOpforFactionKey(a) && IsOpforFactionKey(b))
+			return true;
+
+		if (IsBluforFactionKey(a) && IsBluforFactionKey(b))
+			return true;
+
+		return false;
+	}
+
 	// Cached skip-faction-elimination flag from mission header
 	protected static int m_iSkipFactionEliminationCache = -1; // -1 = not cached, 0 = off, 1 = on
 
@@ -223,7 +249,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// execute only on the server
 		if (Replication.IsServer()) {
 			m_iNotificationDuration = 10;
-			
+
 			// check win conditions every second
 			GetGame().GetCallqueue().CallLater(mainLoop, 1000, true);
 			GetGame().GetCallqueue().CallLater(setPhaseInitial, 1100, false);
@@ -265,7 +291,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			}
 			case EBreakingContactPhase.GAME :
 			{
-				message = "Blufor spawned, Game begins now.";
+				message = "Blufor spawned, Prep Phase begins.";
 				customSound = "gong_3";
 				customSoundGUID = "{E44D656707A82466}sounds/BC_gong_3.acp";
 				break;
@@ -297,14 +323,17 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		// no rpc needed here, logs already on client
 		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(message, title, duration, isSilent);
 		if (customSound != "") {
-			vector location = playerComponent.GetOwner().GetOrigin();
-			AudioSystem.PlayEvent(customSoundGUID, customSound, location);
+			// AudioSystem.PlayEvent() now takes a TRANSFORM (vector[4]), not a plain position.
+			vector transform[4];
+			Math3D.MatrixIdentity4(transform);
+			transform[3] = playerComponent.GetOwner().GetOrigin();
+			AudioSystem.PlayEvent(customSoundGUID, customSound, transform);
 		}
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("Notifying player about phase %1", m_iBreakingContactPhase), LogLevel.NORMAL);
 		
 		// close map for opfor
-		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && factionKey == "USSR") {
+		if (m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && IsOpforFactionKey(factionKey)) {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -312,14 +341,14 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
 		
 		// close map for blufor
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && factionKey == "US") {
+		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && IsBluforFactionKey(factionKey)) {
 			playerComponent.ToggleMap(false);
 			playerComponent.setChoosingSpawn(false);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - blufor done"), LogLevel.NORMAL);
 		}
 
-		// close map at end of replay before EndGameMode destroys PS_SpectatorMenu's widget frame.
+		// close map at end of replay before EndGameMode destroys COA_SpectatorMenu's widget frame.
 		// the player is a spectator so ToggleMap won't work — CloseMap handles both paths.
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVERDONE)
 		{
@@ -390,34 +419,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			return; // Don't show the logos/text for spectators
 		}
 		
-		// show logo for all
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME) {
-			// Debounce to prevent multiple calls
-			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-			if (currentTime - m_fLastPhaseNotification < 2.0)
-				return;
-			m_fLastPhaseNotification = currentTime;
-			
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-		
-		    // Show logo once the player actually sees the world (after map is closed).
-		    logoDisplay.RequestShowLogo();
-		}
-			
-		// show logo for all
-		if (m_iBreakingContactPhase == EBreakingContactPhase.GAMEOVER) {
-			// Debounce to prevent multiple calls
-			float currentTime = GetGame().GetWorld().GetWorldTime() / 1000.0;
-			if (currentTime - m_fLastPhaseNotification < 2.0)
-				return;
-			m_fLastPhaseNotification = currentTime;
-			
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD Playercontroller PhaseChange - game started, show logo"), LogLevel.NORMAL);
-			logoDisplay.RequestShowLogo();
-		}
-
+		// Logo is purely phase-driven: visible outside GAME/GAMEOVER, hidden during them.
+		logoDisplay.SetPhaseVisibility(m_iBreakingContactPhase);
 	}
 	}
 	
@@ -428,6 +431,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			Print("GRAD_BC: Hiding UI elements for spectator", LogLevel.NORMAL);
 		if (logoDisplay)
 		{
+			// Cancel any deferred show first, otherwise a later OnMapClose (or the pending-show
+			// timeout) re-shows the logo right after we hid it - and for a JIP spectator that show
+			// would have no hide scheduled against it.
+			logoDisplay.CancelPendingShow();
 			logoDisplay.Show(false, 1.0, EAnimationCurve.EASE_OUT_QUART);
 		}
 		if (gamestateDisplay)
@@ -484,7 +491,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 
 	
 	//------------------------------------------------------------------------------------------------
-	void setPhaseInitial() 
+	void setPhaseInitial()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("setPhaseInitial executed"), LogLevel.NORMAL);
@@ -520,8 +527,8 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (!ch) continue;
 			
 			CharacterControllerComponent ccc = ch.GetCharacterController();
-			if (factionName != ch.GetFactionKey() || ccc.IsDead()) continue;
-			
+			if (!FactionKeysMatch(factionName, ch.GetFactionKey()) || ccc.IsDead()) continue;
+
 			alivePlayersOfSide.Insert(playerId);
 		}
 		
@@ -544,7 +551,7 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		*/
 			
 		// set opfor phase as soon as players leave lobby
-		PS_GameModeCoop psGameMode = PS_GameModeCoop.Cast(GetGame().GetGameMode());
+		SCR_BaseGameMode psGameMode = SCR_BaseGameMode.Cast(GetGame().GetGameMode());
 		EBreakingContactPhase currentPhase = GetBreakingContactPhase();
 		
 		if (psGameMode && currentPhase == EBreakingContactPhase.PREPTIME)
@@ -552,9 +559,6 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (psGameMode.GetState() == SCR_EGameModeState.GAME)
 			{
 				SetBreakingContactPhase(EBreakingContactPhase.OPFOR);
-				PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-				if (playableManager)
-					playableManager.RemoveRedundantUnits();
 			}
 		};
 		
@@ -1022,6 +1026,37 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 	
 	//------------------------------------------------------------------------------------------------
+	// SCR_CampaignBuildingProviderComponent (the "buy vehicle" building-mode entry point) lives on
+	// a child sub-entity (e.g. Ural4320_combox.et), not the vehicle root, and reads faction from
+	// whatever entity it's actually attached to rather than walking up to the parent. Set the
+	// faction on the root AND every child that has its own FactionAffiliationComponent.
+	protected void SetVehicleAndChildrenFaction(IEntity vehicle, string factionKey)
+	{
+		if (!vehicle)
+			return;
+
+		FactionAffiliationComponent rootFactionComp = FactionAffiliationComponent.Cast(vehicle.FindComponent(FactionAffiliationComponent));
+		if (rootFactionComp)
+			rootFactionComp.SetAffiliatedFactionByKey(factionKey);
+		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - %1 has no FactionAffiliationComponent on root, cannot set faction", vehicle), LogLevel.WARNING);
+
+		IEntity child = vehicle.GetChildren();
+		while (child)
+		{
+			FactionAffiliationComponent childFactionComp = FactionAffiliationComponent.Cast(child.FindComponent(FactionAffiliationComponent));
+			if (childFactionComp)
+			{
+				childFactionComp.SetAffiliatedFactionByKey(factionKey);
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print(string.Format("BCM - Set faction %1 on child entity %2", factionKey, child), LogLevel.NORMAL);
+			}
+
+			child = child.GetSibling();
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void SpawnSpawnVehicleWest()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -1052,6 +1087,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("BCM - West Command Truck failed to spawn: %1", params), LogLevel.ERROR);
 			return;
 		}
+
+		SetVehicleAndChildrenFaction(m_westCommandVehicle, "BLUFOR");
 
 		RplComponent rplComponent = RplComponent.Cast(m_westCommandVehicle.FindComponent(RplComponent));
         if (rplComponent)
@@ -1124,7 +1161,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("BCM - East Radio Truck failed to spawn: %1", params), LogLevel.ERROR);
 			return;
 		}
-		
+
+		SetVehicleAndChildrenFaction(m_radioTruck, "OPFOR");
+
 		RplComponent rplComponent = RplComponent.Cast(m_radioTruck.FindComponent(RplComponent));
         if (rplComponent)
         {
@@ -1289,12 +1328,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			Print(string.Format("Breaking Contact - Radio truck destroyed by faction: %1", destroyerFaction), LogLevel.NORMAL);
 		
 		// The faction that destroyed the radio truck loses
-		if (destroyerFaction == "US")
+		if (IsBluforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "opfor";
 			NotifyAllPlayersRadioTruckDestroyed("BLUFOR destroyed the radio truck! OPFOR wins!");
 		}
-		else if (destroyerFaction == "USSR")
+		else if (IsOpforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "blufor";
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
@@ -1436,8 +1475,8 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		// Determine if player's faction won
 		bool playerWon = false;
-		if ((m_sWinnerSide == "opfor" && playerFactionKey == "USSR") ||
-		    (m_sWinnerSide == "blufor" && playerFactionKey == "US"))
+		if ((m_sWinnerSide == "opfor" && IsOpforFactionKey(playerFactionKey)) ||
+		    (m_sWinnerSide == "blufor" && IsBluforFactionKey(playerFactionKey)))
 		{
 			playerWon = true;
 		}
@@ -1462,16 +1501,16 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			subtitle = "Radio Truck Destroyed";
 			string destroyerFaction = m_sRadioTruckDestroyerFaction;
 			
-			if (destroyerFaction == "USSR")
+			if (IsOpforFactionKey(destroyerFaction))
 			{
-				if (playerFactionKey == "USSR")
+				if (IsOpforFactionKey(playerFactionKey))
 					description = "Your team accidentally destroyed the radio truck. BLUFOR wins by default.";
 				else
 					description = "OPFOR accidentally destroyed their own radio truck. Your team wins by default.";
 			}
-			else if (destroyerFaction == "US")
+			else if (IsBluforFactionKey(destroyerFaction))
 			{
-				if (playerFactionKey == "US")
+				if (IsBluforFactionKey(playerFactionKey))
 					description = "Your team destroyed the radio truck. OPFOR wins by default.";
 				else
 					description = "BLUFOR destroyed the radio truck. Your team wins by default.";
@@ -1484,7 +1523,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (m_bluforCaptured)
 		{
 			subtitle = "Radio Truck Disabled";
-			if (playerFactionKey == "US")
+			if (IsBluforFactionKey(playerFactionKey))
 				description = "Your team successfully disabled the OPFOR radio truck before all transmissions were completed.";
 			else
 				description = "BLUFOR disabled your radio truck before all transmissions were completed.";
@@ -1492,7 +1531,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (m_iTransmissionCount > 0 && GetTransmissionsDoneCount() >= m_iTransmissionCount)
 		{
 			subtitle = "All Transmissions Completed";
-			if (playerFactionKey == "USSR")
+			if (IsOpforFactionKey(playerFactionKey))
 				description = string.Format("Your team successfully completed all %1 transmissions.", m_iTransmissionCount);
 			else
 				description = string.Format("OPFOR completed all %1 transmissions before you could stop them.", m_iTransmissionCount);
@@ -1500,7 +1539,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (factionEliminated("US"))
 		{
 			subtitle = "Enemy Eliminated";
-			if (playerFactionKey == "USSR")
+			if (IsOpforFactionKey(playerFactionKey))
 				description = "All BLUFOR forces have been eliminated.";
 			else
 				description = "All your forces have been eliminated.";
@@ -1508,7 +1547,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (factionEliminated("USSR"))
 		{
 			subtitle = "Enemy Eliminated";
-			if (playerFactionKey == "US")
+			if (IsBluforFactionKey(playerFactionKey))
 				description = "All OPFOR forces have been eliminated.";
 			else
 				description = "All your forces have been eliminated.";
@@ -1530,9 +1569,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		if (m_bRadioTruckDestroyed)
 		{
-			if (m_sRadioTruckDestroyerFaction == "USSR")
+			if (IsOpforFactionKey(m_sRadioTruckDestroyerFaction))
 				gameOverType = EGameOverTypes.END5; // Blufor wins - Opfor destroyed the truck
-			else if (m_sRadioTruckDestroyerFaction == "US")
+			else if (IsBluforFactionKey(m_sRadioTruckDestroyerFaction))
 				gameOverType = EGameOverTypes.END4; // Opfor wins - Blufor destroyed the truck
 			else
 				gameOverType = EGameOverTypes.FACTION_DRAW; // Draw - truck destroyed by unknown faction
@@ -2117,49 +2156,46 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	//------------------------------------------------------------------------------------------------
 	void TeleportFactionToMapPos(string factionName)
 	{
-		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-		if (!playableManager)
-		{
-			Print("Unable to get PS_PlayableManager instance", LogLevel.ERROR);
-			return;
-		}
-		array<PS_PlayableContainer> playables = playableManager.GetPlayablesSorted();
-		
 		array<vector> availablePositions = {};
-		
-		if (factionName == "USSR")
+
+		if (IsOpforFactionKey(factionName))
 			availablePositions = FindAllEmptyTerrainPositions(m_vOpforSpawnPos, 25);
-		
-		if (factionName == "US")
+
+		if (IsBluforFactionKey(factionName))
 			availablePositions = FindAllEmptyTerrainPositions(m_vBluforSpawnPos, 25);
-		
+
+		array<int> allPlayers = {};
+		GetPlayerManager().GetAllPlayers(allPlayers);
+
 		int index = 0;
-		foreach (int idx, PS_PlayableContainer playableCont : playables)
-		{			
-			PS_PlayableComponent playableComp = playableCont.GetPlayableComponent();
-			IEntity owner = playableComp.GetOwnerCharacter();
-			int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(owner);
-			if (playerId == 0) // This isn't a real player so we can skip it
+		foreach (int playerId : allPlayers)
+		{
+			IEntity controlled = GetPlayerManager().GetPlayerControlledEntity(playerId);
+			if (!controlled)
 				continue;
-			
-			string playerFactionName = playableComp.GetFactionKey();		
+
+			SCR_ChimeraCharacter ch = SCR_ChimeraCharacter.Cast(controlled);
+			if (!ch)
+				continue;
+
+			string playerFactionName = ch.GetFactionKey();
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("BCM - playerFactionName %1 - factionName %2", playerFactionName, factionName), LogLevel.NORMAL);
-			
-			if (factionName == playerFactionName)
-			{								
+
+			if (FactionKeysMatch(factionName, playerFactionName))
+			{
 				GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(GetPlayerManager().GetPlayerController(playerId).FindComponent(GRAD_PlayerComponent));
 				if (playerComponent == null)
 				{
 					Print("Unable to find GRAD_PlayerComponent", LogLevel.ERROR);
 					return;
 				}
-				
+
 				// Stagger teleports by 100ms each to reduce load spike
 				GetGame().GetCallqueue().CallLater(playerComponent.Ask_TeleportPlayer, 1000 + (index * 100), false, availablePositions[index]);
-				
+
 				index = index + 1;
-				
+
 				// In case we ran out of positions start over
 				// Not ideal that they spawn exact same location but better than not spawning at all...
 				if (index >= availablePositions.Count())
@@ -2354,9 +2390,9 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		
 		string factionKey = ch.GetFactionKey();
 		
-		if (factionKey != "USSR")
+		if (!IsOpforFactionKey(factionKey))
 			return;
-		
+
 		// avoid the log spam by delaying the call by one frame
 		GetGame().GetCallqueue().CallLater(GRAD_PlayerComponent.GetInstance().AddCircleMarker, 0, false,
 			m_vOpforSpawnPos[0] - 500.0,
@@ -2460,6 +2496,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		// Check if this group contains a commander character
 		bool isCommandGroup = false;
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
 		array<AIAgent> agents = {};
 		group.GetAgents(agents);
 		foreach (AIAgent agent : agents)
@@ -2473,6 +2510,23 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			{
 				isCommandGroup = true;
 				break;
+			}
+
+			// COALITION-Lobby path: BC's own GRAD_CharacterRoleComponent isn't set on
+			// COA_GearscriptManager-spawned characters, so also check the controlling
+			// player's slotted role directly.
+			if (slottingManager)
+			{
+				int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(controlledEntity);
+				if (playerId > 0)
+				{
+					COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
+					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
+					{
+						isCommandGroup = true;
+						break;
+					}
+				}
 			}
 		}
 
@@ -2497,7 +2551,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Reassign callsign so main title in deploy menu uses the name
 		SCR_CallsignGroupComponent callsignComp = SCR_CallsignGroupComponent.Cast(group.FindComponent(SCR_CallsignGroupComponent));
 		if (callsignComp)
-			callsignComp.ReAssignGroupCallsign(idx, 0, 0);
+			callsignComp.DoAssignCallsign(idx, 0, 0);
 
 		// Set custom description (prominent display in deploy menu)
 		group.SetCustomDescription(groupName, 0);
@@ -2568,45 +2622,41 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	}
 	
 	//------------------------------------------------------------------------------------------------
-	// Move all players to spectator mode for cross-faction communication during replay
-	// Uses PS_PlayableManager to set player playable to invalid and apply the change,
-	// which triggers the PlayableSelector spectator camera and lobby entity transition
+	// Move all players to spectator mode for cross-faction communication during replay.
+	// Clears each player's COALITION-Lobby slot assignment (COA_SlottingManager), then re-runs
+	// COA_GamemodeManager's player-init flow, which routes unslotted players to the spectator
+	// entity/camera path (GetOrCreateSpectatorEntity) instead of a playable character.
 	void MoveAllPlayersToSpectator()
 	{
 		if (!Replication.IsServer())
 			return;
-		
+
 		Print("BCM: Moving all players to spectator for replay", LogLevel.NORMAL);
-		
-		PS_PlayableManager playableManager = PS_PlayableManager.GetInstance();
-		if (!playableManager)
+
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		COA_GamemodeManager gamemodeManager = COA_GamemodeManager.GetInstance();
+		if (!slottingManager || !gamemodeManager)
 		{
-			Print("BCM: PS_PlayableManager not found, cannot move players to spectator", LogLevel.WARNING);
+			Print("BCM: COA_SlottingManager/COA_GamemodeManager not found, cannot move players to spectator", LogLevel.WARNING);
 			return;
 		}
-		
+
 		array<int> playerIds = {};
 		GetGame().GetPlayerManager().GetAllPlayers(playerIds);
-		
+
 		Print(string.Format("BCM: Found %1 players to move to spectator", playerIds.Count()), LogLevel.NORMAL);
-		
+
 		int movedCount = 0;
 		foreach (int playerId : playerIds)
 		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			{
-				RplId currentPlayable = playableManager.GetPlayableByPlayer(playerId);
-				Print(string.Format("BCM: Player %1 current playable: %2 (invalid=%3)", playerId, currentPlayable, currentPlayable == RplId.Invalid()), LogLevel.NORMAL);
-			}
-			
-			// Set playable to invalid (updates tracking maps on all machines)
-			playableManager.SetPlayerPlayable(playerId, RplId.Invalid());
-			// Apply the change - this actually switches the entity to the spectator/lobby entity
-			// and triggers OnControlledEntityChanged → SwitchToObserver on the client
-			playableManager.ApplyPlayable(playerId);
+			int slotId = slottingManager.GetPlayerSlotID(playerId);
+			if (slotId != -1)
+				slottingManager.UpdateSlotPlayerID(slotId, -1);
+
+			gamemodeManager.InitilizePlayer(playerId);
 			movedCount++;
 		}
-		
+
 		Print(string.Format("BCM: Moved %1 players to spectator for replay", movedCount), LogLevel.NORMAL);
 	}
 	
@@ -2620,6 +2670,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			GetGame().GetCallqueue().Remove(SyncJIPState);
 			GetGame().GetCallqueue().Remove(SyncJIPStateDeferred);
 		}
+
 		super.OnDelete(owner);
 	}
 
@@ -2708,7 +2759,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (m_vOpforSpawnPos != vector.Zero)
 		{
 			string factionKey = GetPlayerFactionKey();
-			if (factionKey == "USSR")
+			if (IsOpforFactionKey(factionKey))
 			{
 				OnOpforPositionChanged();
 			}

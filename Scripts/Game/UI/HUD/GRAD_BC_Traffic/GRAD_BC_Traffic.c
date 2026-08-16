@@ -128,7 +128,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
 						Print("BC Traffic UI: Civ in gunfight", LogLevel.NORMAL);
@@ -145,7 +147,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 					
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 					
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
 						Print("BC Traffic UI: Civ had been killed", LogLevel.NORMAL);
@@ -163,7 +167,9 @@ class GRAD_BC_Traffic: SCR_InfoDisplayExtended
 					if (playerComponent == null)
 						return;
 
-					vector location = playerComponent.GetOwner().GetOrigin();
+					vector location[4];
+					Math3D.MatrixIdentity4(location);
+					location[3] = playerComponent.GetOwner().GetOrigin();
 
 					if (GRAD_BC_BreakingContactManager.IsDebugMode())
 						Print("BC Traffic UI: Civilian sighting reported", LogLevel.NORMAL);

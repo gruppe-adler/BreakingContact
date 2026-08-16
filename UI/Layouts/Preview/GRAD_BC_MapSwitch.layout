@@ -1,0 +1,160 @@
+FrameWidgetClass {
+ Name "GRAD_BC_MapSwitchRoot"
+ {
+  VerticalLayoutWidgetClass "{6A210646863D8847}" {
+   Name "MapSwitchPanel"
+   Slot FrameWidgetSlot "{6A210646863D883C}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX 300
+    OffsetRight 0
+    SizeY 400
+    OffsetBottom 0
+   }
+   {
+    TextWidgetClass "{6A20A324BBE8F37F}" {
+     Name "MapSwitchTitle"
+     Slot LayoutSlot "{6A210645344605FB}" {
+      SizeMode Auto
+     }
+     Text "SWITCH MAP"
+    }
+    ButtonWidgetClass "{6A20A324BBE94B4A}" {
+     Name "MapButton0"
+     Slot LayoutSlot "{6A210645344605CC}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.051 0.051 0.051 0.7843
+     components {
+      SCR_ButtonTextComponent "{6A20A324DDF7C882}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE92F03}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE92CE4}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "Map"
+      }
+     }
+    }
+    ButtonWidgetClass "{6A20A324BBE922CD}" {
+     Name "MapButton1"
+     Slot LayoutSlot "{6A2106453446057C}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.051 0.051 0.051 0.7843
+     components {
+      SCR_ButtonTextComponent "{6A20A324D4EC73CE}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE90E68}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE90E5A}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "Map"
+      }
+     }
+    }
+    ButtonWidgetClass "{6A20A324BBE90425}" {
+     Name "MapButton2"
+     Slot LayoutSlot "{6A21064534460546}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.051 0.051 0.051 0.7843
+     components {
+      SCR_ButtonTextComponent "{6A20A324D606FCDF}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE9F31D}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE9F30E}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "Map"
+      }
+     }
+    }
+    ButtonWidgetClass "{6A20A324BBE9E984}" {
+     Name "MapButton3"
+     Slot LayoutSlot "{6A21064534460524}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.051 0.051 0.051 0.7843
+     components {
+      SCR_ButtonTextComponent "{6A20A324D03C1C40}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE9D4AA}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE9D49C}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "Map"
+      }
+     }
+    }
+    ButtonWidgetClass "{6A20A324BBE9CBF1}" {
+     Name "MapButton4"
+     Slot LayoutSlot "{6A21064534460504}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.051 0.051 0.051 0.7843
+     components {
+      SCR_ButtonTextComponent "{6A20A324D2CA249E}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE9B9B6}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE9B9BB}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "Map"
+      }
+     }
+    }
+    ButtonWidgetClass "{6A20A324BBE9AE69}" {
+     Name "ApplyButton"
+     Slot LayoutSlot "{6A210645344602D7}" {
+      Padding 0 0 1 1
+      SizeMode Fill
+     }
+     Color 0.6392 0.1137 0.1137 0.8627
+     components {
+      SCR_ButtonTextComponent "{6A20A3251B98E6C1}" {
+      }
+     }
+     {
+      TextWidgetClass "{6A20A324BBE99BC3}" {
+       Name "Text"
+       Slot AlignableSlot "{6A20A324BBE99BB2}" {
+        HorizontalAlign 1
+        VerticalAlign 1
+       }
+       Text "APPLY"
+      }
+     }
+    }
+   }
+  }
+ }
+}

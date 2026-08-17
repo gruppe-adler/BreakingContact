@@ -5,7 +5,32 @@
       "mcp__enfusion-mcp__project_browse",
       "Bash(git diff *)",
       "Bash(timeout 120 grep -rhoE '\\\\{[0-9A-F]{16}\\\\}Prefabs/Items/Equipment/Radios/[A-Za-z0-9_]+\\\\.et' --include=*.layer --include=*.conf --include=*.et --include=*.log .)",
-      "Bash(grep -v \"// \")"
+      "Bash(grep -v \"// \")",
+      "Bash(git add *)",
+      "Bash(git commit -m '@ *)",
+      "Bash(git commit --amend -m 'add binoculars for all infantry slots *)",
+      "Read(//c/Program Files \\\\\\(x86\\\\\\)/Steam/steamapps/common/**)",
+      "Read(//c/Program Files/Epic Games/**)",
+      "Bash(xargs grep -l -i \"action\")",
+      "WebFetch(domain:community.bistudio.com)",
+      "Read(//c/Users/nomisum/Documents/my games/ArmaReforger/**)",
+      "Bash(reg query *)",
+      "PowerShell($p=\"C:\\\\Users\\\\nomisum\\\\Documents\\\\my games\\\\ArmaReforgerWorkbench\\\\addons\\\\CoalitionVON_6624E618B9058265\\\\data.pak\"; $b=[System.IO.File]::ReadAllBytes\\($p\\); Write-Output \"SIZE: $\\($b.Length\\)\"; $sb=New-Object System.Text.StringBuilder; $cur=New-Object System.Text.StringBuilder; $out=@\\(\\); foreach\\($x in $b\\){ if\\($x -ge 32 -and $x -lt 127\\){[void]$cur.Append\\([char]$x\\)} else { if\\($cur.Length -ge 6\\){$out+=$cur.ToString\\(\\)}; [void]$cur.Clear\\(\\) } }; if\\($cur.Length -ge 6\\){$out+=$cur.ToString\\(\\)}; Write-Output \"STRINGS: $\\($out.Count\\)\"; $out | Out-File -Encoding utf8 \"C:\\\\Users\\\\nomisum\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-nomisum-Documents-my-games-ArmaReforgerWorkbench-addons-BreakingContact\\\\83bedeee-6898-4c54-9dbd-1983577f11a9\\\\scratchpad\\\\cvon_strings.txt\")",
+      "Bash(grep -aE \"^.{6,}$\")",
+      "Bash(sed -n '68000,68175p' /tmp/cvon.txt)",
+      "Read(//tmp/**)",
+      "Bash(grep -anE \"GetInstance|SetVoiceRange|VoiceRange|GlobalVON|Spectator|proximity|Proximity\" /tmp/cvon.txt | head -40)",
+      "Bash(grep -an \"CVON_VONGameModeComponent\" /tmp/cvon.txt | head; echo \"=== CONTEXT ===\"; sed -n '26260,26400p' /tmp/cvon.txt)",
+      "Bash(grep -anE \"modded class SCR_VONController|class CVON_VONGameModeComponent|modded class SCR_VONMenu|modded class SCR_PlayerController|VONGamemodeComponent|SetVONRange|m_fVoiceRange|ECommMethod\" /tmp/cvon.txt | head -30)",
+      "Bash(grep -anE \"chimeraInputCommon|CVON_VoiceRange|VONDirect|VONChannel\" /tmp/cvon.txt | head -20; echo \"=== INPUT CFG ===\"; sed -n '25440,25560p' /tmp/cvon.txt)",
+      "Bash(grep -anE \"Spectator|spectat\" /tmp/coa.txt | head -40)",
+      "Bash(grep -anE \"COA_.*[Cc]hat|ToggleSpectator|SpectatorChat|AliveChat|COA_ToggleChat|KC_L\\\\\"\" /tmp/coa.txt | head -30)",
+      "Bash(grep -anE \"keyboard:KC_L$|keyboard:KC_L\\\\\"|Action COA_|Action  *COA\" /tmp/coa.txt | head -40)",
+      "Bash(timeout 100 find . -iname \"*CVON*\")",
+      "Bash(echo \"=== exit: $? ===\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\nomisum\\.claude\\projects\\c--Users-nomisum-Documents-my-games-ArmaReforgerWorkbench-addons-BreakingContact\\memory"
     ]
   }
 }

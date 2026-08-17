@@ -1,0 +1,37 @@
+StaticModelEntity : "{38830F6F1297670A}Prefabs/Structures/Military/Camps/AirfieldMatting_01/AirfieldMatting_USSR_01_short.et" {
+ ID "56ACD1C4DB91DB10"
+ components {
+  RigidBody "{56ACD1C4D3E9DDF0}" {
+   SimState None
+  }
+  SCR_EditableEntityComponent "{5EF0BDF38D835102}" : "{996046FE206C699A}Prefabs/Editor/Components/Default_SCR_EditableEntityComponent.ct" {
+   m_UIInfo SCR_EditableEntityUIInfo "{5298E609432D192D}" {
+    Name "(AirfieldMatting_USSR_01_short)"
+    m_Image ""
+    m_aAuthoredLabels {
+    }
+    m_aAutoLabels {
+     THEME_MILITARY ENTITYTYPE_OBJECT SIZE_S
+    }
+   }
+  }
+  SCR_PreviewEntityComponent "{5EF0BDF38D838D55}" : "{6CADA7A88A6265FD}Prefabs/Editor/Components/PreviewEntityComponentClass.ct" {
+   m_bRuntime 0
+   m_aEntries {
+    SCR_BasePreviewEntry "{6A2303B963D5EA62}" {
+     m_iParentID -1
+     m_Mesh "{A36FACA42EEF389B}Assets/Structures/Military/Camps/AirfieldMatting_01/AirfieldMatting_USSR_01_short.xob"
+     m_Flags EDITABLE
+     m_Shape MESH
+     m_iPivotID ""
+     m_vScale 1 1 1
+     m_vPosition 0 0 0
+     m_vAngles 0 0 0
+    }
+   }
+  }
+  RplComponent "{5EF0BDF38D835DB7}" : "{B193E926C1935A4C}Prefabs/Editor/Components/Default_RplComponent.ct" {
+  }
+ }
+ placement none
+}

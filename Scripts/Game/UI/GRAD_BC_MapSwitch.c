@@ -66,21 +66,64 @@ class GRAD_BC_MapSwitch
 	//! is an exact GUID comparison instead of a substring guess.
 	static int GetCurrentMapIndex()
 	{
+		ResourceName currentWorld = ResourceName.Empty;
+
 		MissionHeader header = GetGame().GetMissionHeader();
-		if (!header)
-			return -1;
+		if (header)
+			currentWorld = header.GetWorldResourceName();
 
-		ResourceName currentWorld = header.GetWorldResourceName();
-		if (currentWorld.IsEmpty())
-			return -1;
-
-		for (int i = 0; i < s_aMaps.Count(); i++)
+		if (!currentWorld.IsEmpty())
 		{
-			if (s_aMaps[i].m_sWorld == currentWorld)
-				return i;
+			for (int i = 0; i < s_aMaps.Count(); i++)
+			{
+				if (s_aMaps[i].m_sWorld == currentWorld)
+					return i;
+			}
+
+			Print(string.Format("BC Debug - MapSwitch: world '%1' matches none of the %2 known maps", currentWorld, s_aMaps.Count()), LogLevel.WARNING);
+			return -1;
 		}
 
+		// No usable mission header. This is the NORMAL case in Workbench Play sessions -
+		// GetMissionHeader() stays null for the whole session, not just briefly at startup
+		// (BC's own traffic/vehicle managers hit the same null and fall back to defaults).
+		//
+		// The loaded world is still known regardless of how the session was started, so identify
+		// the map from the world file instead. Matching on the bare file name because
+		// GetWorldFile() has no {GUID} prefix, unlike the ResourceName entries in s_aMaps.
+		string worldFile = GetGame().GetWorldFile();
+		if (worldFile.IsEmpty())
+		{
+			Print("BC Debug - MapSwitch: no mission header and no world file, cannot identify current map", LogLevel.WARNING);
+			return -1;
+		}
+
+		for (int j = 0; j < s_aMaps.Count(); j++)
+		{
+			string worldFileName = GetWorldFileName(j);
+			if (!worldFileName.IsEmpty() && worldFile.Contains(worldFileName))
+				return j;
+		}
+
+		Print(string.Format("BC Debug - MapSwitch: world file '%1' matches none of the %2 known maps", worldFile, s_aMaps.Count()), LogLevel.WARNING);
 		return -1;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Bare world file name for entry i, e.g. "BC_kolgujev.ent". s_aMaps stores full ResourceNames
+	//! with a {GUID} prefix; GetWorldFile() returns a plain path, so matching happens on this.
+	protected static string GetWorldFileName(int index)
+	{
+		if (index < 0 || index >= s_aMaps.Count())
+			return string.Empty;
+
+		string world = s_aMaps[index].m_sWorld;
+
+		int slash = world.LastIndexOf("/");
+		if (slash < 0)
+			return world;
+
+		return world.Substring(slash + 1, world.Length() - slash - 1);
 	}
 
 	//------------------------------------------------------------------------------------------------

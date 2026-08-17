@@ -20,7 +20,7 @@ modded class COA_PreviewMenu
 	// is how the real widget names/types are discovered). NOTE: this now runs from the
 	// deferred build, i.e. AFTER the map exists - dumping from OnMenuOpen shows a tree
 	// without the map widget and hides exactly the problem we care about.
-	protected static const bool BC_DEBUG_DUMP_HIERARCHY = true;
+	protected static const bool BC_DEBUG_DUMP_HIERARCHY = false;
 
 	protected static const int BC_VISIBILITY_REFRESH_MS = 2000;
 
@@ -32,9 +32,6 @@ modded class COA_PreviewMenu
 	// Delay between opening the editor and asking it for the attributes dialog. The editor
 	// manager entity and its components are created as part of the open, so this cannot be
 	// called inline. Tune upward if the attributes manager is reported unavailable.
-	protected static const int BC_ATTRIBUTES_OPEN_MS = 600;
-	protected static const int BC_ATTRIBUTES_MAX_RETRIES = 8;
-	protected static int s_iBCAttributesRetries = 0;
 
 	// Panel height must fit title + 5 map buttons + apply, with padding. A VerticalLayout CLIPS
 	// children that overflow it, so an undersized panel silently swallows the last child
@@ -50,6 +47,11 @@ modded class COA_PreviewMenu
 	protected ref array<Widget> m_aBCMapButtons = {};
 	protected int m_iBCSelectedMapIndex = -1;
 	protected float m_fBCCursorLogTimer = 0;
+
+	// Which index the button labels were last written for. Tracked separately from the selection
+	// so BC_RefreshCurrentMapLabels can detect the mission header becoming available after the
+	// panel was already built. -2 = never labelled (distinct from -1 = labelled as "no current").
+	protected int m_iBCLabelledCurrentIndex = -2;
 
 	//------------------------------------------------------------------------------------------------
 	override void OnMenuOpen()
@@ -86,6 +88,10 @@ modded class COA_PreviewMenu
 		// does enough work in OnMenuUpdate.
 		GetGame().GetCallqueue().CallLater(BC_RefreshMapSwitchVisibility, BC_VISIBILITY_REFRESH_MS, true);
 		BC_RefreshMapSwitchVisibility();
+
+		// One extra early check so a late mission header is picked up in ~1s rather than waiting
+		// a full 2s timer cycle - the first briefing of a session is exactly when it is late.
+		GetGame().GetCallqueue().CallLater(BC_RefreshMapSwitchVisibility, 1000, false);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -112,6 +118,7 @@ modded class COA_PreviewMenu
 		m_wBCMapSwitchRoot = null;
 		m_wBCTimeButton = null;
 		m_iBCSelectedMapIndex = -1;
+		m_iBCLabelledCurrentIndex = -2;
 
 		super.OnMenuClose();
 	}
@@ -257,6 +264,65 @@ modded class COA_PreviewMenu
 
 			m_aBCMapButtons.Insert(mapButton);
 		}
+
+		// Preselect the running map so the panel opens with something highlighted rather than
+		// looking inert. Apply stays harmless in this state - switching to the current map is a
+		// no-op reload, and BC_UpdateApplyButtonState still gates on a valid index.
+		m_iBCSelectedMapIndex = currentIndex;
+		BC_HighlightSelectedMapButton();
+
+		// Remember what we labelled with, so BC_RefreshCurrentMapLabels can tell when the answer
+		// changes and relabel. -1 here means "not resolved yet", which is the normal state on the
+		// very first briefing if the mission header has not populated.
+		m_iBCLabelledCurrentIndex = currentIndex;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Re-applies the "(current)" suffix if GetCurrentMapIndex() starts returning a real answer
+	//! after the panel was already built.
+	//!
+	//! Labels are written once at build time, ~500ms after the menu opens. On the first briefing
+	//! of a session the mission header is not always populated by then, so every button got an
+	//! unmarked label and nothing ever revisited it - which is why "(current)" only appeared after
+	//! switching maps. Called from the existing 2s visibility timer, so no new timer is needed.
+	protected void BC_RefreshCurrentMapLabels()
+	{
+		if (!m_wBCMapSwitchRoot)
+			return;
+
+		int currentIndex = GRAD_BC_MapSwitch.GetCurrentMapIndex();
+
+		if (currentIndex == m_iBCLabelledCurrentIndex)
+			return;
+
+		m_iBCLabelledCurrentIndex = currentIndex;
+
+		Print(string.Format("BC Debug - PreviewMenu: current map resolved to index %1, relabelling", currentIndex), LogLevel.NORMAL);
+
+		foreach (Widget buttonWidget : m_aBCMapButtons)
+		{
+			if (!buttonWidget)
+				continue;
+
+			int buttonIndex = buttonWidget.GetUserID();
+
+			SCR_ButtonTextComponent buttonComponent = SCR_ButtonTextComponent.Cast(buttonWidget.FindHandler(SCR_ButtonTextComponent));
+			if (!buttonComponent)
+				continue;
+
+			string label = GRAD_BC_MapSwitch.GetDisplayName(buttonIndex);
+			if (buttonIndex == currentIndex)
+				label = label + " (current)";
+
+			buttonComponent.SetText(label);
+		}
+
+		// Nothing was selected yet because there was no current map to preselect - do it now.
+		if (m_iBCSelectedMapIndex < 0)
+			m_iBCSelectedMapIndex = currentIndex;
+
+		BC_HighlightSelectedMapButton();
+		BC_UpdateApplyButtonState();
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -265,6 +331,11 @@ modded class COA_PreviewMenu
 	//! if ApplyButton's Y sits beyond the panel height, it is being clipped by the VerticalLayout.
 	protected void BC_LogPanelGeometry()
 	{
+		// Guarded here as well as at the call site, so this stays silent even if something
+		// else ever invokes it.
+		if (!BC_DEBUG_DUMP_HIERARCHY)
+			return;
+
 		if (!m_wBCMapSwitchRoot)
 			return;
 
@@ -340,17 +411,36 @@ modded class COA_PreviewMenu
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Three visual states, so "the map we are on" and "the map about to be switched to" are not
+	//! confusable: the running map is muted red, the pending selection is bright red, everything
+	//! else is the default dark.
 	protected void BC_HighlightSelectedMapButton()
 	{
+		int currentIndex = GRAD_BC_MapSwitch.GetCurrentMapIndex();
+
 		foreach (Widget buttonWidget : m_aBCMapButtons)
 		{
 			if (!buttonWidget)
 				continue;
 
-			if (buttonWidget.GetUserID() == m_iBCSelectedMapIndex)
-				buttonWidget.SetColor(Color.FromRGBA(163, 29, 29, 255));
-			else
-				buttonWidget.SetColor(Color.FromRGBA(13, 13, 13, 200));
+			int buttonIndex = buttonWidget.GetUserID();
+
+			if (buttonIndex == m_iBCSelectedMapIndex && buttonIndex != currentIndex)
+			{
+				// Pending switch target.
+				buttonWidget.SetColor(Color.FromRGBA(196, 36, 36, 255));
+				continue;
+			}
+
+			if (buttonIndex == currentIndex)
+			{
+				// The map already running - highlighted, but muted so it does not read as a
+				// pending action.
+				buttonWidget.SetColor(Color.FromRGBA(92, 40, 40, 235));
+				continue;
+			}
+
+			buttonWidget.SetColor(Color.FromRGBA(13, 13, 13, 200));
 		}
 	}
 
@@ -373,11 +463,15 @@ modded class COA_PreviewMenu
 			return;
 		}
 
-		// Always fully opaque. Dimming it to 0.4 when nothing was selected was one more way for
-		// the button to look "missing" while debugging, and the click handler already rejects
-		// an unset selection, so the visual gate bought nothing.
-		applyButton.SetOpacity(1.0);
 		applyButton.SetVisible(true);
+
+		// Dim when the selection is the map already running - applying would be a pointless
+		// full reload. Opacity only, never SetEnabled(false): a disabled ButtonWidget stops
+		// routing clicks to its handler and does not recover when re-enabled.
+		if (m_iBCSelectedMapIndex == GRAD_BC_MapSwitch.GetCurrentMapIndex())
+			applyButton.SetOpacity(0.45);
+		else
+			applyButton.SetOpacity(1.0);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -387,6 +481,10 @@ modded class COA_PreviewMenu
 	{
 		if (!m_wBCMapSwitchRoot)
 			return;
+
+		// Piggyback on this timer: the mission header may only become available after the panel
+		// was built, in which case the "(current)" marker still needs applying.
+		BC_RefreshCurrentMapLabels();
 
 		bool allowed = GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap();
 
@@ -412,6 +510,14 @@ modded class COA_PreviewMenu
 		if (m_iBCSelectedMapIndex < 0 || m_iBCSelectedMapIndex >= GRAD_BC_MapSwitch.GetMapCount())
 		{
 			Print("BC Debug - PreviewMenu: no map selected yet, ignoring Apply", LogLevel.WARNING);
+			return;
+		}
+
+		// Switching to the map already running would kick everyone through a full reload for no
+		// reason, so refuse it rather than confirming it.
+		if (m_iBCSelectedMapIndex == GRAD_BC_MapSwitch.GetCurrentMapIndex())
+		{
+			Print("BC Debug - PreviewMenu: selected map is already running, ignoring Apply", LogLevel.WARNING);
 			return;
 		}
 
@@ -539,156 +645,26 @@ modded class COA_PreviewMenu
 		// it on close - our OnMenuOpen then rebuilds these widgets, so the round trip self-heals.
 		SCR_EditorManagerEntity.OpenInstance();
 
-		// Jump straight to the scenario attributes dialog rather than leaving the admin in the
-		// Game Master UI to find it. The attributes manager is a component of the editor manager
-		// entity, which does not exist until the editor has actually opened - hence the delay
-		// rather than calling this inline.
-		s_iBCAttributesRetries = 0;
-		GetGame().GetCallqueue().CallLater(BC_OpenScenarioAttributes, BC_ATTRIBUTES_OPEN_MS, false);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	//! Opens the scenario/world attributes dialog (time of day, weather, ...) directly.
-	//!
-	//! STATIC on purpose: opening the editor closes COA_PreviewMenu, so by the time this fires
-	//! the menu instance that scheduled it is already being destroyed. A static callback keeps
-	//! running regardless.
-	//!
-	//! StartEditing(null) targets the world/scenario itself rather than a selected entity, which
-	//! is the same dialog the Game Master "Scenario Attributes" entry opens.
-	protected static void BC_OpenScenarioAttributes()
-	{
-		SCR_AttributesManagerEditorComponent attributesManager = SCR_AttributesManagerEditorComponent.Cast(
-			SCR_BaseEditorComponent.GetInstance(SCR_AttributesManagerEditorComponent, false, true));
-
-		if (!attributesManager)
-		{
-			// The editor is still spinning up. Retry a bounded number of times rather than
-			// relying on one hardcoded delay being long enough on every machine.
-			s_iBCAttributesRetries++;
-
-			if (s_iBCAttributesRetries <= BC_ATTRIBUTES_MAX_RETRIES)
-			{
-				Print(string.Format("BC Debug - PreviewMenu: attributes manager not ready, retry %1/%2", s_iBCAttributesRetries, BC_ATTRIBUTES_MAX_RETRIES), LogLevel.NORMAL);
-				GetGame().GetCallqueue().CallLater(BC_OpenScenarioAttributes, BC_ATTRIBUTES_OPEN_MS, false);
-				return;
-			}
-
-			Print("BC Debug - PreviewMenu: attributes manager unavailable after retries, leaving Game Master open", LogLevel.WARNING);
-			s_iBCAttributesRetries = 0;
-			return;
-		}
-
-		s_iBCAttributesRetries = 0;
-
-		// The attributes dialog reads its contents from a target entity. The gamemode entity is
-		// the natural candidate, but under COA it carries no SCR_EditableEntityComponent, so fall
-		// back to null rather than bailing out - null at least opens the dialog (the engine warns
-		// "Opening attributes with NULL entity!" and shows no properties), which is strictly
-		// better than the click doing nothing at all.
-		Managed scenarioItem = null;
-
-		BaseGameMode gameMode = GetGame().GetGameMode();
-		if (gameMode)
-		{
-			SCR_EditableEntityComponent editableGameMode = SCR_EditableEntityComponent.GetEditableEntity(gameMode);
-			if (editableGameMode)
-				scenarioItem = editableGameMode;
-		}
-
-		// NOTE: do not try to match "#AR-AttributesDialog_TitlePage_Entity_Text" here. That string
-		// is the engine's PLACEHOLDER display name for an entity with no name of its own - in
-		// testing it resolved to an ordinary CHARACTER, which StartEditing then reported as having
-		// no properties. Enumerating all 83-89 registered editables showed only GROUP, SYSTEM,
-		// VEHICLE, CHARACTER, COMMENT and FACTION types: there is no scenario/world entity in the
-		// registry, so the dialog's scenario page cannot be reached through StartEditing.
-		if (!scenarioItem)
-			Print("BC Debug - PreviewMenu: no scenario entity available, opening attributes unscoped", LogLevel.WARNING);
-
-		// Option A: fire the editor's own "edit scenario properties" input action (the V key)
-		// instead of calling StartEditing, which cannot reach the scenario page - enumerating all
-		// registered editables showed only GROUP/SYSTEM/VEHICLE/CHARACTER/COMMENT/FACTION types,
-		// with no scenario/world entity among them.
-		if (BC_TryScenarioAttributesAction())
-			return;
-
-		Print("BC Debug - PreviewMenu: opening scenario attributes dialog", LogLevel.NORMAL);
-
-		// StartEditing is overloaded - StartEditing(Managed) and StartEditing(array<Managed>, bool) -
-		// so the argument is typed explicitly to pick the single-item overload.
-		attributesManager.StartEditing(scenarioItem);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	//! The editor's "edit scenario properties" action - the V keybind shown in the Game Master HUD.
-	//! Confirmed by probing candidate names at runtime: ActivateAction returns false for an action
-	//! the input system does not know, and this was the one that took.
-	protected static const string BC_ATTRIBUTES_ACTION = "EditorAttributes";
-
-	//------------------------------------------------------------------------------------------------
-	//! Returns true if the action was successfully activated.
-	protected static bool BC_TryScenarioAttributesAction()
-	{
-		InputManager inputManager = GetGame().GetInputManager();
-		if (!inputManager)
-			return false;
-
-		if (inputManager.ActivateAction(BC_ATTRIBUTES_ACTION))
-		{
-			Print(string.Format("BC Debug - PreviewMenu: activated editor action '%1'", BC_ATTRIBUTES_ACTION), LogLevel.NORMAL);
-			return true;
-		}
-
-		Print(string.Format("BC Debug - PreviewMenu: action '%1' not recognised, falling back to StartEditing", BC_ATTRIBUTES_ACTION), LogLevel.WARNING);
-		return false;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	//! Lists every registered editable entity with its type and display name.
-	//!
-	//! Purpose: find the entity the editor's own "Edit scenario properties" (V) action targets.
-	//! Passing null gives "Opening attributes with NULL entity!" and an empty dialog, and the
-	//! gamemode entity carries no SCR_EditableEntityComponent under COA - so rather than guess a
-	//! third candidate, enumerate what actually exists and read the answer off the log.
-	protected static void BC_DumpEditableEntities()
-	{
-		// GetAllEntitiesByAuthorIDExt is one of the two CONFIRMED statics on SCR_EditableEntityCore,
-		// so it needs no instance lookup. Author id 0 = entities not created by a specific player,
-		// which is what world/scenario-level editables are.
+		// The admin presses V once inside to open scenario properties. Two ways to do that step
+		// automatically were tried and BOTH failed - do not spend time on them again:
 		//
-		// (Instance lookups were tried first and failed: FindComponent on the gamemode returns null,
-		// and there is no plain GetInstance() on this class.)
-		set<SCR_EditableEntityComponent> entities = new set<SCR_EditableEntityComponent>();
-		SCR_EditableEntityCore.GetAllEntitiesByAuthorIDExt(entities, 0);
+		//   1. SCR_AttributesManagerEditorComponent.StartEditing(entity). The dialog needs a
+		//      scenario/world entity, but enumerating all 83-89 registered editables showed only
+		//      GROUP/SYSTEM/VEHICLE/CHARACTER/COMMENT/FACTION - no scenario entity exists to pass.
+		//      (Matching the name "#AR-AttributesDialog_TitlePage_Entity_Text" looks promising but
+		//      is the engine's PLACEHOLDER name for an unnamed entity; it resolved to a CHARACTER.)
+		//
+		//   2. InputManager.ActivateAction("EditorAttributes") - the V keybind. The action name is
+		//      correct and ActivateAction returns true, even when deferred until
+		//      IsOpenedInstance() reports the editor open. The editor still never acts on it:
+		//      accepting a synthetic action is not the same as consuming it.
 
-		Print(string.Format("BC Debug - Editables: %1 entities with author id 0", entities.Count()), LogLevel.NORMAL);
-
-		// Skip CHARACTER/COMMENT/FACTION by NAME rather than by enum constant: a populated world
-		// has dozens of those (map labels, spawned units) and they drowned out everything else
-		// when logging the first 40. Comparing the enum name string avoids depending on enum
-		// members that may not exist in this API version.
-		int index = 0;
-		int skipped = 0;
-
-		foreach (SCR_EditableEntityComponent entity : entities)
-		{
-			if (!entity)
-				continue;
-
-			string typeName = SCR_Enum.GetEnumName(EEditableEntityType, entity.GetEntityType());
-
-			if (typeName == "CHARACTER" || typeName == "COMMENT" || typeName == "FACTION")
-			{
-				skipped++;
-				continue;
-			}
-
-			Print(string.Format("BC Debug - Editable[%1]: type=%2 name='%3'", index, typeName, entity.GetDisplayName()), LogLevel.NORMAL);
-			index++;
-		}
-
-		Print(string.Format("BC Debug - Editables: logged %1, skipped %2 character/comment/faction", index, skipped), LogLevel.NORMAL);
 	}
+
+
+	//------------------------------------------------------------------------------------------------
+
+
 
 	//------------------------------------------------------------------------------------------------
 	//	 DEBUG

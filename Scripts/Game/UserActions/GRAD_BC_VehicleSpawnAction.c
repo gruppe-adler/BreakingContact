@@ -1,6 +1,26 @@
 modded class SCR_CampaignBuildingStartUserAction
 {
-	// No overrides needed - building menu access should not be blocked by vehicle supplies
+	// Building menu access is not blocked by vehicle supplies, but only the company
+	// commander may open it - vehicle purchasing is a commander-only decision.
+	//
+	// NOTE: CanBeShownScript/CanBePerformedScript run locally on the client, so this is a
+	// UI-level gate, not an authoritative one. That is intentional and sufficient here; the
+	// server-side chokepoint would be SCR_CampaignBuildingPlacingEditorComponent.CanPlaceEntityServer.
+	override bool CanBeShownScript(IEntity user)
+	{
+		if (!GRAD_BC_BreakingContactManager.IsCommanderEntity(user))
+			return false;
+
+		return super.CanBeShownScript(user);
+	}
+
+	override bool CanBePerformedScript(IEntity user)
+	{
+		if (!GRAD_BC_BreakingContactManager.IsCommanderEntity(user))
+			return false;
+
+		return super.CanBePerformedScript(user);
+	}
 }
 
 //------------------------------------------------------------------------------------------------

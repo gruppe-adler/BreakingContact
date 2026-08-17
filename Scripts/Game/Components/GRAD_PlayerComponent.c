@@ -198,9 +198,9 @@ class GRAD_PlayerComponent : ScriptComponent
 					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
 					{
 						string playerFactionKey = ch.GetFactionKey();
-						if (playerFactionKey == "OPFOR")
+						if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(playerFactionKey))
 							characterRole = "Opfor Commander";
-						else if (playerFactionKey == "BLUFOR")
+						else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(playerFactionKey))
 							characterRole = "Blufor Commander";
 					}
 				}

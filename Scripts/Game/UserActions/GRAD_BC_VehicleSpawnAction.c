@@ -615,7 +615,7 @@ modded class SCR_ContentBrowserEditorComponent
 			}
 		}
 
-		if (key == "OPFOR")
+		if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(key))
 		{
 			foreach (string o : BC_ALLOWED_PREFABS_OPFOR)
 			{
@@ -624,7 +624,7 @@ modded class SCR_ContentBrowserEditorComponent
 			return;
 		}
 
-		if (key == "BLUFOR")
+		if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(key))
 		{
 			foreach (string b : BC_ALLOWED_PREFABS_BLUFOR)
 			{

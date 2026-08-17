@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "mcp__enfusion-mcp__project_read",
-      "mcp__enfusion-mcp__project_browse"
+      "mcp__enfusion-mcp__project_browse",
+      "Bash(git diff *)",
+      "Bash(timeout 120 grep -rhoE '\\\\{[0-9A-F]{16}\\\\}Prefabs/Items/Equipment/Radios/[A-Za-z0-9_]+\\\\.et' --include=*.layer --include=*.conf --include=*.et --include=*.log .)",
+      "Bash(grep -v \"// \")"
     ]
   }
 }

@@ -27,7 +27,14 @@
       "Bash(grep -anE \"COA_.*[Cc]hat|ToggleSpectator|SpectatorChat|AliveChat|COA_ToggleChat|KC_L\\\\\"\" /tmp/coa.txt | head -30)",
       "Bash(grep -anE \"keyboard:KC_L$|keyboard:KC_L\\\\\"|Action COA_|Action  *COA\" /tmp/coa.txt | head -40)",
       "Bash(timeout 100 find . -iname \"*CVON*\")",
-      "Bash(echo \"=== exit: $? ===\")"
+      "Bash(echo \"=== exit: $? ===\")",
+      "Bash(timeout 60 grep -oE '\"[^\"]*[Vv][Oo][Nn][^\"]*\\\\.c\"' data.pak_2.1.28_manifest.json)",
+      "Bash(cd \"C:/Users/nomisum/Documents/my games/ArmaReforgerWorkbench/addons\" && grep -rn --include=\"*.et\" -iE \"VoNComponent|SCR_VONController\" COALITIONLobby_69EA43E490A50DBE CoTemplate GRAD-Main-Repository 2>/dev/null | head; echo \"=== COA spectator prefab strings ===\"; sed -n '1220,1350p' /tmp/coa.txt)",
+      "Bash(grep -anE \"SpecRadioBag|SPEC\" /tmp/coa.txt | head -30)",
+      "Bash(timeout 120 strings -n 6 data.pak)",
+      "Bash(grep -iE \"VON|\\\\.c$\")",
+      "Bash(sed -n '4570,4700p' /tmp/coa.txt)",
+      "Bash(timeout 120 head -c 3000000 data.pak)"
     ],
     "additionalDirectories": [
       "c:\\Users\\nomisum\\.claude\\projects\\c--Users-nomisum-Documents-my-games-ArmaReforgerWorkbench-addons-BreakingContact\\memory"

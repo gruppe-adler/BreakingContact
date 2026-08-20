@@ -3,7 +3,10 @@
 class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven working class
 {
 	protected static GRAD_BC_ReplayMapLayer s_Instance;
-	
+
+	// Opacity applied to markers of dead units during replay playback
+	protected const float DEAD_MARKER_OPACITY = 0.35;
+
 	static GRAD_BC_ReplayMapLayer GetInstance()
 	{
 		return s_Instance;
@@ -249,17 +252,31 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // Logic below now only handles foot mobile units
             string roleStr = playerMarker.unitType;
             if (roleStr == "") roleStr = "Rifleman";
-            string key = roleStr + "_" + playerMarker.factionKey;
+
+            // Normalize COALITION-Lobby's "OPFOR"/"BLUFOR" faction keys to BreakingContact's
+            // own "USSR"/"US" convention used by the m_unitTypeTextures keys. Without this the
+            // lookup misses and every unit falls back to the BLUFOR "Default" icon.
+            string plFaction = playerMarker.factionKey;
+            if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(plFaction))
+                plFaction = "USSR";
+            else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(plFaction))
+                plFaction = "US";
+
+            string key = roleStr + "_" + plFaction;
             string texturePath = m_unitTypeTextures.Get(key);
 
             // CIV faction fallback: civilians don't have military roles, use Rifleman_CIV
-            if (texturePath == "" && playerMarker.factionKey == "CIV")
+            if (texturePath == "" && plFaction == "CIV")
                 texturePath = m_unitTypeTextures.Get("Rifleman_CIV");
+
+            // Role fallback: keep the faction colour even when the role has no icon registered
+            if (texturePath == "")
+                texturePath = m_unitTypeTextures.Get("Rifleman_" + plFaction);
 
             if (texturePath == "") texturePath = m_unitTypeTextures.Get("Default");
 
             string widgetKey = "PLR_" + playerMarker.playerId.ToString();
-            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
+            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false, !playerMarker.isAlive);
         }
 
         // --- 3. Transmissions ---
@@ -343,7 +360,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     }
 
     // Core function to update a single marker widget
-    protected void UpdateMarkerWidget(string key, string texturePath, vector worldPos, float direction, bool isVehicle, bool isEmptyVehicle)
+    protected void UpdateMarkerWidget(string key, string texturePath, vector worldPos, float direction, bool isVehicle, bool isEmptyVehicle, bool isDead = false)
     {
         // 1. Get/Create Widget
         ImageWidget w = GetOrCreateMarkerWidget(key, texturePath, isVehicle);
@@ -386,6 +403,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // 4. Color / Opacity
         if (isEmptyVehicle) w.SetColor(Color.Gray); // Example tinting
         else w.SetColor(Color.White);
+
+        // Dead units keep their faction colour but render faded, so they stay
+        // identifiable while reading clearly as no longer alive.
+        if (isDead) w.SetOpacity(DEAD_MARKER_OPACITY);
+        else w.SetOpacity(1.0);
     }
 	
 	// Map vehicle prefab and faction to icon key
@@ -535,7 +557,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				else if (factionKey == "CIV") key = "UAZ_469_closed_civ";
 			}
 		}
-		else if (pf.Contains("uh1h1"))
+		else if (pf.Contains("uh1h"))
 		{
 			if (isEmpty) key = "UH1H1_empty";
 			else if (factionKey == "US") key = "UH1H1_blufor";

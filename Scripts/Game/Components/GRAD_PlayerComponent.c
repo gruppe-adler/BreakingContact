@@ -345,6 +345,74 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Client entry point: ask the server to move the calling admin into spectator.
+	//! Works both from a slot and as the way back out of Game Master.
+	void Ask_EnterSpectator()
+	{
+		// Close the editor first if it is open - while it is, the editor holds the player on its
+		// own camera and the server-side possession would be overridden straight away.
+		if (SCR_EditorManagerEntity.IsOpenedInstance())
+			SCR_EditorManagerEntity.CloseInstance();
+
+		Rpc(RpcAsk_Server_EnterSpectator);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Server-side spectator switch for a single player. Same security model as
+	//! RpcAsk_Server_ChangeScenario: the caller's identity comes from GetOwner(), never from an
+	//! RPC argument, so a modified client cannot move a different player.
+	//!
+	//! Covers BOTH cases the feature needs:
+	//!
+	//!  1. Slotted player -> spectator. Clearing the slot makes COA_GamemodeManager.InitilizePlayer
+	//!     take its spectator branch (it keys on IsPlayerInASlot), which spawns a spectator entity
+	//!     and assigns it.
+	//!
+	//!  2. Already-unslotted player stuck in Game Master -> back to spectator. This is the case
+	//!     the feature request came from: entering GM from spectator leaves no way back. Here the
+	//!     slot is already clear, GetOrCreateSpectatorEntity returns the still-living spectator
+	//!     entity, and the important part is that InitilizePlayer then re-runs
+	//!     COA_PlayerHelper.AssignCharacterToPlayer -> RequestPossessSpawn, which hands control
+	//!     back to that entity from whatever the GM camera left the player possessing.
+	//!
+	//! Closing the editor first matters: SCR_EditorManagerEntity keeps the player on its camera
+	//! while open, so possession would be immediately overridden.
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Server_EnterSpectator()
+	{
+		if (!Replication.IsServer())
+			return;
+
+		PlayerController playerController = PlayerController.Cast(GetOwner());
+		if (!playerController)
+			return;
+
+		int callerId = playerController.GetPlayerId();
+
+		if (!GRAD_BC_MapSwitch.IsPlayerAdminServer(callerId))
+		{
+			Print(string.Format("BC Debug - Spectator: REJECTED spectator request from non-admin player %1", callerId), LogLevel.WARNING);
+			return;
+		}
+
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		COA_GamemodeManager gamemodeManager = COA_GamemodeManager.GetInstance();
+		if (!slottingManager || !gamemodeManager)
+		{
+			Print("BC Debug - Spectator: COA_SlottingManager/COA_GamemodeManager not found, cannot move player to spectator", LogLevel.WARNING);
+			return;
+		}
+
+		int slotId = slottingManager.GetPlayerSlotID(callerId);
+		if (slotId != -1)
+			slottingManager.UpdateSlotPlayerID(slotId, -1);
+
+		gamemodeManager.InitilizePlayer(callerId);
+
+		Print(string.Format("BC Debug - Spectator: admin %1 moved to spectator", callerId), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	protected void DoGrantCommanderRank(IEntity ch)
 	{
 		SCR_CharacterRankComponent rankComp = SCR_CharacterRankComponent.GetCharacterRankComponent(ch);

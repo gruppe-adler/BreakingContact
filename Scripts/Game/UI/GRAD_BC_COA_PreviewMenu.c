@@ -43,6 +43,7 @@ modded class COA_PreviewMenu
 
 	protected Widget m_wBCMapSwitchRoot;
 	protected Widget m_wBCTimeButton;
+	protected Widget m_wBCSpectatorButton;
 	protected Widget m_wBCConfirmMenu;
 	protected ref array<Widget> m_aBCMapButtons = {};
 	protected int m_iBCSelectedMapIndex = -1;
@@ -77,6 +78,7 @@ modded class COA_PreviewMenu
 
 		BC_BuildMapSwitchUI();
 		BC_BuildTimeWeatherButton();
+		BC_BuildSpectatorButton();
 
 		// Logged after building so our widgets appear in the list - confirms whether they
 		// actually landed on top of the map or are still buried under it.
@@ -115,8 +117,12 @@ modded class COA_PreviewMenu
 		if (m_wBCTimeButton)
 			m_wBCTimeButton.RemoveFromHierarchy();
 
+		if (m_wBCSpectatorButton)
+			m_wBCSpectatorButton.RemoveFromHierarchy();
+
 		m_wBCMapSwitchRoot = null;
 		m_wBCTimeButton = null;
+		m_wBCSpectatorButton = null;
 		m_iBCSelectedMapIndex = -1;
 		m_iBCLabelledCurrentIndex = -2;
 
@@ -479,22 +485,30 @@ modded class COA_PreviewMenu
 	//! session, so it must not be reachable once a round is running.
 	protected void BC_RefreshMapSwitchVisibility()
 	{
-		if (!m_wBCMapSwitchRoot)
-			return;
+		// NOTE: do not early-return on a missing m_wBCMapSwitchRoot - the time/weather and
+		// spectator buttons are built independently and must still be refreshed if the map
+		// switch panel failed to build.
+		if (m_wBCMapSwitchRoot)
+		{
+			// Piggyback on this timer: the mission header may only become available after the
+			// panel was built, in which case the "(current)" marker still needs applying.
+			BC_RefreshCurrentMapLabels();
 
-		// Piggyback on this timer: the mission header may only become available after the panel
-		// was built, in which case the "(current)" marker still needs applying.
-		BC_RefreshCurrentMapLabels();
+			bool allowed = GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap();
 
-		bool allowed = GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap();
+			if (allowed && m_Gamemode && m_Gamemode.m_GamemodeState != COA_EGamemodeState.BRIEFING)
+				allowed = false;
 
-		if (allowed && m_Gamemode && m_Gamemode.m_GamemodeState != COA_EGamemodeState.BRIEFING)
-			allowed = false;
-
-		m_wBCMapSwitchRoot.SetVisible(allowed);
+			m_wBCMapSwitchRoot.SetVisible(allowed);
+		}
 
 		if (m_wBCTimeButton)
 			m_wBCTimeButton.SetVisible(GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap());
+
+		// Admin-only. No phase restriction: this menu IS COA's briefing screen, so gating on
+		// "not BRIEFING" hid the button in the only phase the menu is ever open.
+		if (m_wBCSpectatorButton)
+			m_wBCSpectatorButton.SetVisible(GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap());
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -617,6 +631,81 @@ modded class COA_PreviewMenu
 
 		buttonComponent.m_OnClicked.Insert(BC_OnTimeWeatherClicked);
 		Print("BC Debug - PreviewMenu: time/weather button wired up OK", LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//	 ENTER SPECTATOR (admin only)
+	//------------------------------------------------------------------------------------------------
+
+	//! Sits directly under the time/weather button and reuses the same layout - only the label
+	//! and click handler differ. See BC_BuildTimeWeatherButton for why this is parented to the
+	//! menu root and positioned explicitly rather than into a COA-owned container.
+	protected void BC_BuildSpectatorButton()
+	{
+		if (m_wBCSpectatorButton)
+			return;
+
+		m_wBCSpectatorButton = GetGame().GetWorkspace().CreateWidgets(
+			"{B2C3D4E5F6071829}UI/Layouts/Preview/GRAD_BC_TimeWeatherButton.layout", m_wRoot);
+
+		if (!m_wBCSpectatorButton)
+		{
+			Print("BC Debug - PreviewMenu: failed to create spectator button layout", LogLevel.ERROR);
+			return;
+		}
+
+		FrameSlot.SetAnchorMin(m_wBCSpectatorButton, 1.0, 0.0);
+		FrameSlot.SetAnchorMax(m_wBCSpectatorButton, 1.0, 0.0);
+		FrameSlot.SetPos(m_wBCSpectatorButton, -260, 200);
+		FrameSlot.SetSize(m_wBCSpectatorButton, 240, 90);
+
+		// The shared layout ships with an empty label; the time/weather button draws COA's own
+		// text underneath it, but this one has nothing behind it, so give it a visible caption.
+		TextWidget label = TextWidget.Cast(m_wBCSpectatorButton.FindAnyWidget("Text"));
+		if (label)
+			label.SetText("SPECTATE");
+
+		SCR_ButtonBaseComponent buttonComponent = SCR_ButtonBaseComponent.GetButtonBase("TimeWeatherButton", m_wBCSpectatorButton);
+
+		if (!buttonComponent)
+		{
+			Print("BC Debug - PreviewMenu: SCR_ButtonBaseComponent NOT FOUND on spectator button - click will not work", LogLevel.ERROR);
+			return;
+		}
+
+		buttonComponent.m_OnClicked.Insert(BC_OnSpectatorClicked);
+		Print("BC Debug - PreviewMenu: spectator button wired up OK", LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	protected void BC_OnSpectatorClicked()
+	{
+		Print("BC Debug - PreviewMenu: spectator button CLICKED", LogLevel.NORMAL);
+
+		// COA's own combined spectator/moderator/admin gate, same as the Game Master button.
+		// The server re-checks admin status in RpcAsk_Server_EnterSpectator - this is only
+		// here so non-admins never see a button that would be rejected anyway.
+		if (!SCR_EditorManagerEntity.COA_HasUnlimitedEditorAccess())
+		{
+			Print("BC Debug - PreviewMenu: COA_HasUnlimitedEditorAccess() == false, spectator blocked", LogLevel.WARNING);
+			return;
+		}
+
+		PlayerController playerController = GetGame().GetPlayerController();
+		if (!playerController)
+			return;
+
+		GRAD_PlayerComponent playerComponent = GRAD_PlayerComponent.Cast(playerController.FindComponent(GRAD_PlayerComponent));
+		if (!playerComponent)
+		{
+			Print("BC Debug - PreviewMenu: GRAD_PlayerComponent not found, cannot enter spectator", LogLevel.ERROR);
+			return;
+		}
+
+		Print("BC Debug - PreviewMenu: requesting spectator switch", LogLevel.NORMAL);
+		playerComponent.Ask_EnterSpectator();
+
+		Close();
 	}
 
 	//------------------------------------------------------------------------------------------------

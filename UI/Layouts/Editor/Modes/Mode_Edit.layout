@@ -1,0 +1,338 @@
+FrameWidgetClass "{6A292A50755ED72A}" {
+ Name "Edit"
+ components {
+  SCR_EditModeEditorUIComponent "{513CC31B330F0ECC}" {
+  }
+  SCR_PlacingEditorUIComponent "{51BCC4A460100274}" {
+   m_DirIndicatorPrefab "{D069012A8D323243}Prefabs/Editor/Common/DirIndicator.et"
+  }
+  SCR_TransformingEditorUIComponent "{51BCC4A46749C36B}" {
+   m_DirIndicatorPrefab "{D069012A8D323243}Prefabs/Editor/Common/DirIndicator.et"
+  }
+  SCR_EditAttributesEditorUIComponent "{51963CE98DA738AE}" {
+   m_MenuPreset EditorAttributesDialog
+  }
+  SCR_AssetBrowserAccessEditorUIComponent "{5456BEAA4652F18E}" {
+  }
+ }
+ {
+  CanvasWidgetClass "{6A292A50755ED728}" {
+   Name "m_wCanvas"
+   Slot FrameWidgetSlot "{62ECD3E991DB1478}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX -1820
+    OffsetRight 0
+    SizeY -1050
+    OffsetBottom 0
+   }
+  }
+  FrameWidgetClass "{6A292A50755ED729}" : "{2B8174DFA0BB53BD}UI/layouts/Editor/Cursors/Cursor_Gamepad.layout" {
+   Name "Cursor"
+   Slot FrameWidgetSlot "{5142C302A8B87D92}" {
+    Anchor 0 0 1 1
+    PositionX -1
+    OffsetLeft -1
+    PositionY 0
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 1
+    SizeY 0
+    OffsetBottom 0
+   }
+  }
+  FrameWidgetClass "{6A292A50755ED717}" : "{6C241229C02E23AA}UI/layouts/Editor/EditableEntities/EditableEntities.layout" {
+   Name "Entities"
+   Slot FrameWidgetSlot "{5142D001B92AD915}" {
+    Anchor 0 0 1 1
+    PositionX -1.943
+    OffsetLeft -1.943
+    PositionY 0
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 1.943
+    SizeY 0
+    OffsetBottom 0
+   }
+  }
+  FrameWidgetClass "{6A292A50755ED714}" : "{4400E923834BA459}UI/layouts/Editor/ContextMenu/CommandMenu/CommandMenu.layout" {
+   Name "CommandActionsMenu0"
+   Slot FrameWidgetSlot "{54946B76CC4396F4}" {
+    SizeX 0
+    OffsetRight 0
+    SizeY 0
+    OffsetBottom 0
+    SizeToContent 1
+   }
+  }
+  FrameWidgetClass "{6A292A50755ED715}" : "{E661C1692C4CFF1C}UI/layouts/Editor/LayerEditingOverlay/LayerEditingOverlay.layout" {
+   Name "LayerEditorOverlay"
+   Slot FrameWidgetSlot "{54D0DAF5C2A13F8F}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX -1468
+    OffsetRight 0
+    SizeY -880
+    OffsetBottom 0
+   }
+   "Is Enabled" 0
+   "Is Visible" 0
+   {
+    HorizontalLayoutWidgetClass "{567A6EF954166C23}" {
+     Prefab "{567A6EF954166C23}"
+     Slot FrameWidgetSlot "{567A6EF954166C08}" {
+      OffsetLeft 0
+      PositionY 164
+      OffsetTop 164
+      OffsetRight 0
+      OffsetBottom -244
+     }
+    }
+   }
+  }
+  FrameWidgetClass "{6A292A50755ED711}" : "{854650EAF734E1EF}UI/layouts/Editor/Tooltips/Tooltip_Manager.layout" {
+   Name "TooltipManager0"
+   Slot FrameWidgetSlot "{545EDE056D91B1DF}" {
+    SizeX 0
+    OffsetRight 0
+    SizeY 0
+    OffsetBottom 0
+   }
+  }
+  OverlayWidgetClass "{6A292A50755ED71E}" {
+   Name "Mode_Edit_Element_Top"
+   Slot FrameWidgetSlot "{59DA9581738989B8}" {
+    Anchor 0 0 1 1
+    PositionX -1.943
+    PositionY 0
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 0
+    SizeY 0
+    OffsetBottom 0
+    SizeToContent 1
+   }
+   {
+    OverlayWidgetClass "{6A292A50755ED71F}" : "{3863D6FF942C7351}UI/layouts/Editor/Toolbar/Toolbar/Toolbar.layout" {
+     Name "Toolbar0"
+     Slot OverlayWidgetSlot "{5D993AA28B6F71FF}" {
+      HorizontalAlign 3
+      VerticalAlign 0
+     }
+     {
+      OverlayWidgetClass "{5DBC7426FE676BFD}" {
+       Prefab "{5DBC7426FE676BFD}"
+       {
+        ButtonWidgetClass "{5D991DEA98B9145C}" {
+         Prefab "{5D991DEA98B9145C}"
+         components {
+          SCR_ButtonBaseComponent "{5D991DEB1A92D935}" {
+           m_bShowBorderOnHover 1
+          }
+         }
+        }
+        ButtonWidgetClass "{5DBC742613263E9F}" {
+         Prefab "{5DBC742613263E9F}"
+         components {
+          SCR_ButtonBaseComponent "{5D991DEB1A92D935}" {
+           m_bShowBorderOnHover 1
+          }
+         }
+        }
+        ButtonWidgetClass "{5DBC742618CE2794}" {
+         Prefab "{5DBC742618CE2794}"
+         components {
+          SCR_ButtonBaseComponent "{5D991DEB1A92D935}" {
+           m_bShowBorderOnHover 1
+          }
+         }
+        }
+        ButtonWidgetClass "{5DBC742618A34E70}" {
+         Prefab "{5DBC742618A34E70}"
+         components {
+          SCR_ButtonBaseComponent "{5D991DEB1A92D935}" {
+           m_bShowBorderOnHover 1
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+    SizeLayoutWidgetClass "{6A292A50755ED4F0}" : "{E5DD91EDA46BADC0}UI/layouts/Editor/Compass/CompassSlot.layout" {
+     Name "CompassSlot0"
+     Slot OverlayWidgetSlot "{5D993AA28B6F7234}" {
+      VerticalAlign 0
+      Padding 0 42 0 0
+     }
+    }
+   }
+  }
+  VerticalLayoutWidgetClass "{6A292A50755ED4F1}" {
+   Name "Mode_Edit_Element_Right"
+   Slot FrameWidgetSlot "{59DA9581738989B8}" {
+    Anchor 0 0 1 1
+    PositionX 1920
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX -1920
+    OffsetRight 0
+    SizeY -1080
+    OffsetBottom 0
+    SizeToContent 1
+   }
+   "Fill Origin" Bottom
+   {
+    VerticalLayoutWidgetClass "{6A292A50755ED4FE}" : "{AC5128687FC2F48C}UI/layouts/Editor/Toolbar/EntityMenu/EntityMenu_EntityGrid.layout" {
+     Name "EntityMenu_EntityGrid"
+     Slot LayoutSlot "{59DA95BD87793E43}" {
+      HorizontalAlign 2
+      VerticalAlign 2
+      Padding 0 0 24 0
+     }
+    }
+    HorizontalLayoutWidgetClass "{6A292A50755ED4E2}" : "{7560E96A8A363329}UI/layouts/Editor/ScenarioWarning/ScenarioWarning.layout" {
+     Name "ScenarioWarning0"
+     Slot LayoutSlot "{5D993AA5A9D02E79}" {
+      HorizontalAlign 2
+      Padding 0 0 24 16
+     }
+    }
+   }
+  }
+  VerticalLayoutWidgetClass "{6A292A50755ED4E3}" {
+   Name "Mode_Edit_Element_Bottom"
+   Slot FrameWidgetSlot "{59DA9581738989B8}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 1080
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 0
+    SizeY -1080
+    OffsetBottom 0
+    SizeToContent 1
+   }
+   "Fill Origin" Bottom
+   {
+    SizeLayoutWidgetClass "{6A292A50755ED4E0}" : "{031F45E71E2B0B26}UI/layouts/Editor/Toolbar/PlacingMenu/PlacingMenu.layout" {
+     Name "PlacingMenu0"
+     Slot LayoutSlot "{59DA95801F829381}" {
+      VerticalAlign 2
+     }
+    }
+    HorizontalLayoutWidgetClass "{6A292A50755ED4DE}" {
+     Name "Command_Layout"
+     Slot LayoutSlot "{61149C37B0378CEB}" {
+      HorizontalAlign 1
+      VerticalAlign 2
+      Padding 0 0 0 8
+     }
+     {
+      HorizontalLayoutWidgetClass "{6A292A50755ED4DF}" : "{BA98703ED2C21908}UI/layouts/Editor/Toolbar/CommandMenu/CycleWaypoints_Toggle.layout" {
+       Name "CycleWaypoints_Container"
+       Slot LayoutSlot "{61149AB9EA040E7F}" {
+       }
+      }
+      OverlayWidgetClass "{6A292A50755ED4DD}" : "{64C8797F22ADB451}UI/layouts/Editor/Toolbar/CommandMenu/CommandMenu.layout" {
+       Name "CommandMenu0"
+       Slot LayoutSlot "{59DE8573EEBFF29E}" {
+        HorizontalAlign 1
+        VerticalAlign 2
+       }
+      }
+     }
+    }
+   }
+  }
+  VerticalLayoutWidgetClass "{6A292A50755ED4C4}" {
+   Name "Mode_Edit_Element_Left"
+   Slot FrameWidgetSlot "{59DA9581738989B8}" {
+    Anchor 0 0 1 1
+    PositionX -3.885
+    OffsetLeft 0
+    PositionY -1.943
+    OffsetTop 0
+    SizeX 0
+    OffsetRight 0
+    SizeY 0
+    OffsetBottom 0
+    SizeToContent 1
+   }
+   "Fill Origin" Bottom
+   {
+    VerticalLayoutWidgetClass "{6A292A50755ED4C5}" : "{AEA77DF50FFD61FC}UI/layouts/Editor/Toolbar/ModeMenu/GameMaster/ModeMenu_GameMaster.layout" {
+     Name "ModeMenu_GameMaster0"
+     Slot LayoutSlot "{59DA95A964DE6B7D}" {
+      VerticalAlign 2
+      Padding 24 0 0 0
+     }
+    }
+   }
+  }
+  ImageWidgetClass "{6A292A50755ED4CB}" {
+   Name "BottomShade"
+   Slot FrameWidgetSlot "{56E6D8CBDFB7EE3A}" {
+    Anchor 0 1 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY -16
+    OffsetTop -16
+    SizeX -1820
+    OffsetRight 0
+    SizeY 16
+    OffsetBottom 0
+   }
+   Color 0 0 0 1
+   Rotation 0
+   Texture "{17C8B375F104A06F}UI/Textures/Editor/Effects/Effect_Shadow.edds"
+   Image ""
+   Size 5 5
+  }
+  FrameWidgetClass "{6A292A50755ED4C8}" : "{1C6708FF989A420A}UI/layouts/Editor/HUD/HudMenuLayout.layout" {
+   Name "HudMenuLayout"
+   Slot FrameWidgetSlot "{5D8AB8F2DCC3C881}" {
+   }
+   components {
+    SCR_HUDMenuComponent "{5F0ADEF0C660AF98}" {
+    }
+   }
+   {
+    FrameWidgetClass "{5F0ADEF79D309F0B}" {
+     Prefab "{5F0ADEF79D309F0B}"
+     {
+      VerticalLayoutWidgetClass "{5F0ADEF79D309F0A}" {
+       Prefab "{5F0ADEF79D309F0A}"
+       Slot FrameWidgetSlot "{5D44B19A2BE9A6C4}" {
+       }
+       {
+        FrameWidgetClass "{5F0ADEF79D306E46}" {
+         Prefab "{5F0ADEF79D306E46}"
+         components {
+          SCR_HUDSlotUIComponent "{5D44B19A037B2FF4}" {
+          }
+         }
+        }
+       }
+      }
+      VerticalLayoutWidgetClass "{5F0ADEF79D306E5B}" {
+       Prefab "{5F0ADEF79D306E5B}"
+       components {
+        SCR_HUDGroupUIComponent "{5D44B19A39A468D7}" {
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

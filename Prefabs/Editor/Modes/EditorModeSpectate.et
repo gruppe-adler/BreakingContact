@@ -1,0 +1,64 @@
+SCR_EditorModeEntity : "{E56F54E533ACE527}Prefabs/Editor/Modes/EditorModeBase.et" {
+ ID "518A34314C7CB324"
+ components {
+  SCR_AttributesManagerEditorComponent "{54C8DACDCD4AE14E}" {
+   m_MenuPreset EditorAttributesDialog
+  }
+  SCR_CameraEditorComponent "{6A2360F18FB63CC9}" {
+   m_CameraPrefab "{E1FF38EC8894C5F3}Prefabs/Systems/!Spectator/COA_SpectatorCamera.et"
+  }
+  SCR_ContextActionsEditorComponent "{6A2360F18FB63CA5}" {
+  }
+  SCR_EntitiesManagerEditorComponent "{6A2360F18FB63CA2}" {
+   m_aFilters {
+    SCR_UnlockedEditableEntityFilter "{6A2360F18FB63CAF}" {
+     m_State UNLOCKED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_VisibleEditableEntityFilter "{6A2360F18FB63CAD}" {
+     m_State VISIBLE
+     m_PredecessorState UNLOCKED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_PlayerEditableEntityFilter "{6A2360F18FB6E2FE}" {
+     m_State PLAYER
+     m_PredecessorState VISIBLE
+     m_bAutoAdd ALWAYS
+    }
+    SCR_SelectedEditableEntityFilter "{6A2360F18FB6E2F8}" {
+     m_State SELECTED
+     m_PredecessorState PLAYER
+    }
+    SCR_FocusedEditableEntityFilter "{6A2360F18FB6E2FB}" {
+     m_State FOCUSED
+     m_PredecessorState PLAYER
+    }
+    SCR_HoverEditableEntityFilter "{6A2360F18FB6E2C7}" {
+     m_State HOVER
+     m_PredecessorState FOCUSED
+     m_RequiredState PLAYER
+    }
+    SCR_DummyEditableEntityFilter "{6A2360F18FB6E2C6}" {
+     m_State RENDERED
+     m_PredecessorState PLAYER
+    }
+    SCR_DummyEditableEntityFilter "{6A2360F18FB6E2C1}" {
+     m_State ACTIVE
+     m_PredecessorState PLAYER
+    }
+   }
+  }
+  SCR_MenuLayoutEditorComponent "{6A2360F18FB6E2C0}" {
+   m_HideableLayout "{A15D283B8C4B835C}UI/layouts/Editor/Modes/Mode_Spectate.layout"
+  }
+  SCR_MenuOverlaysEditorComponent "{5165445ACC484FCC}" : "{D5E3E98F53F8EA8D}Prefabs/Editor/EditorComponents/MenuOverlaysDefault.ct" {
+  }
+ }
+ coords 0 0 0
+ m_ModeType SPECTATE
+ m_iOrder 15
+ m_UIInfo SCR_UIInfo "{6A2360F18FB6E2CC}" {
+  Name "#AR-Editor_Mode_Spectate_Name"
+  Icon "{AC7E384FF9D8016A}Common/Textures/placeholder_BCR.edds"
+ }
+}

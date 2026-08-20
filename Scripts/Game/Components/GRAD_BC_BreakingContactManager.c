@@ -202,6 +202,30 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		return factionKey == "US" || factionKey == "BLUFOR";
 	}
 
+	// Returns true when the given character entity is a company commander.
+	// Checks both paths: BC's own GRAD_CharacterRoleComponent, and - because that component
+	// isn't set on COA_GearscriptManager-spawned characters - the player's slotted COALITION role.
+	static bool IsCommanderEntity(IEntity character)
+	{
+		if (!character)
+			return false;
+
+		GRAD_CharacterRoleComponent roleComp = GRAD_CharacterRoleComponent.Cast(character.FindComponent(GRAD_CharacterRoleComponent));
+		if (roleComp && roleComp.GetCharacterRole().Contains("Commander"))
+			return true;
+
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		if (!slottingManager)
+			return false;
+
+		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(character);
+		if (playerId <= 0)
+			return false;
+
+		COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
+		return slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER;
+	}
+
 	// Compares two faction key strings that may each be in either BreakingContact's own
 	// ("USSR"/"US") or COALITION-Lobby's default ("OPFOR"/"BLUFOR") convention.
 	static bool FactionKeysMatch(string a, string b)
@@ -2496,7 +2520,6 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		// Check if this group contains a commander character
 		bool isCommandGroup = false;
-		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
 		array<AIAgent> agents = {};
 		group.GetAgents(agents);
 		foreach (AIAgent agent : agents)
@@ -2505,28 +2528,10 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 			if (!controlledEntity)
 				continue;
 
-			GRAD_CharacterRoleComponent roleComp = GRAD_CharacterRoleComponent.Cast(controlledEntity.FindComponent(GRAD_CharacterRoleComponent));
-			if (roleComp && roleComp.GetCharacterRole().Contains("Commander"))
+			if (IsCommanderEntity(controlledEntity))
 			{
 				isCommandGroup = true;
 				break;
-			}
-
-			// COALITION-Lobby path: BC's own GRAD_CharacterRoleComponent isn't set on
-			// COA_GearscriptManager-spawned characters, so also check the controlling
-			// player's slotted role directly.
-			if (slottingManager)
-			{
-				int playerId = GetPlayerManager().GetPlayerIdFromControlledEntity(controlledEntity);
-				if (playerId > 0)
-				{
-					COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
-					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
-					{
-						isCommandGroup = true;
-						break;
-					}
-				}
 			}
 		}
 

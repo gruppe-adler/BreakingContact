@@ -1318,7 +1318,6 @@ void StartLocalReplayPlayback()
 		ref array<vector> rotations = {};
 		ref array<string> factions = {};
 		ref array<bool> inVehicles = {};
-		ref array<string> playerNames = {};
 		ref array<RplId> playerVehicleIds = {};
 		
 		// Projectile data arrays
@@ -1337,6 +1336,9 @@ void StartLocalReplayPlayback()
 		// Vehicle data arrays
 		ref array<float> vehicleTimestamps = {};
 		ref array<RplId> vehicleIds = {};
+		// Packed as "<role>|<0|1 alive>" so the player chunk stays within the argument limit
+		// the engine's Rpc() accepts - two extra parallel arrays exceeded it.
+		ref array<string> playerRoleAlive = {};
 		ref array<string> vehicleTypes = {};
 		ref array<string> vehicleFactions = {};
 		ref array<vector> vehiclePositions = {};
@@ -1351,13 +1353,21 @@ void StartLocalReplayPlayback()
 			foreach (GRAD_BC_PlayerSnapshot playerData : frame.players)
 			{
 				timestamps.Insert(frame.timestamp);
-				playerIds.Insert(string.Format("%1", playerData.playerId));
 				positions.Insert(playerData.position);
 				rotations.Insert(playerData.angles);
 				factions.Insert(playerData.factionKey);
 				inVehicles.Insert(playerData.isInVehicle);
-				playerNames.Insert(playerData.playerName);
 				playerVehicleIds.Insert(playerData.vehicleId);
+
+				// Rpc() accepts at most 8 parameters, so string fields are packed rather than
+				// sent as their own arrays. Player names are user-controlled and may contain
+				// any character, so the name goes LAST and is not split on - only the two
+				// leading fields are, with SplitLimited-style manual parsing on receive.
+				playerIds.Insert(string.Format("%1|%2", playerData.playerId, playerData.playerName));
+				string aliveFlag = "0";
+				if (playerData.isAlive)
+					aliveFlag = "1";
+				playerRoleAlive.Insert(playerData.unitRole + "|" + aliveFlag);
 			}
 			
 			// Add projectile data
@@ -1394,7 +1404,7 @@ void StartLocalReplayPlayback()
 		}
 		
 		// Send player data
-		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames, playerVehicleIds);
+		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerVehicleIds, playerRoleAlive);
 		
 		// Send projectile data if any
 		if (projTimestamps.Count() > 0)
@@ -1515,8 +1525,12 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions, 
-		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<string> playerNames, array<RplId> playerVehicleIds)
+	//! playerIds entries are packed as "<playerId>|<playerName>" and playerRoleAlive as
+	//! "<role>|<0|1 alive>" - Rpc() accepts at most 8 parameters, so these four fields share
+	//! two arrays. See the packing site in SendReplayChunk for the format.
+	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions,
+		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<RplId> playerVehicleIds,
+		array<string> playerRoleAlive)
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
@@ -1555,16 +1569,49 @@ void StartLocalReplayPlayback()
 				m_replayData.frames.Insert(frame);
 			}
 			
+			// Unpack "<role>|<0|1 alive>"; fall back to the old defaults if the field is
+			// missing or malformed so a mismatched client still renders something sane.
+			bool alive = true;
+			string role = "Rifleman";
+			if (playerRoleAlive && i < playerRoleAlive.Count())
+			{
+				// Role strings come from DetermineUnitRole and never contain "|", so the
+				// first separator is also the only one.
+				string packedRole = playerRoleAlive[i];
+				int roleSep = packedRole.IndexOf("|");
+				if (roleSep >= 0)
+				{
+					role = packedRole.Substring(0, roleSep);
+					alive = (packedRole.Substring(roleSep + 1, packedRole.Length() - roleSep - 1) == "1");
+				}
+			}
+
+			// Unpack "<playerId>|<playerName>". Split on the FIRST separator only - a player
+			// name may itself contain "|", and everything after the first one is the name.
+			string packedId = playerIds[i];
+			int idSep = packedId.IndexOf("|");
+			int parsedPlayerId = 0;
+			string parsedPlayerName = "";
+			if (idSep >= 0)
+			{
+				parsedPlayerId = packedId.Substring(0, idSep).ToInt();
+				parsedPlayerName = packedId.Substring(idSep + 1, packedId.Length() - idSep - 1);
+			}
+			else
+			{
+				parsedPlayerId = packedId.ToInt();
+			}
+
 			GRAD_BC_PlayerSnapshot playerData = GRAD_BC_PlayerSnapshot.Create(
-				playerIds[i].ToInt(),
-				playerNames[i],
+				parsedPlayerId,
+				parsedPlayerName,
 				factions[i],
 				positions[i],
 				rotations[i],
-				true,
+				alive,
 				inVehicles[i],
-				"", // vehicleType is not sent, can be derived later if needed
-				"Rifleman", // unitRole is not sent, can be derived later if needed
+				"", // vehicleType is not sent for players; the vehicle chunk carries it
+				role,
 				playerVehicleIds[i]
 			);
 			

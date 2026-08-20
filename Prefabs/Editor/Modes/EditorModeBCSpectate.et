@@ -1,0 +1,404 @@
+SCR_EditorModeEntity : "{E56F54E533ACE527}Prefabs/Editor/Modes/EditorModeBase.et" {
+ ID "518A34314C7CB324"
+ components {
+  SCR_ActionsRadialMenuEditorComponent "{5CFE7C59168B0ABC}" {
+   m_ActionsMenuController SCR_RadialMenuController "{60446D4B16AF4285}" : "{353EA65D6D17425D}Configs/Editor/UI/EditorRadialMenuController.conf" {
+   }
+   m_CommandsMenuController SCR_RadialMenuController "{60446D4B14BDE55B}" : "{353EA65D6D17425D}Configs/Editor/UI/EditorRadialMenuController.conf" {
+   }
+   m_AddCommandsMenuController SCR_RadialMenuController "{60446D4B13E48B68}" : "{353EA65D6D17425D}Configs/Editor/UI/EditorRadialMenuController.conf" {
+   }
+   m_sActionName "EditorActionsMenu"
+   m_sCommandActionName "EditorSetCommandMenu"
+   m_sAddCommandActionName "EditorAddCommandMenu"
+  }
+  SCR_AttributesManagerEditorComponent "{54C8DACDCD4AE14E}" {
+   m_AttributeLists {
+    SCR_EditorAttributeList "{5606E7C45FE427EF}" : "{F3D6C6D25642352C}Configs/Editor/AttributeLists/Edit.conf" {
+    }
+   }
+   m_MenuPreset EditorAttributesDialog
+  }
+  SCR_CameraEditorComponent "{6A292E947A5EFEB8}" {
+   m_CameraPrefab "{89ABC7C0A6B85312}Prefabs/Editor/Camera/ManualCameraEdit.et"
+  }
+  SCR_CommandActionsEditorComponent "{54A0CA1864DC7D5C}" : "{C457406AA8056C0B}Prefabs/Editor/EditorComponents/CommandActions.ct" {
+   m_ActionsLists {
+    SCR_EditorActionList "{56A4A2E0EE3FDA36}" : "{658F6DBE4AFAFA23}Configs/Editor/ActionLists/Command/Command.conf" {
+    }
+   }
+   m_ActionGroups {
+    SCR_EditorActionGroup "{6A292E947A5EFE88}" {
+     m_ActionGroup COMMAND_SPAWN_POINT
+    }
+    SCR_EditorActionGroup "{6A292E947A5EFE89}" {
+     m_ActionGroup COMMAND_TASK
+     m_iOrder 1
+    }
+    SCR_EditorActionGroup "{6A292E947A5EFE74}" {
+     m_ActionGroup COMMAND_WAYPOINT
+     m_iOrder 2
+    }
+   }
+   m_DefaultActionGroups {
+    COMMAND_SPAWN_POINT COMMAND_WAYPOINT COMMAND_TASK
+   }
+  }
+  SCR_ContentBrowserEditorComponent "{6A292E947A5EFE72}" {
+   m_MenuPreset EditorBrowserDialog
+   m_aContentBrowserTabStates {
+    SCR_EditorContentBrowserSaveStateDataUI "{6A292E947A5EFE73}" {
+     m_BrowserStateUIInfo SCR_UIInfo "{6A292E947A5EFE71}" {
+      Name "#AR-Editor_ContentBrowser_State_NoFilters"
+     }
+    }
+    SCR_EditorContentBrowserSaveStateDataUI "{6A292E947A5EFE7E}" {
+     m_iSavedLabels {
+      ENTITYTYPE_CHARACTER
+     }
+     m_BrowserStateUIInfo SCR_UIInfo "{6A292E947A5EFE7F}" {
+      Name "#AR-Editor_ContentBrowser_State_NoFilters"
+     }
+    }
+    SCR_EditorContentBrowserSaveStateDataUI "{6A292E947A5EFE7D}" {
+     m_iSavedLabels {
+      ENTITYTYPE_GROUP
+     }
+     m_BrowserStateUIInfo SCR_UIInfo "{6A292E947A5EFE7A}" {
+      Name "#AR-Editor_ContentBrowser_State_NoFilters"
+     }
+    }
+    SCR_EditorContentBrowserSaveStateDataUI "{6A292E947A5EFE7B}" {
+     m_iSavedLabels {
+      ENTITYTYPE_VEHICLE
+     }
+     m_BrowserStateUIInfo SCR_UIInfo "{6A292E947A5EFE78}" {
+      Name "#AR-Editor_ContentBrowser_State_NoFilters"
+     }
+    }
+   }
+   m_eBlackListedLabels {
+    STATIC_COMPOSITION
+   }
+  }
+  SCR_ContextActionsEditorComponent "{6A292E947A5EFE5F}" {
+   m_ActionsLists {
+    SCR_EditorActionList "{54B2A6144BDB41FE}" : "{F849BB1343DB2CA5}Configs/Editor/ActionLists/Context/Shared.conf" {
+    }
+    SCR_EditorActionList "{54B2AA71F2ECD6D7}" : "{2C1D87DE93C77A27}Configs/Editor/ActionLists/Context/TempEdit.conf" {
+    }
+    SCR_EditorActionList "{54B2AA71F32674BE}" : "{FC88F4CE5F7B2C4B}Configs/Editor/ActionLists/Context/Tasks.conf" {
+    }
+    SCR_EditorActionList "{6A292E947A5EFE5D}" {
+    }
+   }
+  }
+  SCR_DynamicSimulationEditorComponent "{6A292E947A5EFE5B}" {
+  }
+  SCR_EntitiesManagerEditorComponent "{6A292E947A5EFE58}" {
+   m_aFilters {
+    SCR_UnlockedEditableEntityFilter "{6A292E947A5EFE59}" {
+     m_State UNLOCKED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_VisibleEditableEntityFilter "{6A292E947A5EFE47}" {
+     m_State VISIBLE
+     m_PredecessorState UNLOCKED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_RenderedEditableEntityFilter "{6A292E947A5EFE45}" {
+     m_State RENDERED
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+    }
+    SCR_DestroyedEditableEntityFilter "{6A292E947A5EFE43}" {
+     m_State DESTROYED
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+    }
+    SCR_PlayerEditableEntityFilter "{6A292E947A5EFE40}" {
+     m_State PLAYER
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+    }
+    SCR_LayerEditableEntityFilter "{6A292E947A5EFE41}" {
+     m_State ACTIVE
+     m_PredecessorState VISIBLE
+     m_bAutoAdd ALWAYS
+     m_bAllowExceptions 1
+    }
+    SCR_LayerEditableEntityFilter "{6A292E947A5EFE4E}" {
+     m_State INTERACTIVE
+     m_PredecessorState ACTIVE
+     m_bAutoAdd ALWAYS
+     m_bOnlyDirect 1
+     m_bAllowExceptions 1
+    }
+    SCR_LayerEditableEntityFilter "{6A292E947A5EFE48}" {
+     m_State CURRENT_LAYER_CHILDREN
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+     m_bOnlyDirect 1
+    }
+    SCR_CurrentLayerEditableEntityFilter "{6A292E947A5EFE36}" {
+     m_State CURRENT_LAYER
+     m_PredecessorState INTERACTIVE
+    }
+    SCR_SelectedEditableEntityFilter "{6A292E947A5EFE37}" {
+     m_State SELECTED
+     m_PredecessorState INTERACTIVE
+     m_bSkipIgnored 1
+     m_bOnlyInteractive 1
+    }
+    SCR_HasFactionEditableEntityFilter "{6A292E947A5EFE34}" {
+     m_State COMMANDED
+     m_PredecessorState SELECTED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_FocusedEditableEntityFilter "{6A292E947A5EFE32}" {
+     m_State FOCUSED
+     m_PredecessorState INTERACTIVE
+     m_bSkipIgnored 1
+    }
+    SCR_HoverEditableEntityFilter "{6A292E947A5EFE30}" {
+     m_State HOVER
+     m_PredecessorState ACTIVE
+     m_RequiredState FOCUSED
+    }
+    SCR_CompatibleSlotEditableEntityFilter "{6A292E947A5EFE31}" {
+     m_State COMPATIBLE_SLOT
+     m_PredecessorState RENDERED
+     m_bAutoAdd ALWAYS
+    }
+    SCR_PreviewEditableEntityFilter "{6A292E947A5EFE3A}" {
+     m_State PREVIEW
+    }
+    SCR_PingedEditableEntityFilter "{6A292E947A5EFE3B}" {
+     m_State PINGED
+    }
+    SCR_HighlightedEditableEntityFilter "{6A292E947A5EFE38}" {
+     m_State HIGHLIGHTED
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+    }
+    SCR_ControlModeEditableEntityFilter "{6A292E947A5EFE39}" {
+     m_State AUTONOMOUS
+     m_PredecessorState INTERACTIVE
+     m_bAutoAdd ALWAYS
+    }
+   }
+  }
+  SCR_HintEditorComponent "{6A292E947A5EFE26}" {
+   m_Hints SCR_HintConditionList "{5668B73A4DA9A29C}" : "{0B9A6326D979F409}Configs/Hints/Editor_Edit.conf" {
+   }
+  }
+  SCR_HintSequenceComponent "{6A292E947A5EFE24}" {
+   m_Sequence SCR_HintSequenceList "{57208609F16C1217}" : "{83F5BFA916D70544}Configs/Hints/Editor_Edit_Guide.conf" {
+   }
+  }
+  SCR_LayersEditorComponent "{6A292E947A5EFE25}" {
+   m_sNewLayerPrefab "{E436A9CE80AF79DF}PrefabsEditable/E_EmptyLayer_01.et"
+  }
+  SCR_MenuLayoutEditorComponent "{6A292E947A5EFE22}" {
+   m_EffectsActivate {
+    SCR_SoundEditorEffect "{6A292E947A5EFE2F}" {
+     m_sSound "SOUND_E_MODE_EDIT"
+    }
+   }
+   m_EditableEntityUI SCR_EditableEntityUIConfig "{5582D3336257BD19}" : "{F1A20B9ECFF3AB6A}Configs/Editor/EditableEntityUI/EditableEntityUI.conf" {
+   }
+   m_AlwaysShownLayout "{CE1EC2AAFA377C9F}UI/layouts/Editor/Map/MapEditor.layout"
+   m_HideableLayout "{64BA84B7B89FB1B9}UI/layouts/Editor/Modes/Mode_Edit.layout"
+  }
+  SCR_MenuOverlaysEditorComponent "{5165445ACFD02587}" : "{D5E3E98F53F8EA8D}Prefabs/Editor/EditorComponents/MenuOverlaysDefault.ct" {
+   Enabled 0
+  }
+  SCR_PlacingEditorComponent "{6A292E947A5EFE2A}" {
+   m_AllowedPlacingFlags 31
+   m_Registries {
+    SCR_PlaceableEntitiesRegistryFromCatalog "{6A292E947A5EFE2B}" {
+     m_eEditorMode EDIT
+     m_CatalogTypes {
+      GROUP CHARACTER VEHICLE WEAPONS_TRIPOD
+     }
+    }
+    SCR_PlaceableEntitiesRegistry "{6056ED165C293FAE}" : "{C9CD86AACFA7016F}Configs/Editor/PlaceableEntities/Groups/Groups.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{6056ED165F8FA617}" : "{21EC6CD5A911BD9A}Configs/Editor/PlaceableEntities/Characters/Characters_BLUFOR.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{6056ED165134FF27}" : "{FE2E04ECF89B5CF2}Configs/Editor/PlaceableEntities/Characters/Characters_OPFOR.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{6056ED1650E47E58}" : "{EDDC3074170153A0}Configs/Editor/PlaceableEntities/Characters/Characters_INDFOR.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{6056ED162FFB01C2}" : "{D3A38DB6B7BEF2BE}Configs/Editor/PlaceableEntities/Vehicles/Vehicles.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{52E65E9551790427}" : "{3A9124B8692C3F39}Configs/Editor/PlaceableEntities/Systems/Systems.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{5264D7AF56B4A4CB}" : "{E783A7DD9D5CD881}Configs/Editor/PlaceableEntities/Compositions/Compositions.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89C45A1237}" : "{C47382E4D43D2AAD}Configs/Editor/PlaceableEntities/Objects/Props_Agriculture.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89D7920304}" : "{5315095FA486EF8A}Configs/Editor/PlaceableEntities/Objects/Structures_Agriculture.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89D1F3E552}" : "{2B804655EE9232B0}Configs/Editor/PlaceableEntities/Objects/Props_Airport.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89D01C0F12}" : "{537FF528CCFF6D0B}Configs/Editor/PlaceableEntities/Objects/Structures_Airport.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89DBF486C8}" : "{96614128D729B71F}Configs/Editor/PlaceableEntities/Objects/Props_Civilian.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89DBE200D2}" : "{8BF67B95FDBD7ABF}Configs/Editor/PlaceableEntities/Objects/Structures_Civilian.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89A362CF72}" : "{E56583A8604B5775}Configs/Editor/PlaceableEntities/Objects/Props_Commercial.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89A38F67C1}" : "{C3F24D77B647B93A}Configs/Editor/PlaceableEntities/Objects/Structures_Commercial.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89A9629DA8}" : "{3A16C0F00FB5FB68}Configs/Editor/PlaceableEntities/Objects/Props_Construction.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89A9EE7E7A}" : "{876F0FE19E5139DB}Configs/Editor/PlaceableEntities/Objects/Props_Crates.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89BD133796}" : "{7FFEF57269A71481}Configs/Editor/PlaceableEntities/Objects/Structures_Cultural.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89BD4D069A}" : "{2E2DD8C464BC4EBB}Configs/Editor/PlaceableEntities/Objects/Props_Decorations.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD8991181537}" : "{5673DE6B5303DFF3}Configs/Editor/PlaceableEntities/Objects/Props_Forest.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89915659EF}" : "{E80928DDF6ACB10E}Configs/Editor/PlaceableEntities/Objects/Structures_Forest.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{5228D5634870F0AF}" : "{DA1E014A191FDD56}Configs/Editor/PlaceableEntities/Objects/Rocks.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{6A292E947A5EFE16}" {
+     m_sAddon "ArmaReforger"
+     m_sSourceDirectory "{90C83C0793E38EF1}PrefabsEditable/Auto/Vegetation"
+     m_bExposed 1
+     m_Prefabs {
+     }
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD8961A59062}" : "{AB72A784270B21C4}Configs/Editor/PlaceableEntities/Objects/Props_Furniture.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89765F89F6}" : "{4E5E4350326C6964}Configs/Editor/PlaceableEntities/Objects/Props_Garbage.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89723F9306}" : "{077AB7EFC938A433}Configs/Editor/PlaceableEntities/Objects/Props_Industrial.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD8960040739}" : "{21ED79301F344A7C}Configs/Editor/PlaceableEntities/Objects/Structures_Industrial.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD897F9A1262}" : "{871442861C5F4071}Configs/Editor/PlaceableEntities/Objects/Props_Infrastructure.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD897FA2E6E6}" : "{ECCA30A4D994A1DD}Configs/Editor/PlaceableEntities/Objects/Structures_Infrastructure.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89781B0E32}" : "{353BEA756F2A84C7}Configs/Editor/PlaceableEntities/Objects/Props_Military.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89782AC1F5}" : "{28ACD0C845BE4967}Configs/Editor/PlaceableEntities/Objects/Structures_Military.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58EEFEE352BF1468}" : "{9C91DCA65D35E8D6}Configs/Editor/PlaceableEntities/Compositions/Compositions_SubCompositions.conf" {
+     m_sSourceDirectory "{94B10E3405BF779F}PrefabsEditable/Auto/Compositions/Misc/SubCompositions"
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD89407457E0}" : "{1FDD126E7A3A2C73}Configs/Editor/PlaceableEntities/Objects/Props_Naval.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD8953C8FA1A}" : "{B16301EDA8046B2B}Configs/Editor/PlaceableEntities/Objects/Structures_Ruins.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD8940926F20}" : "{F925C2A9DDF951AF}Configs/Editor/PlaceableEntities/Objects/Props_Services.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD895212E2E3}" : "{BA60D83E583AED39}Configs/Editor/PlaceableEntities/Objects/Structures_Signs.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD893E815A65}" : "{6018B7E4600F7EEA}Configs/Editor/PlaceableEntities/Objects/Structures_Walls.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{58E4FD893ECCD54D}" : "{AD17D9064578E491}Configs/Editor/PlaceableEntities/Objects/Props_Wrecks.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{55C4A3BA592D83C5}" : "{52B1B35F60A71736}Configs/Editor/PlaceableEntities/Compositions/CompositionsStatic.conf" {
+    }
+    SCR_PlaceableEntitiesRegistry "{55BABD4E5346A8FF}" : "{7FB652F153A020F4}Configs/Editor/PlaceableEntities/Systems/Command.conf" {
+    }
+   }
+   m_EffectsPlaceStart {
+    SCR_SoundEditorEffect "{6A292E947A5EFE12}" {
+     m_sSound "SOUND_E_PLACE_GSTART"
+    }
+   }
+   m_EffectsPlaceConfirm {
+    SCR_SoundEditorEffect "{6A292E947A5EFE10}" {
+     m_sSound "SOUND_E_PLACE_CONFIRM"
+     m_bSoundHasPriority 1
+    }
+   }
+   m_EffectsPlaceCancel {
+    SCR_SoundEditorEffect "{6A292E947A5EFE1E}" {
+     m_sSound "SOUND_E_TRAN_CANCEL"
+    }
+   }
+  }
+  SCR_PreviewEntityEditorComponent "{6A292E947A5EFE05}" {
+   m_PreviewEntityPrefab "{1485D218DB14A25F}PrefabsEditable/System/E_Preview.et"
+   m_WaitingEntityPrefab "{394C10C8CA25BE3A}PrefabsEditable/System/E_PreviewWaiting.et"
+   m_PreviewMaterial "{58F07022C12D0CF5}Assets/Editor/PlacingPreview/Preview.emat"
+   m_DisabledPreviewMaterial "{14A9DCEA57D1C381}Assets/Conflict/CannotBuild.emat"
+   m_WaitingPreviewMaterial "{58F07022C12D0CF5}Assets/Editor/PlacingPreview/Preview.emat"
+   m_HeightIndicatorColor 0.761 0.386 0.078 0.251
+  }
+  SCR_StatesEditorComponent "{6A292E947A5EFE03}" {
+   m_DefaultState SELECTING
+  }
+  SCR_TestEditorComponent "{6A292E947A5EFE00}" {
+   Enabled 0
+  }
+  SCR_ToolbarActionsEditorComponent "{6A292E947A5E744F}" {
+   m_ActionsLists {
+    SCR_EditorActionList "{54B2AA70E13C3BC0}" : "{1D0DE9D20AADAFB7}Configs/Editor/ActionLists/Toolbar/SharedToolbar.conf" {
+    }
+    SCR_EditorActionList "{54B2AA70DFF7C75B}" : "{07BF7C5D7E011104}Configs/Editor/ActionLists/Toolbar/EditToolbar.conf" {
+    }
+    SCR_EditorActionList "{5D6EB31700B66A9E}" : "{073DB65CA0D2A2E8}Configs/Editor/ActionLists/Toolbar/SimulationToolbar.conf" {
+    }
+   }
+   m_ActionGroups {
+    SCR_EditorActionGroup "{6A292E947A5E7440}" {
+     m_ActionGroup SAVING
+     m_iOrder 1
+    }
+    SCR_EditorActionGroup "{6A292E947A5E7443}" {
+     m_ActionGroup SIMULATION
+     m_iOrder 0
+    }
+    SCR_EditorActionGroup "{6A292E947A5E7541}" {
+     m_ActionGroup TOOLS
+     m_iOrder 2
+    }
+    SCR_EditorActionGroup "{6A292E947A5E7540}" {
+     m_ActionGroup DYNAMIC
+     m_iOrder 3
+    }
+   }
+  }
+  SCR_TransformingEditorComponent "{6A292E947A5E7547}" {
+   m_EffectsTransforationStart {
+    SCR_SoundEditorEffect "{6A292E947A5E7546}" {
+     m_sSound "SOUND_E_TRAN_START"
+     m_bSoundHasPriority 1
+    }
+   }
+   m_EffectsTransformationConfirm {
+    SCR_SoundEditorEffect "{6A292E947A5E7544}" {
+     m_sSound "SOUND_E_TRAN_CONFIRM"
+    }
+   }
+   m_EffectsTransformationCancel {
+    SCR_SoundEditorEffect "{6A292E947A5E74BB}" {
+     m_sSound "SOUND_E_TRAN_CANCEL"
+    }
+   }
+  }
+  SCR_WorldEntityDelegateEditorComponent "{6A292E947A5E74BA}" {
+   m_EntityPrefab "{4FEB14F1AE86C2B3}PrefabsEditable/System/E_WorldEntityDelegate.et"
+  }
+ }
+ coords 0 0 0
+ m_ModeType GRAD_BC_SPECTATE
+ m_iOrder 5
+ m_UIInfo SCR_UIInfo "{6A292E947A5E74B8}" {
+  Name "#AR-Editor_Mode_Edit_Name"
+  Description "#AR-Editor_Mode_Edit_Description"
+  Icon "{1CD65C97061661F6}UI/Textures/Editor/Logos/Editor-Logo.imageset"
+  IconSetName "Logo_Editor"
+ }
+ m_ModeAddedNotification EDITOR_EDITOR_RIGHTS_ASSIGNED
+ m_ModeRemovedNotification EDITOR_EDITOR_RIGHTS_REMOVED
+}

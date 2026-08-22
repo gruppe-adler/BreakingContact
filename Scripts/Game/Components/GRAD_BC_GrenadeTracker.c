@@ -262,6 +262,20 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Whether the grenade is loose in the world rather than sitting in someone's inventory.
+	//!
+	//! A full loadout means dozens of tracked grenades per player, none of which should record
+	//! anything until actually thrown. An item held in a container is parented to that container,
+	//! so having no parent is the signal that it has been released into the world.
+	protected bool IsDeployedInWorld(IEntity entity)
+	{
+		if (!entity)
+			return false;
+
+		return (entity.GetParent() == null);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	protected float GetWorldTimeSeconds()
 	{
 		BaseWorld world = GetGame().GetWorld();

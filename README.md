@@ -45,10 +45,47 @@ The gamemode is built from three components attached to the `PS_GameModeCoop` en
 | Component | Purpose |
 |---|---|
 | `GRAD_BC_BreakingContactManager` | Core gamemode logic: phases, spawning, win conditions, transmission tracking |
-| `GRAD_BC_ReplayManager` | Records player/vehicle positions and projectile trajectories for post-game replay |
+| `GRAD_BC_ReplayManager` | Records player/vehicle positions, projectile trajectories and explosive events for post-game replay |
 | `GRAD_BC_AmbientVehicleManager` | Spawns ~50 civilian vehicles on roads for ambient traffic |
+| `GRAD_BC_ExplosionTracker` | Pairs AT launches with detonations for the replay (must be added per world layer) |
 
 Additionally, `GRAD_BC_TransmissionComponent` is attached to each spawned antenna and manages the transmission state machine (OFF, TRANSMITTING, INTERRUPTED, DISABLED, DONE).
+
+### Explosive recording
+
+Smoke, HE grenades and AT rockets are recorded and drawn on the replay map. The components live on
+**overrides of the vanilla base prefabs**, so every descendant inherits them — including grenades
+spawned into vehicle cargo and any added by other mods:
+
+| Vanilla prefab override | Components |
+|---|---|
+| `Prefabs/Weapons/Core/FragGrenade_Base.et` | `GRAD_BC_GrenadeTracker`, `GRAD_BC_DetonationWatcher` |
+| `Prefabs/Weapons/Core/SmokeGrenade_Base.et` | `GRAD_BC_GrenadeTracker` |
+| `Prefabs/Weapons/Core/Ammo_Rocket_Base.et` | `GRAD_BC_RocketTracker` |
+
+Each category needs a different hook, because no single one covers them all:
+
+| | How it is captured |
+|---|---|
+| **Smoke** | Watched until it comes to rest; that is where the cloud forms. Recorded immediately with a nominal duration, refined to the real one if the entity is later removed. |
+| **HE** | `GRAD_BC_DetonationWatcher` checks `WasTriggered()` on `EntityEvent.FRAME`. Polling on a timer does **not** work: the flag is set and the grenade destroyed inside a single frame. The position must be cached every frame, since the entity is gone by the time it reads as triggered. |
+| **AT** | Launch comes from `OnProjectileShot` on the character; the impact from `GRAD_BC_RocketTracker` riding the projectile and taking its last known position. `SCR_ExplosionAmmoEffect`'s invoker does **not** fire for these rockets even though they detonate normally. |
+
+Notes for anyone extending this:
+
+- `BaseTriggerComponent`'s useful methods are `proto external` (callable, not overridable) and
+  engine classes such as `TimerTriggerComponent` cannot be modded at all. Interact with a fuse from
+  a **sibling** `ScriptComponent` using `FindComponent`, as the base game's
+  `SCR_InstantTriggerComponent` does.
+- In the `outMat[3]` explosion callbacks, **`outMat[0]` is the world position**. The array is
+  declared `[3]`, so valid indices are 0–2 and there is no `outMat[3]`.
+- Explosive events carry absolute timestamps and are interpolated against the playback clock rather
+  than sampled per frame — a rocket's flight is shorter than one recording interval.
+- Detonations are drawn for a fixed amount of **real** time, scaled by playback speed, so they stay
+  perceptible when a round is compressed into a minute. Blasts that were seconds apart may overlap
+  on screen; that is intentional.
+- Prefab-to-category mapping and smoke colours live in `GRAD_BC_ExplosiveCatalog`. Smoke colour
+  cannot be read at runtime (it is a material assignment), so new variants need a line there.
 
 ## Mission Header Configuration
 
@@ -128,7 +165,7 @@ These attributes are set on the components in the World Editor (not in the `.con
 
 | Attribute | Default | Description |
 |---|---|---|
-| Recording Interval | `1.0` | Seconds between recorded frames |
+| Recording Interval | `3.0` | Seconds between recorded frames (explosives are event-based and unaffected) |
 | Record Projectiles | `true` | Whether to record bullet/grenade trajectories |
 | Max Projectile Distance | `500` | Maximum distance to record projectiles (meters) |
 | Max Replay Duration | `60.0` | Target replay length in seconds (speed adapts automatically) |

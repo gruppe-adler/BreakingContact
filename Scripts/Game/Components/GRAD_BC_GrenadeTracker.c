@@ -49,6 +49,9 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 	// Guards against a second poll chain being started for the same component instance.
 	protected bool m_bPollStarted = false;
 
+	// Latches the transition from "carried in inventory" to "loose in the world".
+	protected bool m_bWasDeployed = false;
+
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
@@ -131,13 +134,25 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 		// dozens of them per player. Until it is actually thrown it has no independent presence in
 		// the world, and because it never moves relative to itself, the "came to rest" test would
 		// otherwise fire immediately and record a phantom cloud on the carrier.
-		if (!IsDeployedInWorld(owner))
-			return;
+		//
+		// Skip the recording work while it is still carried, but KEEP POLLING: this is the state
+		// every grenade starts in, so returning early here without rescheduling stops the chain
+		// after a single tick and the grenade is never seen once it is actually thrown.
+		if (IsDeployedInWorld(owner))
+		{
+			// First frame in the world - reset the movement baseline so the throw is not measured
+			// against the carrier's last position.
+			if (!m_bWasDeployed)
+			{
+				m_bWasDeployed = true;
+				moved = REST_THRESHOLD_M + 1.0; // treat as moving; it is mid-flight, not at rest
+			}
 
-		if (m_eKind == EGradBCExplosiveKind.SMOKE)
-			PollSmoke(currentPos, moved);
-		else
-			PollExplosive(owner, currentPos);
+			if (m_eKind == EGradBCExplosiveKind.SMOKE)
+				PollSmoke(currentPos, moved);
+			else
+				PollExplosive(owner, currentPos);
+		}
 
 		GetGame().GetCallqueue().CallLater(Poll, POLL_INTERVAL_MS, false, owner);
 	}

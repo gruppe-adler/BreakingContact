@@ -109,6 +109,11 @@ class GRAD_BC_ExplosionTracker : ScriptComponent
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ExplosionTracker: AT launch '%1' at %2", prefabPath, pending.position.ToString()), LogLevel.NORMAL);
+
+		// Follow the rocket until it disappears. The detonation invoker has never once fired for
+		// these rockets, so this establishes what actually happens to them: whether they fly and
+		// vanish (no explosion effect configured on this ammo), or are destroyed at the muzzle.
+		TraceProjectile(projectile, 0, pending.position);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -162,6 +167,38 @@ class GRAD_BC_ExplosionTracker : ScriptComponent
 
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_ExplosionTracker: AT impact at %1", impactPos.ToString()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Diagnostic: samples a launched rocket's position until the entity is gone, then reports how
+	// far it travelled and how long it lived.
+	//
+	// Distinguishes the two remaining explanations for a launch that never reports a detonation:
+	// a rocket deleted at the muzzle dies within a tick or two having moved almost nowhere, while
+	// one that flies its full course and vanishes on impact covers real distance first - which
+	// would mean the ammo simply does not run SCR_ExplosionAmmoEffect.
+	protected void TraceProjectile(IEntity projectile, int elapsedMs, vector lastPos)
+	{
+		const int pollMs = 100;
+		const int maxMs = 10000;
+
+		if (!projectile)
+		{
+			Print(string.Format("GRAD_BC_ExplosionTracker: rocket gone after %1ms, last seen %2",
+				elapsedMs, lastPos.ToString()), LogLevel.NORMAL);
+			return;
+		}
+
+		vector currentPos = projectile.GetOrigin();
+
+		if (elapsedMs >= maxMs)
+		{
+			Print(string.Format("GRAD_BC_ExplosionTracker: rocket still alive after %1ms at %2",
+				maxMs, currentPos.ToString()), LogLevel.NORMAL);
+			return;
+		}
+
+		GetGame().GetCallqueue().CallLater(TraceProjectile, pollMs, false, projectile, elapsedMs + pollMs, currentPos);
 	}
 
 	//------------------------------------------------------------------------------------------------

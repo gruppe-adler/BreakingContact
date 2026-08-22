@@ -7,6 +7,19 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Opacity applied to markers of dead units during replay playback
 	protected const float DEAD_MARKER_OPACITY = 0.35;
 
+	// --- Marker icon sizing ---
+	// Icons scale with map zoom but are clamped so they neither shrink to specks when zoomed out
+	// nor swamp the map when zoomed in. Tune MIN/MAX to taste; 1.0 means "the base size".
+	protected const float MARKER_BASE_SIZE_INFANTRY = 64.0;
+	protected const float MARKER_BASE_SIZE_VEHICLE = 128.0;
+	protected const float MARKER_REFERENCE_ZOOM = 1.0;	// zoom level at which base size applies
+	protected const float MARKER_MIN_ZOOM_SCALE = 0.55;	// floor - icons stay readable zoomed out
+	protected const float MARKER_MAX_ZOOM_SCALE = 1.35;	// ceiling - icons stop growing zoomed in
+
+	// Draw order for marker widgets - infantry always above vehicles.
+	protected const int MARKER_ZORDER_VEHICLE = 0;
+	protected const int MARKER_ZORDER_PLAYER = 10;
+
 	// --- Explosive event rendering ---
 	// Radii are in metres so they scale with map zoom and stay true to the real area affected.
 	protected const float SMOKE_RADIUS_M = 25.0;	// approximate screening radius of a smoke cloud
@@ -132,21 +145,64 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // ---------------------------------------------------------
         FrameSlot.SetAlignment(w, 0.5, 0.5);
 
-        // Set default sizes based on type - DPI scaled for resolution independence
-        // Compute DPI scale by comparing scaled vs unscaled values
-        // DPIUnscale converts from screen pixels to widget units
+        ApplyMarkerSize(w, isVehicle);
+
+        m_ActiveWidgets.Insert(key, w);
+        return w;
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Ensures infantry markers draw on top of vehicle markers.
+    //
+    // Vehicles are drawn first so that a crewed vehicle's icon replaces its occupants, but that
+    // also means an empty vehicle widget created later sits above a player widget created earlier
+    // and hides a nearby soldier. Widget stacking follows creation order, so an explicit z-order
+    // is needed rather than relying on draw sequence.
+    protected void RaisePlayerMarkersToFront()
+    {
+        foreach (string key, ImageWidget w : m_ActiveWidgets)
+        {
+            if (!w)
+                continue;
+
+            // string has no StartsWith in Enforce Script (only ResourceName/UUID do), so match on
+            // the prefix position instead. Keys are built as "PLR_<id>" and "VEH_<id>".
+            if (key.IndexOf("PLR_") == 0)
+                w.SetZOrder(MARKER_ZORDER_PLAYER);
+            else
+                w.SetZOrder(MARKER_ZORDER_VEHICLE);
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Sizes a marker icon for the current zoom, clamped at both ends.
+    //
+    // Icons scale with the map so they read as real-world extent, but the scale is clamped: below
+    // MARKER_MIN_ZOOM_SCALE they would shrink to unreadable specks when zoomed out, and above
+    // MARKER_MAX_ZOOM_SCALE they would swamp the map when zoomed right in.
+    protected void ApplyMarkerSize(ImageWidget w, bool isVehicle)
+    {
+        if (!w)
+            return;
+
+        // DPI scale for resolution independence: DPIUnscale converts screen pixels to widget units.
         float unscaled100 = GetGame().GetWorkspace().DPIUnscale(100);
-        float dpiScaleFactor = 100.0 / unscaled100;  // e.g. if DPIUnscale(100) = 50, scale is 2.0
+        float dpiScaleFactor = 100.0 / unscaled100;
         if (dpiScaleFactor <= 0)
             dpiScaleFactor = 1.0;
 
+        float baseSize = MARKER_BASE_SIZE_INFANTRY;
         if (isVehicle)
-            FrameSlot.SetSize(w, 128 / dpiScaleFactor, 128 / dpiScaleFactor);
-        else
-            FrameSlot.SetSize(w, 64 / dpiScaleFactor, 64 / dpiScaleFactor);
-            
-        m_ActiveWidgets.Insert(key, w);
-        return w;
+            baseSize = MARKER_BASE_SIZE_VEHICLE;
+
+        float zoomScale = 1.0;
+        if (m_MapEntity)
+            zoomScale = m_MapEntity.GetCurrentZoom() / MARKER_REFERENCE_ZOOM;
+
+        zoomScale = Math.Clamp(zoomScale, MARKER_MIN_ZOOM_SCALE, MARKER_MAX_ZOOM_SCALE);
+
+        float size = (baseSize * zoomScale) / dpiScaleFactor;
+        FrameSlot.SetSize(w, size, size);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -306,6 +362,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                 w.SetVisible(false);
             }
         }
+
+        // --- 5. Keep players above vehicles ---
+        RaisePlayerMarkersToFront();
 
         // ---------------------------------------------------------
         // DRAW LINES & PROJECTILES (Keep using Commands for performance on lines)
@@ -577,6 +636,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         if (!w) return;
 
         m_UsedWidgetKeys.Insert(key);
+
+        // Re-apply every frame: the size depends on zoom, which changes after the widget is made.
+        ApplyMarkerSize(w, isVehicle);
 
 		// 2. World to Screen - Returns screen pixels
 		float screenX, screenY;

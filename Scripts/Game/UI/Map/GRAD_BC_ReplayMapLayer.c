@@ -180,7 +180,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
 		{
-			foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
+			// Entries can go null when the map closes and the widget tree is torn down while this
+			// map still holds references, so each one is checked rather than blindly dereferenced.
+			foreach (ImageWidget w : m_ActiveWidgets)
+			{
+				if (w)
+					w.SetVisible(false);
+			}
 			return;
 		}
 
@@ -317,6 +323,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // --- 4. Hide Unused Widgets ---
         foreach (string key, ImageWidget w : m_ActiveWidgets)
         {
+            if (!w)
+                continue;
+
             if (!m_UsedWidgetKeys.Contains(key))
             {
                 w.SetVisible(false);

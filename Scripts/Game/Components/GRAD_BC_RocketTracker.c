@@ -93,13 +93,10 @@ class GRAD_BC_RocketTracker : ScriptComponent
 		// A rocket that never travelled was destroyed where it spawned rather than flying - most
 		// likely deleted by safestart. Recording that as a flight would draw a marker on the
 		// shooter's own position.
+		// Most rockets never fly at all: they sit as ammo in inventory or vehicle cargo and are
+		// eventually destroyed there. Logging each one buries the real impacts, so this is silent.
 		if (vector.Distance(m_vLaunchPos, m_vLastPos) < MIN_FLIGHT_DISTANCE_M)
-		{
-			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print(string.Format("GRAD_BC_RocketTracker: rocket went nowhere (%1m), not recording",
-					vector.Distance(m_vLaunchPos, m_vLastPos)), LogLevel.NORMAL);
 			return;
-		}
 
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 		if (!replayManager)

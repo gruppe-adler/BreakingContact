@@ -247,8 +247,18 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 		if (m_bEventRecorded)
 			return;
 
+		// Only a grenade that actually reached the world can have detonated. Without this, every
+		// grenade consumed from inventory or despawned unthrown - hundreds per round - would be
+		// recorded as a blast on whoever was carrying it.
+		if (!m_bWasDeployed)
+			return;
+
 		// HE removed without WasTriggered() ever being observed - the fuse fired between polls.
 		// Record it anyway at the last known position rather than losing the event.
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_GrenadeTracker: HE gone without observed trigger '%1' at %2",
+				m_sPrefabPath, m_vLastPos.ToString()), LogLevel.NORMAL);
+
 		RecordEvent(m_eKind, m_vLastPos, m_vLastPos, now, now + GRAD_BC_ExplosiveCatalog.HE_FLASH_DURATION, 0);
 	}
 

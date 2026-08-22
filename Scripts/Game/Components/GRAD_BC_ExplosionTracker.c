@@ -129,12 +129,23 @@ class GRAD_BC_ExplosionTracker : ScriptComponent
 		// launch (verified in-game: the probe saw the explosion while a keyed lookup on the launch
 		// entity found nothing), so a map keyed on IEntity never hits.
 		string sourcePrefab = GetPrefabPath(damageSource);
+
+		// Every explosion is logged before any early return. Without this a detonation that fails
+		// to match is indistinguishable from the invoker never firing at all.
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ExplosionTracker: explosion source='%1' at %2 (pending=%3)",
+				sourcePrefab, impactPos.ToString(), s_aPendingLaunches.Count()), LogLevel.NORMAL);
+
 		if (sourcePrefab == "")
 			return;
 
 		GRAD_BC_PendingLaunch pending = TakeMatchingLaunch(sourcePrefab);
 		if (!pending)
+		{
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ExplosionTracker: no pending launch matched '%1'", sourcePrefab), LogLevel.NORMAL);
 			return; // not a rocket we are tracking (e.g. a mine or vehicle explosion)
+		}
 
 		GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
 		if (!replayManager)

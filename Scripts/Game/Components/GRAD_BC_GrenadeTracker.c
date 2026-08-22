@@ -127,6 +127,13 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 		float moved = vector.Distance(currentPos, m_vLastPos);
 		m_vLastPos = currentPos;
 
+		// A grenade sitting in a player's inventory runs this component too - a full loadout means
+		// dozens of them per player. Until it is actually thrown it has no independent presence in
+		// the world, and because it never moves relative to itself, the "came to rest" test would
+		// otherwise fire immediately and record a phantom cloud on the carrier.
+		if (!IsDeployedInWorld(owner))
+			return;
+
 		if (m_eKind == EGradBCExplosiveKind.SMOKE)
 			PollSmoke(currentPos, moved);
 		else

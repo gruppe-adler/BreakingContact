@@ -10,7 +10,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// --- Explosive event rendering ---
 	// Radii are in metres so they scale with map zoom and stay true to the real area affected.
 	protected const float SMOKE_RADIUS_M = 25.0;	// approximate screening radius of a smoke cloud
-	protected const float SMOKE_MAX_ALPHA = 0.45;	// clouds are translucent so markers stay readable
+	// The cloud body is deliberately near-transparent: it marks an area without hiding the units
+	// and vehicles inside it. Legibility comes from the outline, not the fill.
+	protected const float SMOKE_FILL_ALPHA = 0.18;
+	protected const float SMOKE_RING_ALPHA = 0.70;
+
+	// Smallest on-screen radius, in pixels, any explosive marker is drawn at. A 25m cloud is only
+	// a few pixels on a zoomed-out map, so without a floor it is drawn correctly yet invisible.
+	protected const float MIN_EXPLOSIVE_SCREEN_RADIUS = 12.0;
 
 	protected const float HE_MIN_RADIUS_M = 4.0;
 	protected const float HE_MAX_RADIUS_M = 18.0;
@@ -392,6 +399,14 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // that all look identical on screen.
         static int explosiveDrawTick = 0;
         explosiveDrawTick++;
+        if (explosiveDrawTick % 60 == 0 && GRAD_BC_BreakingContactManager.IsDebugMode() && m_MapEntity)
+        {
+            // Screen radius a smoke cloud resolves to at the current zoom. If this is only a few
+            // pixels the marker is drawing correctly but is simply too small to see.
+            Print(string.Format("GRAD_BC_ReplayMapLayer: zoom=%1 smoke %2m -> %3px",
+                m_MapEntity.GetCurrentZoom(), SMOKE_RADIUS_M, SMOKE_RADIUS_M * m_MapEntity.GetCurrentZoom()), LogLevel.NORMAL);
+        }
+
         if (explosiveDrawTick % 60 == 0 && GRAD_BC_BreakingContactManager.IsDebugMode())
         {
             Print(string.Format("GRAD_BC_ReplayMapLayer: explosives t=%1s active=%2 total=%3",
@@ -443,8 +458,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         if (lifeFraction > 0.5)
             alphaScale = 1.0 - ((lifeFraction - 0.5) / 0.5);
 
-        int fillColor = ApplyAlpha(evt.color, SMOKE_MAX_ALPHA * alphaScale);
-        int ringColor = ApplyAlpha(evt.color, SMOKE_MAX_ALPHA * alphaScale * 1.6);
+        // The cloud must not obscure what is happening inside it, so the body is a very faint
+        // wash and the outline carries most of the legibility. The outline is drawn at a much
+        // higher alpha than the fill for that reason.
+        int fillColor = ApplyAlpha(evt.color, SMOKE_FILL_ALPHA * alphaScale);
+        int ringColor = ApplyAlpha(evt.color, SMOKE_RING_ALPHA * alphaScale);
 
         DrawWorldDisc(evt.position, radius, fillColor);
         DrawWorldRing(evt.position, radius, 2.0, ringColor);
@@ -514,11 +532,22 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     // otherwise a 25m cloud is drawn as a 25px ring regardless of zoom.
     protected void DrawWorldRing(vector center, float radiusMeters, float width, int color)
     {
-        float screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
-        if (screenRadius < 1.0)
-            return;
+        DrawCircle(center, WorldRadiusToScreen(radiusMeters), width, color);
+    }
 
-        DrawCircle(center, screenRadius, width, color);
+    //------------------------------------------------------------------------------------------------
+    // Metres to screen pixels at the current zoom, with a floor.
+    //
+    // A smoke cloud is only ~25m across, which is a couple of pixels on a zoomed-out map - drawn
+    // correctly but far too small to notice. The floor keeps it visible as a small marker instead
+    // of disappearing, while it still grows naturally as the map is zoomed in.
+    protected float WorldRadiusToScreen(float radiusMeters)
+    {
+        float screenRadius = radiusMeters;
+        if (m_MapEntity)
+            screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
+
+        return Math.Max(screenRadius, MIN_EXPLOSIVE_SCREEN_RADIUS);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -528,14 +557,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float screenX, screenY;
         m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
 
-        // Metres to screen pixels. Uses the map's zoom scalar directly, matching
-        // GRAD_MapMarkerLayer.DrawCircle - projecting a second offset point through WorldToScreen
-        // and measuring the delta does NOT work here and collapses to a sub-pixel radius, which
-        // silently skipped every draw.
-        float screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
-
-        if (screenRadius < 1.0)
-            return;
+        // Metres to screen pixels, with the same floor the rings use so a small cloud stays
+        // visible when zoomed out instead of collapsing to nothing.
+        float screenRadius = WorldRadiusToScreen(radiusMeters);
 
         PolygonDrawCommand cmd = new PolygonDrawCommand();
         cmd.m_iColor = color;

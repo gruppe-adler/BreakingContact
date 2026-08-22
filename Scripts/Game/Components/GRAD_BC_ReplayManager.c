@@ -37,6 +37,15 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
 
+	// Latches once COALITION's safestart has actually switched on, so that "safestart has not
+	// started yet" is not mistaken for "safestart is over". See IsSafestartOver().
+	protected bool m_bSafestartWasActive = false;
+
+	// CheckGameState ticks once a second, so this is a ~15s grace period before concluding that
+	// safestart is simply disabled for this mission and recording should proceed anyway.
+	protected int m_iSafestartWaitTicks = 0;
+	protected const int SAFESTART_WAIT_MAX_TICKS = 15;
+
 	// Tolerances for rejecting a duplicate explosive event. Generous enough to catch the same
 	// grenade reported by two entities, tight enough that two players throwing smoke together
 	// still register separately.
@@ -385,6 +394,45 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Whether COALITION's safestart has finished, i.e. weapons are live.
+	//!
+	//! Returns true when COALITION is absent or never enabled safestart, so BC still records
+	//! normally standalone rather than never starting at all.
+	protected bool IsSafestartOver()
+	{
+		COA_SafestartManager safestartManager = COA_SafestartManager.GetInstance();
+		if (!safestartManager)
+			return true; // no COALITION safestart in this session - nothing to wait for
+
+		// Safestart must actually have begun before its ending means anything. COA enables it a
+		// moment after the game state flips, so an unlatched check would see "not active yet",
+		// read that as "already over", and start recording during the freeze after all.
+		if (!m_bSafestartWasActive)
+		{
+			if (safestartManager.GetSafestartStatus())
+			{
+				m_bSafestartWasActive = true;
+				return false;
+			}
+
+			// Safestart may simply be switched off for this mission, in which case it will never
+			// latch. Waiting forever would mean never recording at all, so give up after a grace
+			// period and treat it as "no safestart to wait for".
+			m_iSafestartWaitTicks++;
+			if (m_iSafestartWaitTicks >= SAFESTART_WAIT_MAX_TICKS)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: safestart never became active, recording without waiting", LogLevel.NORMAL);
+				return true;
+			}
+
+			return false;
+		}
+
+		return !safestartManager.GetSafestartStatus();
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void CheckGameState()
 	{
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -399,11 +447,20 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print(string.Format("GRAD_BC_ReplayManager: Current phase: %1, Recording: %2", 
 				currentPhase, m_bIsRecording), LogLevel.NORMAL);
 			
-		// Start recording when game begins
-		if (!m_bIsRecording && currentPhase == EBreakingContactPhase.GAME)
+		// Start recording once the game phase is reached AND COALITION's safestart has lifted.
+		//
+		// The two are independent clocks: BC reaches GAME as soon as BLUFOR picks a spawn (about
+		// 10s in), while safestart runs its own configurable timer - 3 minutes on these worlds.
+		// Recording from GAME therefore captured a frozen field, and anything thrown during
+		// safestart was either deleted by it or landed outside the recording window.
+		//
+		// Only the recording trigger is gated here. The phase machine is deliberately left alone:
+		// spawn selection happens in the OPFOR/BLUFOR phases which run DURING the freeze, so
+		// delaying those phases breaks spawn selection outright.
+		if (!m_bIsRecording && currentPhase == EBreakingContactPhase.GAME && IsSafestartOver())
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Game phase detected, starting recording", LogLevel.NORMAL);
+				Print("GRAD_BC_ReplayManager: game phase reached and safestart over, starting recording", LogLevel.NORMAL);
 			StartRecording();
 		}
 		

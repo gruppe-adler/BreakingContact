@@ -92,6 +92,13 @@ class GRAD_BC_GrenadeTracker : ScriptComponent
 			return;
 
 		m_bPollStarted = true;
+
+		// Logged for every tracked explosive, not just the ones that produce an event. Without
+		// this there is no way to tell "the grenade was never spawned from the tracked prefab"
+		// apart from "it spawned but the event was never recorded" - the two look identical.
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_GrenadeTracker: tracking '%1' kind=%2", m_sPrefabPath, m_eKind), LogLevel.NORMAL);
+
 		GetGame().GetCallqueue().CallLater(Poll, POLL_INTERVAL_MS, false, owner);
 	}
 

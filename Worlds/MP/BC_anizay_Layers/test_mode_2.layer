@@ -8,6 +8,8 @@ COA_Gamemode COA_Lobby : "{6A996BBFCEB37E78}Prefabs/Systems/!Lobby/COA_Lobby.et"
   }
   GRAD_BC_ReplayManager "{6A0956CFBABDC2A2}" {
   }
+  GRAD_BC_ExplosionTracker "{6842CA3813564601}" {
+  }
   SCR_CampaignBuildingManagerComponent "{6A0956CFB7A9F2D8}" {
    m_sFreeRoamBuildingClientTrigger "{5E191CEAF4B95816}Prefabs/MP/FreeRoamBuildingClientTrigger.et"
    m_BudgetType VEHICLES

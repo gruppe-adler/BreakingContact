@@ -1,0 +1,6 @@
+GenericEntity : "{14C1A0F061D9DDEE}Prefabs/Weapons/Grenades/M18/Smoke_M18_Violet.et" {
+ components {
+  GRAD_BC_GrenadeTracker "{6842CA3813564506}" {
+  }
+ }
+}

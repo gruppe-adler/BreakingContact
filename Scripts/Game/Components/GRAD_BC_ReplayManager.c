@@ -36,6 +36,12 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
+
+	// Tolerances for rejecting a duplicate explosive event. Generous enough to catch the same
+	// grenade reported by two entities, tight enough that two players throwing smoke together
+	// still register separately.
+	protected const float EXPLOSIVE_DEDUPE_SECONDS = 1.0;
+	protected const float EXPLOSIVE_DEDUPE_METERS = 2.0;
 	
 	// Tracked vehicles
 	protected ref array<IEntity> m_trackedVehicles;
@@ -1210,6 +1216,10 @@ void StartLocalReplayPlayback()
 		
 		if (currentChunkStart >= m_replayData.frames.Count())
 		{
+			// Explosive events are a single small payload covering the whole replay, so they go
+			// out once here rather than being split across the per-frame chunks.
+			SendExplosiveEvents();
+
 			// All chunks sent, send completion signal after final delay
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: All chunks sent, sending completion RPC in 500ms", LogLevel.NORMAL);
@@ -1417,6 +1427,101 @@ void StartLocalReplayPlayback()
 		// Send vehicle data if any
 		if (vehicleTimestamps.Count() > 0)
 			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations, vehicleWasUsed, vehicleIsEmpty);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Explosive events are not chunked per frame - they are absolute-time events covering the whole
+	// replay, so they are sent once, after the frame chunks.
+	void SendExplosiveEvents()
+	{
+		if (!m_replayData || m_replayData.explosiveEvents.IsEmpty())
+			return;
+
+		ref array<int> kinds = {};
+		ref array<vector> positions = {};
+		ref array<vector> endPositions = {};
+		ref array<float> startTimes = {};
+		ref array<float> endTimes = {};
+		ref array<int> colors = {};
+		ref array<string> factions = {};
+
+		foreach (GRAD_BC_ExplosiveEvent evt : m_replayData.explosiveEvents)
+		{
+			kinds.Insert(evt.kind);
+			positions.Insert(evt.position);
+			endPositions.Insert(evt.endPosition);
+			startTimes.Insert(evt.startTime);
+			endTimes.Insert(evt.endTime);
+			colors.Insert(evt.color);
+			factions.Insert(evt.factionKey);
+		}
+
+		Rpc(RpcAsk_ReceiveExplosiveEvents, kinds, positions, endPositions, startTimes, endTimes, colors, factions);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: sent %1 explosive events", kinds.Count()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_ReceiveExplosiveEvents(array<int> kinds, array<vector> positions, array<vector> endPositions, array<float> startTimes, array<float> endTimes, array<int> colors, array<string> factions)
+	{
+		if (!m_replayData)
+			m_replayData = GRAD_BC_ReplayData.Create();
+
+		m_replayData.explosiveEvents.Clear();
+
+		for (int i = 0; i < kinds.Count(); i++)
+		{
+			m_replayData.explosiveEvents.Insert(
+				GRAD_BC_ExplosiveEvent.Create(kinds[i], positions[i], endPositions[i], startTimes[i], endTimes[i], colors[i], factions[i]));
+		}
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: received %1 explosive events", kinds.Count()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Explosive events active at a given playback time, for the map layer to render.
+	//! Includes AT shots still in flight, HE flashes still fading, and smoke clouds still present.
+	//! Total recorded explosive events, regardless of whether any is currently active.
+	int GetExplosiveEventCount()
+	{
+		if (!m_replayData)
+			return 0;
+
+		return m_replayData.explosiveEvents.Count();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	int GetActiveExplosiveEvents(float playbackTime, out notnull array<ref GRAD_BC_ExplosiveEvent> outEvents)
+	{
+		outEvents.Clear();
+
+		if (!m_replayData)
+			return 0;
+
+		float replayStart = m_replayData.startTime;
+
+		foreach (GRAD_BC_ExplosiveEvent evt : m_replayData.explosiveEvents)
+		{
+			// Event times are absolute world time; playbackTime is relative to replay start.
+			float relStart = evt.startTime - replayStart;
+			float relEnd = evt.endTime - replayStart;
+
+			// A smoke thrown before recording began is still burning when the replay opens, so
+			// clamp its start rather than filtering it out for having a negative relative time.
+			if (relStart < 0)
+				relStart = 0;
+
+			if (relEnd < 0)
+				continue; // finished before the replay window - genuinely not shown
+
+			if (playbackTime >= relStart && playbackTime <= relEnd)
+				outEvents.Insert(evt);
+		}
+
+		return outEvents.Count();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -2404,11 +2509,68 @@ void StartLocalReplayPlayback()
 		return m_bPlaybackPaused; 
 	}
 	
-	float GetPlaybackTime() 
-	{ 
-		return m_fCurrentPlaybackTime; 
+	float GetPlaybackTime()
+	{
+		return m_fCurrentPlaybackTime;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Absolute world time the replay began. Explosive events carry absolute timestamps, so the
+	//! renderer needs this to convert them into playback-relative times.
+	float GetReplayStartTime()
+	{
+		if (!m_replayData)
+			return 0;
+
+		return m_replayData.startTime;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	//! Records a smoke deployment, HE detonation or AT shot.
+	//!
+	//! These are stored as absolute-time events rather than per-frame snapshots: a rocket's flight
+	//! lasts ~1-3s while frames are sampled every m_fRecordingInterval seconds (3s by default), so
+	//! snapshotting would miss it entirely. The client interpolates them against the playback clock.
+	//! \return the stored event, so the caller can refine it later (smoke end time), or null if
+	//! it was not recorded.
+	GRAD_BC_ExplosiveEvent RecordExplosiveEvent(EGradBCExplosiveKind kind, vector position, vector endPosition, float startTime, float endTime, int color, string factionKey)
+	{
+		if (!m_bIsRecording)
+			return null;
+
+		if (!m_replayData)
+			return null;
+
+		// Two entities can exist for one thrown grenade (observed: the same smoke recorded twice
+		// in the same millisecond at an identical position), so a per-component guard cannot stop
+		// it. Reject a duplicate of the same kind at effectively the same place and time instead.
+		foreach (GRAD_BC_ExplosiveEvent existing : m_replayData.explosiveEvents)
+		{
+			if (existing.kind != kind)
+				continue;
+
+			if (Math.AbsFloat(existing.startTime - startTime) > EXPLOSIVE_DEDUPE_SECONDS)
+				continue;
+
+			if (vector.Distance(existing.position, position) > EXPLOSIVE_DEDUPE_METERS)
+				continue;
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: ignoring duplicate explosive event kind=%1 at %2", kind, position.ToString()), LogLevel.NORMAL);
+
+			return existing;
+		}
+
+		GRAD_BC_ExplosiveEvent evt = GRAD_BC_ExplosiveEvent.Create(kind, position, endPosition, startTime, endTime, color, factionKey);
+		m_replayData.explosiveEvents.Insert(evt);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: recorded explosive event kind=%1 at %2 (total %3)",
+				kind, position.ToString(), m_replayData.explosiveEvents.Count()), LogLevel.NORMAL);
+
+		return evt;
+	}
+
 	//------------------------------------------------------------------------------------------------
 	// New method for recording projectile firing events
 	void RecordProjectileFired(vector position, vector velocity, string ammoType)

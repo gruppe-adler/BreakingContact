@@ -12,6 +12,8 @@ PS_GameModeCoop PS_GameMode_Lobby3 : "{9C2001FE7A2F2281}Prefabs/MP/Modes/PS_Game
   }
   GRAD_BC_ReplayManager "{6628C0D9C8C255F2}" {
   }
+  GRAD_BC_ExplosionTracker "{6842CA3813564605}" {
+  }
   SCR_CampaignBuildingManagerComponent "{61B4DDBF56BF1B48}" {
    m_iCompositionRefundPercentage 0
    m_iXpRewardTreshold 9999

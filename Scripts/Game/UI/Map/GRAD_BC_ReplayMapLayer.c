@@ -7,6 +7,21 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Opacity applied to markers of dead units during replay playback
 	protected const float DEAD_MARKER_OPACITY = 0.35;
 
+	// --- Explosive event rendering ---
+	// Radii are in metres so they scale with map zoom and stay true to the real area affected.
+	protected const float SMOKE_RADIUS_M = 25.0;	// approximate screening radius of a smoke cloud
+	protected const float SMOKE_MAX_ALPHA = 0.45;	// clouds are translucent so markers stay readable
+
+	protected const float HE_MIN_RADIUS_M = 4.0;
+	protected const float HE_MAX_RADIUS_M = 18.0;
+	protected const int HE_COLOR = 0xFFFF6020;		// orange blast
+
+	protected const float AT_ROCKET_RADIUS_M = 4.0;
+	protected const float AT_BURST_RADIUS_M = 22.0;
+	protected const float AT_BURST_SECONDS = 2.0;
+	protected const float AT_TRAIL_FRACTION = 0.25;	// trail covers the last quarter of the flight
+	protected const int AT_COLOR = 0xFFFFD040;		// bright yellow, distinct from HE orange
+
 	static GRAD_BC_ReplayMapLayer GetInstance()
 	{
 		return s_Instance;
@@ -354,9 +369,191 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                 }
             }
 
+            // Smoke clouds, HE flashes and AT rockets
+            DrawExplosiveEvents(replayManager);
+
             // Draw progress bar during replay
             DrawProgressBar(replayManager);
         }
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Renders the three explosive categories. Each is driven by the playback clock rather than by
+    // frame snapshots, so they animate smoothly regardless of the recording interval.
+    protected void DrawExplosiveEvents(GRAD_BC_ReplayManager replayManager)
+    {
+        array<ref GRAD_BC_ExplosiveEvent> activeEvents = {};
+        float playbackTime = replayManager.GetPlaybackTime();
+
+        int activeCount = replayManager.GetActiveExplosiveEvents(playbackTime, activeEvents);
+
+        // Periodic diagnostic: distinguishes "no events recorded", "events recorded but none
+        // active at this playback time" and "active but not drawing" - three very different bugs
+        // that all look identical on screen.
+        static int explosiveDrawTick = 0;
+        explosiveDrawTick++;
+        if (explosiveDrawTick % 60 == 0 && GRAD_BC_BreakingContactManager.IsDebugMode())
+        {
+            Print(string.Format("GRAD_BC_ReplayMapLayer: explosives t=%1s active=%2 total=%3",
+                playbackTime, activeCount, replayManager.GetExplosiveEventCount()), LogLevel.NORMAL);
+        }
+
+        if (activeCount == 0)
+            return;
+
+        foreach (GRAD_BC_ExplosiveEvent evt : activeEvents)
+        {
+            switch (evt.kind)
+            {
+                case EGradBCExplosiveKind.SMOKE:
+                    DrawSmokeCloud(evt, playbackTime);
+                    break;
+
+                case EGradBCExplosiveKind.HE:
+                    DrawHeFlash(evt, playbackTime);
+                    break;
+
+                case EGradBCExplosiveKind.AT:
+                    DrawAtRocket(evt, playbackTime);
+                    break;
+            }
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Smoke: a filled disc in the grenade's own colour that grows briefly as the cloud builds,
+    // then fades out over the remainder of its life.
+    protected void DrawSmokeCloud(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+        float duration = evt.endTime - evt.startTime;
+        if (duration <= 0)
+            return;
+
+        float age = playbackTime - relStart;
+        float lifeFraction = Math.Clamp(age / duration, 0.0, 1.0);
+
+        // Cloud builds over the first few seconds, then holds full size.
+        const float buildUpSeconds = 4.0;
+        float growth = Math.Clamp(age / buildUpSeconds, 0.0, 1.0);
+        float radius = SMOKE_RADIUS_M * (0.35 + 0.65 * growth);
+
+        // Hold opacity for the first half of its life, then fade to nothing.
+        float alphaScale = 1.0;
+        if (lifeFraction > 0.5)
+            alphaScale = 1.0 - ((lifeFraction - 0.5) / 0.5);
+
+        int fillColor = ApplyAlpha(evt.color, SMOKE_MAX_ALPHA * alphaScale);
+        int ringColor = ApplyAlpha(evt.color, SMOKE_MAX_ALPHA * alphaScale * 1.6);
+
+        DrawWorldDisc(evt.position, radius, fillColor);
+        DrawCircle(evt.position, radius, 2.0, ringColor);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // HE: a brief ring that expands outward and fades, reading as a detonation rather than a
+    // lingering presence. No persistent marker is left behind.
+    protected void DrawHeFlash(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+        float duration = evt.endTime - evt.startTime;
+        if (duration <= 0)
+            return;
+
+        float progress = Math.Clamp((playbackTime - relStart) / duration, 0.0, 1.0);
+
+        float radius = HE_MIN_RADIUS_M + (HE_MAX_RADIUS_M - HE_MIN_RADIUS_M) * progress;
+        float alpha = 1.0 - progress;
+
+        DrawCircle(evt.position, radius, 3.0, ApplyAlpha(HE_COLOR, alpha));
+        DrawWorldDisc(evt.position, radius * 0.35, ApplyAlpha(HE_COLOR, alpha * 0.5));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // AT: the rocket is animated along its flight path, trailing a line back toward the launch
+    // point, then bursts at the impact position.
+    protected void DrawAtRocket(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+        float flightTime = evt.endTime - evt.startTime;
+
+        int trailColor = ApplyAlpha(AT_COLOR, 0.55);
+
+        if (flightTime > 0)
+        {
+            float progress = Math.Clamp((playbackTime - relStart) / flightTime, 0.0, 1.0);
+
+            if (progress < 1.0)
+            {
+                // Rocket in flight: interpolate along the launch->impact line.
+                vector current = vector.Lerp(evt.position, evt.endPosition, progress);
+
+                // Short trail behind the rocket rather than a line all the way back to the shooter,
+                // so the direction of travel reads clearly without cluttering the map.
+                float trailStart = Math.Max(0.0, progress - AT_TRAIL_FRACTION);
+                vector trailFrom = vector.Lerp(evt.position, evt.endPosition, trailStart);
+
+                DrawLine(trailFrom, current, 2.0, trailColor);
+                DrawWorldDisc(current, AT_ROCKET_RADIUS_M, AT_COLOR);
+                return;
+            }
+        }
+
+        // Flight finished: show the impact burst, fading over the flash duration.
+        float sinceImpact = playbackTime - (evt.endTime - GetReplayStartTime());
+        float burstProgress = Math.Clamp(sinceImpact / AT_BURST_SECONDS, 0.0, 1.0);
+        float alpha = 1.0 - burstProgress;
+        float radius = HE_MIN_RADIUS_M + (AT_BURST_RADIUS_M - HE_MIN_RADIUS_M) * burstProgress;
+
+        DrawCircle(evt.endPosition, radius, 3.0, ApplyAlpha(AT_COLOR, alpha));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Filled disc at a world position, sized in metres so it scales with map zoom.
+    protected void DrawWorldDisc(vector center, float radiusMeters, int color, int segments = 24)
+    {
+        float screenX, screenY;
+        m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
+
+        // Convert a world-space radius into screen pixels by projecting a second point offset by
+        // the radius and measuring the resulting screen distance.
+        float edgeX, edgeY;
+        m_MapEntity.WorldToScreen(center[0] + radiusMeters, center[2], edgeX, edgeY, true);
+        float screenRadius = Math.AbsFloat(edgeX - screenX);
+
+        if (screenRadius < 1.0)
+            return;
+
+        PolygonDrawCommand cmd = new PolygonDrawCommand();
+        cmd.m_iColor = color;
+        cmd.m_Vertices = new array<float>;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float theta = i * (Math.PI2 / segments);
+            cmd.m_Vertices.Insert(screenX + screenRadius * Math.Cos(theta));
+            cmd.m_Vertices.Insert(screenY + screenRadius * Math.Sin(theta));
+        }
+
+        m_Commands.Insert(cmd);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Replaces the alpha channel of an ARGB colour with the given 0..1 scale.
+    protected int ApplyAlpha(int argb, float alphaScale)
+    {
+        int alpha = Math.Round(Math.Clamp(alphaScale, 0.0, 1.0) * 255);
+        return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    protected float GetReplayStartTime()
+    {
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+            return 0;
+
+        return replayManager.GetReplayStartTime();
     }
 
     // Core function to update a single marker widget

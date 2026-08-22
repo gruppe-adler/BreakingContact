@@ -1,0 +1,6 @@
+GenericEntity : "{9DB69176CEF0EE97}Prefabs/Weapons/Grenades/Smoke_ANM8HC.et" {
+ components {
+  GRAD_BC_GrenadeTracker "{6842CA3813564503}" {
+  }
+ }
+}

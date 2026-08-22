@@ -93,12 +93,51 @@ class GRAD_BC_WeaponFireTracker : ScriptGameComponent
 		
 		// Record projectile to replay system
 		replayManager.RecordProjectileFired(firingPos, velocity, ammoType);
+
+		// AT rockets are additionally recorded as launch->impact events so the replay can animate
+		// the projectile. The tracker filters out everything that is not AT-class ammo, and pairs
+		// this launch with the detonation reported by SCR_ExplosionAmmoEffect.
+		GRAD_BC_ExplosionTracker explosionTracker = GRAD_BC_ExplosionTracker.GetInstance();
+		if (explosionTracker && entity)
+			explosionTracker.NotifyProjectileLaunched(entity, GetProjectilePrefabPath(entity), GetFactionKeyOfCharacter(weaponOwner));
 		
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_WeaponFireTracker: Recorded projectile - %1 at %2 with velocity %3 m/s", 
 				ammoType, firingPos.ToString(), velocity.Length()), LogLevel.VERBOSE);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Prefab path of a launched projectile, used to classify it as AT / HE / smoke.
+	protected string GetProjectilePrefabPath(IEntity projectile)
+	{
+		if (!projectile)
+			return "";
+
+		EntityPrefabData prefabData = projectile.GetPrefabData();
+		if (!prefabData)
+			return "";
+
+		return prefabData.GetPrefabName();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Faction of whoever fired, so AT markers can be coloured by side. Empty string when unknown.
+	protected string GetFactionKeyOfCharacter(IEntity character)
+	{
+		if (!character)
+			return "";
+
+		FactionAffiliationComponent factionComponent = FactionAffiliationComponent.Cast(character.FindComponent(FactionAffiliationComponent));
+		if (!factionComponent)
+			return "";
+
+		Faction faction = factionComponent.GetAffiliatedFaction();
+		if (!faction)
+			return "";
+
+		return faction.GetFactionKey();
+	}
+
 	//------------------------------------------------------------------------------------------------
 	override void OnDelete(IEntity owner)
 	{

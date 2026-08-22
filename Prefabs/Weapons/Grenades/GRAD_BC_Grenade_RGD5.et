@@ -1,6 +1,0 @@
-GenericEntity : "{645C73791ECA1698}Prefabs/Weapons/Grenades/Grenade_RGD5.et" {
- components {
-  GRAD_BC_GrenadeTracker "{6842CA3813564502}" {
-  }
- }
-}

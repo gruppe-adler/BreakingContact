@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{F1FDA25A23683C98}Prefabs/Weapons/Grenades/GRAD_BC_Grenade_RGD5.et"
+ Name "{8B55F8686833B12B}Prefabs/Weapons/Core/FragGrenade_Base.et"
  Configurations {
   EntityTemplateResourceClass PC {
   }

@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{8808797BA8CB9EBC}Prefabs/Weapons/Grenades/GRAD_BC_Smoke_ANM8HC.et"
+ Name "{C0BDA86B5AA5648C}Prefabs/Weapons/Core/Ammo_Rocket_Base.et"
  Configurations {
   EntityTemplateResourceClass PC {
   }

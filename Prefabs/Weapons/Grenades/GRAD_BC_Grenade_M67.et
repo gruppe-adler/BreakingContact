@@ -1,6 +1,0 @@
-GenericEntity : "{E8F00BF730225B00}Prefabs/Weapons/Grenades/Grenade_M67.et" {
- components {
-  GRAD_BC_GrenadeTracker "{6842CA3813564501}" {
-  }
- }
-}

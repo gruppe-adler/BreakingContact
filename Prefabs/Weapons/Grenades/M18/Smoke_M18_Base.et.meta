@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{9066E199A06449E7}Prefabs/Weapons/Grenades/M18/GRAD_BC_Smoke_M18_Green.et"
+ Name "{AD2709F5F6F0D871}Prefabs/Weapons/Grenades/M18/Smoke_M18_Base.et"
  Configurations {
   EntityTemplateResourceClass PC {
   }

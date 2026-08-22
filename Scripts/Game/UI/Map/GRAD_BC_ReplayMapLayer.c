@@ -447,7 +447,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         int ringColor = ApplyAlpha(evt.color, SMOKE_MAX_ALPHA * alphaScale * 1.6);
 
         DrawWorldDisc(evt.position, radius, fillColor);
-        DrawCircle(evt.position, radius, 2.0, ringColor);
+        DrawWorldRing(evt.position, radius, 2.0, ringColor);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float radius = HE_MIN_RADIUS_M + (HE_MAX_RADIUS_M - HE_MIN_RADIUS_M) * progress;
         float alpha = 1.0 - progress;
 
-        DrawCircle(evt.position, radius, 3.0, ApplyAlpha(HE_COLOR, alpha));
+        DrawWorldRing(evt.position, radius, 3.0, ApplyAlpha(HE_COLOR, alpha));
         DrawWorldDisc(evt.position, radius * 0.35, ApplyAlpha(HE_COLOR, alpha * 0.5));
     }
 
@@ -505,7 +505,20 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float alpha = 1.0 - burstProgress;
         float radius = HE_MIN_RADIUS_M + (AT_BURST_RADIUS_M - HE_MIN_RADIUS_M) * burstProgress;
 
-        DrawCircle(evt.endPosition, radius, 3.0, ApplyAlpha(AT_COLOR, alpha));
+        DrawWorldRing(evt.endPosition, radius, 3.0, ApplyAlpha(AT_COLOR, alpha));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Ring at a world position, sized in METRES. The DrawCircle(center, radius, width, colour)
+    // overload takes its radius in screen pixels, so metre-based callers must convert first -
+    // otherwise a 25m cloud is drawn as a 25px ring regardless of zoom.
+    protected void DrawWorldRing(vector center, float radiusMeters, float width, int color)
+    {
+        float screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
+        if (screenRadius < 1.0)
+            return;
+
+        DrawCircle(center, screenRadius, width, color);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -515,11 +528,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float screenX, screenY;
         m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
 
-        // Convert a world-space radius into screen pixels by projecting a second point offset by
-        // the radius and measuring the resulting screen distance.
-        float edgeX, edgeY;
-        m_MapEntity.WorldToScreen(center[0] + radiusMeters, center[2], edgeX, edgeY, true);
-        float screenRadius = Math.AbsFloat(edgeX - screenX);
+        // Metres to screen pixels. Uses the map's zoom scalar directly, matching
+        // GRAD_MapMarkerLayer.DrawCircle - projecting a second offset point through WorldToScreen
+        // and measuring the delta does NOT work here and collapses to a sub-pixel radius, which
+        // silently skipped every draw.
+        float screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
 
         if (screenRadius < 1.0)
             return;

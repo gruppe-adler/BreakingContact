@@ -46,6 +46,11 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	protected int m_iSafestartWaitTicks = 0;
 	protected const int SAFESTART_WAIT_MAX_TICKS = 15;
 
+	// Real seconds a detonation stays visible on the replay map. Scaled by playback speed at use,
+	// so it is perceptual duration rather than simulated duration - what matters is that a viewer
+	// can see it, not that it matches how long the real blast lasted.
+	protected const float DETONATION_VISIBLE_SECONDS = 1.0;
+
 	// Tolerances for rejecting a duplicate explosive event. Generous enough to catch the same
 	// grenade reported by two entities, tight enough that two players throwing smoke together
 	// still register separately.
@@ -1560,11 +1565,21 @@ void StartLocalReplayPlayback()
 
 		float replayStart = m_replayData.startTime;
 
+		// Detonations are instantaneous in reality but need to stay on screen long enough to be
+		// perceived. Because playback is time-compressed, the window is widened by the playback
+		// speed so the animation reads the same at any replay rate. Blasts that were seconds apart
+		// may therefore overlap on screen - that is an accepted trade for legibility.
+		float detonationWindow = DETONATION_VISIBLE_SECONDS * Math.Max(1.0, m_fPlaybackSpeed);
+
 		foreach (GRAD_BC_ExplosiveEvent evt : m_replayData.explosiveEvents)
 		{
 			// Event times are absolute world time; playbackTime is relative to replay start.
 			float relStart = evt.startTime - replayStart;
 			float relEnd = evt.endTime - replayStart;
+
+			// Smoke has a genuine duration of its own; point events get the perceptual window.
+			if (evt.kind != EGradBCExplosiveKind.SMOKE)
+				relEnd = Math.Max(relEnd, relStart + detonationWindow);
 
 			// A smoke thrown before recording began is still burning when the replay opens, so
 			// clamp its start rather than filtering it out for having a negative relative time.

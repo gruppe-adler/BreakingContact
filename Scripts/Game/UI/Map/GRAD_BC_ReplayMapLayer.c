@@ -21,7 +21,16 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 	protected const float HE_MIN_RADIUS_M = 4.0;
 	protected const float HE_MAX_RADIUS_M = 18.0;
-	protected const int HE_COLOR = 0xFFFF6020;		// orange blast
+	protected const int HE_COLOR = 0xFFFF3020;		// red blast
+
+	// Real seconds a detonation animation should occupy on screen. Multiplied by playback speed
+	// at draw time, so it stays roughly this long whether the replay runs at 1x or 10x.
+	protected const float HE_ANIMATION_SECONDS = 1.0;
+
+	// Shape of the detonation animation, as fractions of the event's total duration.
+	protected const float HE_PUNCH_PEAK = 0.30;		// expansion completes here, then contracts
+	protected const float HE_CONTRACTION = 0.45;	// how far it shrinks back from the peak
+	protected const float HE_FADE_START = 0.55;		// opacity holds until here, then fades out
 
 	protected const float AT_ROCKET_RADIUS_M = 4.0;
 	protected const float AT_BURST_RADIUS_M = 22.0;
@@ -474,17 +483,46 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     protected void DrawHeFlash(GRAD_BC_ExplosiveEvent evt, float playbackTime)
     {
         float relStart = evt.startTime - GetReplayStartTime();
-        float duration = evt.endTime - evt.startTime;
+
+        // The recorded window is in replay-time, but playback is compressed - a long round is
+        // squeezed into a minute, so a two second event can flash past in a fraction of a second.
+        // Stretch the window by the playback speed so the animation lasts a consistent amount of
+        // REAL time on screen no matter how fast the replay is running.
+        float duration = HE_ANIMATION_SECONDS * GetPlaybackSpeedScale();
         if (duration <= 0)
             return;
 
         float progress = Math.Clamp((playbackTime - relStart) / duration, 0.0, 1.0);
 
-        float radius = HE_MIN_RADIUS_M + (HE_MAX_RADIUS_M - HE_MIN_RADIUS_M) * progress;
-        float alpha = 1.0 - progress;
+        // Grow fast, settle back slowly. A detonation that expands and contracts reads as an
+        // event even when it flashes past, which matters because the replay is time-compressed:
+        // a two second window can be a fraction of a second on screen at playback speed.
+        //
+        // The curve peaks at PUNCH_PEAK then eases back, with the ease-out shaped by a squared
+        // falloff so the contraction decelerates rather than snapping shut.
+        float scale;
+        if (progress < HE_PUNCH_PEAK)
+        {
+            // Ease-out on the way up: fast initial expansion, decelerating into the peak.
+            float t = progress / HE_PUNCH_PEAK;
+            scale = 1.0 - ((1.0 - t) * (1.0 - t));
+        }
+        else
+        {
+            // Ease-in-out on the way back down, settling toward a small residual.
+            float t = (progress - HE_PUNCH_PEAK) / (1.0 - HE_PUNCH_PEAK);
+            scale = 1.0 - (t * t * HE_CONTRACTION);
+        }
+
+        float radius = HE_MIN_RADIUS_M + (HE_MAX_RADIUS_M - HE_MIN_RADIUS_M) * scale;
+
+        // Hold full opacity through the punch, then fade over the tail so it disappears cleanly.
+        float alpha = 1.0;
+        if (progress > HE_FADE_START)
+            alpha = 1.0 - ((progress - HE_FADE_START) / (1.0 - HE_FADE_START));
 
         DrawWorldRing(evt.position, radius, 3.0, ApplyAlpha(HE_COLOR, alpha));
-        DrawWorldDisc(evt.position, radius * 0.35, ApplyAlpha(HE_COLOR, alpha * 0.5));
+        DrawWorldDisc(evt.position, radius * 0.45, ApplyAlpha(HE_COLOR, alpha * 0.55));
     }
 
     //------------------------------------------------------------------------------------------------
@@ -517,13 +555,33 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             }
         }
 
-        // Flight finished: show the impact burst, fading over the flash duration.
+        // Flight finished: show the impact burst. Stretched by playback speed for the same
+        // perceptual reason as the HE flash - see DrawHeFlash.
         float sinceImpact = playbackTime - (evt.endTime - GetReplayStartTime());
-        float burstProgress = Math.Clamp(sinceImpact / AT_BURST_SECONDS, 0.0, 1.0);
-        float alpha = 1.0 - burstProgress;
-        float radius = HE_MIN_RADIUS_M + (AT_BURST_RADIUS_M - HE_MIN_RADIUS_M) * burstProgress;
+        float burstDuration = AT_BURST_SECONDS * GetPlaybackSpeedScale();
+        float burstProgress = Math.Clamp(sinceImpact / burstDuration, 0.0, 1.0);
+
+        // Same punch-and-settle shape as HE so the two read as related events, in AT's colour.
+        float burstScale;
+        if (burstProgress < HE_PUNCH_PEAK)
+        {
+            float tUp = burstProgress / HE_PUNCH_PEAK;
+            burstScale = 1.0 - ((1.0 - tUp) * (1.0 - tUp));
+        }
+        else
+        {
+            float tDown = (burstProgress - HE_PUNCH_PEAK) / (1.0 - HE_PUNCH_PEAK);
+            burstScale = 1.0 - (tDown * tDown * HE_CONTRACTION);
+        }
+
+        float alpha = 1.0;
+        if (burstProgress > HE_FADE_START)
+            alpha = 1.0 - ((burstProgress - HE_FADE_START) / (1.0 - HE_FADE_START));
+
+        float radius = HE_MIN_RADIUS_M + (AT_BURST_RADIUS_M - HE_MIN_RADIUS_M) * burstScale;
 
         DrawWorldRing(evt.endPosition, radius, 3.0, ApplyAlpha(AT_COLOR, alpha));
+        DrawWorldDisc(evt.endPosition, radius * 0.45, ApplyAlpha(AT_COLOR, alpha * 0.55));
     }
 
     //------------------------------------------------------------------------------------------------
@@ -581,6 +639,18 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
     {
         int alpha = Math.Round(Math.Clamp(alphaScale, 0.0, 1.0) * 255);
         return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Playback speed, used to stretch fixed-length animations so they last a consistent amount of
+    // real time on screen regardless of how compressed the replay is. Never below 1.
+    protected float GetPlaybackSpeedScale()
+    {
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+            return 1.0;
+
+        return Math.Max(1.0, replayManager.GetPlaybackSpeed());
     }
 
     //------------------------------------------------------------------------------------------------

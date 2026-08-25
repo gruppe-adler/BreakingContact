@@ -1,0 +1,17 @@
+COA_SpectatorCamera : "{89ABC7C0A6B85312}Prefabs/Editor/Camera/ManualCameraEdit.et" {
+ ID "51625C12EB8231E4"
+ m_aComponents {
+  SCR_SettingsManualCameraComponent "{52CC693B212FF1EA}" {
+   m_bCanHideCursor 1
+  }
+  SCR_MovementInertiaManualCameraComponent "{52CC693B212FF002}" {
+   m_fInertiaStrength 0.3
+  }
+  SCR_RotationInertiaManualCameraComponent "{52CC693B212FF000}" {
+   m_fInertiaStrength 0.3
+  }
+  SCR_EditorCursorManualCameraComponent "{52EAD7D8FDA3C8E3}" {
+   m_bEnabled 0
+  }
+ }
+}

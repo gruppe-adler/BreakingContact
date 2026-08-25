@@ -2482,7 +2482,10 @@ void StartLocalReplayPlayback()
 		PlayerController playerController = GetGame().GetPlayerController();
 		if (!playerController)
 		{
-			Print("GRAD_BC_ReplayManager: No player controller found to close map", LogLevel.WARNING);
+			Print("GRAD_BC_ReplayManager: No player controller found, closing map entity directly", LogLevel.WARNING);
+			SCR_MapEntity mapEntityNoPc = SCR_MapEntity.GetMapInstance();
+			if (mapEntityNoPc && mapEntityNoPc.IsOpen())
+				mapEntityNoPc.CloseMap();
 			return;
 		}
 		
@@ -2497,34 +2500,42 @@ void StartLocalReplayPlayback()
 				COA_SpectatorMenu.s_BCSpectatorMenu.CloseMap();
 			else
 			{
-				SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
-				if (mapEntity && mapEntity.IsOpen())
-					mapEntity.CloseMap();
+				SCR_MapEntity mapEntitySpec = SCR_MapEntity.GetMapInstance();
+				if (mapEntitySpec && mapEntitySpec.IsOpen())
+					mapEntitySpec.CloseMap();
 			}
 			return;
 		}
 		
+		// Gadget cleanup is best-effort: during replay all players are switched to
+		// the Spectator faction, so they still control an entity (the spectator
+		// camera) but no longer carry a map gadget. Neither missing gadget manager
+		// nor missing gadget may abort this method — closing the SCR_MapEntity
+		// below is the part that actually matters and must always run.
 		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(playerEntity.FindComponent(SCR_GadgetManagerComponent));
-		if (!gadgetManager)
+		if (gadgetManager)
 		{
-			Print("GRAD_BC_ReplayManager: No gadget manager found to close map", LogLevel.WARNING);
-			return;
+			IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+			if (mapGadget)
+			{
+				// Put map back into inventory
+				gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
+			}
+			else if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			{
+				Print("GRAD_BC_ReplayManager: No map gadget found (spectator?), closing map entity only", LogLevel.NORMAL);
+			}
 		}
-		
-		IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-		if (!mapGadget)
+		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
 		{
-			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.WARNING);
-			return;
+			Print("GRAD_BC_ReplayManager: No gadget manager found, closing map entity only", LogLevel.NORMAL);
 		}
 
-		// Put map back into inventory
-		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
-
-		// Also close the SCR_MapEntity itself — SetGadgetMode only manages the
+		// Always close the SCR_MapEntity itself — SetGadgetMode only manages the
 		// gadget slot, it does not call mapEntity.CloseMap(). Without this the
 		// map entity stays open, its widget frame gets destroyed by EndGameMode,
-		// and ~SCR_MapEntity later fires CloseMap on components with null widgets.
+		// and its still-active SCR_MapCursorModule keeps ticking on dead widgets,
+		// flooding the log with NULL pointer exceptions every frame.
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity && mapEntity.IsOpen())
 			mapEntity.CloseMap();

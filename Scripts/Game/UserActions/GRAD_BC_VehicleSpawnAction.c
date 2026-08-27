@@ -508,6 +508,22 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 	{
 		super.OnEntityCreatedServer(entities);
 
+		// Clean the default cargo and stock a faction ammo reserve. Done for every created entity
+		// regardless of cost, so free placements are normalized too; GRAD_BC_VehicleInventory
+		// ignores anything that is not an OPFOR/BLUFOR vehicle with an inventory.
+		if (entities)
+		{
+			foreach (SCR_EditableEntityComponent editable : entities)
+			{
+				if (!editable)
+					continue;
+
+				IEntity spawned = editable.GetOwner();
+				if (spawned)
+					GRAD_BC_VehicleInventory.ApplyToVehicle(spawned);
+			}
+		}
+
 		if (m_iBC_PendingCost <= 0)
 			return;
 

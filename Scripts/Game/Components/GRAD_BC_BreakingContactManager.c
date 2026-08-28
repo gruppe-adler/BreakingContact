@@ -202,6 +202,14 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		return factionKey == "US" || factionKey == "BLUFOR";
 	}
 
+	// The only two role strings BC's own prefabs assign to a commander. Matched exactly rather
+	// than by substring: a Contains("Commander") test would also accept any future role whose
+	// name merely mentions the word, which is how a purchase gate quietly stops gating.
+	static bool IsCommanderRoleString(string characterRole)
+	{
+		return characterRole == "Opfor Commander" || characterRole == "Blufor Commander";
+	}
+
 	// Returns true when the given character entity is a company commander.
 	// Checks both paths: BC's own GRAD_CharacterRoleComponent, and - because that component
 	// isn't set on COA_GearscriptManager-spawned characters - the player's slotted COALITION role.
@@ -211,15 +219,41 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			return false;
 
 		GRAD_CharacterRoleComponent roleComp = GRAD_CharacterRoleComponent.Cast(character.FindComponent(GRAD_CharacterRoleComponent));
-		if (roleComp && roleComp.GetCharacterRole().Contains("Commander"))
+		if (roleComp && IsCommanderRoleString(roleComp.GetCharacterRole()))
 			return true;
-
-		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
-		if (!slottingManager)
-			return false;
 
 		int playerId = GetGame().GetPlayerManager().GetPlayerIdFromControlledEntity(character);
 		if (playerId <= 0)
+			return false;
+
+		return IsCommanderSlot(playerId);
+	}
+
+	// Player-ID variant of the commander check, for server-side call sites that are handed an ID
+	// rather than an entity (e.g. SCR_CampaignBuildingPlacingEditorComponent.CanPlaceEntityServer).
+	// Resolves the controlled entity first so the GRAD_CharacterRoleComponent path is honoured too,
+	// then falls back to the slotted COALITION role.
+	static bool IsCommanderPlayer(int playerId)
+	{
+		if (playerId <= 0)
+			return false;
+
+		IEntity controlled = GetGame().GetPlayerManager().GetPlayerControlledEntity(playerId);
+		if (controlled)
+		{
+			GRAD_CharacterRoleComponent roleComp = GRAD_CharacterRoleComponent.Cast(controlled.FindComponent(GRAD_CharacterRoleComponent));
+			if (roleComp && IsCommanderRoleString(roleComp.GetCharacterRole()))
+				return true;
+		}
+
+		return IsCommanderSlot(playerId);
+	}
+
+	// Shared COALITION-slotting half of the commander check.
+	protected static bool IsCommanderSlot(int playerId)
+	{
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		if (!slottingManager)
 			return false;
 
 		COA_SlotData slotData = slottingManager.GetPlayerSlotData(playerId);
@@ -280,10 +314,26 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		}
     }
 	
+	//! Set for the duration of the JIP catch-up replay of the current phase. This callback is bound
+	//! as an RplProp onRplName handler, which the engine invokes with NO arguments - so the flag
+	//! cannot be a parameter and has to travel as state. See SyncJIPStateDeferred.
+	protected bool m_bJipPhaseReplay = false;
+
+	//! Replays the current phase for a late joiner: notifications and markers are wanted, but
+	//! forcing the map open is NOT - the transition that would later close it has already passed,
+	//! so a JIP player would be stuck in a map they never opened.
+	protected void ReplayPhaseForJip()
+	{
+		m_bJipPhaseReplay = true;
+		OnBreakingContactPhaseChanged();
+		m_bJipPhaseReplay = false;
+	}
+
 	void OnBreakingContactPhaseChanged()
 	{
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
-			Print(string.Format("Client: Notifying player of phase change: %1", SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase)), LogLevel.NORMAL);
+			Print(string.Format("Client: Notifying player of phase change: %1 (jipReplay=%2)",
+				SCR_Enum.GetEnumName(EBreakingContactPhase, m_iBreakingContactPhase), m_bJipPhaseReplay), LogLevel.NORMAL);
 		
 		string factionKey = GetPlayerFactionKey();
 		
@@ -363,7 +413,22 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("GRAD Playercontroller PhaseChange - closing map - opfor done"), LogLevel.NORMAL);
 		}
-		
+
+		// open map for blufor, mirroring the opfor open at the OPFOR phase. The BLUFOR phase means
+		// opfor has confirmed their spawn, so this is the moment blufor's own spawn position is
+		// decided and worth showing.
+		//
+		// JIP SAFETY: only on a genuine phase TRANSITION into BLUFOR, never on the JIP replay of an
+		// already-current phase - a player who joins DURING the BLUFOR phase would otherwise have the
+		// map forced open with the closing transition already behind them, trapping them in it.
+		// The close at the GAME phase below is what releases it, and it is deliberately NOT
+		// conditioned on this having opened the map, so a map opened any other way still closes.
+		if (!m_bJipPhaseReplay && m_iBreakingContactPhase == EBreakingContactPhase.BLUFOR && IsBluforFactionKey(factionKey)) {
+			playerComponent.ToggleMap(true);
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD Playercontroller PhaseChange - opening map - blufor spawn chosen"), LogLevel.NORMAL);
+		}
+
 		// close map for blufor
 		if (m_iBreakingContactPhase == EBreakingContactPhase.GAME && IsBluforFactionKey(factionKey)) {
 			playerComponent.ToggleMap(false);
@@ -608,7 +673,10 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 		};
 		
 		ManageMarkers();
-		
+
+		// Keep JIP/respawn spawn points glued to the command trucks as they move.
+		SyncSpawnPointsToTrucks();
+
 		// Clean up expired destroyed transmission positions
 		CleanupExpiredDestroyedTransmissions();
 		
@@ -621,6 +689,87 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - Checking Win Conditions..."), LogLevel.NORMAL);
 		};
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// JOIN-IN-PROGRESS / RESPAWN SPAWN POSITIONING.
+	//
+	// Each world's _INIT.layer places two COA_StaticSpawnPoint entities at coordinates baked at
+	// map-build time, while BC picks the real match location at runtime (the commander's chosen
+	// point, snapped to a road by SetSpawnPositions). Nothing connected the two, so a late joiner
+	// spawned at the baked coordinate - potentially kilometres from their team.
+	//
+	// KEY DETAIL from COALITION's COA_RespawnManager.RegisterRespawnPoint: the registration stores
+	//   spawnPointData.SetSpawnPointEntity(rplComp.Id())
+	// i.e. an ENTITY REFERENCE, not a coordinate. The spawn location is resolved from wherever that
+	// entity happens to be at spawn time. So moving the spawn point entity is sufficient - no
+	// re-registration, no COALITION changes, and the RplId stays valid.
+	//
+	// Called from mainLoop (server-side, 1s) so the point tracks the truck as it drives.
+	protected void SyncSpawnPointsToTrucks()
+	{
+		if (!Replication.IsServer())
+			return;
+
+		MoveFactionSpawnPointToTruck("OPFOR", m_radioTruck, m_vOpforSpawnPos);
+		MoveFactionSpawnPointToTruck("BLUFOR", m_westCommandVehicle, m_vBluforSpawnPos);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Move one faction's registered spawn point onto its command truck.
+	//! \param[in] factionKey COALITION faction key ("OPFOR"/"BLUFOR") - this is COALITION's registry,
+	//!            so it uses COALITION's convention, never BC's "USSR"/"US".
+	//! \param[in] truck the faction's command vehicle; may be null or destroyed
+	//! \param[in] fallbackPos the originally chosen spawn position, used when the truck is gone
+	protected void MoveFactionSpawnPointToTruck(FactionKey factionKey, IEntity truck, vector fallbackPos)
+	{
+		COA_RespawnManager respawnManager = COA_RespawnManager.GetInstance();
+		if (!respawnManager)
+			return;
+
+		// Prefer the truck's live position. Fall back to the originally chosen spawn when the truck
+		// is destroyed or missing, so players still land at their side's start area rather than at
+		// the baked map coordinate.
+		vector targetPos = fallbackPos;
+		if (truck && !IsTruckDestroyed(truck))
+			targetPos = truck.GetOrigin();
+
+		// Never move a spawn point to the world origin - that is the "not chosen yet" sentinel used
+		// throughout this class, and spawning players at 0,0,0 is worse than leaving the point alone.
+		if (targetPos == vector.Zero)
+			return;
+
+		array<COA_SpawnPointData> spawnPoints = respawnManager.GetFactionSpawnpoints(factionKey);
+		foreach (COA_SpawnPointData spawnPointData : spawnPoints)
+		{
+			if (!spawnPointData)
+				continue;
+
+			IEntity spawnPointEntity = COA_EntityHelper.GetEntityFromRplId(spawnPointData.GetSpawnPointEntity());
+			if (!spawnPointEntity)
+				continue;
+
+			// Only move it when it has actually drifted - SetOrigin every second on an unchanged
+			// position is pointless work and needless replication churn.
+			if (vector.DistanceSq(spawnPointEntity.GetOrigin(), targetPos) < 1.0)
+				continue;
+
+			spawnPointEntity.SetOrigin(targetPos);
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("BC Debug - SPAWNPOINT: moved %1 spawn to %2",
+					factionKey, targetPos.ToString()), LogLevel.NORMAL);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! True when the vehicle is destroyed and must not be used as a spawn anchor.
+	protected bool IsTruckDestroyed(notnull IEntity truck)
+	{
+		SCR_VehicleDamageManagerComponent damageManager = SCR_VehicleDamageManagerComponent.Cast(
+			truck.FindComponent(SCR_VehicleDamageManagerComponent));
+
+		return damageManager && damageManager.GetState() == EDamageState.DESTROYED;
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -2747,10 +2896,12 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		// Trigger replication callbacks manually for JIP players
 		// These callbacks normally only fire on delta changes, not initial sync
 		
-		// Sync phase change notifications
+		// Sync phase change notifications. This is a catch-up for a late joiner, not a real
+		// transition, so phase-driven map OPENING must be suppressed - the matching close has
+		// already gone by and the player would be stuck in the map.
 		if (m_iBreakingContactPhase != EBreakingContactPhase.LOADING)
 		{
-			OnBreakingContactPhaseChanged();
+			ReplayPhaseForJip();
 		}
 
 		// Sync transmission marker data

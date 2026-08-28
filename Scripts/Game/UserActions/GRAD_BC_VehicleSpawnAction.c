@@ -3,9 +3,10 @@ modded class SCR_CampaignBuildingStartUserAction
 	// Building menu access is not blocked by vehicle supplies, but only the company
 	// commander may open it - vehicle purchasing is a commander-only decision.
 	//
-	// NOTE: CanBeShownScript/CanBePerformedScript run locally on the client, so this is a
-	// UI-level gate, not an authoritative one. That is intentional and sufficient here; the
-	// server-side chokepoint would be SCR_CampaignBuildingPlacingEditorComponent.CanPlaceEntityServer.
+	// NOTE: CanBeShownScript/CanBePerformedScript run locally on the client, so these two are a
+	// UI-level gate only - they hide the prompt, they cannot stop a placement. The authoritative
+	// check lives in SCR_CampaignBuildingPlacingEditorComponent.CanPlaceEntityServer below; keep
+	// the two in sync.
 	override bool CanBeShownScript(IEntity user)
 	{
 		if (!GRAD_BC_BreakingContactManager.IsCommanderEntity(user))
@@ -374,8 +375,33 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 	//------------------------------------------------------------------------------------------------
 	//! Resolve the cost for the prefab about to be placed. This override DOES receive prefabID, so
 	//! it is where the pending cost gets established for the gate in AreLabelsMatching().
+	//!
+	//! It is ALSO the authoritative commander gate. The CanBeShownScript/CanBePerformedScript checks
+	//! at the top of this file run on the client and only decide whether the interaction prompt is
+	//! offered - they cannot stop a client that reaches the building menu by any other route. This is
+	//! the server-side chokepoint every placement passes through, so the same check is repeated here
+	//! where it actually binds.
+	//!
+	//! MEASURED: this method is ALSO called for preview/validation passes with playerID = -1 and
+	//! prefabID = -1, not only for the real placement. Gating on the raw parameter therefore rejected
+	//! the genuine commander too. The editor manager knows whose editor session this is regardless,
+	//! so fall back to m_Manager.GetPlayerID() whenever the parameter is unset.
 	override protected bool CanPlaceEntityServer(IEntityComponentSource editableEntitySource, out EEditableEntityBudget blockingBudget, bool updatePreview, bool showNotification, int prefabID = -1, int playerID = -1, SCR_EditorPreviewParams params = null)
 	{
+		int gatePlayerID = playerID;
+		if (gatePlayerID <= 0 && m_Manager)
+			gatePlayerID = m_Manager.GetPlayerID();
+
+		// Only reject once a player is actually identifiable. An unresolvable ID means this is a
+		// context that carries no player at all (editor bookkeeping), not a non-commander trying to
+		// buy something - and the real placement pass will still be gated.
+		if (gatePlayerID > 0 && !GRAD_BC_BreakingContactManager.IsCommanderPlayer(gatePlayerID))
+		{
+			Print(string.Format("BC Debug - COMMANDERGATE: REJECTED placement by non-commander playerID=%1 prefabID=%2",
+				gatePlayerID, prefabID), LogLevel.WARNING);
+			return false;
+		}
+
 		m_iBC_PendingCost = BC_GetVehicleCost(editableEntitySource);
 
 		if (m_iBC_PendingCost > 0)

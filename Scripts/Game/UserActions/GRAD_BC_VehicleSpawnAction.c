@@ -513,15 +513,19 @@ modded class SCR_CampaignBuildingPlacingEditorComponent
 		GRAD_BC_VehicleSupplyComponent supply = BC_GetSupplyComponent();
 		if (!supply)
 		{
-			Print("BC Debug - BUDGET: no GRAD_BC_VehicleSupplyComponent found, not enforcing",
-				LogLevel.WARNING);
+			// Fires on every non-cost budget event, not just real placements - debug-gated so it
+			// does not flood a normal session.
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print("BC Debug - BUDGET: no GRAD_BC_VehicleSupplyComponent found, not enforcing",
+					LogLevel.WARNING);
 			return true;
 		}
 
 		bool affordable = supply.HasSupplies(m_iBC_PendingCost);
 
-		Print(string.Format("BC Debug - BUDGET: cost=%1 available=%2 affordable=%3",
-			m_iBC_PendingCost, supply.GetCurrentSupplies(), affordable), LogLevel.WARNING);
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BC Debug - BUDGET: cost=%1 available=%2 affordable=%3",
+				m_iBC_PendingCost, supply.GetCurrentSupplies(), affordable), LogLevel.WARNING);
 
 		return affordable;
 	}

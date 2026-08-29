@@ -2731,10 +2731,12 @@ python3 -c "import io,re; c=set(re.findall(r'\}(Prefabs/[^\"]+\.et)', io.open('C
 
 ## REMAINING TODO
 
-- [ ] **`UAZ452_transport.et` has no BC override** — it is in the conf and whitelist but carries no
-      BC price, so it falls back to a vanilla cost. Create it in Workbench (inherit-and-edit from
-      the vanilla prefab, same shape as `BTR70.et`) and set `m_Value` to 75. Could not be authored
-      from outside Workbench because the base prefab's GUID is not extractable from the paks.
+- [x] **`UAZ452_transport.et` priced (2026-08-29)** — DONE. The override file already existed as an
+      empty shell with its parent GUID (`{92AA1080824A3F7E}...UAZ452_transport_base.et`) already
+      resolved, so the earlier "GUID not extractable from the paks" blocker no longer applied: the
+      `SCR_EditableVehicleComponent > m_UIInfo > m_EntityBudgetCost` block was added by hand with
+      `m_Value 75`, matching the shape of every other override. All 13 whitelisted vehicles now
+      carry a BC price. Not yet verified in-game.
 - [ ] **`M923A1_combox.et` needs `SCR_CampaignBuildingMaxValueBudgetToEvaluateData`** with
       `m_eBudget VEHICLES` and `m_iMaxValue 1000` — OPFOR's `Ural4320_combox.et` has it, BLUFOR
       only has the plain `SCR_CampaignBuildingBudgetToEvaluateData` with no ceiling. That subclass

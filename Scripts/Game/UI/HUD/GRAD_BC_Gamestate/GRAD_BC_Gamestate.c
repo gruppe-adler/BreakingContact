@@ -3,6 +3,10 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	private RichTextWidget m_text;
 	private bool m_bPersistent = false;
 
+	// Match outcome line kept above the loading text for the whole replay load, so players
+	// know why the replay is running while they wait for it.
+	private string m_sHeadline;
+
 	// Progress bar widgets (defined in layout)
 	private Widget m_progressContainer;
 	private ImageWidget m_progressFill;
@@ -31,10 +35,39 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 		m_progressFill = ImageWidget.Cast(m_wRoot.FindAnyWidget("ProgressFill"));
 	}
 
+	// Set (or clear, with an empty string) the outcome line shown above every subsequent message.
+	void SetHeadline(string headline)
+	{
+		m_sHeadline = headline;
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_Gamestate: SetHeadline: %1", headline), LogLevel.NORMAL);
+	}
+
+	// Compose the headline and the current message into the single text widget.
+	private void ApplyText(string message)
+	{
+		if (!m_text)
+			return;
+
+		if (m_sHeadline.IsEmpty())
+		{
+			m_text.SetText(message);
+			return;
+		}
+
+		// Outcome line on top in the accent colour, loading text below it at a smaller size so
+		// the reason for the replay reads as the headline rather than competing with the progress.
+		m_text.SetText(string.Format(
+			"<color rgba='255,214,102,255'>%1</color><br/><size scale='0.65'>%2</size>",
+			m_sHeadline, message));
+	}
+
 	void ShowText(string message)
     {
 		m_bPersistent = false;
-		m_text.SetText(message);
+		// Transient phase messages are unrelated to the replay outcome line - drop it.
+		m_sHeadline = string.Empty;
+		ApplyText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			PrintFormat("GRAD_BC_Gamestate: showText called!", LogLevel.VERBOSE);
@@ -46,8 +79,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	void ShowPersistentText(string message)
 	{
 		m_bPersistent = true;
-		if (m_text)
-			m_text.SetText(message);
+		ApplyText(message);
 		super.Show(true, 0.5, EAnimationCurve.EASE_OUT_QUART);
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("GRAD_BC_Gamestate: ShowPersistentText: %1", message), LogLevel.NORMAL);
@@ -56,9 +88,7 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 	// Update text without changing visibility or resetting timers
 	void UpdateText(string message)
 	{
-		if (!m_text)
-			return;
-		m_text.SetText(message);
+		ApplyText(message);
 	}
 
 	// Show and update the progress bar
@@ -79,14 +109,14 @@ class GRAD_BC_Gamestate: SCR_InfoDisplayExtended
 
 		// Update text with percentage
 		int percentage = Math.Round(progress * 100);
-		if (m_text)
-			m_text.SetText(string.Format("Replay loading... %1%%", percentage));
+		ApplyText(string.Format("Replay loading... %1%%", percentage));
 	}
 
 	// Explicitly hide the gamestate display and progress bar
 	void HideText()
 	{
 		m_bPersistent = false;
+		m_sHeadline = string.Empty;
 
 		if (m_progressContainer)
 			m_progressContainer.SetVisible(false);

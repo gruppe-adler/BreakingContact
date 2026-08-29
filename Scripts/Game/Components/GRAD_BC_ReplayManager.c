@@ -975,6 +975,7 @@ void StartLocalReplayPlayback()
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
+			ShowOutcomeHeadline(gamestateDisplay);
 			gamestateDisplay.ShowPersistentText("Preparing replay...");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: Showing replay preparation text in gamestate HUD", LogLevel.NORMAL);
@@ -1624,6 +1625,7 @@ void StartLocalReplayPlayback()
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
+			ShowOutcomeHeadline(gamestateDisplay);
 			gamestateDisplay.ShowPersistentText("Replay loading... 0%");
 			gamestateDisplay.UpdateProgress(0);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -2855,6 +2857,29 @@ void StartLocalReplayPlayback()
     Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Push the match outcome ("why is this replay running") onto the loading display, so it stays
+	// above the loading text and progress bar for the whole load. The summary is an [RplProp] on
+	// the manager, set the moment the outcome was decided, so it is already present on clients here.
+	void ShowOutcomeHeadline(GRAD_BC_Gamestate gamestateDisplay)
+	{
+		if (!gamestateDisplay)
+			return;
+
+		GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!manager)
+			return;
+
+		string summary = manager.GetOutcomeSummary();
+		if (summary.IsEmpty())
+			return;
+
+		gamestateDisplay.SetHeadline(summary);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Loading headline set to '%1'", summary), LogLevel.NORMAL);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	// Find the GRAD_BC_Gamestate HUD display for showing loading progress
 	//------------------------------------------------------------------------------------------------

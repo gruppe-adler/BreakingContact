@@ -120,7 +120,12 @@ class GRAD_BC_BreakingContactManager : ScriptComponent
 	protected string m_sLastEndscreenSubtitle;
 	[RplProp()]
 	protected string m_sWinnerSide;
-	
+	// Faction-neutral one-line summary of how the match ended, e.g. "OPFOR wins - all
+	// transmissions completed". Set on the server the moment the outcome is decided so it can
+	// be shown during replay loading, long before ShowGameOverScreen() builds the endscreen.
+	[RplProp()]
+	protected string m_sOutcomeSummary;
+
 	protected PlayerManager GetPlayerManager()
 	{
 		if (m_PlayerManager == null)
@@ -1420,32 +1425,37 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		else if (bluforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
+			SetOutcomeSummary("OPFOR wins - BLUFOR eliminated");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - Blufor eliminated"), LogLevel.NORMAL);
 		}
 		else if (finishedAllTransmissions) {
 			isOver = true;
 			m_sWinnerSide = "opfor";
+			SetOutcomeSummary(string.Format("OPFOR wins - all %1 transmissions completed", m_iTransmissionCount));
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - All transmissions done"), LogLevel.NORMAL);
 		}
 		else if (opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
+			SetOutcomeSummary("BLUFOR wins - OPFOR eliminated");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - Opfor eliminated"), LogLevel.NORMAL);
 		}
 		else if (m_bluforCaptured) {
 			isOver = true;
 			m_sWinnerSide = "blufor";
+			SetOutcomeSummary("BLUFOR wins - radio truck disabled");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - Blufor captured radio truck"), LogLevel.NORMAL);
 		}
-		
+
 		// needs to be on last position as would risk to be overwritten
 		if (bluforEliminated && opforEliminated) {
 			isOver = true;
 			m_sWinnerSide = "draw";
+			SetOutcomeSummary("Draw - both sides eliminated");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print(string.Format("Breaking Contact - Both sides eliminated"), LogLevel.NORMAL);
 		}
@@ -1475,6 +1485,7 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 
 		m_bluforCaptured = true;
 		m_sWinnerSide = "blufor";
+		SetOutcomeSummary("BLUFOR wins - radio truck disabled");
 		if (GRAD_BC_BreakingContactManager.IsDebugMode())
 			Print(string.Format("Breaking Contact - BLUFOR wins: Radio truck disabled"), LogLevel.NORMAL);
 		
@@ -1504,17 +1515,20 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 		if (IsBluforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "opfor";
+			SetOutcomeSummary("OPFOR wins - BLUFOR destroyed the radio truck");
 			NotifyAllPlayersRadioTruckDestroyed("BLUFOR destroyed the radio truck! OPFOR wins!");
 		}
 		else if (IsOpforFactionKey(destroyerFaction))
 		{
 			m_sWinnerSide = "blufor";
+			SetOutcomeSummary("BLUFOR wins - OPFOR destroyed their own radio truck");
 			NotifyAllPlayersRadioTruckDestroyed("OPFOR destroyed the radio truck! BLUFOR wins!");
 		}
 		else
 		{
 			// Unknown or unidentifiable destroyer (e.g. Game Master) - treat as draw
 			m_sWinnerSide = "draw";
+			SetOutcomeSummary("Draw - radio truck destroyed by unknown faction");
 			NotifyAllPlayersRadioTruckDestroyed("Radio truck destroyed by unknown faction! Draw!");
 		}
 		
@@ -2581,6 +2595,41 @@ void UnregisterTransmissionComponent(GRAD_BC_TransmissionComponent comp)
 	{
 		title = m_sLastEndscreenTitle;
 		subtitle = m_sLastEndscreenSubtitle;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Server-side: record how the match ended. Faction-neutral, so the same string can be shown
+	// to both sides while the replay loads.
+	protected void SetOutcomeSummary(string summary)
+	{
+		if (!Replication.IsServer())
+			return;
+
+		m_sOutcomeSummary = summary;
+		Replication.BumpMe();
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("BCM - Outcome summary set: %1", summary), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Replicated to clients, so it is readable during replay loading. Falls back to the winner
+	// side alone if the outcome was somehow set without a summary.
+	string GetOutcomeSummary()
+	{
+		if (!m_sOutcomeSummary.IsEmpty())
+			return m_sOutcomeSummary;
+
+		if (m_sWinnerSide == "draw")
+			return "Draw";
+
+		if (m_sWinnerSide == "opfor")
+			return "OPFOR wins";
+
+		if (m_sWinnerSide == "blufor")
+			return "BLUFOR wins";
+
+		return string.Empty;
 	}
 	
 	//------------------------------------------------------------------------------------------------

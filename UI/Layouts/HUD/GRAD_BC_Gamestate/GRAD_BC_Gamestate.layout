@@ -33,6 +33,37 @@ OverlayWidgetClass {
     HorizontalAlign 3
     VerticalAlign 0
    }
+   {
+    FrameWidgetClass "{6606FC36A1B2C310}" {
+     Name "ProgressContainer"
+     Visible False
+     Slot FrameWidgetSlot "{6606FC36A1B2C311}" {
+      AnchorMin 0 0
+      AnchorMax 1 1
+      Offsets 0 0 0 0
+     }
+     {
+      ImageWidgetClass "{6606FC36A1B2C312}" {
+       Name "ProgressTrack"
+       Slot FrameWidgetSlot "{6606FC36A1B2C313}" {
+        AnchorMin 0.02 0.82
+        AnchorMax 0.98 0.9
+        Offsets 0 0 0 0
+       }
+       Color 0 0 0 0.5882
+      }
+      ImageWidgetClass "{6606FC36A1B2C314}" {
+       Name "ProgressFill"
+       Slot FrameWidgetSlot "{6606FC36A1B2C315}" {
+        AnchorMin 0.02 0.82
+        AnchorMax 0.02 0.9
+        Offsets 0 0 0 0
+       }
+       Color 0.2549 0.5843 0.9412 1
+      }
+     }
+    }
+   }
   }
  }
 }

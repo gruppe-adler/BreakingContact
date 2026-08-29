@@ -36,7 +36,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Floor on the falloff, so icons stay findable at maximum zoom-out instead of vanishing.
 	// Kept low because the square-root curve below approaches it slowly - with a linear falloff a
 	// floor this low would be hit almost immediately and icons would stop responding to zoom.
-	protected const float ICON_MIN_SCALE = 0.45;
+	protected const float ICON_MIN_SCALE = 0.35;
 
 	protected const float HE_MIN_RADIUS_M = 4.0;
 	protected const float HE_MAX_RADIUS_M = 18.0;

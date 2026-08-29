@@ -28,6 +28,7 @@ modded class COA_SafestartManager
 	//!
 	//! Overridden rather than post-called because the base implementation aborts mid-loop on a
 	//! null COA_PolyZoneEffectHandler, so calling super() first would still strand entities.
+	//! The poly-zone cleanup itself is not reproduced here - see the note at the end of the loop.
 	override protected void DeactivateSafeStartEHs()
 	{
 		int restored = 0;
@@ -77,12 +78,16 @@ modded class COA_SafestartManager
 				skipped++;
 			}
 
-			// The unguarded call in the base implementation. Not every entity carries this
-			// component, and a missing one must not prevent the handlers above from being removed.
-			COA_PolyZoneEffectHandler polyZoneEffectHandler = COA_PolyZoneEffectHandler.Cast(
-				controlledEntity.FindComponent(COA_PolyZoneEffectHandler));
-			if (polyZoneEffectHandler)
-				polyZoneEffectHandler.ClearAllEffects();
+			// NOTE: the base implementation also calls ClearAllEffects() on a
+			// COA_PolyZoneEffectHandler here, unguarded - that null deref is the bug this override
+			// exists to route around. The call is deliberately NOT reproduced:
+			//
+			// COA_PolyZoneEffectHandler is not present in every COALITION Lobby build (referencing it
+			// failed to compile on the server with "Unknown type"), and hard-linking a type from
+			// another mod's internals makes this file break whenever they reorganise. Removing the
+			// safestart event handlers above is the part that actually matters; leftover poly-zone
+			// effects are cosmetic by comparison, and the base call never ran for affected entities
+			// anyway, since it is what threw.
 		}
 
 		// Deliberately NOT clearing m_mEntitiesWithEHsMap. ToggleSafeStartServer schedules this

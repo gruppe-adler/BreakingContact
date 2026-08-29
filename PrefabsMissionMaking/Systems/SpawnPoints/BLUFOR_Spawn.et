@@ -1,0 +1,16 @@
+COA_StaticSpawnPoint {
+ ID "50C6D20663830070"
+ components {
+  RigidBody "{645911BD734B5E6A}" {
+   Enabled 0
+  }
+  SlotManagerComponent "{645911BAB1D66B16}" {
+   Slots {
+    EntitySlotInfo Flag {
+     Enabled 0
+    }
+   }
+  }
+ }
+ Flags 0 0x1
+}

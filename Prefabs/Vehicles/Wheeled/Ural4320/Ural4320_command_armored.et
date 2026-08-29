@@ -88,6 +88,94 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     DeactivatePhysicsOnAtaching 1
    }
   }
+  BaseSlotComponent "{6A3A8BE5D45DBC25}" {
+   AttachType EntitySlotInfo wheel_frontleft_plate {
+    PivotID "v_wheel_L01"
+    Offset -0.5 0 0
+    Angles 0 0 90
+   }
+   EntityPrefab "{963D934DDAE5C819}Prefabs/Weapons/Mortars/2B14/2B14_Baseplate_Destroyed.et"
+  }
+  BaseSlotComponent "{6A3A8BE64FD3E979}" {
+   AttachType EntitySlotInfo wheel_frontright {
+    PivotID "v_wheel_R01"
+    Offset 0.5 0 0
+    Angles 0 0 -90
+   }
+   EntityPrefab "{963D934DDAE5C819}Prefabs/Weapons/Mortars/2B14/2B14_Baseplate_Destroyed.et"
+  }
+  BaseSlotComponent "{6A3A944CFC8D84B6}" {
+   AttachType EntitySlotInfo cover {
+    PivotID "Scene_Root"
+    Offset 0.0972 2.8042 1.6089
+    Angles 10 -6 0
+   }
+   EntityPrefab "{40EB9EC77389727C}Prefabs/Props/Wrecks/BMP1_wreck/BMP1_door.et"
+  }
+  BaseSlotComponent "{6A3A944E4E88C863}" {
+   AttachType EntitySlotInfo camonet {
+    PivotID "Scene_Root"
+    Offset 0 3.3541 0.2158
+   }
+   EntityPrefab "{542995995488B456}Prefabs/Structures/Military/CamoNets/Soviet/CamoNet_AmmoCache_Soviet.et"
+  }
+  BaseSlotComponent "{6A3A944FDB4F9493}" {
+   AttachType EntitySlotInfo bmpdoor {
+    PivotID "Scene_Root"
+    Offset 0.0984 3.4241 1.3925
+    Angles 40 8 180
+   }
+   EntityPrefab "{40EB9EC77389727C}Prefabs/Props/Wrecks/BMP1_wreck/BMP1_door.et"
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 133
+   m_fMaxDistanceVisible 500
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
+  SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
+   m_aWheels + {
+    4 5
+   }
+   m_fDustTopSpeed 60
+  }
   SCR_VehicleDustPerWheel "{5476BC43E4910F64}" {
    m_aWheels + {
     4 5
@@ -102,6 +190,8 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
   }
   SlotManagerComponent "{55BCE45E438E4CFF}" {
    Slots {
+    RegisteringComponentSlotInfo TireHolder {
+    }
     EntitySlotInfo lamp_off {
      PivotID "v_root"
      Offset -1.24 2.72 0.35
@@ -132,7 +222,7 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
     }
     EntitySlotInfo wheelcover_left_1 {
      PivotID "v_front_axle"
-     Offset -1.2551 0.0403 0.3565
+     Offset -1.428 0.0403 0.3565
      Angles 0 0 90
      Prefab "{D01CEA0156324077}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_US_01_short_TruckArmor.et"
      DisablePhysicsInteraction 1
@@ -164,6 +254,70 @@ Vehicle : "{1BABF6B33DA0AEB6}Prefabs/Vehicles/Wheeled/Ural4320/Ural4320_command.
      Angles 35 90 -15
      Prefab "{575768B232B23E53}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short.et"
      DisablePhysicsInteraction 1
+    }
+    EntitySlotInfo camo {
+     Offset 0 3.3675 -3.0866
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo2 {
+     Offset 0 3.3675 -2.3062
+     Angles 0 180 0
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo3 {
+     Offset 0 3.4872 -1.0505
+     Angles 0 45 0
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo4_right {
+     Offset 0.8357 3.0548 -2.529
+     Angles 0 0 60
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo11_right {
+     Offset 0.7434 3.0015 -3.2523
+     Angles 0 180 -60
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo5 {
+     Offset 0.8357 3.0548 -1.4489
+     Angles 0 180 -60
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo6 {
+     Offset 0.8937 2.9243 -0.1002
+     Angles 120 90 180
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo7_left {
+     Offset -0.8834 2.8448 -2.3062
+     Angles 0 180 70
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo8_left {
+     Offset -0.8709 2.8099 -1.417
+     Angles 0 0 -70
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo9_left {
+     Offset -0.8709 2.8099 -0.3883
+     Angles 0 45 -70
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo10_left {
+     Offset -0.941 2.7068 -3.1607
+     Angles 0 0 -70
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo12_back1 {
+     Offset -0.4694 3.0069 -3.6599
+     Angles 90 0 0
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
+    }
+    EntitySlotInfo camo12_back2 {
+     Offset 0.2026 3.0069 -3.6599
+     Angles 90 0 0
+     Prefab "{563CC733F7F672B4}PrefabsEditable/Auto/Structures/Military/CamoNets/Soviet/E_CamoNet_AmmoCache_Soviet.et"
     }
    }
   }

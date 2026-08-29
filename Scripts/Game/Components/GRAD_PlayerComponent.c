@@ -59,6 +59,17 @@ class GRAD_PlayerComponent : ScriptComponent
 
 	protected bool m_bChoosingSpawn;
 	protected bool m_bSpawnPositionReady = false; // Track if spawn calculation is complete
+
+	// MAP LOCK (see GRAD_BC_M_SCR_MapGadgetComponent).
+	//
+	// While a commander is picking the spawn position the map must stay open, so they cannot walk
+	// around before the team has spawned in. The lock is enforced in SCR_MapGadgetComponent.ModeClear.
+	//
+	// BC closes the map itself (ToggleMap(false) on phase change), and that close runs through the
+	// exact same ModeClear the lock blocks - so every scripted close must raise this flag first, or
+	// the game traps the player in the map it meant to close. ToggleMap() does that centrally; nothing
+	// else should call SetGadgetMode on the map gadget directly.
+	protected bool m_bScriptedMapClose = false;
 	
 	protected string m_faction;
 	
@@ -464,10 +475,15 @@ class GRAD_PlayerComponent : ScriptComponent
 					Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
 				return;
 			}
-			if (phase == EBreakingContactPhase.OPFOR) {				
+			if (phase == EBreakingContactPhase.OPFOR) {
 				// remove key listener
 				GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-				
+
+				// Release the map lock here rather than waiting for the BLUFOR phase change. The
+				// commander has finished choosing; leaving m_bChoosingSpawn set until the phase
+				// advances would keep them locked in the map for that whole window.
+				setChoosingSpawn(false);
+
 				RequestInitiateOpforSpawnLocal();
 				RemoveSpawnMarker();
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -621,9 +637,27 @@ class GRAD_PlayerComponent : ScriptComponent
 		IEntity mapEntity = gadgetManager.GetGadgetByType(EGadgetType.MAP);
 		
 		if (open)
+		{
 			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_HAND, true);
-		else
-			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
+			return;
+		}
+
+		// Raise the bypass so the map lock lets BC's own close through - without it, closing the map
+		// at a phase change is rejected by the very lock that is supposed to end at that moment.
+		m_bScriptedMapClose = true;
+		gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
+		m_bScriptedMapClose = false;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! True while a player-initiated map close must be refused. See the m_bScriptedMapClose comment.
+	//! A scripted close (BC closing the map itself) is always allowed.
+	bool IsMapCloseLocked()
+	{
+		if (m_bScriptedMapClose)
+			return false;
+
+		return IsChoosingSpawn();
 	}
 
 	//------------------------------------------------------------------------------------------------

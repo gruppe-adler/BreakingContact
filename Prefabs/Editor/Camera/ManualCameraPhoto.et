@@ -4,6 +4,9 @@ SCR_ManualCamera : "{D6DE32D1C0FCC1C7}Prefabs/Editor/Camera/ManualCameraBase.et"
   SCR_SettingsManualCameraComponent "{52CC693B212FF1EA}" {
    m_bCanHideCursor 1
   }
+  SCR_AccelerationManualCameraComponent "{52CC693B212FF003}" {
+   m_fDuration 0.3
+  }
   SCR_MovementInertiaManualCameraComponent "{52CC693B212FF002}" {
    m_fInertiaStrength 0.3
   }
@@ -14,6 +17,10 @@ SCR_ManualCamera : "{D6DE32D1C0FCC1C7}Prefabs/Editor/Camera/ManualCameraBase.et"
    m_bEnabled 0
   }
   GRAD_BC_HideCursorOnRotateCameraComponent "{6A371E42137EC8C8}" {
+  }
+  GRAD_BC_CleanFrameCameraComponent "{6A371E42137EC8D0}" {
+   m_bHideNameTags 1
+   m_bHideOverlays 1
   }
  }
 }

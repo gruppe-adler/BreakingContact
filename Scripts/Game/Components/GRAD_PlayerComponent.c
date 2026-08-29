@@ -452,7 +452,7 @@ class GRAD_PlayerComponent : ScriptComponent
 		if (!m_bSpawnPositionReady)
 		{
 			Print("ConfirmSpawn: Spawn position not ready yet, please wait for calculation to complete", LogLevel.WARNING);
-			SCR_HintManagerComponent.GetInstance().ShowCustomHint("Calculating spawn positions, please wait...", "Spawn Not Ready", 3, false);
+			// SCR_HintManagerComponent.GetInstance().ShowCustomHint("Calculating spawn positions, please wait...", "Spawn Not Ready", 3, false);
 			return;
 		}
 		
@@ -545,7 +545,7 @@ class GRAD_PlayerComponent : ScriptComponent
 				break;
 		}
 		
-		SCR_HintManagerComponent.GetInstance().ShowCustomHint(text, "Spawn pos", 5, true);
+		// SCR_HintManagerComponent.GetInstance().ShowCustomHint(text, "Spawn pos", 5, true);
 	}
 	
 	//------------------------------------------------------------------------------------------------

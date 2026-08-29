@@ -31,6 +31,7 @@ StaticModelEntity : "{38830F6F1297670A}Prefabs/Structures/Military/Camps/Airfiel
    }
   }
   RplComponent "{5EF0BDF38D835DB7}" : "{B193E926C1935A4C}Prefabs/Editor/Components/Default_RplComponent.ct" {
+   Enabled 0
   }
  }
  placement none

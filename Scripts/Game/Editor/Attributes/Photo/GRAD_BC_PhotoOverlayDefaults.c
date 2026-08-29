@@ -1,3 +1,18 @@
+//------------------------------------------------------------------------------------------------
+//! Clears the editor menu overlays (logo, vignette, helper, player frame) when an EDITOR mode
+//! activates - Game Master and BC spectate.
+//!
+//! SCOPE - this does NOT cover ArmaVision. EOnEditorPostActivate is an editor-component event, and
+//! ArmaVision is not an editor mode, so nothing here runs while that camera is up. The overlay
+//! clear for ArmaVision lives in GRAD_BC_CleanFrameCameraComponent, which hangs off the camera
+//! prefab instead and re-asserts every frame.
+//!
+//! It also only wins once. SCR_MenuOverlayEditorAttribute.WriteVariable() calls
+//! layer.SetCurrentOverlay(var.GetInt()) WITHOUT forced, pushing the prefab-authored index back
+//! over this clear whenever the attribute system writes - and SCR_BaseEditorAttribute
+//! .IsSerializable() is true, so that value persists in session saves. If the logo returns in an
+//! editor mode, that write-back is why, and the fix is the same per-frame re-assert the camera
+//! component uses.
 modded class SCR_MenuOverlaysEditorComponent : SCR_BaseEditorComponent
 {
 	override void EOnEditorPostActivate()
@@ -9,11 +24,16 @@ modded class SCR_MenuOverlaysEditorComponent : SCR_BaseEditorComponent
 		SetLayerToNone(EEditorMenuOverlayLayer.LOGO);
 		SetLayerToNone(EEditorMenuOverlayLayer.LOGO_FRAME);
 
-		// NOTE: the PLAYER layer here is the ArmaVision player-info OVERLAY FRAME, not the floating
-		// nametags above characters. An SCR_EditorMenuOverlay is a single full-screen layout in the
-		// editor menu (CreateWidget anchors it 0,0 -> 1,1), so it can never be a per-character label.
-		// Nametags are SCR_NameTagDisplay, suppressed in
-		// Scripts/Game/Modded/GRAD_BC_M_SCR_NameTagDisplay.c.
+		// The PLAYER layer IS the nametag control - it appears in ArmaVision's V-key overlay panel as
+		// "Player character effects" with the value "Name tags". An earlier comment here claimed the
+		// opposite (that a full-screen overlay widget could never be a per-character label); that was
+		// wrong. Scripts/Game/Modded/GRAD_BC_M_SCR_NameTagDisplay.c is a second, independent gate on
+		// the same behaviour.
+		//
+		// WARNING: index 0 is NOT "none" on every layer - on LOGO it is a different logo. This call
+		// is only correct for layers whose empty entry happens to be first. The camera-side clear in
+		// GRAD_BC_CleanFrameCameraComponent resolves the right index by name instead; prefer that
+		// approach if this editor-mode path ever needs to actually work.
 		SetLayerToNone(EEditorMenuOverlayLayer.PLAYER);
 	}
 

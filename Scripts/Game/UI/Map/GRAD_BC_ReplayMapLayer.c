@@ -19,6 +19,25 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// a few pixels on a zoomed-out map, so without a floor it is drawn correctly yet invisible.
 	protected const float MIN_EXPLOSIVE_SCREEN_RADIUS = 12.0;
 
+	// --- Unit / vehicle icon sizing ---
+	// Base on-screen size in pixels, used whenever the map is zoomed in past ICON_SCALE_ZOOM_THRESHOLD.
+	protected const float ICON_BASE_SIZE_VEHICLE = 128.0;
+	protected const float ICON_BASE_SIZE_INFANTRY = 64.0;
+
+	// Icons hold their full size while zoomed in, and only start shrinking once the map is zoomed
+	// out past this point. GetCurrentZoom() is pixels-per-metre, so LOWER values are further out.
+	// Above the threshold the scale is pinned at 1.0; below it, size falls off in proportion to
+	// zoom, so icons stop swamping the map when the whole AO is on screen.
+	//
+	// Set from the observed maximum zoom-in (~5.24 px/m on kolgujev), so icons are at full size
+	// only when fully zoomed in and shrink gradually across the rest of the range.
+	protected const float ICON_SCALE_ZOOM_THRESHOLD = 5.24;
+
+	// Floor on the falloff, so icons stay findable at maximum zoom-out instead of vanishing.
+	// Kept low because the square-root curve below approaches it slowly - with a linear falloff a
+	// floor this low would be hit almost immediately and icons would stop responding to zoom.
+	protected const float ICON_MIN_SCALE = 0.45;
+
 	protected const float HE_MIN_RADIUS_M = 4.0;
 	protected const float HE_MAX_RADIUS_M = 18.0;
 	protected const int HE_COLOR = 0xFFFF3020;		// red blast
@@ -54,6 +73,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Debug/logging guards
 	protected bool m_bStabilizedLogged = false;
 	protected bool m_bWorldToScreenSampled = false;
+
+	// TEMPORARY (icon scale calibration): last zoom value logged, so the zoom readout fires only
+	// when the zoom actually changes rather than every frame. Remove with LogZoomForCalibration().
+	protected float m_fLastLoggedZoom = -1.0;
 
     // We track used widgets every frame to hide/remove unused ones (garbage collection)
     protected ref set<string> m_UsedWidgetKeys = new set<string>();
@@ -138,7 +161,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // Create new
         if (!m_WidgetsRoot) return null;
 
-        w = ImageWidget.Cast(GetGame().GetWorkspace().CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND, Color.White, 0, m_WidgetsRoot));
+        // STRETCH makes the texture scale to the widget size. Without it the image always draws at
+        // its native resolution and the widget acts as a window onto it - so shrinking the widget
+        // crops the icon rather than scaling it, revealing more of the texture as it grows again.
+        w = ImageWidget.Cast(GetGame().GetWorkspace().CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.STRETCH, Color.White, 0, m_WidgetsRoot));
         
         if (texturePath != "")
             w.LoadImageTexture(0, texturePath);
@@ -148,21 +174,78 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // ---------------------------------------------------------
         FrameSlot.SetAlignment(w, 0.5, 0.5);
 
-        // Set default sizes based on type - DPI scaled for resolution independence
-        // Compute DPI scale by comparing scaled vs unscaled values
-        // DPIUnscale converts from screen pixels to widget units
-        float unscaled100 = GetGame().GetWorkspace().DPIUnscale(100);
-        float dpiScaleFactor = 100.0 / unscaled100;  // e.g. if DPIUnscale(100) = 50, scale is 2.0
-        if (dpiScaleFactor <= 0)
-            dpiScaleFactor = 1.0;
-
-        if (isVehicle)
-            FrameSlot.SetSize(w, 128 / dpiScaleFactor, 128 / dpiScaleFactor);
-        else
-            FrameSlot.SetSize(w, 64 / dpiScaleFactor, 64 / dpiScaleFactor);
-            
+        // Size is not set here: it depends on the current zoom and is applied every frame by
+        // ApplyMarkerSize() from UpdateMarkerWidget(), which also covers cached widgets.
         m_ActiveWidgets.Insert(key, w);
         return w;
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Zoom-dependent scale for unit and vehicle icons.
+    //
+    // Icons keep their full size while the map is zoomed in, so close-up reading is unchanged.
+    // Once zoomed out past ICON_SCALE_ZOOM_THRESHOLD they shrink towards ICON_MIN_SCALE, so a
+    // zoomed-out map is not buried under overlapping markers.
+    //
+    // The shrink follows the square root of the zoom ratio rather than the ratio itself. A linear
+    // falloff is far too harsh over this range - it loses most of the icon size in the first part
+    // of the zoom-out and then sits on the floor. The square root keeps icons noticeably larger
+    // through the middle of the range and approaches the floor only at the far zoom-out end.
+    protected float GetIconZoomScale()
+    {
+        if (!m_MapEntity || ICON_SCALE_ZOOM_THRESHOLD <= 0)
+            return 1.0;
+
+        float zoom = m_MapEntity.GetCurrentZoom();
+        if (zoom >= ICON_SCALE_ZOOM_THRESHOLD)
+            return 1.0;
+
+        float ratio = zoom / ICON_SCALE_ZOOM_THRESHOLD;
+        if (ratio < 0)
+            ratio = 0;
+
+        return Math.Clamp(Math.Sqrt(ratio), ICON_MIN_SCALE, 1.0);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // TEMPORARY - icon scale calibration aid.
+    //
+    // Logs the current map zoom whenever it changes, so ICON_SCALE_ZOOM_THRESHOLD can be set from
+    // observed values instead of guessed. Scroll the replay map through its full range and read the
+    // zoom off the log at the point icons should stop scaling. Remove this function, its call in
+    // ApplyMarkerSize() and m_fLastLoggedZoom once the threshold is chosen.
+    protected void LogZoomForCalibration()
+    {
+        if (!m_MapEntity || !GRAD_BC_BreakingContactManager.IsDebugMode())
+            return;
+
+        float zoom = m_MapEntity.GetCurrentZoom();
+
+        // Only report meaningful changes, otherwise this floods the log every frame.
+        if (m_fLastLoggedZoom > 0 && Math.AbsFloat(zoom - m_fLastLoggedZoom) < (m_fLastLoggedZoom * 0.02))
+            return;
+
+        m_fLastLoggedZoom = zoom;
+        Print(string.Format("BC Debug - ReplayMapLayer zoom calibration: GetCurrentZoom()=%1 (px/m), current threshold=%2, resulting icon scale=%3",
+            zoom, ICON_SCALE_ZOOM_THRESHOLD, GetIconZoomScale()), LogLevel.NORMAL);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Applies the current zoom-dependent size to a marker widget. DPIUnscale converts the pixel
+    // size into widget units, keeping icons resolution independent.
+    //
+    // The widget is created with WidgetFlags.STRETCH, so the texture follows the frame slot size
+    // and setting the slot is enough to scale the icon.
+    protected void ApplyMarkerSize(ImageWidget w, bool isVehicle)
+    {
+        LogZoomForCalibration();
+
+        float baseSize = ICON_BASE_SIZE_INFANTRY;
+        if (isVehicle)
+            baseSize = ICON_BASE_SIZE_VEHICLE;
+
+        float size = GetGame().GetWorkspace().DPIUnscale(baseSize * GetIconZoomScale());
+        FrameSlot.SetSize(w, size, size);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -704,6 +787,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float posX = GetGame().GetWorkspace().DPIUnscale(screenX);
         float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
         FrameSlot.SetPos(w, posX, posY);
+
+        // Size tracks the current zoom, so it must be re-applied every frame rather than only on
+        // widget creation - cached widgets would otherwise keep the size they were created at.
+        ApplyMarkerSize(w, isVehicle);
 
         // Rotation: Input 'direction' is usually World Yaw.
         // Icons usually face UP.

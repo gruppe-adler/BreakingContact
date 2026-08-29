@@ -8,6 +8,12 @@ modded class SCR_MenuOverlaysEditorComponent : SCR_BaseEditorComponent
 		SetLayerToNone(EEditorMenuOverlayLayer.HELPER);
 		SetLayerToNone(EEditorMenuOverlayLayer.LOGO);
 		SetLayerToNone(EEditorMenuOverlayLayer.LOGO_FRAME);
+
+		// NOTE: the PLAYER layer here is the ArmaVision player-info OVERLAY FRAME, not the floating
+		// nametags above characters. An SCR_EditorMenuOverlay is a single full-screen layout in the
+		// editor menu (CreateWidget anchors it 0,0 -> 1,1), so it can never be a per-character label.
+		// Nametags are SCR_NameTagDisplay, suppressed in
+		// Scripts/Game/Modded/GRAD_BC_M_SCR_NameTagDisplay.c.
 		SetLayerToNone(EEditorMenuOverlayLayer.PLAYER);
 	}
 

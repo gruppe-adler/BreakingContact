@@ -59,6 +59,17 @@ class GRAD_PlayerComponent : ScriptComponent
 
 	protected bool m_bChoosingSpawn;
 	protected bool m_bSpawnPositionReady = false; // Track if spawn calculation is complete
+
+	// MAP LOCK (see GRAD_BC_M_SCR_MapGadgetComponent).
+	//
+	// While a commander is picking the spawn position the map must stay open, so they cannot walk
+	// around before the team has spawned in. The lock is enforced in SCR_MapGadgetComponent.ModeClear.
+	//
+	// BC closes the map itself (ToggleMap(false) on phase change), and that close runs through the
+	// exact same ModeClear the lock blocks - so every scripted close must raise this flag first, or
+	// the game traps the player in the map it meant to close. ToggleMap() does that centrally; nothing
+	// else should call SetGadgetMode on the map gadget directly.
+	protected bool m_bScriptedMapClose = false;
 	
 	protected string m_faction;
 	
@@ -198,9 +209,9 @@ class GRAD_PlayerComponent : ScriptComponent
 					if (slotData && slotData.GetSlotRole() == COA_EGearRole.COMPANY_COMMANDER)
 					{
 						string playerFactionKey = ch.GetFactionKey();
-						if (playerFactionKey == "OPFOR")
+						if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(playerFactionKey))
 							characterRole = "Opfor Commander";
-						else if (playerFactionKey == "BLUFOR")
+						else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(playerFactionKey))
 							characterRole = "Blufor Commander";
 					}
 				}
@@ -288,6 +299,131 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Client entry point: ask the server to switch the running scenario to s_aMaps[mapIndex].
+	//! Called from GRAD_BC_COA_PreviewMenu's map dropdown after the admin confirms.
+	void Ask_ChangeScenario(int mapIndex)
+	{
+		Rpc(RpcAsk_Server_ChangeScenario, mapIndex);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Server-side scenario switch. Security note: the caller's identity comes from GetOwner()
+	//! - the PlayerController that owns this component - NOT from an RPC argument, which a
+	//! modified client could set to any value. Do not refactor this to take a playerId param.
+	//!
+	//! Likewise this must not use m_playerController: GetGame().GetPlayerController() returns the
+	//! LOCAL controller, which is null on a dedicated server.
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Server_ChangeScenario(int mapIndex)
+	{
+		if (!Replication.IsServer())
+			return;
+
+		PlayerController playerController = PlayerController.Cast(GetOwner());
+		if (!playerController)
+			return;
+
+		int callerId = playerController.GetPlayerId();
+
+		if (!GRAD_BC_MapSwitch.IsPlayerAdminServer(callerId))
+		{
+			Print(string.Format("BC Debug - MapSwitch: REJECTED scenario change from non-admin player %1", callerId), LogLevel.WARNING);
+			return;
+		}
+
+		if (mapIndex < 0 || mapIndex >= GRAD_BC_MapSwitch.GetMapCount())
+		{
+			Print(string.Format("BC Debug - MapSwitch: REJECTED out-of-range map index %1 from player %2", mapIndex, callerId), LogLevel.WARNING);
+			return;
+		}
+
+		if (GameStateTransitions.IsTransitionRequestedOrInProgress())
+		{
+			Print("BC Debug - MapSwitch: transition already requested or in progress, ignoring", LogLevel.WARNING);
+			return;
+		}
+
+		ResourceName mission = GRAD_BC_MapSwitch.GetMission(mapIndex);
+
+		Print(string.Format("BC Debug - MapSwitch: admin %1 switching scenario to %2", callerId, mission), LogLevel.NORMAL);
+
+		// Empty addonList = keep the currently loaded addons. If clients get kicked for a mod
+		// mismatch on switch, this is the first thing to change (semicolon-separated GUID list).
+		bool requested = GameStateTransitions.RequestScenarioChangeTransition(mission, ResourceName.Empty, string.Empty);
+
+		if (!requested)
+			Print(string.Format("BC Debug - MapSwitch: RequestScenarioChangeTransition REFUSED for %1", mission), LogLevel.ERROR);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Client entry point: ask the server to move the calling admin into spectator.
+	//! Works both from a slot and as the way back out of Game Master.
+	void Ask_EnterSpectator()
+	{
+		// Close the editor first if it is open - while it is, the editor holds the player on its
+		// own camera and the server-side possession would be overridden straight away.
+		if (SCR_EditorManagerEntity.IsOpenedInstance())
+			SCR_EditorManagerEntity.CloseInstance();
+
+		Rpc(RpcAsk_Server_EnterSpectator);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Server-side spectator switch for a single player. Same security model as
+	//! RpcAsk_Server_ChangeScenario: the caller's identity comes from GetOwner(), never from an
+	//! RPC argument, so a modified client cannot move a different player.
+	//!
+	//! Covers BOTH cases the feature needs:
+	//!
+	//!  1. Slotted player -> spectator. Clearing the slot makes COA_GamemodeManager.InitilizePlayer
+	//!     take its spectator branch (it keys on IsPlayerInASlot), which spawns a spectator entity
+	//!     and assigns it.
+	//!
+	//!  2. Already-unslotted player stuck in Game Master -> back to spectator. This is the case
+	//!     the feature request came from: entering GM from spectator leaves no way back. Here the
+	//!     slot is already clear, GetOrCreateSpectatorEntity returns the still-living spectator
+	//!     entity, and the important part is that InitilizePlayer then re-runs
+	//!     COA_PlayerHelper.AssignCharacterToPlayer -> RequestPossessSpawn, which hands control
+	//!     back to that entity from whatever the GM camera left the player possessing.
+	//!
+	//! Closing the editor first matters: SCR_EditorManagerEntity keeps the player on its camera
+	//! while open, so possession would be immediately overridden.
+	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
+	protected void RpcAsk_Server_EnterSpectator()
+	{
+		if (!Replication.IsServer())
+			return;
+
+		PlayerController playerController = PlayerController.Cast(GetOwner());
+		if (!playerController)
+			return;
+
+		int callerId = playerController.GetPlayerId();
+
+		if (!GRAD_BC_MapSwitch.IsPlayerAdminServer(callerId))
+		{
+			Print(string.Format("BC Debug - Spectator: REJECTED spectator request from non-admin player %1", callerId), LogLevel.WARNING);
+			return;
+		}
+
+		COA_SlottingManager slottingManager = COA_SlottingManager.GetInstance();
+		COA_GamemodeManager gamemodeManager = COA_GamemodeManager.GetInstance();
+		if (!slottingManager || !gamemodeManager)
+		{
+			Print("BC Debug - Spectator: COA_SlottingManager/COA_GamemodeManager not found, cannot move player to spectator", LogLevel.WARNING);
+			return;
+		}
+
+		int slotId = slottingManager.GetPlayerSlotID(callerId);
+		if (slotId != -1)
+			slottingManager.UpdateSlotPlayerID(slotId, -1);
+
+		gamemodeManager.InitilizePlayer(callerId);
+
+		Print(string.Format("BC Debug - Spectator: admin %1 moved to spectator", callerId), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	protected void DoGrantCommanderRank(IEntity ch)
 	{
 		SCR_CharacterRankComponent rankComp = SCR_CharacterRankComponent.GetCharacterRankComponent(ch);
@@ -339,10 +475,15 @@ class GRAD_PlayerComponent : ScriptComponent
 					Print(string.Format("ConfirmSpawn: Not in opfor phase but ussr player"), LogLevel.NORMAL);
 				return;
 			}
-			if (phase == EBreakingContactPhase.OPFOR) {				
+			if (phase == EBreakingContactPhase.OPFOR) {
 				// remove key listener
 				GetGame().GetInputManager().RemoveActionListener("GRAD_BC_ConfirmSpawn", EActionTrigger.DOWN, ConfirmSpawn);
-				
+
+				// Release the map lock here rather than waiting for the BLUFOR phase change. The
+				// commander has finished choosing; leaving m_bChoosingSpawn set until the phase
+				// advances would keep them locked in the map for that whole window.
+				setChoosingSpawn(false);
+
 				RequestInitiateOpforSpawnLocal();
 				RemoveSpawnMarker();
 				if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -496,9 +637,27 @@ class GRAD_PlayerComponent : ScriptComponent
 		IEntity mapEntity = gadgetManager.GetGadgetByType(EGadgetType.MAP);
 		
 		if (open)
+		{
 			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_HAND, true);
-		else
-			gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
+			return;
+		}
+
+		// Raise the bypass so the map lock lets BC's own close through - without it, closing the map
+		// at a phase change is rejected by the very lock that is supposed to end at that moment.
+		m_bScriptedMapClose = true;
+		gadgetManager.SetGadgetMode(mapEntity, EGadgetMode.IN_SLOT, false);
+		m_bScriptedMapClose = false;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! True while a player-initiated map close must be refused. See the m_bScriptedMapClose comment.
+	//! A scripted close (BC closing the map itself) is always allowed.
+	bool IsMapCloseLocked()
+	{
+		if (m_bScriptedMapClose)
+			return false;
+
+		return IsChoosingSpawn();
 	}
 
 	//------------------------------------------------------------------------------------------------

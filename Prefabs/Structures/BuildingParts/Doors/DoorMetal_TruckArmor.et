@@ -1,0 +1,47 @@
+GenericEntity : "{B4134F14313F958C}Prefabs/Structures/BuildingParts/Doors/Door_Village_E_B_RIGHT_INT_COV_B.et" {
+ ID "527C8704948C7455"
+ components {
+  DoorComponent "{221C667A9F7D4B69}" {
+   DoorAction SCR_DoorUserAction "{50888D3646A61640}" {
+    ParentContextList {
+    }
+   }
+   SoundFilename "{B3730F0B5EDD401B}Sounds/Structures/_ShaderData/Doors/Structures_Door_Metal_Shed_NoHandle.acp"
+   SoundPoints {
+    SoundPointEventInfo "{6A22FC119368BF43}" {
+     Offset 0.624 1.2406 -0.0227
+    }
+    SoundPointEventInfo "{6A22FC119368BF22}" {
+     Offset 0.624 1.2406 -0.0227
+     Event SOUND_OPEN_FINISH
+    }
+    SoundPointEventInfo "{6A22FC119368BF20}" {
+     Offset 0.624 1.2406 -0.0227
+     Event SOUND_CLOSE_START
+    }
+    SoundPointEventInfo "{6A22FC119368BF21}" {
+     Offset 0.624 1.2406 -0.0227
+     Event SOUND_CLOSE_FINISH
+    }
+    SoundPointEventInfo "{6A22FC119368BF2E}" {
+     Offset 0 1.1972 0
+     Event SOUND_MOVEMENT
+    }
+   }
+   AngleRange -90
+  }
+  MeshObject "{309366462BDAFB24}" {
+   Object "{EEB1713C9B4B6888}Assets/Structures/BuildingsParts/Doors/Door_Metal/Door_Metal_01_RIGHT_EXT_COV_B.xob"
+  }
+  NavmeshCustomLinkComponent "{559E7AC91AFA25BA}" {
+   LinkType NavmeshDoorLink "{559E7AC9151D5867}" {
+   }
+  }
+  ActionsManagerComponent "{F32B667C3C823800}" {
+   Enabled 0
+  }
+  Hierarchy "{7642683606C70747}" {
+   MergePhysics 1
+  }
+ }
+}

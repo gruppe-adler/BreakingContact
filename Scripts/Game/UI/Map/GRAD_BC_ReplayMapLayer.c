@@ -3,7 +3,60 @@
 class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven working class
 {
 	protected static GRAD_BC_ReplayMapLayer s_Instance;
-	
+
+	// Opacity applied to markers of dead units during replay playback
+	protected const float DEAD_MARKER_OPACITY = 0.35;
+
+	// --- Explosive event rendering ---
+	// Radii are in metres so they scale with map zoom and stay true to the real area affected.
+	protected const float SMOKE_RADIUS_M = 25.0;	// approximate screening radius of a smoke cloud
+	// The cloud body is deliberately near-transparent: it marks an area without hiding the units
+	// and vehicles inside it. Legibility comes from the outline, not the fill.
+	protected const float SMOKE_FILL_ALPHA = 0.18;
+	protected const float SMOKE_RING_ALPHA = 0.70;
+
+	// Smallest on-screen radius, in pixels, any explosive marker is drawn at. A 25m cloud is only
+	// a few pixels on a zoomed-out map, so without a floor it is drawn correctly yet invisible.
+	protected const float MIN_EXPLOSIVE_SCREEN_RADIUS = 12.0;
+
+	// --- Unit / vehicle icon sizing ---
+	// Base on-screen size in pixels, used whenever the map is zoomed in past ICON_SCALE_ZOOM_THRESHOLD.
+	protected const float ICON_BASE_SIZE_VEHICLE = 128.0;
+	protected const float ICON_BASE_SIZE_INFANTRY = 64.0;
+
+	// Icons hold their full size while zoomed in, and only start shrinking once the map is zoomed
+	// out past this point. GetCurrentZoom() is pixels-per-metre, so LOWER values are further out.
+	// Above the threshold the scale is pinned at 1.0; below it, size falls off in proportion to
+	// zoom, so icons stop swamping the map when the whole AO is on screen.
+	//
+	// Set from the observed maximum zoom-in (~5.24 px/m on kolgujev), so icons are at full size
+	// only when fully zoomed in and shrink gradually across the rest of the range.
+	protected const float ICON_SCALE_ZOOM_THRESHOLD = 5.24;
+
+	// Floor on the falloff, so icons stay findable at maximum zoom-out instead of vanishing.
+	// Kept low because the square-root curve below approaches it slowly - with a linear falloff a
+	// floor this low would be hit almost immediately and icons would stop responding to zoom.
+	protected const float ICON_MIN_SCALE = 0.35;
+
+	protected const float HE_MIN_RADIUS_M = 4.0;
+	protected const float HE_MAX_RADIUS_M = 18.0;
+	protected const int HE_COLOR = 0xFFFF3020;		// red blast
+
+	// Real seconds a detonation animation should occupy on screen. Multiplied by playback speed
+	// at draw time, so it stays roughly this long whether the replay runs at 1x or 10x.
+	protected const float HE_ANIMATION_SECONDS = 1.0;
+
+	// Shape of the detonation animation, as fractions of the event's total duration.
+	protected const float HE_PUNCH_PEAK = 0.30;		// expansion completes here, then contracts
+	protected const float HE_CONTRACTION = 0.45;	// how far it shrinks back from the peak
+	protected const float HE_FADE_START = 0.55;		// opacity holds until here, then fades out
+
+	protected const float AT_ROCKET_RADIUS_M = 4.0;
+	protected const float AT_BURST_RADIUS_M = 22.0;
+	protected const float AT_BURST_SECONDS = 2.0;
+	protected const float AT_TRAIL_FRACTION = 0.25;	// trail covers the last quarter of the flight
+	protected const int AT_COLOR = 0xFFFFD040;		// bright yellow, distinct from HE orange
+
 	static GRAD_BC_ReplayMapLayer GetInstance()
 	{
 		return s_Instance;
@@ -20,6 +73,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 	// Debug/logging guards
 	protected bool m_bStabilizedLogged = false;
 	protected bool m_bWorldToScreenSampled = false;
+
+	// TEMPORARY (icon scale calibration): last zoom value logged, so the zoom readout fires only
+	// when the zoom actually changes rather than every frame. Remove with LogZoomForCalibration().
+	protected float m_fLastLoggedZoom = -1.0;
 
     // We track used widgets every frame to hide/remove unused ones (garbage collection)
     protected ref set<string> m_UsedWidgetKeys = new set<string>();
@@ -104,7 +161,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // Create new
         if (!m_WidgetsRoot) return null;
 
-        w = ImageWidget.Cast(GetGame().GetWorkspace().CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND, Color.White, 0, m_WidgetsRoot));
+        // STRETCH makes the texture scale to the widget size. Without it the image always draws at
+        // its native resolution and the widget acts as a window onto it - so shrinking the widget
+        // crops the icon rather than scaling it, revealing more of the texture as it grows again.
+        w = ImageWidget.Cast(GetGame().GetWorkspace().CreateWidget(WidgetType.ImageWidgetTypeID, WidgetFlags.VISIBLE | WidgetFlags.BLEND | WidgetFlags.STRETCH, Color.White, 0, m_WidgetsRoot));
         
         if (texturePath != "")
             w.LoadImageTexture(0, texturePath);
@@ -114,21 +174,78 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // ---------------------------------------------------------
         FrameSlot.SetAlignment(w, 0.5, 0.5);
 
-        // Set default sizes based on type - DPI scaled for resolution independence
-        // Compute DPI scale by comparing scaled vs unscaled values
-        // DPIUnscale converts from screen pixels to widget units
-        float unscaled100 = GetGame().GetWorkspace().DPIUnscale(100);
-        float dpiScaleFactor = 100.0 / unscaled100;  // e.g. if DPIUnscale(100) = 50, scale is 2.0
-        if (dpiScaleFactor <= 0)
-            dpiScaleFactor = 1.0;
-
-        if (isVehicle)
-            FrameSlot.SetSize(w, 128 / dpiScaleFactor, 128 / dpiScaleFactor);
-        else
-            FrameSlot.SetSize(w, 64 / dpiScaleFactor, 64 / dpiScaleFactor);
-            
+        // Size is not set here: it depends on the current zoom and is applied every frame by
+        // ApplyMarkerSize() from UpdateMarkerWidget(), which also covers cached widgets.
         m_ActiveWidgets.Insert(key, w);
         return w;
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Zoom-dependent scale for unit and vehicle icons.
+    //
+    // Icons keep their full size while the map is zoomed in, so close-up reading is unchanged.
+    // Once zoomed out past ICON_SCALE_ZOOM_THRESHOLD they shrink towards ICON_MIN_SCALE, so a
+    // zoomed-out map is not buried under overlapping markers.
+    //
+    // The shrink follows the square root of the zoom ratio rather than the ratio itself. A linear
+    // falloff is far too harsh over this range - it loses most of the icon size in the first part
+    // of the zoom-out and then sits on the floor. The square root keeps icons noticeably larger
+    // through the middle of the range and approaches the floor only at the far zoom-out end.
+    protected float GetIconZoomScale()
+    {
+        if (!m_MapEntity || ICON_SCALE_ZOOM_THRESHOLD <= 0)
+            return 1.0;
+
+        float zoom = m_MapEntity.GetCurrentZoom();
+        if (zoom >= ICON_SCALE_ZOOM_THRESHOLD)
+            return 1.0;
+
+        float ratio = zoom / ICON_SCALE_ZOOM_THRESHOLD;
+        if (ratio < 0)
+            ratio = 0;
+
+        return Math.Clamp(Math.Sqrt(ratio), ICON_MIN_SCALE, 1.0);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // TEMPORARY - icon scale calibration aid.
+    //
+    // Logs the current map zoom whenever it changes, so ICON_SCALE_ZOOM_THRESHOLD can be set from
+    // observed values instead of guessed. Scroll the replay map through its full range and read the
+    // zoom off the log at the point icons should stop scaling. Remove this function, its call in
+    // ApplyMarkerSize() and m_fLastLoggedZoom once the threshold is chosen.
+    protected void LogZoomForCalibration()
+    {
+        if (!m_MapEntity || !GRAD_BC_BreakingContactManager.IsDebugMode())
+            return;
+
+        float zoom = m_MapEntity.GetCurrentZoom();
+
+        // Only report meaningful changes, otherwise this floods the log every frame.
+        if (m_fLastLoggedZoom > 0 && Math.AbsFloat(zoom - m_fLastLoggedZoom) < (m_fLastLoggedZoom * 0.02))
+            return;
+
+        m_fLastLoggedZoom = zoom;
+        Print(string.Format("BC Debug - ReplayMapLayer zoom calibration: GetCurrentZoom()=%1 (px/m), current threshold=%2, resulting icon scale=%3",
+            zoom, ICON_SCALE_ZOOM_THRESHOLD, GetIconZoomScale()), LogLevel.NORMAL);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Applies the current zoom-dependent size to a marker widget. DPIUnscale converts the pixel
+    // size into widget units, keeping icons resolution independent.
+    //
+    // The widget is created with WidgetFlags.STRETCH, so the texture follows the frame slot size
+    // and setting the slot is enough to scale the icon.
+    protected void ApplyMarkerSize(ImageWidget w, bool isVehicle)
+    {
+        LogZoomForCalibration();
+
+        float baseSize = ICON_BASE_SIZE_INFANTRY;
+        if (isVehicle)
+            baseSize = ICON_BASE_SIZE_VEHICLE;
+
+        float size = GetGame().GetWorkspace().DPIUnscale(baseSize * GetIconZoomScale());
+        FrameSlot.SetSize(w, size, size);
     }
 
     //------------------------------------------------------------------------------------------------
@@ -146,7 +263,13 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 
 		if (!replayManager || !m_MapEntity || !m_WidgetsRoot)
 		{
-			foreach (ImageWidget w : m_ActiveWidgets) w.SetVisible(false);
+			// Entries can go null when the map closes and the widget tree is torn down while this
+			// map still holds references, so each one is checked rather than blindly dereferenced.
+			foreach (ImageWidget w : m_ActiveWidgets)
+			{
+				if (w)
+					w.SetVisible(false);
+			}
 			return;
 		}
 
@@ -249,17 +372,31 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
             // Logic below now only handles foot mobile units
             string roleStr = playerMarker.unitType;
             if (roleStr == "") roleStr = "Rifleman";
-            string key = roleStr + "_" + playerMarker.factionKey;
+
+            // Normalize COALITION-Lobby's "OPFOR"/"BLUFOR" faction keys to BreakingContact's
+            // own "USSR"/"US" convention used by the m_unitTypeTextures keys. Without this the
+            // lookup misses and every unit falls back to the BLUFOR "Default" icon.
+            string plFaction = playerMarker.factionKey;
+            if (GRAD_BC_BreakingContactManager.IsOpforFactionKey(plFaction))
+                plFaction = "USSR";
+            else if (GRAD_BC_BreakingContactManager.IsBluforFactionKey(plFaction))
+                plFaction = "US";
+
+            string key = roleStr + "_" + plFaction;
             string texturePath = m_unitTypeTextures.Get(key);
 
             // CIV faction fallback: civilians don't have military roles, use Rifleman_CIV
-            if (texturePath == "" && playerMarker.factionKey == "CIV")
+            if (texturePath == "" && plFaction == "CIV")
                 texturePath = m_unitTypeTextures.Get("Rifleman_CIV");
+
+            // Role fallback: keep the faction colour even when the role has no icon registered
+            if (texturePath == "")
+                texturePath = m_unitTypeTextures.Get("Rifleman_" + plFaction);
 
             if (texturePath == "") texturePath = m_unitTypeTextures.Get("Default");
 
             string widgetKey = "PLR_" + playerMarker.playerId.ToString();
-            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false);
+            UpdateMarkerWidget(widgetKey, texturePath, playerMarker.position, playerMarker.direction, false, false, !playerMarker.isAlive);
         }
 
         // --- 3. Transmissions ---
@@ -269,6 +406,9 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // --- 4. Hide Unused Widgets ---
         foreach (string key, ImageWidget w : m_ActiveWidgets)
         {
+            if (!w)
+                continue;
+
             if (!m_UsedWidgetKeys.Contains(key))
             {
                 w.SetVisible(false);
@@ -337,13 +477,286 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
                 }
             }
 
+            // Smoke clouds, HE flashes and AT rockets
+            DrawExplosiveEvents(replayManager);
+
             // Draw progress bar during replay
             DrawProgressBar(replayManager);
         }
     }
 
+    //------------------------------------------------------------------------------------------------
+    // Renders the three explosive categories. Each is driven by the playback clock rather than by
+    // frame snapshots, so they animate smoothly regardless of the recording interval.
+    protected void DrawExplosiveEvents(GRAD_BC_ReplayManager replayManager)
+    {
+        array<ref GRAD_BC_ExplosiveEvent> activeEvents = {};
+        float playbackTime = replayManager.GetPlaybackTime();
+
+        int activeCount = replayManager.GetActiveExplosiveEvents(playbackTime, activeEvents);
+
+        // Periodic diagnostic: distinguishes "no events recorded", "events recorded but none
+        // active at this playback time" and "active but not drawing" - three very different bugs
+        // that all look identical on screen.
+        static int explosiveDrawTick = 0;
+        explosiveDrawTick++;
+        if (explosiveDrawTick % 60 == 0 && GRAD_BC_BreakingContactManager.IsDebugMode() && m_MapEntity)
+        {
+            // Screen radius a smoke cloud resolves to at the current zoom. If this is only a few
+            // pixels the marker is drawing correctly but is simply too small to see.
+            Print(string.Format("GRAD_BC_ReplayMapLayer: zoom=%1 smoke %2m -> %3px",
+                m_MapEntity.GetCurrentZoom(), SMOKE_RADIUS_M, SMOKE_RADIUS_M * m_MapEntity.GetCurrentZoom()), LogLevel.NORMAL);
+        }
+
+        if (explosiveDrawTick % 60 == 0 && GRAD_BC_BreakingContactManager.IsDebugMode())
+        {
+            Print(string.Format("GRAD_BC_ReplayMapLayer: explosives t=%1s active=%2 total=%3",
+                playbackTime, activeCount, replayManager.GetExplosiveEventCount()), LogLevel.NORMAL);
+        }
+
+        if (activeCount == 0)
+            return;
+
+        foreach (GRAD_BC_ExplosiveEvent evt : activeEvents)
+        {
+            switch (evt.kind)
+            {
+                case EGradBCExplosiveKind.SMOKE:
+                    DrawSmokeCloud(evt, playbackTime);
+                    break;
+
+                case EGradBCExplosiveKind.HE:
+                    DrawHeFlash(evt, playbackTime);
+                    break;
+
+                case EGradBCExplosiveKind.AT:
+                    DrawAtRocket(evt, playbackTime);
+                    break;
+            }
+        }
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Smoke: a filled disc in the grenade's own colour that grows briefly as the cloud builds,
+    // then fades out over the remainder of its life.
+    protected void DrawSmokeCloud(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+        float duration = evt.endTime - evt.startTime;
+        if (duration <= 0)
+            return;
+
+        float age = playbackTime - relStart;
+        float lifeFraction = Math.Clamp(age / duration, 0.0, 1.0);
+
+        // Cloud builds over the first few seconds, then holds full size.
+        const float buildUpSeconds = 4.0;
+        float growth = Math.Clamp(age / buildUpSeconds, 0.0, 1.0);
+        float radius = SMOKE_RADIUS_M * (0.35 + 0.65 * growth);
+
+        // Hold opacity for the first half of its life, then fade to nothing.
+        float alphaScale = 1.0;
+        if (lifeFraction > 0.5)
+            alphaScale = 1.0 - ((lifeFraction - 0.5) / 0.5);
+
+        // The cloud must not obscure what is happening inside it, so the body is a very faint
+        // wash and the outline carries most of the legibility. The outline is drawn at a much
+        // higher alpha than the fill for that reason.
+        int fillColor = ApplyAlpha(evt.color, SMOKE_FILL_ALPHA * alphaScale);
+        int ringColor = ApplyAlpha(evt.color, SMOKE_RING_ALPHA * alphaScale);
+
+        DrawWorldDisc(evt.position, radius, fillColor);
+        DrawWorldRing(evt.position, radius, 2.0, ringColor);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // HE: a brief ring that expands outward and fades, reading as a detonation rather than a
+    // lingering presence. No persistent marker is left behind.
+    protected void DrawHeFlash(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+
+        // The recorded window is in replay-time, but playback is compressed - a long round is
+        // squeezed into a minute, so a two second event can flash past in a fraction of a second.
+        // Stretch the window by the playback speed so the animation lasts a consistent amount of
+        // REAL time on screen no matter how fast the replay is running.
+        float duration = HE_ANIMATION_SECONDS * GetPlaybackSpeedScale();
+        if (duration <= 0)
+            return;
+
+        float progress = Math.Clamp((playbackTime - relStart) / duration, 0.0, 1.0);
+
+        // Grow fast, settle back slowly. A detonation that expands and contracts reads as an
+        // event even when it flashes past, which matters because the replay is time-compressed:
+        // a two second window can be a fraction of a second on screen at playback speed.
+        //
+        // The curve peaks at PUNCH_PEAK then eases back, with the ease-out shaped by a squared
+        // falloff so the contraction decelerates rather than snapping shut.
+        float scale;
+        if (progress < HE_PUNCH_PEAK)
+        {
+            // Ease-out on the way up: fast initial expansion, decelerating into the peak.
+            float t = progress / HE_PUNCH_PEAK;
+            scale = 1.0 - ((1.0 - t) * (1.0 - t));
+        }
+        else
+        {
+            // Ease-in-out on the way back down, settling toward a small residual.
+            float t = (progress - HE_PUNCH_PEAK) / (1.0 - HE_PUNCH_PEAK);
+            scale = 1.0 - (t * t * HE_CONTRACTION);
+        }
+
+        float radius = HE_MIN_RADIUS_M + (HE_MAX_RADIUS_M - HE_MIN_RADIUS_M) * scale;
+
+        // Hold full opacity through the punch, then fade over the tail so it disappears cleanly.
+        float alpha = 1.0;
+        if (progress > HE_FADE_START)
+            alpha = 1.0 - ((progress - HE_FADE_START) / (1.0 - HE_FADE_START));
+
+        DrawWorldRing(evt.position, radius, 3.0, ApplyAlpha(HE_COLOR, alpha));
+        DrawWorldDisc(evt.position, radius * 0.45, ApplyAlpha(HE_COLOR, alpha * 0.55));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // AT: the rocket is animated along its flight path, trailing a line back toward the launch
+    // point, then bursts at the impact position.
+    protected void DrawAtRocket(GRAD_BC_ExplosiveEvent evt, float playbackTime)
+    {
+        float relStart = evt.startTime - GetReplayStartTime();
+        float flightTime = evt.endTime - evt.startTime;
+
+        int trailColor = ApplyAlpha(AT_COLOR, 0.55);
+
+        if (flightTime > 0)
+        {
+            float progress = Math.Clamp((playbackTime - relStart) / flightTime, 0.0, 1.0);
+
+            if (progress < 1.0)
+            {
+                // Rocket in flight: interpolate along the launch->impact line.
+                vector current = vector.Lerp(evt.position, evt.endPosition, progress);
+
+                // Short trail behind the rocket rather than a line all the way back to the shooter,
+                // so the direction of travel reads clearly without cluttering the map.
+                float trailStart = Math.Max(0.0, progress - AT_TRAIL_FRACTION);
+                vector trailFrom = vector.Lerp(evt.position, evt.endPosition, trailStart);
+
+                DrawLine(trailFrom, current, 2.0, trailColor);
+                DrawWorldDisc(current, AT_ROCKET_RADIUS_M, AT_COLOR);
+                return;
+            }
+        }
+
+        // Flight finished: show the impact burst. Stretched by playback speed for the same
+        // perceptual reason as the HE flash - see DrawHeFlash.
+        float sinceImpact = playbackTime - (evt.endTime - GetReplayStartTime());
+        float burstDuration = AT_BURST_SECONDS * GetPlaybackSpeedScale();
+        float burstProgress = Math.Clamp(sinceImpact / burstDuration, 0.0, 1.0);
+
+        // Same punch-and-settle shape as HE so the two read as related events, in AT's colour.
+        float burstScale;
+        if (burstProgress < HE_PUNCH_PEAK)
+        {
+            float tUp = burstProgress / HE_PUNCH_PEAK;
+            burstScale = 1.0 - ((1.0 - tUp) * (1.0 - tUp));
+        }
+        else
+        {
+            float tDown = (burstProgress - HE_PUNCH_PEAK) / (1.0 - HE_PUNCH_PEAK);
+            burstScale = 1.0 - (tDown * tDown * HE_CONTRACTION);
+        }
+
+        float alpha = 1.0;
+        if (burstProgress > HE_FADE_START)
+            alpha = 1.0 - ((burstProgress - HE_FADE_START) / (1.0 - HE_FADE_START));
+
+        float radius = HE_MIN_RADIUS_M + (AT_BURST_RADIUS_M - HE_MIN_RADIUS_M) * burstScale;
+
+        DrawWorldRing(evt.endPosition, radius, 3.0, ApplyAlpha(AT_COLOR, alpha));
+        DrawWorldDisc(evt.endPosition, radius * 0.45, ApplyAlpha(AT_COLOR, alpha * 0.55));
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Ring at a world position, sized in METRES. The DrawCircle(center, radius, width, colour)
+    // overload takes its radius in screen pixels, so metre-based callers must convert first -
+    // otherwise a 25m cloud is drawn as a 25px ring regardless of zoom.
+    protected void DrawWorldRing(vector center, float radiusMeters, float width, int color)
+    {
+        DrawCircle(center, WorldRadiusToScreen(radiusMeters), width, color);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Metres to screen pixels at the current zoom, with a floor.
+    //
+    // A smoke cloud is only ~25m across, which is a couple of pixels on a zoomed-out map - drawn
+    // correctly but far too small to notice. The floor keeps it visible as a small marker instead
+    // of disappearing, while it still grows naturally as the map is zoomed in.
+    protected float WorldRadiusToScreen(float radiusMeters)
+    {
+        float screenRadius = radiusMeters;
+        if (m_MapEntity)
+            screenRadius = radiusMeters * m_MapEntity.GetCurrentZoom();
+
+        return Math.Max(screenRadius, MIN_EXPLOSIVE_SCREEN_RADIUS);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Filled disc at a world position, sized in metres so it scales with map zoom.
+    protected void DrawWorldDisc(vector center, float radiusMeters, int color, int segments = 24)
+    {
+        float screenX, screenY;
+        m_MapEntity.WorldToScreen(center[0], center[2], screenX, screenY, true);
+
+        // Metres to screen pixels, with the same floor the rings use so a small cloud stays
+        // visible when zoomed out instead of collapsing to nothing.
+        float screenRadius = WorldRadiusToScreen(radiusMeters);
+
+        PolygonDrawCommand cmd = new PolygonDrawCommand();
+        cmd.m_iColor = color;
+        cmd.m_Vertices = new array<float>;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float theta = i * (Math.PI2 / segments);
+            cmd.m_Vertices.Insert(screenX + screenRadius * Math.Cos(theta));
+            cmd.m_Vertices.Insert(screenY + screenRadius * Math.Sin(theta));
+        }
+
+        m_Commands.Insert(cmd);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Replaces the alpha channel of an ARGB colour with the given 0..1 scale.
+    protected int ApplyAlpha(int argb, float alphaScale)
+    {
+        int alpha = Math.Round(Math.Clamp(alphaScale, 0.0, 1.0) * 255);
+        return (alpha << 24) | (argb & 0x00FFFFFF);
+    }
+
+    //------------------------------------------------------------------------------------------------
+    // Playback speed, used to stretch fixed-length animations so they last a consistent amount of
+    // real time on screen regardless of how compressed the replay is. Never below 1.
+    protected float GetPlaybackSpeedScale()
+    {
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+            return 1.0;
+
+        return Math.Max(1.0, replayManager.GetPlaybackSpeed());
+    }
+
+    //------------------------------------------------------------------------------------------------
+    protected float GetReplayStartTime()
+    {
+        GRAD_BC_ReplayManager replayManager = GRAD_BC_ReplayManager.GetInstance();
+        if (!replayManager)
+            return 0;
+
+        return replayManager.GetReplayStartTime();
+    }
+
     // Core function to update a single marker widget
-    protected void UpdateMarkerWidget(string key, string texturePath, vector worldPos, float direction, bool isVehicle, bool isEmptyVehicle)
+    protected void UpdateMarkerWidget(string key, string texturePath, vector worldPos, float direction, bool isVehicle, bool isEmptyVehicle, bool isDead = false)
     {
         // 1. Get/Create Widget
         ImageWidget w = GetOrCreateMarkerWidget(key, texturePath, isVehicle);
@@ -375,6 +788,10 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         float posY = GetGame().GetWorkspace().DPIUnscale(screenY);
         FrameSlot.SetPos(w, posX, posY);
 
+        // Size tracks the current zoom, so it must be re-applied every frame rather than only on
+        // widget creation - cached widgets would otherwise keep the size they were created at.
+        ApplyMarkerSize(w, isVehicle);
+
         // Rotation: Input 'direction' is usually World Yaw.
         // Icons usually face UP.
         // World 0 (North) -> Screen UP.
@@ -386,6 +803,11 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
         // 4. Color / Opacity
         if (isEmptyVehicle) w.SetColor(Color.Gray); // Example tinting
         else w.SetColor(Color.White);
+
+        // Dead units keep their faction colour but render faded, so they stay
+        // identifiable while reading clearly as no longer alive.
+        if (isDead) w.SetOpacity(DEAD_MARKER_OPACITY);
+        else w.SetOpacity(1.0);
     }
 	
 	// Map vehicle prefab and faction to icon key
@@ -535,7 +957,7 @@ class GRAD_BC_ReplayMapLayer : GRAD_MapMarkerLayer // Inherit from proven workin
 				else if (factionKey == "CIV") key = "UAZ_469_closed_civ";
 			}
 		}
-		else if (pf.Contains("uh1h1"))
+		else if (pf.Contains("uh1h"))
 		{
 			if (isEmpty) key = "UH1H1_empty";
 			else if (factionKey == "US") key = "UH1H1_blufor";

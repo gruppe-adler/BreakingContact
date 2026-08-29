@@ -1,0 +1,34 @@
+FrameWidgetClass {
+ Name "GRAD_BC_TimeWeatherButtonRoot"
+ {
+  ButtonWidgetClass "{6A20A324C823C76D}" {
+   Name "TimeWeatherButton"
+   Slot FrameWidgetSlot "{6A20A324C823B43C}" {
+    Anchor 0 0 1 1
+    PositionX 0
+    OffsetLeft 0
+    PositionY 0
+    OffsetTop 0
+    SizeX 240
+    OffsetRight 0
+    SizeY 90
+    OffsetBottom 0
+   }
+   Color 1 1 1 0.0039
+   components {
+    SCR_ButtonTextComponent "{6A20A324FDA7C032}" {
+    }
+   }
+   {
+    TextWidgetClass "{6A20A324C823B40B}" {
+     Name "Text"
+     Slot AlignableSlot "{6A20A324C823B5E6}" {
+      HorizontalAlign 1
+      VerticalAlign 1
+     }
+     Text ""
+    }
+   }
+  }
+ }
+}

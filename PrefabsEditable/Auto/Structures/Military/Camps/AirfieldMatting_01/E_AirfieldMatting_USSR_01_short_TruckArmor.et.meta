@@ -1,0 +1,17 @@
+MetaFileClass {
+ Name "{675AB1659C21128D}PrefabsEditable/Auto/Structures/Military/Camps/AirfieldMatting_01/E_AirfieldMatting_USSR_01_short_TruckArmor.et"
+ Configurations {
+  EntityTemplateResourceClass PC {
+  }
+  EntityTemplateResourceClass XBOX_ONE : PC {
+  }
+  EntityTemplateResourceClass XBOX_SERIES : PC {
+  }
+  EntityTemplateResourceClass PS4 : PC {
+  }
+  EntityTemplateResourceClass PS5 : PC {
+  }
+  EntityTemplateResourceClass HEADLESS : PC {
+  }
+ }
+}

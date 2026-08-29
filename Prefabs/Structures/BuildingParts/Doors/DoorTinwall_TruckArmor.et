@@ -1,0 +1,87 @@
+GenericEntity : "{F1793FE006FDF888}Prefabs/Structures/BuildingParts/Doors/Door_Base.et" {
+ ID "627CE52CCB2692FE"
+ components {
+  DoorComponent "{221C667A9F7D4B69}" {
+   DoorAction SCR_DoorUserAction "{50888D3646A61640}" {
+    ParentContextList {
+    }
+   }
+   SoundFilename "{D0171AB0D3FDA036}Sounds/Structures/_ShaderData/Doors/Structures_Door_Metal_Shed_Handle.acp"
+   SoundPoints {
+    SoundPointEventInfo "{6A22FC11C64EF0BA}" {
+     Offset 1 1 0
+    }
+    SoundPointEventInfo "{6A22FC11C64EF0A1}" {
+     Offset 1 1 0
+     Event SOUND_OPEN_FINISH
+    }
+    SoundPointEventInfo "{6A22FC11C64EF0AC}" {
+     Offset 1 1 0
+     Event SOUND_CLOSE_START
+    }
+    SoundPointEventInfo "{6A22FC11C64EF0AA}" {
+     Offset 1 1 0
+     Event SOUND_CLOSE_FINISH
+    }
+    SoundPointEventInfo "{6A22FC11C64EF0A8}" {
+     Offset 0 1 0
+     Event SOUND_MOVEMENT
+    }
+   }
+  }
+  MeshObject "{309366462BDAFB24}" {
+   Object "{5CE57A44561BE277}Assets/Structures/BuildingsParts/Doors/Door_TinWall_01/Door_TinWall_01_Small_LEFT_EXT_COV_B.xob"
+  }
+  NavmeshCustomLinkComponent "{559E7AC91AFA25BA}" {
+   LinkType NavmeshDoorLink "{559E7AC9151D5867}" {
+    "Navmesh setting presets" {
+     NavmeshCustomLinkSetting "{5C90F7CD794C3D21}" {
+      BeginPoint 0.5 0 -1.5
+      EndPoint 0.5 0 1.5
+     }
+    }
+   }
+  }
+  RigidBody "{309366462BDAFB2D}" {
+   AngularSleepingThreashold 1
+   ResponseIndex "TinyDestructible"
+   ModelGeometry 1
+   Static 1
+  }
+  SCR_DestructionMultiPhaseComponent "{5534CAAEE5EE14F2}" : "{76DA308CC9E2AB84}Prefabs/Props/Core/DestructionMultiPhase_Base.ct" {
+   Enabled 1
+   m_fBaseHealth 1000
+   m_fDamageThresholdMaximum 30000
+   m_DestroySpawnObjects {
+    SCR_DebrisSpawnable "{6A22FC11C64EF09D}" {
+     m_ModelPrefabs {
+      "{5CE57A44561BE277}Assets/Structures/BuildingsParts/Doors/Door_TinWall_01/Door_TinWall_01_Small_LEFT_EXT_COV_B.xob"
+     }
+     m_fMass 30
+     m_fDamageToImpulse 1
+     m_fRandomVelocityLinear 1
+     m_eMaterialSoundType METAL_LIGHT
+    }
+    SCR_ParticleSpawnable "{6A22FC11C64EF098}" {
+     m_vOffsetPosition 0 1 0
+     m_Particle "{C607AE95F068E50F}Particles/Props/Dest_NetFence.ptc"
+     m_bDirectional 0
+    }
+   }
+   m_eMaterialSoundType BREAK_METAL
+  }
+  ActionsManagerComponent "{F32B667C3C823800}" {
+   Enabled 0
+   ActionContexts {
+    UserActionContext "{50888D37F529F720}" {
+     Position PointInfo "{50888D37F0EB77E0}" {
+      Offset 1 1 0
+     }
+    }
+   }
+  }
+  Hierarchy "{7642683606C70747}" {
+   MergePhysics 1
+  }
+ }
+}

@@ -2678,42 +2678,74 @@ confirmed. Also strip the remaining `BC Debug` Prints — they run on every filt
 
 ---
 
-# PRICING (2026-08-15)
+# PRICING
 
-Budget is **1000 supplies per truck** (`GRAD_BC_VehicleSupplyComponent.m_iMaxSupplies` on each
-`_combox`). Prices live on the vehicle prefabs as
+**Verified 2026-08-29** by reading `m_Value` directly out of each prefab. Prices live on the
+vehicle prefabs as
 `SCR_EditableVehicleComponent > m_UIInfo > m_EntityBudgetCost > SCR_EntityBudgetValue > m_Value`.
+Budget is **1000 supplies per truck** (`GRAD_BC_VehicleSupplyComponent.m_iMaxSupplies` on each
+`_combox`). "Max per truck" is `1000 / price` floored, ignoring the placement cooldown.
 
 Design rules used: light transport should never be a budget decision; **armed vehicles max 3**;
 **heavy armed max 1**; air is its own tier above heavy.
 
-| Vehicle | Faction | Class | Price | Max per truck |
-|---|---|---|---|---|
-| UAZ469 | OPFOR | Light jeep | 50 | 20 |
-| UAZ452_transport | OPFOR | Light transport | 75 | 13 |
-| Ural4320_transport | OPFOR | Heavy transport | 150 | 6 |
-| UAZ469_PKM | OPFOR | Armed jeep | 300 | 3 |
-| BRDM2 | OPFOR | Armed recon | 450 | 2 |
-| BTR70 | OPFOR | Heavy armed APC | 650 | 1 |
-| M151A2 | BLUFOR | Light jeep | 50 | 20 |
-| M998_covered_long | BLUFOR | Light transport | 75 | 13 |
-| M923A1_transport_covered | BLUFOR | Heavy transport | 150 | 6 |
-| M923A1_transport | BLUFOR | Heavy transport (open) | 150 | 6 |
-| M1025_armed_M2HB | BLUFOR | Armed jeep | 300 | 3 |
-| LAV25 | BLUFOR | Heavy armed IFV | 650 | 1 |
-| UH-1H | BLUFOR | Air | 800 | 1 |
+## OPFOR
 
-Changed from previous values: BTR70 850→650, LAV25 850→650, BRDM2 650→450. At 850 a heavy left
+| Vehicle | Class | Price | Max per truck |
+|---|---|---|---|
+| UAZ469 | Light jeep | 50 | 20 |
+| UAZ452_transport | Light transport | 75 | 13 |
+| Ural4320_transport | Heavy transport | 150 | 6 |
+| UAZ469_PKM | Armed jeep | 300 | 3 |
+| BRDM2 | Armed recon | 450 | 2 |
+| BTR70 | Heavy armed APC | 650 | 1 |
+
+## BLUFOR
+
+| Vehicle | Class | Price | Max per truck |
+|---|---|---|---|
+| M151A2 | Light jeep | 50 | 20 |
+| M998_covered_long | Light transport | 75 | 13 |
+| M923A1_transport_covered | Heavy transport | 150 | 6 |
+| M923A1_transport | Heavy transport (open) | 150 | 6 |
+| M1025_armed_M2HB | Armed jeep | 300 | 3 |
+| LAV25 | Heavy armed IFV | 650 | 1 |
+| UH-1H | Air | 800 | 1 |
+
+Changed from previous values: BTR70 850->650, LAV25 850->650, BRDM2 650->450. At 850 a heavy left
 150 unspendable, which is a dead end rather than a choice.
 
-Constraint checks: 3 armed jeeps = 900 ✓ / 4 = 1200 ✗ · 2 heavies = 1300 ✗ · heavy + armed jeep
-= 950 ✓ · UH-1H + armed jeep = 1100 ✗ (the helo means no armed ground vehicles).
+Constraint checks: 3 armed jeeps = 900 OK / 4 = 1200 NO - 2 heavies = 1300 NO - heavy + armed jeep
+= 950 OK - UH-1H + armed jeep = 1100 NO (the helo means no armed ground vehicles).
 
 **Known asymmetry:** BLUFOR has air, OPFOR does not. BLUFOR also has no BRDM2-tier armed recon,
-getting a second transport variant instead. Deliberate if US air superiority is intended —
+getting a second transport variant instead. Deliberate if US air superiority is intended -
 otherwise OPFOR needs an Mi-8 equivalent.
 
 **Untested balance.** These numbers are derived from the budget and tier structure, not from play.
+
+## WARNING: UAZ452_transport price does not survive Workbench
+
+`UAZ452_transport.et` was an empty override shell with no price. The
+`m_EntityBudgetCost` block was added by hand on 2026-08-29 - and then **reverted itself**: a later
+read showed the file back to its two-line shell with `git status` clean, meaning the write was
+undone outside git. Most likely Workbench had the prefab open and rewrote it from its in-memory
+copy, silently discarding the external edit.
+
+It has been re-applied and is currently tracked as modified. Before trusting it:
+
+    git diff --stat Prefabs/Vehicles/Wheeled/UAZ452/UAZ452_transport.et
+    grep -A3 m_EntityBudgetCost Prefabs/Vehicles/Wheeled/UAZ452/UAZ452_transport.et
+
+If it has reverted again, set the price **in Workbench** rather than on disk, or close the prefab
+there first. This risk applies to any hand-edited `.et` while Workbench holds the same file open.
+
+Quick re-verify of every price:
+
+    for f in $(find Prefabs/Vehicles -name '*.et' | sort); do
+      v=$(grep -A3 m_EntityBudgetCost "$f" | grep -oE 'm_Value [0-9]+' | head -1)
+      [ -n "$v" ] && echo "$(basename $f) -> $v"
+    done
 
 ## Three places must agree when adding a vehicle
 
@@ -2731,19 +2763,29 @@ python3 -c "import io,re; c=set(re.findall(r'\}(Prefabs/[^\"]+\.et)', io.open('C
 
 ## REMAINING TODO
 
-- [ ] **`UAZ452_transport.et` has no BC override** — it is in the conf and whitelist but carries no
-      BC price, so it falls back to a vanilla cost. Create it in Workbench (inherit-and-edit from
-      the vanilla prefab, same shape as `BTR70.et`) and set `m_Value` to 75. Could not be authored
-      from outside Workbench because the base prefab's GUID is not extractable from the paks.
-- [ ] **`M923A1_combox.et` needs `SCR_CampaignBuildingMaxValueBudgetToEvaluateData`** with
-      `m_eBudget VEHICLES` and `m_iMaxValue 1000` — OPFOR's `Ural4320_combox.et` has it, BLUFOR
-      only has the plain `SCR_CampaignBuildingBudgetToEvaluateData` with no ceiling. That subclass
-      is what carries the limit.
-- [ ] **Mirror `Budget Type = VEHICLES`** to Everon: `Worlds/MP/BC_everon_Layers/managers.layer`,
-      component `{6A0956CEF951B6F3}`. Only kolgujev is set.
-- [ ] **Silence the debug spam** — `[DEBUG] BC: no GRAD_BC_VehicleSupplyComponent found on provider
-      or its parents` fires ~33x per session on non-cost budget events. Harmless, noisy.
+**Audited 2026-08-29 against the actual files.** Three items listed here were already done — the
+doc had drifted from the repo. Verify against the files before trusting any entry below.
+
+- [x] **`UAZ452_transport.et` priced** — DONE 2026-08-29. The override file already existed as an
+      empty shell with its parent GUID (`{92AA1080824A3F7E}...UAZ452_transport_base.et`) already
+      resolved, so the old "GUID not extractable from the paks" blocker no longer applied: the
+      `SCR_EditableVehicleComponent > m_UIInfo > m_EntityBudgetCost` block was added by hand with
+      `m_Value 75`, matching the shape of every other override. All 13 whitelisted vehicles now
+      carry a BC price. Not yet verified in-game.
+- [x] **`M923A1_combox.et` max-value budget** — ALREADY PRESENT, the TODO was stale. The file has
+      `SCR_CampaignBuildingMaxValueBudgetToEvaluateData "{6A1EE9148AC3E56F}"` with
+      `m_eBudget VEHICLES` / `m_iMaxValue 1000`, symmetric with OPFOR's `Ural4320_combox.et`
+      (`{6A1D3463B6FE1A58}`, same values). BLUFOR does have its ceiling.
+- [x] **`Budget Type = VEHICLES` across worlds** — ALREADY DONE on ALL FIVE, the TODO was stale in
+      two ways: it named `managers.layer`, but the setting lives in `test_mode_2.layer`, and it
+      claimed only kolgujev was set. Verified `m_BudgetType VEHICLES` present in anizay, bystrany,
+      everon, kolgujev and mogadishu.
+- [x] **Debug spam silenced** — DONE 2026-08-29. The `SCR_CampaignBuildingManagerComponent.c:367`
+      print was already behind `IsDebugMode()`. The two ungated `LogLevel.WARNING` prints in
+      `GRAD_BC_VehicleSpawnAction.c` (`IsThereEnoughBudgetToSpawn`) are now gated the same way.
+      Other `BC Debug -` prints in that file (LABELGATE, WHITELIST, MENU STATE, PROBE) are still
+      ungated and remain noisy — gate or delete them once the buy flow is trusted.
 - [ ] **Test BLUFOR end to end** — the whole BLUFOR path (menu contents, spawn, deduction) is
-      unverified; only OPFOR has been run.
+      unverified; only OPFOR has been run. This is now the main open item.
 - [ ] **UH-1H placement clearance** — free placement lets a player put a helicopter into terrain or
       trees. Test before relying on it in a session.

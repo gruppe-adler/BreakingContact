@@ -1,0 +1,18 @@
+GenericEntity : "{C02CD56C0C344D69}Prefabs/Structures/BuildingParts/Misc/VentCover_01_Circular.et" {
+ ID "50D67C36F5DF3379"
+ components {
+  MeshObject "{5111E74D5E891458}" {
+   Materials {
+    MaterialAssignClass "{6A3916A70952E14E}" {
+     SourceMaterial "Vent"
+     AssignedMaterial "{373D3B7C7A39641D}Assets/Structures/BuildingsParts/Misc/Data/VentCover_01_Rusty.emat"
+    }
+   }
+  }
+  RigidBody "{5111E74C06F5C1E1}" {
+   ResponseIndex "TinyDestructible"
+  }
+ }
+ coords 5203.6 42.102 10424.557
+ angles 0 154.769 0
+}

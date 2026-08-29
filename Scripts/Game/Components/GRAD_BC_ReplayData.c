@@ -116,9 +116,56 @@ class GRAD_BC_ProjectileData : Managed
 };
 
 //------------------------------------------------------------------------------------------------
+// Explosive event categories. Each renders differently during replay, so the category is
+// recorded rather than re-derived from the prefab name on the client.
+enum EGradBCExplosiveKind
+{
+	SMOKE,	// lingering coloured cloud
+	HE,		// point detonation, brief flash
+	AT		// launch -> impact, animated projectile
+};
+
+//------------------------------------------------------------------------------------------------
+// A single explosive event (smoke deployment, HE detonation or AT shot).
+//
+// Unlike players/vehicles, these are NOT per-frame snapshots. A rocket's whole flight lasts
+// ~1-3s while the recording interval is 3s, so sampling would miss it entirely. Instead each
+// event is recorded ONCE with absolute timestamps, and the map layer interpolates against the
+// playback clock. This is both cheaper on the wire and smooth regardless of recording interval.
+class GRAD_BC_ExplosiveEvent : Managed
+{
+	EGradBCExplosiveKind kind;
+	vector position;		// SMOKE: where the cloud sits. HE: detonation point. AT: launch point.
+	vector endPosition;		// AT only: impact point. Unused for SMOKE/HE.
+	float startTime;		// seconds, same clock as frame timestamps
+	float endTime;			// SMOKE: when the cloud disperses. AT: impact time. HE: == startTime.
+	int color;				// ARGB, used for smoke tinting; ignored for HE/AT
+	string factionKey;		// faction of whoever caused it, may be empty
+
+	static GRAD_BC_ExplosiveEvent Create(EGradBCExplosiveKind eventKind, vector pos, vector endPos, float start, float end, int argb, string faction)
+	{
+		GRAD_BC_ExplosiveEvent evt = new GRAD_BC_ExplosiveEvent();
+		evt.kind = eventKind;
+		evt.position = pos;
+		evt.endPosition = endPos;
+		evt.startTime = start;
+		evt.endTime = end;
+		evt.color = argb;
+		evt.factionKey = faction;
+		return evt;
+	}
+};
+
+//------------------------------------------------------------------------------------------------
 class GRAD_BC_ReplayData : Managed
 {
 	ref array<ref GRAD_BC_ReplayFrame> frames = {};
+
+	// Explosive events live at the top level, not inside frames: they carry their own absolute
+	// start/end times and are interpolated against the playback clock rather than being tied to
+	// whichever frame happened to be sampled nearest them.
+	ref array<ref GRAD_BC_ExplosiveEvent> explosiveEvents = {};
+
 	float totalDuration;
 	string missionName;
 	string mapName;

@@ -4,7 +4,6 @@ GenericEntity : "{F1793FE006FDF888}Prefabs/Structures/BuildingParts/Doors/Door_B
   DoorComponent "{221C667A9F7D4B69}" {
    DoorAction SCR_DoorUserAction "{50888D3646A61640}" {
     ParentContextList {
-     ""
     }
    }
    SoundFilename "{ADA3FF564F687A49}Sounds/Structures/_ShaderData/Doors/Structures_Door_Wooden_Large_NoHandle.acp"
@@ -63,6 +62,12 @@ GenericEntity : "{F1793FE006FDF888}Prefabs/Structures/BuildingParts/Doors/Door_B
     }
    }
    m_eMaterialSoundType BREAK_WOOD_SOLID
+  }
+  ActionsManagerComponent "{F32B667C3C823800}" {
+   Enabled 0
+  }
+  Hierarchy "{7642683606C70747}" {
+   MergePhysics 1
   }
  }
 }

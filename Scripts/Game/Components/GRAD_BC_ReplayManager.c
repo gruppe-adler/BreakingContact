@@ -36,6 +36,26 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	
 	// Projectile data pending recording
 	protected ref array<ref GRAD_BC_ProjectileData> m_pendingProjectiles = {};
+
+	// Latches once COALITION's safestart has actually switched on, so that "safestart has not
+	// started yet" is not mistaken for "safestart is over". See IsSafestartOver().
+	protected bool m_bSafestartWasActive = false;
+
+	// CheckGameState ticks once a second, so this is a ~15s grace period before concluding that
+	// safestart is simply disabled for this mission and recording should proceed anyway.
+	protected int m_iSafestartWaitTicks = 0;
+	protected const int SAFESTART_WAIT_MAX_TICKS = 15;
+
+	// Real seconds a detonation stays visible on the replay map. Scaled by playback speed at use,
+	// so it is perceptual duration rather than simulated duration - what matters is that a viewer
+	// can see it, not that it matches how long the real blast lasted.
+	protected const float DETONATION_VISIBLE_SECONDS = 1.0;
+
+	// Tolerances for rejecting a duplicate explosive event. Generous enough to catch the same
+	// grenade reported by two entities, tight enough that two players throwing smoke together
+	// still register separately.
+	protected const float EXPLOSIVE_DEDUPE_SECONDS = 1.0;
+	protected const float EXPLOSIVE_DEDUPE_METERS = 2.0;
 	
 	// Tracked vehicles
 	protected ref array<IEntity> m_trackedVehicles;
@@ -379,6 +399,45 @@ class GRAD_BC_ReplayManager : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	//! Whether COALITION's safestart has finished, i.e. weapons are live.
+	//!
+	//! Returns true when COALITION is absent or never enabled safestart, so BC still records
+	//! normally standalone rather than never starting at all.
+	protected bool IsSafestartOver()
+	{
+		COA_SafestartManager safestartManager = COA_SafestartManager.GetInstance();
+		if (!safestartManager)
+			return true; // no COALITION safestart in this session - nothing to wait for
+
+		// Safestart must actually have begun before its ending means anything. COA enables it a
+		// moment after the game state flips, so an unlatched check would see "not active yet",
+		// read that as "already over", and start recording during the freeze after all.
+		if (!m_bSafestartWasActive)
+		{
+			if (safestartManager.GetSafestartStatus())
+			{
+				m_bSafestartWasActive = true;
+				return false;
+			}
+
+			// Safestart may simply be switched off for this mission, in which case it will never
+			// latch. Waiting forever would mean never recording at all, so give up after a grace
+			// period and treat it as "no safestart to wait for".
+			m_iSafestartWaitTicks++;
+			if (m_iSafestartWaitTicks >= SAFESTART_WAIT_MAX_TICKS)
+			{
+				if (GRAD_BC_BreakingContactManager.IsDebugMode())
+					Print("GRAD_BC_ReplayManager: safestart never became active, recording without waiting", LogLevel.NORMAL);
+				return true;
+			}
+
+			return false;
+		}
+
+		return !safestartManager.GetSafestartStatus();
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void CheckGameState()
 	{
 		GRAD_BC_BreakingContactManager bcm = GRAD_BC_BreakingContactManager.GetInstance();
@@ -393,11 +452,20 @@ class GRAD_BC_ReplayManager : ScriptComponent
 			Print(string.Format("GRAD_BC_ReplayManager: Current phase: %1, Recording: %2", 
 				currentPhase, m_bIsRecording), LogLevel.NORMAL);
 			
-		// Start recording when game begins
-		if (!m_bIsRecording && currentPhase == EBreakingContactPhase.GAME)
+		// Start recording once the game phase is reached AND COALITION's safestart has lifted.
+		//
+		// The two are independent clocks: BC reaches GAME as soon as BLUFOR picks a spawn (about
+		// 10s in), while safestart runs its own configurable timer - 3 minutes on these worlds.
+		// Recording from GAME therefore captured a frozen field, and anything thrown during
+		// safestart was either deleted by it or landed outside the recording window.
+		//
+		// Only the recording trigger is gated here. The phase machine is deliberately left alone:
+		// spawn selection happens in the OPFOR/BLUFOR phases which run DURING the freeze, so
+		// delaying those phases breaks spawn selection outright.
+		if (!m_bIsRecording && currentPhase == EBreakingContactPhase.GAME && IsSafestartOver())
 		{
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
-				Print("GRAD_BC_ReplayManager: Game phase detected, starting recording", LogLevel.NORMAL);
+				Print("GRAD_BC_ReplayManager: game phase reached and safestart over, starting recording", LogLevel.NORMAL);
 			StartRecording();
 		}
 		
@@ -907,6 +975,7 @@ void StartLocalReplayPlayback()
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
+			ShowOutcomeHeadline(gamestateDisplay);
 			gamestateDisplay.ShowPersistentText("Preparing replay...");
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: Showing replay preparation text in gamestate HUD", LogLevel.NORMAL);
@@ -1210,6 +1279,10 @@ void StartLocalReplayPlayback()
 		
 		if (currentChunkStart >= m_replayData.frames.Count())
 		{
+			// Explosive events are a single small payload covering the whole replay, so they go
+			// out once here rather than being split across the per-frame chunks.
+			SendExplosiveEvents();
+
 			// All chunks sent, send completion signal after final delay
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
 				Print("GRAD_BC_ReplayManager: All chunks sent, sending completion RPC in 500ms", LogLevel.NORMAL);
@@ -1318,7 +1391,6 @@ void StartLocalReplayPlayback()
 		ref array<vector> rotations = {};
 		ref array<string> factions = {};
 		ref array<bool> inVehicles = {};
-		ref array<string> playerNames = {};
 		ref array<RplId> playerVehicleIds = {};
 		
 		// Projectile data arrays
@@ -1337,6 +1409,9 @@ void StartLocalReplayPlayback()
 		// Vehicle data arrays
 		ref array<float> vehicleTimestamps = {};
 		ref array<RplId> vehicleIds = {};
+		// Packed as "<role>|<0|1 alive>" so the player chunk stays within the argument limit
+		// the engine's Rpc() accepts - two extra parallel arrays exceeded it.
+		ref array<string> playerRoleAlive = {};
 		ref array<string> vehicleTypes = {};
 		ref array<string> vehicleFactions = {};
 		ref array<vector> vehiclePositions = {};
@@ -1351,13 +1426,21 @@ void StartLocalReplayPlayback()
 			foreach (GRAD_BC_PlayerSnapshot playerData : frame.players)
 			{
 				timestamps.Insert(frame.timestamp);
-				playerIds.Insert(string.Format("%1", playerData.playerId));
 				positions.Insert(playerData.position);
 				rotations.Insert(playerData.angles);
 				factions.Insert(playerData.factionKey);
 				inVehicles.Insert(playerData.isInVehicle);
-				playerNames.Insert(playerData.playerName);
 				playerVehicleIds.Insert(playerData.vehicleId);
+
+				// Rpc() accepts at most 8 parameters, so string fields are packed rather than
+				// sent as their own arrays. Player names are user-controlled and may contain
+				// any character, so the name goes LAST and is not split on - only the two
+				// leading fields are, with SplitLimited-style manual parsing on receive.
+				playerIds.Insert(string.Format("%1|%2", playerData.playerId, playerData.playerName));
+				string aliveFlag = "0";
+				if (playerData.isAlive)
+					aliveFlag = "1";
+				playerRoleAlive.Insert(playerData.unitRole + "|" + aliveFlag);
 			}
 			
 			// Add projectile data
@@ -1394,7 +1477,7 @@ void StartLocalReplayPlayback()
 		}
 		
 		// Send player data
-		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerNames, playerVehicleIds);
+		Rpc(RpcAsk_ReceivePlayerChunk, timestamps, playerIds, positions, rotations, factions, inVehicles, playerVehicleIds, playerRoleAlive);
 		
 		// Send projectile data if any
 		if (projTimestamps.Count() > 0)
@@ -1407,6 +1490,111 @@ void StartLocalReplayPlayback()
 		// Send vehicle data if any
 		if (vehicleTimestamps.Count() > 0)
 			Rpc(RpcAsk_ReceiveVehicleChunk, vehicleTimestamps, vehicleIds, vehicleTypes, vehicleFactions, vehiclePositions, vehicleRotations, vehicleWasUsed, vehicleIsEmpty);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	// Explosive events are not chunked per frame - they are absolute-time events covering the whole
+	// replay, so they are sent once, after the frame chunks.
+	void SendExplosiveEvents()
+	{
+		if (!m_replayData || m_replayData.explosiveEvents.IsEmpty())
+			return;
+
+		ref array<int> kinds = {};
+		ref array<vector> positions = {};
+		ref array<vector> endPositions = {};
+		ref array<float> startTimes = {};
+		ref array<float> endTimes = {};
+		ref array<int> colors = {};
+		ref array<string> factions = {};
+
+		foreach (GRAD_BC_ExplosiveEvent evt : m_replayData.explosiveEvents)
+		{
+			kinds.Insert(evt.kind);
+			positions.Insert(evt.position);
+			endPositions.Insert(evt.endPosition);
+			startTimes.Insert(evt.startTime);
+			endTimes.Insert(evt.endTime);
+			colors.Insert(evt.color);
+			factions.Insert(evt.factionKey);
+		}
+
+		Rpc(RpcAsk_ReceiveExplosiveEvents, kinds, positions, endPositions, startTimes, endTimes, colors, factions);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: sent %1 explosive events", kinds.Count()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
+	void RpcAsk_ReceiveExplosiveEvents(array<int> kinds, array<vector> positions, array<vector> endPositions, array<float> startTimes, array<float> endTimes, array<int> colors, array<string> factions)
+	{
+		if (!m_replayData)
+			m_replayData = GRAD_BC_ReplayData.Create();
+
+		m_replayData.explosiveEvents.Clear();
+
+		for (int i = 0; i < kinds.Count(); i++)
+		{
+			m_replayData.explosiveEvents.Insert(
+				GRAD_BC_ExplosiveEvent.Create(kinds[i], positions[i], endPositions[i], startTimes[i], endTimes[i], colors[i], factions[i]));
+		}
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: received %1 explosive events", kinds.Count()), LogLevel.NORMAL);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Explosive events active at a given playback time, for the map layer to render.
+	//! Includes AT shots still in flight, HE flashes still fading, and smoke clouds still present.
+	//! Total recorded explosive events, regardless of whether any is currently active.
+	int GetExplosiveEventCount()
+	{
+		if (!m_replayData)
+			return 0;
+
+		return m_replayData.explosiveEvents.Count();
+	}
+
+	//------------------------------------------------------------------------------------------------
+	int GetActiveExplosiveEvents(float playbackTime, out notnull array<ref GRAD_BC_ExplosiveEvent> outEvents)
+	{
+		outEvents.Clear();
+
+		if (!m_replayData)
+			return 0;
+
+		float replayStart = m_replayData.startTime;
+
+		// Detonations are instantaneous in reality but need to stay on screen long enough to be
+		// perceived. Because playback is time-compressed, the window is widened by the playback
+		// speed so the animation reads the same at any replay rate. Blasts that were seconds apart
+		// may therefore overlap on screen - that is an accepted trade for legibility.
+		float detonationWindow = DETONATION_VISIBLE_SECONDS * Math.Max(1.0, m_fPlaybackSpeed);
+
+		foreach (GRAD_BC_ExplosiveEvent evt : m_replayData.explosiveEvents)
+		{
+			// Event times are absolute world time; playbackTime is relative to replay start.
+			float relStart = evt.startTime - replayStart;
+			float relEnd = evt.endTime - replayStart;
+
+			// Smoke has a genuine duration of its own; point events get the perceptual window.
+			if (evt.kind != EGradBCExplosiveKind.SMOKE)
+				relEnd = Math.Max(relEnd, relStart + detonationWindow);
+
+			// A smoke thrown before recording began is still burning when the replay opens, so
+			// clamp its start rather than filtering it out for having a negative relative time.
+			if (relStart < 0)
+				relStart = 0;
+
+			if (relEnd < 0)
+				continue; // finished before the replay window - genuinely not shown
+
+			if (playbackTime >= relStart && playbackTime <= relEnd)
+				outEvents.Insert(evt);
+		}
+
+		return outEvents.Count();
 	}
 	
 	//------------------------------------------------------------------------------------------------
@@ -1437,6 +1625,7 @@ void StartLocalReplayPlayback()
 		GRAD_BC_Gamestate gamestateDisplay = FindGamestateDisplay();
 		if (gamestateDisplay)
 		{
+			ShowOutcomeHeadline(gamestateDisplay);
 			gamestateDisplay.ShowPersistentText("Replay loading... 0%");
 			gamestateDisplay.UpdateProgress(0);
 			if (GRAD_BC_BreakingContactManager.IsDebugMode())
@@ -1515,8 +1704,12 @@ void StartLocalReplayPlayback()
 	
 	//------------------------------------------------------------------------------------------------
 	[RplRpc(RplChannel.Reliable, RplRcver.Broadcast)]
-	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions, 
-		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<string> playerNames, array<RplId> playerVehicleIds)
+	//! playerIds entries are packed as "<playerId>|<playerName>" and playerRoleAlive as
+	//! "<role>|<0|1 alive>" - Rpc() accepts at most 8 parameters, so these four fields share
+	//! two arrays. See the packing site in SendReplayChunk for the format.
+	void RpcAsk_ReceivePlayerChunk(array<float> timestamps, array<string> playerIds, array<vector> positions,
+		array<vector> rotations, array<string> factions, array<bool> inVehicles, array<RplId> playerVehicleIds,
+		array<string> playerRoleAlive)
 	{
 		string isServer = "Client";
 		if (Replication.IsServer()) { isServer = "Server"; }
@@ -1555,16 +1748,49 @@ void StartLocalReplayPlayback()
 				m_replayData.frames.Insert(frame);
 			}
 			
+			// Unpack "<role>|<0|1 alive>"; fall back to the old defaults if the field is
+			// missing or malformed so a mismatched client still renders something sane.
+			bool alive = true;
+			string role = "Rifleman";
+			if (playerRoleAlive && i < playerRoleAlive.Count())
+			{
+				// Role strings come from DetermineUnitRole and never contain "|", so the
+				// first separator is also the only one.
+				string packedRole = playerRoleAlive[i];
+				int roleSep = packedRole.IndexOf("|");
+				if (roleSep >= 0)
+				{
+					role = packedRole.Substring(0, roleSep);
+					alive = (packedRole.Substring(roleSep + 1, packedRole.Length() - roleSep - 1) == "1");
+				}
+			}
+
+			// Unpack "<playerId>|<playerName>". Split on the FIRST separator only - a player
+			// name may itself contain "|", and everything after the first one is the name.
+			string packedId = playerIds[i];
+			int idSep = packedId.IndexOf("|");
+			int parsedPlayerId = 0;
+			string parsedPlayerName = "";
+			if (idSep >= 0)
+			{
+				parsedPlayerId = packedId.Substring(0, idSep).ToInt();
+				parsedPlayerName = packedId.Substring(idSep + 1, packedId.Length() - idSep - 1);
+			}
+			else
+			{
+				parsedPlayerId = packedId.ToInt();
+			}
+
 			GRAD_BC_PlayerSnapshot playerData = GRAD_BC_PlayerSnapshot.Create(
-				playerIds[i].ToInt(),
-				playerNames[i],
+				parsedPlayerId,
+				parsedPlayerName,
 				factions[i],
 				positions[i],
 				rotations[i],
-				true,
+				alive,
 				inVehicles[i],
-				"", // vehicleType is not sent, can be derived later if needed
-				"Rifleman", // unitRole is not sent, can be derived later if needed
+				"", // vehicleType is not sent for players; the vehicle chunk carries it
+				role,
 				playerVehicleIds[i]
 			);
 			
@@ -2258,7 +2484,10 @@ void StartLocalReplayPlayback()
 		PlayerController playerController = GetGame().GetPlayerController();
 		if (!playerController)
 		{
-			Print("GRAD_BC_ReplayManager: No player controller found to close map", LogLevel.WARNING);
+			Print("GRAD_BC_ReplayManager: No player controller found, closing map entity directly", LogLevel.WARNING);
+			SCR_MapEntity mapEntityNoPc = SCR_MapEntity.GetMapInstance();
+			if (mapEntityNoPc && mapEntityNoPc.IsOpen())
+				mapEntityNoPc.CloseMap();
 			return;
 		}
 		
@@ -2273,34 +2502,42 @@ void StartLocalReplayPlayback()
 				COA_SpectatorMenu.s_BCSpectatorMenu.CloseMap();
 			else
 			{
-				SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
-				if (mapEntity && mapEntity.IsOpen())
-					mapEntity.CloseMap();
+				SCR_MapEntity mapEntitySpec = SCR_MapEntity.GetMapInstance();
+				if (mapEntitySpec && mapEntitySpec.IsOpen())
+					mapEntitySpec.CloseMap();
 			}
 			return;
 		}
 		
+		// Gadget cleanup is best-effort: during replay all players are switched to
+		// the Spectator faction, so they still control an entity (the spectator
+		// camera) but no longer carry a map gadget. Neither missing gadget manager
+		// nor missing gadget may abort this method — closing the SCR_MapEntity
+		// below is the part that actually matters and must always run.
 		SCR_GadgetManagerComponent gadgetManager = SCR_GadgetManagerComponent.Cast(playerEntity.FindComponent(SCR_GadgetManagerComponent));
-		if (!gadgetManager)
+		if (gadgetManager)
 		{
-			Print("GRAD_BC_ReplayManager: No gadget manager found to close map", LogLevel.WARNING);
-			return;
+			IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
+			if (mapGadget)
+			{
+				// Put map back into inventory
+				gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
+			}
+			else if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			{
+				Print("GRAD_BC_ReplayManager: No map gadget found (spectator?), closing map entity only", LogLevel.NORMAL);
+			}
 		}
-		
-		IEntity mapGadget = gadgetManager.GetGadgetByType(EGadgetType.MAP);
-		if (!mapGadget)
+		else if (GRAD_BC_BreakingContactManager.IsDebugMode())
 		{
-			Print("GRAD_BC_ReplayManager: No map gadget found", LogLevel.WARNING);
-			return;
+			Print("GRAD_BC_ReplayManager: No gadget manager found, closing map entity only", LogLevel.NORMAL);
 		}
 
-		// Put map back into inventory
-		gadgetManager.SetGadgetMode(mapGadget, EGadgetMode.IN_SLOT);
-
-		// Also close the SCR_MapEntity itself — SetGadgetMode only manages the
+		// Always close the SCR_MapEntity itself — SetGadgetMode only manages the
 		// gadget slot, it does not call mapEntity.CloseMap(). Without this the
 		// map entity stays open, its widget frame gets destroyed by EndGameMode,
-		// and ~SCR_MapEntity later fires CloseMap on components with null widgets.
+		// and its still-active SCR_MapCursorModule keeps ticking on dead widgets,
+		// flooding the log with NULL pointer exceptions every frame.
 		SCR_MapEntity mapEntity = SCR_MapEntity.GetMapInstance();
 		if (mapEntity && mapEntity.IsOpen())
 			mapEntity.CloseMap();
@@ -2357,11 +2594,68 @@ void StartLocalReplayPlayback()
 		return m_bPlaybackPaused; 
 	}
 	
-	float GetPlaybackTime() 
-	{ 
-		return m_fCurrentPlaybackTime; 
+	float GetPlaybackTime()
+	{
+		return m_fCurrentPlaybackTime;
+	}
+
+	//------------------------------------------------------------------------------------------------
+	//! Absolute world time the replay began. Explosive events carry absolute timestamps, so the
+	//! renderer needs this to convert them into playback-relative times.
+	float GetReplayStartTime()
+	{
+		if (!m_replayData)
+			return 0;
+
+		return m_replayData.startTime;
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	//! Records a smoke deployment, HE detonation or AT shot.
+	//!
+	//! These are stored as absolute-time events rather than per-frame snapshots: a rocket's flight
+	//! lasts ~1-3s while frames are sampled every m_fRecordingInterval seconds (3s by default), so
+	//! snapshotting would miss it entirely. The client interpolates them against the playback clock.
+	//! \return the stored event, so the caller can refine it later (smoke end time), or null if
+	//! it was not recorded.
+	GRAD_BC_ExplosiveEvent RecordExplosiveEvent(EGradBCExplosiveKind kind, vector position, vector endPosition, float startTime, float endTime, int color, string factionKey)
+	{
+		if (!m_bIsRecording)
+			return null;
+
+		if (!m_replayData)
+			return null;
+
+		// Two entities can exist for one thrown grenade (observed: the same smoke recorded twice
+		// in the same millisecond at an identical position), so a per-component guard cannot stop
+		// it. Reject a duplicate of the same kind at effectively the same place and time instead.
+		foreach (GRAD_BC_ExplosiveEvent existing : m_replayData.explosiveEvents)
+		{
+			if (existing.kind != kind)
+				continue;
+
+			if (Math.AbsFloat(existing.startTime - startTime) > EXPLOSIVE_DEDUPE_SECONDS)
+				continue;
+
+			if (vector.Distance(existing.position, position) > EXPLOSIVE_DEDUPE_METERS)
+				continue;
+
+			if (GRAD_BC_BreakingContactManager.IsDebugMode())
+				Print(string.Format("GRAD_BC_ReplayManager: ignoring duplicate explosive event kind=%1 at %2", kind, position.ToString()), LogLevel.NORMAL);
+
+			return existing;
+		}
+
+		GRAD_BC_ExplosiveEvent evt = GRAD_BC_ExplosiveEvent.Create(kind, position, endPosition, startTime, endTime, color, factionKey);
+		m_replayData.explosiveEvents.Insert(evt);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: recorded explosive event kind=%1 at %2 (total %3)",
+				kind, position.ToString(), m_replayData.explosiveEvents.Count()), LogLevel.NORMAL);
+
+		return evt;
+	}
+
 	//------------------------------------------------------------------------------------------------
 	// New method for recording projectile firing events
 	void RecordProjectileFired(vector position, vector velocity, string ammoType)
@@ -2563,6 +2857,29 @@ void StartLocalReplayPlayback()
     Print("GRAD_BC_ReplayManager: Warning - All remaining frames seem empty!", LogLevel.WARNING);
 	}
 	
+	//------------------------------------------------------------------------------------------------
+	// Push the match outcome ("why is this replay running") onto the loading display, so it stays
+	// above the loading text and progress bar for the whole load. The summary is an [RplProp] on
+	// the manager, set the moment the outcome was decided, so it is already present on clients here.
+	void ShowOutcomeHeadline(GRAD_BC_Gamestate gamestateDisplay)
+	{
+		if (!gamestateDisplay)
+			return;
+
+		GRAD_BC_BreakingContactManager manager = GRAD_BC_BreakingContactManager.GetInstance();
+		if (!manager)
+			return;
+
+		string summary = manager.GetOutcomeSummary();
+		if (summary.IsEmpty())
+			return;
+
+		gamestateDisplay.SetHeadline(summary);
+
+		if (GRAD_BC_BreakingContactManager.IsDebugMode())
+			Print(string.Format("GRAD_BC_ReplayManager: Loading headline set to '%1'", summary), LogLevel.NORMAL);
+	}
+
 	//------------------------------------------------------------------------------------------------
 	// Find the GRAD_BC_Gamestate HUD display for showing loading progress
 	//------------------------------------------------------------------------------------------------

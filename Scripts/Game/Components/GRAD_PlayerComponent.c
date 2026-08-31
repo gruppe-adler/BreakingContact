@@ -299,63 +299,6 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	//! Client entry point: ask the server to switch the running scenario to s_aMaps[mapIndex].
-	//! Called from GRAD_BC_COA_PreviewMenu's map dropdown after the admin confirms.
-	void Ask_ChangeScenario(int mapIndex)
-	{
-		Rpc(RpcAsk_Server_ChangeScenario, mapIndex);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	//! Server-side scenario switch. Security note: the caller's identity comes from GetOwner()
-	//! - the PlayerController that owns this component - NOT from an RPC argument, which a
-	//! modified client could set to any value. Do not refactor this to take a playerId param.
-	//!
-	//! Likewise this must not use m_playerController: GetGame().GetPlayerController() returns the
-	//! LOCAL controller, which is null on a dedicated server.
-	[RplRpc(RplChannel.Reliable, RplRcver.Server)]
-	protected void RpcAsk_Server_ChangeScenario(int mapIndex)
-	{
-		if (!Replication.IsServer())
-			return;
-
-		PlayerController playerController = PlayerController.Cast(GetOwner());
-		if (!playerController)
-			return;
-
-		int callerId = playerController.GetPlayerId();
-
-		if (!GRAD_BC_MapSwitch.IsPlayerAdminServer(callerId))
-		{
-			Print(string.Format("BC Debug - MapSwitch: REJECTED scenario change from non-admin player %1", callerId), LogLevel.WARNING);
-			return;
-		}
-
-		if (mapIndex < 0 || mapIndex >= GRAD_BC_MapSwitch.GetMapCount())
-		{
-			Print(string.Format("BC Debug - MapSwitch: REJECTED out-of-range map index %1 from player %2", mapIndex, callerId), LogLevel.WARNING);
-			return;
-		}
-
-		if (GameStateTransitions.IsTransitionRequestedOrInProgress())
-		{
-			Print("BC Debug - MapSwitch: transition already requested or in progress, ignoring", LogLevel.WARNING);
-			return;
-		}
-
-		ResourceName mission = GRAD_BC_MapSwitch.GetMission(mapIndex);
-
-		Print(string.Format("BC Debug - MapSwitch: admin %1 switching scenario to %2", callerId, mission), LogLevel.NORMAL);
-
-		// Empty addonList = keep the currently loaded addons. If clients get kicked for a mod
-		// mismatch on switch, this is the first thing to change (semicolon-separated GUID list).
-		bool requested = GameStateTransitions.RequestScenarioChangeTransition(mission, ResourceName.Empty, string.Empty);
-
-		if (!requested)
-			Print(string.Format("BC Debug - MapSwitch: RequestScenarioChangeTransition REFUSED for %1", mission), LogLevel.ERROR);
-	}
-
-	//------------------------------------------------------------------------------------------------
 	//! Client entry point: ask the server to move the calling admin into spectator.
 	//! Works both from a slot and as the way back out of Game Master.
 	void Ask_EnterSpectator()
@@ -369,9 +312,10 @@ class GRAD_PlayerComponent : ScriptComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	//! Server-side spectator switch for a single player. Same security model as
-	//! RpcAsk_Server_ChangeScenario: the caller's identity comes from GetOwner(), never from an
-	//! RPC argument, so a modified client cannot move a different player.
+	//! Server-side spectator switch for a single player. The caller's identity comes from
+	//! GetOwner() - the PlayerController that owns this component - never from an RPC argument,
+	//! which a modified client could set to any value, so a modified client cannot move a
+	//! different player. Do not refactor this to take a playerId param.
 	//!
 	//! Covers BOTH cases the feature needs:
 	//!
@@ -400,7 +344,7 @@ class GRAD_PlayerComponent : ScriptComponent
 
 		int callerId = playerController.GetPlayerId();
 
-		if (!GRAD_BC_MapSwitch.IsPlayerAdminServer(callerId))
+		if (!GRAD_BC_AdminPermissions.IsPlayerAdminServer(callerId))
 		{
 			Print(string.Format("BC Debug - Spectator: REJECTED spectator request from non-admin player %1", callerId), LogLevel.WARNING);
 			return;

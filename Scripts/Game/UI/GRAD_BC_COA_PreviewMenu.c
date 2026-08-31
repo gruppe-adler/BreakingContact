@@ -113,7 +113,7 @@ modded class COA_PreviewMenu
 	{
 		// CanLocalPlayerSwitchMap() is just the admin check - it long predates the map switch
 		// panel being removed, and is still the gate these two buttons use.
-		bool isAdmin = GRAD_BC_MapSwitch.CanLocalPlayerSwitchMap();
+		bool isAdmin = GRAD_BC_AdminPermissions.HasLocalAdminAccess();
 
 		if (m_wBCTimeButton)
 			m_wBCTimeButton.SetVisible(isAdmin);

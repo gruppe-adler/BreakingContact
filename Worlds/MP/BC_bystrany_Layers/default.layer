@@ -1,5 +1,0 @@
-SCR_MapEntity MapEntity1 : "{731564B66F91B107}Prefabs/World/Game/MapEntity.et" {
- coords 1531.226 6.244 3204.105
- "Map Geometry Data" "{0C931F860C09AC4C}Worlds/Bystrany/Bystrany.topo"
- "Satellite background image" "{6A1DBBCA4452D2F4}UI/Textures/Map/Worlds/Bystrany/Bystrany_Satmap.edds"
-}

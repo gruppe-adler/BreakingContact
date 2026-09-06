@@ -6,5 +6,7 @@ SCR_ChimeraCharacter {
   GRAD_CharacterRoleComponent "{607F64131E3AB5D2}" {
    m_sCharacterRole "none"
   }
+  GRAD_BC_RadioCapComponent "{6842CA381356442B}" {
+  }
  }
 }
